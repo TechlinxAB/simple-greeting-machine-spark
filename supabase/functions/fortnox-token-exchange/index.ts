@@ -170,60 +170,55 @@ serve(async (req) => {
     console.log("🧾 Fortnox response body:");
     console.log(responseText);
     
+    // CRITICAL CHANGE: Always return the raw response text for debugging if it's not JSON parseable
     let responseData;
+    let parseError = null;
     
     try {
       responseData = JSON.parse(responseText);
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
+      parseError = e.message;
+      
+      // If not JSON, still return the text for debugging
       return new Response(
         JSON.stringify({ 
-          error: "server_error", 
-          error_description: "Failed to parse Fortnox response",
-          details: {
-            rawResponse: responseText,
-            parseError: e.message
-          }
+          error: "fortnox_response_parse_error", 
+          error_description: "Could not parse Fortnox response as JSON",
+          http_status: response.status,
+          raw_response: responseText,
+          parse_error: e.message
         }),
         { 
-          status: 500, 
+          status: response.status, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    // If Fortnox returned a non-200 status, pass that through with the error details
+    // If Fortnox returned a non-200 status, pass that through with the error details and the raw response
     if (!response.ok) {
-      console.error(`Fortnox API returned error status ${response.status}:`, responseData);
+      console.error(`Fortnox API returned error status ${response.status}:`, responseData || responseText);
+      
+      // Create a richer error response that includes everything we have
+      const errorResponse = {
+        error: responseData?.error || "fortnox_api_error",
+        error_description: responseData?.error_description || "Unknown error from Fortnox API",
+        http_status: response.status,
+        raw_response: responseText,
+        parsed_response: responseData || null
+      };
       
       // Handle specific error cases
-      let statusCode = response.status;
-      
-      // Provide more specific error information based on Fortnox errors
-      if (responseData.error === 'invalid_grant' && responseData.error_description?.includes('expired')) {
-        return new Response(
-          JSON.stringify({
-            error: responseData.error,
-            error_description: responseData.error_description,
-            error_hint: "Authorization code has expired. Please try connecting to Fortnox again.",
-            http_status: response.status,
-            request_needs_retry: true
-          }),
-          { 
-            status: 401, // Using 401 for expired tokens/codes
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
+      if (responseData?.error === 'invalid_grant' && responseData?.error_description?.includes('expired')) {
+        errorResponse.error_hint = "Authorization code has expired. Please try connecting to Fortnox again.";
+        errorResponse.request_needs_retry = true;
       }
       
       return new Response(
-        JSON.stringify({
-          error: responseData.error || "fortnox_api_error",
-          error_description: responseData.error_description || "Unknown error from Fortnox API",
-          http_status: response.status
-        }),
+        JSON.stringify(errorResponse),
         { 
-          status: statusCode, 
+          status: response.status, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -241,12 +236,26 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Server error in fortnox-token-exchange:", error);
+    
+    // IMPORTANT: Return a more detailed error with as much context as possible
+    const errorDetails = {
+      error: "server_error", 
+      error_description: "Server error occurred during token exchange",
+      details: error.message || "Unknown error",
+      stack: error.stack || null,
+    };
+    
+    // If the error has additional properties, include them
+    if (error && typeof error === 'object') {
+      for (const key in error) {
+        if (key !== 'message' && key !== 'stack') {
+          errorDetails[`error_${key}`] = error[key];
+        }
+      }
+    }
+    
     return new Response(
-      JSON.stringify({ 
-        error: "server_error", 
-        error_description: "Server error occurred during token exchange",
-        details: error.message || "Unknown error"
-      }),
+      JSON.stringify(errorDetails),
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
