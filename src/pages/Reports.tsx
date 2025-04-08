@@ -17,6 +17,7 @@ import {
   FileText, Edit, Save, X, Megaphone
 } from "lucide-react";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 export default function Reports() {
   const { user, role } = useAuth();
@@ -124,7 +125,16 @@ export default function Reports() {
           .single();
           
         if (error && error.code !== 'PGRST116') throw error;
-        return data?.settings || "Welcome to our company news section! No announcements yet.";
+        
+        // Handle the JSON data appropriately
+        if (data?.settings && typeof data.settings === 'string') {
+          return data.settings;
+        } else if (data?.settings) {
+          // If it's an object or other non-string JSON, convert to string
+          return JSON.stringify(data.settings);
+        }
+        
+        return "Welcome to our company news section! No announcements yet.";
       } catch (error) {
         console.error("Error fetching company news:", error);
         return "Error loading company news.";
@@ -135,7 +145,7 @@ export default function Reports() {
   // Update news content when data is loaded
   useEffect(() => {
     if (newsData) {
-      setNewsContent(newsData);
+      setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData));
     }
   }, [newsData]);
   
@@ -260,7 +270,8 @@ export default function Reports() {
   };
   
   const handleCancelEdit = () => {
-    setNewsContent(newsData || "");
+    // Cast to string to ensure we always have a string when setting state
+    setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData || ""));
     setEditingNews(false);
   };
   
@@ -525,7 +536,7 @@ export default function Reports() {
                 <div className="prose max-w-none">
                   {newsData ? (
                     <div className="bg-secondary/30 p-6 rounded-lg whitespace-pre-wrap">
-                      {newsData}
+                      {typeof newsData === 'string' ? newsData : JSON.stringify(newsData)}
                     </div>
                   ) : (
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
