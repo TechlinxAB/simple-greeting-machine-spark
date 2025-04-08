@@ -106,11 +106,13 @@ export async function exchangeCodeForTokens(
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    // Use a direct SQL query to insert/update the system settings
-    // This avoids TypeScript issues with RPC functions
+    // Convert the credentials to a stringifiable object
+    const settingsData = { credentials: JSON.parse(JSON.stringify(credentials)) };
+    
+    // Use direct SQL query with proper type handling
     const { error } = await supabase.from('system_settings').upsert({
       id: 'fortnox',
-      settings: { credentials }
+      settings: settingsData
     });
       
     if (error) throw error;
@@ -137,7 +139,13 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    return data?.settings?.credentials || null;
+    if (!data || !data.settings) {
+      return null;
+    }
+    
+    // Type assertion and safe access
+    const settings = data.settings as Record<string, any>;
+    return settings.credentials || null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
