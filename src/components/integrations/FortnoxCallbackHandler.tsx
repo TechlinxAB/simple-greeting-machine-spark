@@ -3,23 +3,21 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   exchangeCodeForTokens, 
-  saveFortnoxCredentials
+  saveFortnoxCredentials,
+  getFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 interface FortnoxCallbackHandlerProps {
-  clientId: string;
-  clientSecret: string;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
 }
 
 export function FortnoxCallbackHandler({ 
-  clientId, 
-  clientSecret,
   onSuccess,
   onError
 }: FortnoxCallbackHandlerProps) {
@@ -30,6 +28,14 @@ export function FortnoxCallbackHandler({
   const [redirectUri, setRedirectUri] = useState("");
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Fetch stored credentials from database
+  const { data: storedCredentials, isLoading: isLoadingCredentials } = useQuery({
+    queryKey: ["fortnox-credentials"],
+    queryFn: getFortnoxCredentials,
+    retry: 2,
+    staleTime: 10000,
+  });
 
   // Set the redirect URI when component mounts - must match exactly what was used in auth request
   useEffect(() => {
@@ -44,6 +50,12 @@ export function FortnoxCallbackHandler({
       console.error("User not authenticated in callback handler");
       setStatus('error');
       setError("You must be logged in to complete the Fortnox authorization process");
+      return;
+    }
+    
+    // Wait until credentials are loaded
+    if (isLoadingCredentials) {
+      console.log("Waiting for credentials to load...");
       return;
     }
     
@@ -64,7 +76,11 @@ export function FortnoxCallbackHandler({
       errorDesc: errorDescription,
       statePresent: !!state,
       savedStatePresent: !!savedState,
-      stateMatch: state === savedState
+      stateMatch: state === savedState,
+      credentials: storedCredentials ? {
+        clientIdPresent: !!storedCredentials.clientId,
+        clientSecretPresent: !!storedCredentials.clientSecret,
+      } : 'none'
     });
     
     // Check if we have an error from Fortnox
@@ -106,15 +122,12 @@ export function FortnoxCallbackHandler({
       sessionStorage.removeItem('fortnox_oauth_state');
     }
 
-    // Validate that we have all required parameters to proceed
-    if (!clientId || !clientSecret) {
-      console.error("Missing required OAuth credentials:", { 
-        clientIdPresent: !!clientId, 
-        clientSecretPresent: !!clientSecret 
-      });
+    // Check if we have valid credentials from database
+    if (!storedCredentials || !storedCredentials.clientId || !storedCredentials.clientSecret) {
+      console.error("No valid Fortnox credentials found in database");
       setStatus('error');
       setError("Missing Fortnox API credentials");
-      setErrorDetails("Please check your Fortnox client ID and secret in the settings form above, save them, and try connecting again.");
+      setErrorDetails("Please check your Fortnox client ID and client secret in the settings form above, save them, and try connecting again.");
       if (onError) onError(new Error("Missing Fortnox API credentials"));
       return;
     }
@@ -128,10 +141,10 @@ export function FortnoxCallbackHandler({
     }
 
     // We have a code and all required parameters, proceed with token exchange
-    handleAuthorizationCode(code);
-  }, [searchParams, clientId, clientSecret, redirectUri, user, onError, onSuccess]);
+    handleAuthorizationCode(code, storedCredentials.clientId, storedCredentials.clientSecret);
+  }, [searchParams, storedCredentials, redirectUri, user, onError, onSuccess, isLoadingCredentials]);
 
-  const handleAuthorizationCode = async (code: string) => {
+  const handleAuthorizationCode = async (code: string, clientId: string, clientSecret: string) => {
     try {
       setStatus('processing');
       console.log("Processing authorization code, using redirect URI:", redirectUri);
@@ -222,6 +235,17 @@ export function FortnoxCallbackHandler({
 
   // Render different UI based on status
   if (status === 'idle') {
+    if (isLoadingCredentials) {
+      return (
+        <Alert className="bg-blue-50 border-blue-200">
+          <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+          <AlertTitle>Loading credentials</AlertTitle>
+          <AlertDescription>
+            Please wait while we load your Fortnox credentials...
+          </AlertDescription>
+        </Alert>
+      );
+    }
     return null;
   }
 

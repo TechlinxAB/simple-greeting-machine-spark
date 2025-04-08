@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -28,7 +27,6 @@ const fortnoxSettingsSchema = z.object({
   fortnoxClientSecret: z.string().min(5, { message: "Fortnox Client Secret is too short" }),
 });
 
-// Define TypeScript interfaces for our settings data structure
 interface AppSettings {
   appName: string;
   primaryColor: string;
@@ -45,7 +43,6 @@ interface SystemSettingsResponse {
   appSettings: AppSettings | null;
 }
 
-// Type to match Supabase's JSON structure
 interface SettingsRow {
   id: string;
   settings: Record<string, any>;
@@ -61,7 +58,6 @@ export default function Settings() {
   const [fortnoxConnected, setFortnoxConnected] = useState(false);
   const { role, user } = useAuth();
   
-  // Ensure the user is authenticated and redirect if not
   useEffect(() => {
     if (!user) {
       toast.error("You must be logged in to access settings");
@@ -69,7 +65,6 @@ export default function Settings() {
     }
   }, [user, navigate]);
   
-  // Only admin should access this page
   if (role !== 'admin') {
     return (
       <div className="container mx-auto py-6">
@@ -88,7 +83,6 @@ export default function Settings() {
     );
   }
   
-  // If user is not authenticated, show loading state
   if (!user) {
     return (
       <div className="container mx-auto py-6">
@@ -121,12 +115,10 @@ export default function Settings() {
     },
   });
   
-  // Load settings from database on mount
   const { data: systemSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["system-settings"],
     queryFn: async () => {
       try {
-        // Fetch fortnox settings
         const { data: fortnoxData, error: fortnoxError } = await supabase
           .from('system_settings')
           .select('settings')
@@ -138,7 +130,6 @@ export default function Settings() {
           toast.error("Failed to load Fortnox settings");
         }
           
-        // Fetch app settings
         const { data: appData, error: appError } = await supabase
           .from('system_settings')
           .select('settings')
@@ -150,7 +141,6 @@ export default function Settings() {
           toast.error("Failed to load app settings");
         }
           
-        // Parse and type-cast the settings safely
         const fortnoxSettings = fortnoxData?.settings as Record<string, any> | null;
         const appSettings = appData?.settings as Record<string, any> | null;
         
@@ -173,18 +163,13 @@ export default function Settings() {
     }
   });
   
-  // Update forms when settings are loaded
   useEffect(() => {
     if (systemSettings) {
-      // Update app settings form
       if (systemSettings.appSettings) {
         appSettingsForm.reset(systemSettings.appSettings);
-        
-        // Also save to localStorage for immediate effect
         localStorage.setItem('appSettings', JSON.stringify(systemSettings.appSettings));
       }
       
-      // Update Fortnox settings form
       if (systemSettings.fortnoxSettings) {
         const fortnoxCreds = {
           fortnoxClientId: systemSettings.fortnoxSettings.clientId || "",
@@ -192,12 +177,9 @@ export default function Settings() {
         };
         
         fortnoxSettingsForm.reset(fortnoxCreds);
-        
-        // Also save to localStorage for immediate effect
         localStorage.setItem('fortnoxSettings', JSON.stringify(fortnoxCreds));
       }
     } else {
-      // Try to load from localStorage as fallback
       const storedAppSettings = localStorage.getItem('appSettings');
       if (storedAppSettings) {
         try {
@@ -220,7 +202,6 @@ export default function Settings() {
     }
   }, [systemSettings, appSettingsForm, fortnoxSettingsForm]);
   
-  // If tab is specified in URL, activate that tab
   useEffect(() => {
     if (tabFromUrl) {
       setActiveTab(tabFromUrl);
@@ -229,10 +210,7 @@ export default function Settings() {
   
   const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
-      // Save to localStorage for immediate effect
       localStorage.setItem('appSettings', JSON.stringify(values));
-      
-      // Also save to database for persistence
       const { error } = await supabase
         .from('system_settings')
         .upsert({
@@ -251,10 +229,7 @@ export default function Settings() {
   
   const onFortnoxSettingsSubmit = async (values: z.infer<typeof fortnoxSettingsSchema>) => {
     try {
-      // Save to localStorage for immediate effect
       localStorage.setItem('fortnoxSettings', JSON.stringify(values));
-      
-      // Also save to database for persistence
       const { error } = await supabase
         .from('system_settings')
         .upsert({
@@ -275,7 +250,6 @@ export default function Settings() {
   };
   
   const handleFortnoxCallbackSuccess = () => {
-    // Refresh the form after successful connection
     setFortnoxConnected(true);
     toast.success("Successfully connected to Fortnox!");
   };
@@ -284,11 +258,9 @@ export default function Settings() {
     toast.error(`Failed to connect to Fortnox: ${error.message}`);
   };
   
-  // Get the client ID and secret from the form
   const currentClientId = fortnoxSettingsForm.watch('fortnoxClientId');
   const currentClientSecret = fortnoxSettingsForm.watch('fortnoxClientSecret');
   
-  // Debug: Log the values to help debugging
   console.log("Current client ID:", currentClientId ? `${currentClientId.substring(0, 3)}...` : "not set");
   console.log("Current client secret present:", !!currentClientSecret);
   
@@ -396,12 +368,9 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             
-            {/* Handle OAuth callback if code is present in URL */}
             {searchParams.has('code') && (
               <CardContent className="mb-6">
                 <FortnoxCallbackHandler 
-                  clientId={currentClientId}
-                  clientSecret={currentClientSecret}
                   onSuccess={handleFortnoxCallbackSuccess}
                   onError={handleFortnoxCallbackError}
                 />

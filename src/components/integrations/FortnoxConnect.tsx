@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { 
   isFortnoxConnected,
   disconnectFortnox,
-  getFortnoxCredentials
+  getFortnoxCredentials,
+  saveFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink } from "lucide-react";
@@ -78,7 +79,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     }
   }, [connected, onStatusChange]);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!user) {
       toast.error("You need to be logged in to connect to Fortnox");
       navigate("/login");
@@ -108,6 +109,14 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     
     try {
       setIsConnecting(true);
+      
+      // First, save the credentials to the database
+      await saveFortnoxCredentials({
+        clientId,
+        clientSecret
+      });
+      
+      console.log("Saved credentials to database before OAuth flow");
       
       // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
