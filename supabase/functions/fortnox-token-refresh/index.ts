@@ -3,7 +3,22 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
+// Define CORS headers to allow requests from any origin
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 serve(async (req) => {
+  // Handle CORS preflight requests (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
+  
   try {
     // Parse the request body
     const requestData = await req.json();
@@ -12,7 +27,10 @@ serve(async (req) => {
     if (!requestData.client_id || !requestData.client_secret || !requestData.refresh_token) {
       return new Response(
         JSON.stringify({ error: "Missing required parameters" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
     
@@ -23,6 +41,8 @@ serve(async (req) => {
       client_secret: requestData.client_secret,
       refresh_token: requestData.refresh_token,
     });
+    
+    console.log("Making token refresh request to Fortnox");
     
     // Make the request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
@@ -45,7 +65,10 @@ serve(async (req) => {
           error: "Failed to parse Fortnox response", 
           rawResponse: responseText 
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
     
@@ -57,23 +80,33 @@ serve(async (req) => {
           status: response.status,
           details: responseData
         }),
-        { status: response.status, headers: { "Content-Type": "application/json" } }
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
     
     // Return the token data
     return new Response(
       JSON.stringify(responseData),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   } catch (error) {
+    console.error("Server error in fortnox-token-refresh:", error);
     return new Response(
       JSON.stringify({ 
         error: "Server error", 
         message: error.message || "Unknown error",
         stack: error.stack || "No stack trace"
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 });

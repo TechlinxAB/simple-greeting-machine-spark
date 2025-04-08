@@ -12,7 +12,7 @@ import {
   FortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 

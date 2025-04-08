@@ -102,7 +102,7 @@ export function FortnoxCallbackHandler({
     if (!clientId || !clientSecret) {
       console.error("Missing required OAuth credentials:", { clientIdExists: !!clientId, clientSecretExists: !!clientSecret });
       setStatus('error');
-      setError("Missing Fortnox API credentials. Please check your Fortnox client ID and secret.");
+      setError("Missing Fortnox API credentials. Please check your Fortnox client ID and secret in the settings form above, save them, and try connecting again.");
       return;
     }
 
@@ -223,6 +223,11 @@ export function FortnoxCallbackHandler({
               <code className="mt-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
                 {redirectUri}
               </code>
+            </div>
+          )}
+          {error?.includes('Missing Fortnox API credentials') && (
+            <div className="mt-2">
+              <p className="font-medium">Please enter your Client ID and Client Secret in the form above, save them, and try connecting again.</p>
             </div>
           )}
           {error?.includes('Network error') && (
