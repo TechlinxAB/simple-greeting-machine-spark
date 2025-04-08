@@ -1,6 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { useSearchParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
+import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, { message: "App name is required" }),
@@ -19,14 +22,15 @@ const appSettingsSchema = z.object({
 });
 
 const fortnoxSettingsSchema = z.object({
-  fortnoxClientId: z.string().optional(),
-  fortnoxClientSecret: z.string().optional(),
-  fortnoxAccessToken: z.string().optional(),
-  fortnoxRefreshToken: z.string().optional(),
+  fortnoxClientId: z.string().min(1, { message: "Fortnox Client ID is required" }),
+  fortnoxClientSecret: z.string().min(1, { message: "Fortnox Client Secret is required" }),
 });
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("appearance");
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "appearance");
+  const [fortnoxConnected, setFortnoxConnected] = useState(false);
   const { role } = useAuth();
   
   // Only admin should access this page
@@ -62,10 +66,31 @@ export default function Settings() {
     defaultValues: {
       fortnoxClientId: "",
       fortnoxClientSecret: "",
-      fortnoxAccessToken: "",
-      fortnoxRefreshToken: "",
     },
   });
+  
+  // Update form from localStorage on component mount
+  useEffect(() => {
+    const storedAppSettings = localStorage.getItem('appSettings');
+    if (storedAppSettings) {
+      try {
+        const settings = JSON.parse(storedAppSettings);
+        appSettingsForm.reset(settings);
+      } catch (error) {
+        console.error('Error parsing app settings:', error);
+      }
+    }
+    
+    const storedFortnoxSettings = localStorage.getItem('fortnoxSettings');
+    if (storedFortnoxSettings) {
+      try {
+        const settings = JSON.parse(storedFortnoxSettings);
+        fortnoxSettingsForm.reset(settings);
+      } catch (error) {
+        console.error('Error parsing Fortnox settings:', error);
+      }
+    }
+  }, []);
   
   const onAppSettingsSubmit = (values: z.infer<typeof appSettingsSchema>) => {
     // Save to localStorage for demo purposes
@@ -77,8 +102,18 @@ export default function Settings() {
   };
   
   const onFortnoxSettingsSubmit = (values: z.infer<typeof fortnoxSettingsSchema>) => {
-    // In a real app, you would save these securely
+    // Save to localStorage for demo purposes
+    localStorage.setItem('fortnoxSettings', JSON.stringify(values));
     toast.success("Fortnox settings saved successfully");
+  };
+  
+  const handleFortnoxCallbackSuccess = () => {
+    // Refresh the form after successful connection
+    setFortnoxConnected(true);
+  };
+  
+  const handleFortnoxCallbackError = (error: Error) => {
+    toast.error(`Failed to connect to Fortnox: ${error.message}`);
   };
   
   return (
@@ -184,6 +219,19 @@ export default function Settings() {
                 Connect to Fortnox API for invoice exports
               </CardDescription>
             </CardHeader>
+            
+            {/* Handle OAuth callback if code is present in URL */}
+            {searchParams.has('code') && (
+              <CardContent className="mb-6">
+                <FortnoxCallbackHandler 
+                  clientId={fortnoxSettingsForm.getValues('fortnoxClientId')}
+                  clientSecret={fortnoxSettingsForm.getValues('fortnoxClientSecret')}
+                  onSuccess={handleFortnoxCallbackSuccess}
+                  onError={handleFortnoxCallbackError}
+                />
+              </CardContent>
+            )}
+            
             <Form {...fortnoxSettingsForm}>
               <form onSubmit={fortnoxSettingsForm.handleSubmit(onFortnoxSettingsSubmit)}>
                 <CardContent className="space-y-4">
@@ -196,6 +244,9 @@ export default function Settings() {
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Client ID from your Fortnox Developer Portal
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -210,59 +261,31 @@ export default function Settings() {
                         <FormControl>
                           <Input type="password" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Client Secret from your Fortnox Developer Portal
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   
-                  <Separator />
+                  <Button type="submit" className="mt-2">Save Credentials</Button>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={fortnoxSettingsForm.control}
-                      name="fortnoxAccessToken"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Access Token (Optional)</FormLabel>
-                          <FormControl>
-                            <Input type="password" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            This will be auto-generated if not provided.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={fortnoxSettingsForm.control}
-                      name="fortnoxRefreshToken"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Refresh Token (Optional)</FormLabel>
-                          <FormControl>
-                            <Input type="password" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            This will be auto-generated if not provided.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <Separator className="my-6" />
                   
-                  <div className="bg-muted p-4 rounded-md">
+                  <FortnoxConnect 
+                    clientId={fortnoxSettingsForm.getValues('fortnoxClientId')}
+                    clientSecret={fortnoxSettingsForm.getValues('fortnoxClientSecret')}
+                    onStatusChange={setFortnoxConnected}
+                  />
+                  
+                  <div className="bg-muted p-4 rounded-md mt-6">
                     <p className="text-sm text-muted-foreground">
                       Note: To integrate with Fortnox, you'll need to register your application in the Fortnox Developer Portal.
                       After registration, you'll receive a Client ID and Client Secret to use with this application.
                     </p>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button type="submit">Save Fortnox Settings</Button>
-                </CardFooter>
               </form>
             </Form>
           </Card>

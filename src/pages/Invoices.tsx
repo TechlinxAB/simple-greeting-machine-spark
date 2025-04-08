@@ -1,18 +1,23 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarRange, FilePlus2, Search, FileText } from "lucide-react";
+import { CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { isFortnoxConnected } from "@/integrations/fortnox/api";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
 
-  const { data: invoices = [], isLoading } = useQuery({
+  // Get invoices data
+  const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,7 +35,15 @@ export default function Invoices() {
         .order("issue_date", { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data || [];
+    },
+  });
+
+  // Check if Fortnox is connected
+  const { data: fortnoxConnected = false } = useQuery({
+    queryKey: ["fortnox-connected"],
+    queryFn: async () => {
+      return await isFortnoxConnected();
     },
   });
 
@@ -46,6 +59,39 @@ export default function Invoices() {
         return "outline" as const;
     }
   };
+
+  const handleExportToFortnox = async (invoiceId: string) => {
+    setExportingInvoiceId(invoiceId);
+    
+    try {
+      // In a real implementation, this would call the appropriate Fortnox API
+      // For this demo, we'll just update the exported_to_fortnox field
+      
+      const { error } = await supabase
+        .from("invoices")
+        .update({ exported_to_fortnox: true })
+        .eq("id", invoiceId);
+        
+      if (error) throw error;
+      
+      toast.success("Invoice exported to Fortnox successfully");
+      refetch();
+    } catch (error) {
+      console.error("Error exporting invoice to Fortnox:", error);
+      toast.error("Failed to export invoice to Fortnox");
+    } finally {
+      setExportingInvoiceId(null);
+    }
+  };
+
+  // Filter invoices based on search term
+  const filteredInvoices = searchTerm
+    ? invoices.filter(invoice => 
+        invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.status.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : invoices;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -73,22 +119,33 @@ export default function Invoices() {
       </div>
       
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Invoices</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            className="flex items-center gap-2"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            <span>Refresh</span>
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             </div>
-          ) : invoices.length === 0 ? (
+          ) : filteredInvoices.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>No invoices found. Create your first invoice to get started!</p>
-              <Button variant="outline" className="mt-4">
-                <FilePlus2 className="mr-2 h-4 w-4" />
-                Create Invoice
-              </Button>
+              <p>{searchTerm ? "No invoices match your search" : "No invoices found. Create your first invoice to get started!"}</p>
+              {!searchTerm && (
+                <Button variant="outline" className="mt-4">
+                  <FilePlus2 className="mr-2 h-4 w-4" />
+                  Create Invoice
+                </Button>
+              )}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -101,11 +158,12 @@ export default function Invoices() {
                     <TableHead>Due Date</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Exported</TableHead>
+                    <TableHead>Fortnox</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((invoice) => (
+                  {filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                       <TableCell>{invoice.clients?.name || 'Unknown Client'}</TableCell>
@@ -133,10 +191,45 @@ export default function Invoices() {
                           </Badge>
                         )}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!fortnoxConnected || invoice.exported_to_fortnox || exportingInvoiceId === invoice.id}
+                                onClick={() => handleExportToFortnox(invoice.id)}
+                              >
+                                {exportingInvoiceId === invoice.id ? (
+                                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {!fortnoxConnected
+                                ? "Fortnox not connected. Configure in Settings."
+                                : invoice.exported_to_fortnox
+                                  ? "Already exported to Fortnox"
+                                  : "Export to Fortnox"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {!fortnoxConnected && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                Fortnox integration is not connected. Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.
+              </p>
             </div>
           )}
         </CardContent>
