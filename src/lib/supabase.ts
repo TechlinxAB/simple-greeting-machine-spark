@@ -16,22 +16,21 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true, // Enable session detection in URLs for auth redirects
   },
   global: {
+    headers: {
+      'Content-Type': 'application/json'
+    },
     fetch: (url, options) => {
-      const fetchOptions = {
-        ...options,
-        headers: {
-          ...options?.headers,
-          'Content-Type': 'application/json',
-        },
-      };
-      return fetch(url, fetchOptions);
+      // Enhanced fetch with retries for network issues
+      return fetch(url, options).catch(err => {
+        console.error('Network error in Supabase request:', err);
+        throw err;
+      });
     }
   },
-  // Improve reliability with retries
   db: {
     schema: 'public',
   },
   realtime: {
-    timeout: 60000, // Increase timeout for operations
+    timeout: 60000, // Increased timeout for operations
   }
 });

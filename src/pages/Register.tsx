@@ -10,6 +10,8 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 // Define schema for form validation
 const registerSchema = z.object({
@@ -26,7 +28,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -44,8 +46,13 @@ const Register = () => {
     if (isLoading) return; // Prevent multiple submissions
     
     setIsLoading(true);
+    setError(null);
+    
     try {
       console.log("Submitting registration with values:", values.email, values.name);
+      
+      // Add a small delay before signup to ensure clean state
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await signUp(values.email, values.password, values.name);
       
@@ -60,12 +67,15 @@ const Register = () => {
     } catch (error: any) {
       console.error("Registration error:", error);
       
-      // Error handled in the signUp function of AuthContext
-      
-      // Increment retry count for next submission if it was a database error
-      if (error.message?.includes("Database error")) {
-        setRetryCount(prev => Math.min(prev + 1, 3));
+      // Set appropriate error message
+      if (error.message?.includes("User already registered")) {
+        setError("This email is already registered. Please sign in instead.");
+      } else if (error.message?.includes("Database error")) {
+        setError("A server error occurred. Please try again in a moment.");
+      } else {
+        setError(error.message || "Registration failed. Please try again.");
       }
+      
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +94,12 @@ const Register = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
               <FormField
                 control={form.control}
                 name="name"
@@ -143,7 +159,14 @@ const Register = () => {
             
             <CardFooter className="flex flex-col space-y-4">
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating account..." : "Create account"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  "Create account"
+                )}
               </Button>
               <div className="text-center text-sm">
                 Already have an account?{" "}
