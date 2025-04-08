@@ -1,6 +1,6 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 // API endpoints for Fortnox
 const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
@@ -270,17 +270,24 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     // Handle the data properly with type checking
     const settingsData = data.settings;
     
-    // Properly type check and cast
+    // Proper type checking before casting to FortnoxCredentials
     if (
       typeof settingsData === 'object' && 
       settingsData !== null && 
       !Array.isArray(settingsData) &&
       'clientId' in settingsData && 
-      'clientSecret' in settingsData
+      typeof settingsData.clientId === 'string' &&
+      'clientSecret' in settingsData &&
+      typeof settingsData.clientSecret === 'string'
     ) {
-      // This is a type guard to ensure we have a valid FortnoxCredentials object
-      const credentials = settingsData as FortnoxCredentials;
-      return credentials;
+      // After thorough type checking, we can safely cast
+      return {
+        clientId: settingsData.clientId,
+        clientSecret: settingsData.clientSecret,
+        accessToken: typeof settingsData.accessToken === 'string' ? settingsData.accessToken : undefined,
+        refreshToken: typeof settingsData.refreshToken === 'string' ? settingsData.refreshToken : undefined,
+        expiresAt: typeof settingsData.expiresAt === 'number' ? settingsData.expiresAt : undefined
+      };
     }
     
     console.log("Invalid credentials format found in settings");
