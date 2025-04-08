@@ -7,7 +7,7 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
 serve(async (req) => {
@@ -17,6 +17,21 @@ serve(async (req) => {
     return new Response(null, {
       status: 204,
       headers: corsHeaders
+    });
+  }
+  
+  // Handle test requests with special path
+  const url = new URL(req.url);
+  if (url.pathname.endsWith('/test')) {
+    console.log("Test endpoint called");
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Test endpoint is working",
+      timestamp: new Date().toISOString(),
+      headers: Object.fromEntries([...req.headers.entries()]),
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
   
@@ -130,52 +145,58 @@ serve(async (req) => {
       }
     }
     
-    // Additional validation for parameter lengths
-    if (requestData.client_id && requestData.client_id.length < 5) {
-      console.error("Client ID appears to be too short", { length: requestData.client_id.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid client_id",
-          details: "Client ID appears to be too short or invalid",
-          length: requestData.client_id.length,
-          value: requestData.client_id
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    // Additional validation for parameter values (not just existence)
+    if (requestData.client_id) {
+      if (requestData.client_id.length < 5) {
+        console.error("Client ID appears to be too short", { length: requestData.client_id.length, value: requestData.client_id });
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid client_id",
+            details: "Client ID appears to be too short or invalid",
+            length: requestData.client_id.length,
+            value: requestData.client_id
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     }
     
-    if (requestData.client_secret && requestData.client_secret.length < 5) {
-      console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid client_secret",
-          details: "Client secret appears to be too short or invalid",
-          length: requestData.client_secret.length
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    if (requestData.client_secret) {
+      if (requestData.client_secret.length < 5) {
+        console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid client_secret",
+            details: "Client secret appears to be too short or invalid",
+            length: requestData.client_secret.length
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     }
     
-    if (grantType === 'authorization_code' && requestData.code && requestData.code.length < 5) {
-      console.error("Authorization code appears to be too short", { length: requestData.code.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid authorization code",
-          details: "Authorization code appears to be too short or invalid",
-          length: requestData.code.length,
-          value: requestData.code
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    if (grantType === 'authorization_code' && requestData.code) {
+      if (requestData.code.length < 5) {
+        console.error("Authorization code appears to be too short", { length: requestData.code.length, value: requestData.code });
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid authorization code",
+            details: "Authorization code appears to be too short or invalid",
+            length: requestData.code.length,
+            value: requestData.code
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     }
     
     // Prepare the form data

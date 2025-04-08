@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -88,7 +87,17 @@ export async function exchangeCodeForTokens(
     console.log("Attempting to use Supabase Edge Function for token exchange");
     
     try {
-      // Call Supabase edge function - this avoids CORS issues
+      // First, try to call the test endpoint to verify the function is accessible
+      console.log("Testing Edge Function connectivity");
+      const { data: testData, error: testError } = await supabase.functions.invoke('fortnox-token-exchange/test');
+      
+      if (testError) {
+        console.error("Test endpoint error:", testError);
+      } else {
+        console.log("Test endpoint response:", testData);
+      }
+      
+      // Now call the actual token exchange endpoint
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
         body: JSON.stringify(tokenExchangeData)
       });
@@ -100,29 +109,29 @@ export async function exchangeCodeForTokens(
         
         // Try to extract more detailed error information
         let detailedError = proxyError.message || "Unknown edge function error";
+        let errorData = null;
         
         // Try to parse the error response if available
         try {
-          // Sometimes error messages contain JSON
-          if (typeof proxyError.message === 'string' && proxyError.message.includes('{')) {
-            const errorText = proxyError.message;
-            const jsonStart = errorText.indexOf('{');
-            const jsonEnd = errorText.lastIndexOf('}') + 1;
+          // Sometimes error responses can contain JSON
+          if (typeof proxyError === 'object' && proxyError.message) {
+            const errorMsg = proxyError.message;
             
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-              const errorJson = JSON.parse(errorText.substring(jsonStart, jsonEnd));
+            if (errorMsg.includes('{') && errorMsg.includes('}')) {
+              const jsonStart = errorMsg.indexOf('{');
+              const jsonEnd = errorMsg.lastIndexOf('}') + 1;
               
-              if (errorJson) {
-                if (errorJson.error && errorJson.error_description) {
-                  detailedError = `Fortnox error: ${errorJson.error} - ${errorJson.error_description}`;
-                } else if (errorJson.error) {
-                  detailedError = `Error: ${errorJson.error}`;
-                } else if (errorJson.message) {
-                  detailedError = errorJson.message;
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                try {
+                  errorData = JSON.parse(errorMsg.substring(jsonStart, jsonEnd));
+                  console.log("Parsed error data:", errorData);
+                  
+                  if (errorData.error) {
+                    detailedError = `Fortnox API error: ${errorData.error}${errorData.error_description ? ' - ' + errorData.error_description : ''}`;
+                  }
+                } catch (jsonError) {
+                  console.log("Failed to parse error JSON", jsonError);
                 }
-                
-                // If we have detailed error information, log it
-                console.error("Detailed error from Edge Function:", errorJson);
               }
             }
           }
