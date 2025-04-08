@@ -204,27 +204,26 @@ export function FortnoxCallbackHandler({
         // Check if this is an expired code error
         if (
           errorMessage.includes('invalid_grant') || 
-          errorMessage.includes('expired') ||
-          (typeof error === 'object' && 
-           error !== null && 
-           'error_hint' in error && 
-           error.error_hint?.includes('expired'))
+          errorMessage.includes('expired')
         ) {
           errorMessage = "Authorization code has expired";
           errorDetail = "The code from Fortnox is no longer valid. Please try connecting again.";
           requiresRetry = true;
         }
       } else if (typeof error === 'object' && error !== null) {
-        if ('error' in error && error.error === 'invalid_grant') {
+        // Fixed this part to properly type check
+        const errorObj = error as Record<string, unknown>;
+        
+        if ('error' in errorObj && errorObj.error === 'invalid_grant') {
           errorMessage = "Authorization code has expired";
           errorDetail = "The code from Fortnox is no longer valid. Please try connecting again.";
           requiresRetry = true;
-        } else if ('message' in error) {
-          errorMessage = String(error.message);
+        } else if ('message' in errorObj && typeof errorObj.message === 'string') {
+          errorMessage = errorObj.message;
         }
         
         // Check for request_needs_retry flag from our backend
-        if ('request_needs_retry' in error && error.request_needs_retry) {
+        if ('request_needs_retry' in errorObj && errorObj.request_needs_retry) {
           requiresRetry = true;
         }
       } else if (typeof error === 'string') {
@@ -232,10 +231,14 @@ export function FortnoxCallbackHandler({
       }
       
       // Better network error detection and messaging
-      if (errorMessage.includes('Failed to fetch') || 
+      if (
+        typeof errorMessage === 'string' && (
+          errorMessage.includes('Failed to fetch') || 
           errorMessage.includes('Network') || 
           errorMessage.includes('CORS') ||
-          errorMessage.includes('cross-origin')) {
+          errorMessage.includes('cross-origin')
+        )
+      ) {
         errorMessage = "Network error connecting to Fortnox API";
         errorDetail = "This could be due to CORS restrictions or network connectivity issues.";
       }

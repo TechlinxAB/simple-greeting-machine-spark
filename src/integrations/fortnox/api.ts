@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -124,7 +125,8 @@ export async function exchangeCodeForTokens(
                 
                 if (errorData) {
                   if (errorData.error === 'invalid_grant' && 
-                      errorData.error_description?.includes('expired')) {
+                      typeof errorData.error_description === 'string' && 
+                      errorData.error_description.includes('expired')) {
                     throw {
                       error: 'invalid_grant',
                       error_description: 'Authorization code has expired',
@@ -163,7 +165,8 @@ export async function exchangeCodeForTokens(
         
         // Special handling for expired code
         if (proxyResponse.error === 'invalid_grant' && 
-            proxyResponse.error_description?.includes('expired')) {
+            typeof proxyResponse.error_description === 'string' && 
+            proxyResponse.error_description.includes('expired')) {
           throw {
             error: 'invalid_grant',
             error_description: 'Authorization code has expired',
@@ -264,15 +267,24 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Handle the data properly
-    const credentials = data.settings as FortnoxCredentials;
+    // Handle the data properly with type checking
+    const settingsData = data.settings;
     
-    if (!credentials) {
-      console.log("No credentials found in settings");
-      return null;
+    // Properly type check and cast
+    if (
+      typeof settingsData === 'object' && 
+      settingsData !== null && 
+      !Array.isArray(settingsData) &&
+      'clientId' in settingsData && 
+      'clientSecret' in settingsData
+    ) {
+      // This is a type guard to ensure we have a valid FortnoxCredentials object
+      const credentials = settingsData as FortnoxCredentials;
+      return credentials;
     }
     
-    return credentials;
+    console.log("Invalid credentials format found in settings");
+    return null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
