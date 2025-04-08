@@ -113,29 +113,39 @@ export async function exchangeCodeForTokens(
         
         // Try to parse the error response if available
         try {
-          // Sometimes error responses can contain JSON
-          if (typeof proxyError === 'object' && proxyError.message) {
-            const errorMsg = proxyError.message;
-            
-            if (errorMsg.includes('{') && errorMsg.includes('}')) {
-              const jsonStart = errorMsg.indexOf('{');
-              const jsonEnd = errorMsg.lastIndexOf('}') + 1;
+          if (typeof proxyError === 'object' && 'message' in proxyError) {
+            const errorContent = proxyError.message as string || '';
+            if (errorContent.includes('{') && errorContent.includes('}')) {
+              const jsonStart = errorContent.indexOf('{');
+              const jsonEnd = errorContent.lastIndexOf('}') + 1;
               
               if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                try {
-                  errorData = JSON.parse(errorMsg.substring(jsonStart, jsonEnd));
-                  console.log("Parsed error data:", errorData);
+                errorData = JSON.parse(errorContent.substring(jsonStart, jsonEnd));
+                
+                if (errorData) {
+                  if (errorData.error === 'invalid_grant' && 
+                      errorData.error_description?.includes('expired')) {
+                    throw {
+                      error: 'invalid_grant',
+                      error_description: 'Authorization code has expired',
+                      error_hint: 'Please try connecting to Fortnox again',
+                      request_needs_retry: true
+                    };
+                  }
                   
                   if (errorData.error) {
-                    detailedError = `Fortnox API error: ${errorData.error}${errorData.error_description ? ' - ' + errorData.error_description : ''}`;
+                    detailedError = `Fortnox API error: ${errorData.error}${
+                      errorData.error_description ? ' - ' + errorData.error_description : ''
+                    }`;
                   }
-                } catch (jsonError) {
-                  console.log("Failed to parse error JSON", jsonError);
                 }
               }
             }
           }
         } catch (parseError) {
+          if (parseError && typeof parseError === 'object' && 'request_needs_retry' in parseError) {
+            throw parseError;
+          }
           console.log("Could not parse error details:", parseError);
         }
         
@@ -150,6 +160,18 @@ export async function exchangeCodeForTokens(
       // Check for Fortnox API errors in the response
       if (proxyResponse.error) {
         console.error("Fortnox API returned an error:", proxyResponse);
+        
+        // Special handling for expired code
+        if (proxyResponse.error === 'invalid_grant' && 
+            proxyResponse.error_description?.includes('expired')) {
+          throw {
+            error: 'invalid_grant',
+            error_description: 'Authorization code has expired',
+            error_hint: 'Please try connecting to Fortnox again',
+            request_needs_retry: true
+          };
+        }
+        
         throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
       }
       
@@ -196,31 +218,14 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
     // Convert credentials to a plain object to ensure it can be stored in JSON
     const credentialsObj = { ...credentials };
     
-    // Prepare settings object with the credentials
-    const settingsData = {
-      credentials: credentialsObj
-    };
-    
     console.log("Saving Fortnox credentials to database");
-    
-    // First check if the table exists by trying to select
-    const { data: checkData, error: checkError } = await supabase
-      .from('system_settings')
-      .select('id')
-      .eq('id', 'fortnox')
-      .maybeSingle();
-      
-    if (checkError && !checkError.message.includes('does not exist')) {
-      console.error("Error checking system_settings table:", checkError);
-      throw new Error("Database error: " + checkError.message);
-    }
     
     // Use upsert with type safety
     const { error } = await supabase
       .from('system_settings')
       .upsert({
-        id: 'fortnox',
-        settings: settingsData as any
+        id: 'fortnox_credentials',
+        settings: credentialsObj
       });
       
     if (error) {
@@ -246,7 +251,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     const { data, error } = await supabase
       .from('system_settings')
       .select('settings')
-      .eq('id', 'fortnox')
+      .eq('id', 'fortnox_credentials')
       .maybeSingle();
       
     if (error) {
@@ -259,16 +264,15 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Safe access with type assertions
-    const settings = data.settings as any;
-    const credentials = settings?.credentials;
+    // Handle the data properly
+    const credentials = data.settings as FortnoxCredentials;
     
     if (!credentials) {
       console.log("No credentials found in settings");
       return null;
     }
     
-    return credentials as FortnoxCredentials;
+    return credentials;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
@@ -418,7 +422,7 @@ export async function disconnectFortnox(): Promise<void> {
     const { error } = await supabase
       .from('system_settings')
       .delete()
-      .eq('id', 'fortnox');
+      .eq('id', 'fortnox_credentials');
       
     if (error) throw error;
     

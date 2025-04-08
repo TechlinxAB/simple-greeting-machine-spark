@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,7 +8,7 @@ import {
   getFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ export function FortnoxCallbackHandler({
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [needsRetry, setNeedsRetry] = useState(false);
   const [redirectUri, setRedirectUri] = useState("");
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -124,7 +126,7 @@ export function FortnoxCallbackHandler({
 
     // Check if we have valid credentials from database
     if (!storedCredentials || !storedCredentials.clientId || !storedCredentials.clientSecret) {
-      console.error("No valid Fortnox credentials found in database");
+      console.error("No valid Fortnox credentials found in database", storedCredentials);
       setStatus('error');
       setError("Missing Fortnox API credentials");
       setErrorDetails("Please check your Fortnox client ID and client secret in the settings form above, save them, and try connecting again.");
@@ -148,7 +150,7 @@ export function FortnoxCallbackHandler({
     try {
       setStatus('processing');
       console.log("Processing authorization code, using redirect URI:", redirectUri);
-      console.log("Using client ID:", clientId ? `${clientId.substring(0, 3)}...` : "missing");
+      console.log("Using client ID:", clientId ? `${clientId.substring(0, 5)}...` : "missing");
       console.log("Client secret present:", !!clientSecret);
 
       // Add validation for client credentials length
@@ -193,12 +195,38 @@ export function FortnoxCallbackHandler({
       
       let errorMessage = "Failed to exchange code for tokens";
       let errorDetail = "";
+      let requiresRetry = false;
       
       if (error instanceof Error) {
         errorMessage = error.message;
         errorDetail = error.stack || "";
-      } else if (typeof error === 'object' && error !== null && 'message' in error) {
-        errorMessage = String(error.message);
+        
+        // Check if this is an expired code error
+        if (
+          errorMessage.includes('invalid_grant') || 
+          errorMessage.includes('expired') ||
+          (typeof error === 'object' && 
+           error !== null && 
+           'error_hint' in error && 
+           error.error_hint?.includes('expired'))
+        ) {
+          errorMessage = "Authorization code has expired";
+          errorDetail = "The code from Fortnox is no longer valid. Please try connecting again.";
+          requiresRetry = true;
+        }
+      } else if (typeof error === 'object' && error !== null) {
+        if ('error' in error && error.error === 'invalid_grant') {
+          errorMessage = "Authorization code has expired";
+          errorDetail = "The code from Fortnox is no longer valid. Please try connecting again.";
+          requiresRetry = true;
+        } else if ('message' in error) {
+          errorMessage = String(error.message);
+        }
+        
+        // Check for request_needs_retry flag from our backend
+        if ('request_needs_retry' in error && error.request_needs_retry) {
+          requiresRetry = true;
+        }
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
@@ -210,27 +238,27 @@ export function FortnoxCallbackHandler({
           errorMessage.includes('cross-origin')) {
         errorMessage = "Network error connecting to Fortnox API";
         errorDetail = "This could be due to CORS restrictions or network connectivity issues.";
-        
-        // Additional guidance for CORS issues
-        console.error("This is likely a CORS issue. The browser is preventing direct API calls to Fortnox from your frontend.");
-      }
-      
-      // Look for Fortnox API errors
-      if (errorMessage.includes('Fortnox API error')) {
-        errorDetail = "The Fortnox API rejected the request. Please check your client ID, client secret, and redirect URI.";
-      }
-      
-      // Handle edge function errors
-      if (errorMessage.includes('Edge function error')) {
-        errorDetail = "There was a problem with the server function that handles Fortnox authentication. Please check the logs for more details.";
       }
       
       setStatus('error');
       setError(errorMessage);
       setErrorDetails(errorDetail);
+      setNeedsRetry(requiresRetry);
       
       if (onError) onError(error instanceof Error ? error : new Error(errorMessage));
     }
+  };
+
+  // Function to retry the Fortnox connection
+  const handleRetry = () => {
+    // Clear URL parameters and navigate back to the settings page
+    toast.info("Restarting Fortnox connection process...");
+    navigate("/settings?tab=fortnox", { replace: true });
+    
+    // Short delay before refreshing to ensure state is reset
+    setTimeout(() => {
+      window.location.reload();
+    }, 300);
   };
 
   // Render different UI based on status
@@ -328,29 +356,26 @@ export function FortnoxCallbackHandler({
                 variant="outline" 
                 size="sm"
                 className="mt-2 flex items-center gap-1"
-                onClick={() => navigate("/settings?tab=fortnox", { replace: true })}
+                onClick={handleRetry}
               >
+                <RefreshCcw className="h-3 w-3 mr-1" />
                 <span>Try again</span>
               </Button>
             </div>
           )}
           
-          {error?.includes('invalid_grant') && (
+          {(error?.includes('invalid_grant') || error?.includes('expired') || needsRetry) && (
             <div className="mt-2">
               <p className="font-medium">The authorization code has expired or is invalid.</p>
               <p className="text-sm mt-1">Authorization codes can only be used once and expire quickly. Please try connecting again.</p>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2"
-                onClick={() => {
-                  // Clear the URL parameters but keep the tab
-                  navigate("/settings?tab=fortnox", { replace: true });
-                  // Reload the page
-                  window.location.reload();
-                }}
+                className="mt-2 flex items-center gap-1"
+                onClick={handleRetry}
               >
-                Try again
+                <RefreshCcw className="h-3 w-3 mr-1" />
+                <span>Try again</span>
               </Button>
             </div>
           )}
@@ -362,13 +387,11 @@ export function FortnoxCallbackHandler({
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2"
-                onClick={() => {
-                  // Clear the URL parameters but keep the tab
-                  navigate("/settings?tab=fortnox", { replace: true });
-                }}
+                className="mt-2 flex items-center gap-1"
+                onClick={handleRetry}
               >
-                Try again
+                <RefreshCcw className="h-3 w-3 mr-1" />
+                <span>Try again</span>
               </Button>
             </div>
           )}
@@ -380,10 +403,11 @@ export function FortnoxCallbackHandler({
               <Button
                 variant="outline" 
                 size="sm"
-                className="mt-2"
-                onClick={() => navigate("/settings?tab=fortnox", { replace: true })}
+                className="mt-2 flex items-center gap-1"
+                onClick={handleRetry}
               >
-                Try again
+                <RefreshCcw className="h-3 w-3 mr-1" />
+                <span>Try again</span>
               </Button>
             </div>
           )}

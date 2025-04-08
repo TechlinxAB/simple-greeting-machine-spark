@@ -10,7 +10,7 @@ import {
   saveFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -221,13 +221,34 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               )}
             </div>
           </div>
-          <Button 
-            variant="destructive" 
-            onClick={handleDisconnect}
-            disabled={isDisconnecting}
-          >
-            {isDisconnecting ? "Disconnecting..." : "Disconnect from Fortnox"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="destructive" 
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting ? "Disconnecting..." : "Disconnect from Fortnox"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await saveFortnoxCredentials({
+                    clientId,
+                    clientSecret,
+                    ...(credentials || {})
+                  });
+                  toast.success("Credentials updated successfully");
+                } catch (error) {
+                  toast.error("Failed to update credentials");
+                  console.error(error);
+                }
+              }}
+              disabled={!clientId || !clientSecret}
+            >
+              Update Credentials
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
