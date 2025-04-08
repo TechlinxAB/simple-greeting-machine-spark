@@ -55,6 +55,19 @@ export async function exchangeCodeForTokens(
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
     
+    // Additional validation for parameter lengths
+    if (clientId.length < 5) {
+      throw new Error("Client ID appears to be too short or invalid");
+    }
+    
+    if (clientSecret.length < 5) {
+      throw new Error("Client Secret appears to be too short or invalid");
+    }
+    
+    if (code.length < 5) {
+      throw new Error("Authorization code appears to be too short or invalid");
+    }
+    
     // Prepare the token request data for sending to our edge function
     const tokenExchangeData = {
       grant_type: 'authorization_code',

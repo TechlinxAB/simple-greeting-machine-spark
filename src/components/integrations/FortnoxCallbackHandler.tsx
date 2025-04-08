@@ -130,11 +130,11 @@ export function FortnoxCallbackHandler({
       console.log("Client secret present:", !!clientSecret);
 
       // Add validation for client credentials length
-      if (clientId.trim().length < 5) {
+      if (!clientId || clientId.trim().length < 5) {
         throw new Error("Client ID appears to be invalid (too short)");
       }
       
-      if (clientSecret.trim().length < 5) {
+      if (!clientSecret || clientSecret.trim().length < 5) {
         throw new Error("Client Secret appears to be invalid (too short)");
       }
 
@@ -272,15 +272,14 @@ export function FortnoxCallbackHandler({
           {error?.includes('Network error') && (
             <div className="mt-2">
               <p className="font-medium">This is likely due to CORS restrictions from your browser.</p>
-              <p className="text-sm mt-1">We're using a Supabase Edge Function to handle this request, but there might be an issue with it. Check the edge function logs for details.</p>
+              <p className="text-sm mt-1">We're using a Supabase Edge Function to handle this request. Please check that your Client ID and Client Secret are correct.</p>
               <Button
                 variant="outline" 
                 size="sm"
                 className="mt-2 flex items-center gap-1"
-                onClick={() => window.open("https://supabase.com/dashboard/project/xojrleypudfrbmvejpow/functions/fortnox-token-exchange/logs", "_blank")}
+                onClick={() => navigate("/settings?tab=fortnox", { replace: true })}
               >
-                <span>View logs</span>
-                <ExternalLink className="h-3 w-3" />
+                <span>Try again</span>
               </Button>
             </div>
           )}
@@ -312,11 +311,10 @@ export function FortnoxCallbackHandler({
               <Button
                 variant="outline" 
                 size="sm"
-                className="mt-2 flex items-center gap-1"
-                onClick={() => window.open("https://supabase.com/dashboard/project/xojrleypudfrbmvejpow/functions/fortnox-token-exchange/logs", "_blank")}
+                className="mt-2"
+                onClick={() => navigate("/settings?tab=fortnox", { replace: true })}
               >
-                <span>Check Edge Function logs</span>
-                <ExternalLink className="h-3 w-3" />
+                Try again
               </Button>
             </div>
           )}

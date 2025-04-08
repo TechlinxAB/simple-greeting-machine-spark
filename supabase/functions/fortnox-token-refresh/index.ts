@@ -102,6 +102,20 @@ serve(async (req) => {
       );
     }
     
+    if (requestData.refresh_token.length < 5) {
+      console.error("Refresh token appears to be too short", { length: requestData.refresh_token.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid refresh_token",
+          details: "Refresh token appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     // Log received data (except sensitive data)
     console.log("Token refresh data received:", {
       refreshTokenLength: requestData.refresh_token ? requestData.refresh_token.length : 0,

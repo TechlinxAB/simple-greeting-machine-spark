@@ -24,8 +24,8 @@ const appSettingsSchema = z.object({
 });
 
 const fortnoxSettingsSchema = z.object({
-  fortnoxClientId: z.string().min(1, { message: "Fortnox Client ID is required" }),
-  fortnoxClientSecret: z.string().min(1, { message: "Fortnox Client Secret is required" }),
+  fortnoxClientId: z.string().min(5, { message: "Fortnox Client ID is too short" }),
+  fortnoxClientSecret: z.string().min(5, { message: "Fortnox Client Secret is too short" }),
 });
 
 // Define TypeScript interfaces for our settings data structure
@@ -284,9 +284,9 @@ export default function Settings() {
     toast.error(`Failed to connect to Fortnox: ${error.message}`);
   };
   
-  // Get the client ID and secret from the form - this is what was missing
-  const currentClientId = fortnoxSettingsForm.getValues('fortnoxClientId');
-  const currentClientSecret = fortnoxSettingsForm.getValues('fortnoxClientSecret');
+  // Get the client ID and secret from the form
+  const currentClientId = fortnoxSettingsForm.watch('fortnoxClientId');
+  const currentClientSecret = fortnoxSettingsForm.watch('fortnoxClientSecret');
   
   // Debug: Log the values to help debugging
   console.log("Current client ID:", currentClientId ? `${currentClientId.substring(0, 3)}...` : "not set");

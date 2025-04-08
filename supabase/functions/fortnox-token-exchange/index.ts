@@ -106,6 +106,20 @@ serve(async (req) => {
       );
     }
     
+    if (requestData.code.length < 5) {
+      console.error("Authorization code appears to be too short", { length: requestData.code.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid authorization code",
+          details: "Authorization code appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     // Log received data (except sensitive data)
     console.log("Token exchange data received:", {
       code: requestData.code ? `${requestData.code.substring(0, 4)}...` : null,
@@ -116,7 +130,7 @@ serve(async (req) => {
     
     // Prepare the form data
     const formData = new URLSearchParams({
-      grant_type: requestData.grant_type || 'authorization_code',
+      grant_type: 'authorization_code',
       code: requestData.code,
       client_id: requestData.client_id,
       client_secret: requestData.client_secret,
@@ -124,9 +138,10 @@ serve(async (req) => {
     });
     
     console.log("Making token exchange request to Fortnox with params", {
-      grantType: requestData.grant_type || 'authorization_code',
+      grantType: 'authorization_code',
       redirectUri: requestData.redirect_uri,
-      clientIdPrefix: requestData.client_id ? requestData.client_id.substring(0, 3) + "..." : "missing"
+      clientIdPrefix: requestData.client_id ? requestData.client_id.substring(0, 3) + "..." : "missing",
+      codePrefix: requestData.code ? requestData.code.substring(0, 4) + "..." : "missing"
     });
     
     // Make the request to Fortnox
@@ -146,7 +161,7 @@ serve(async (req) => {
     
     try {
       responseData = JSON.parse(responseText);
-      console.log("Successfully parsed Fortnox response as JSON");
+      console.log("Successfully parsed Fortnox response as JSON", responseData);
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
@@ -188,7 +203,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Server error in fortnox-token-refresh:", error);
+    console.error("Server error in fortnox-token-exchange:", error);
     return new Response(
       JSON.stringify({ 
         error: "Server error", 
