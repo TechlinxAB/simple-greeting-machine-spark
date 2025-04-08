@@ -37,58 +37,56 @@ export function FortnoxCallbackHandler({
   }, []);
 
   useEffect(() => {
+    // Extract parameters from the URL
     const code = searchParams.get('code');
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
     const state = searchParams.get('state');
 
-    // Enhanced debug logging
-    console.log("Fortnox callback received with params:", { 
-      code: code?.substring(0, 5) + "...", // Only show part of the code for security
+    // Detailed logging for debugging
+    console.log("Fortnox callback processing with URL:", window.location.href);
+    console.log("Search params:", { 
+      code: code ? `${code.substring(0, 5)}...` : undefined, 
       error: errorParam,
-      errorDescription,
-      state: !!state,
-      url: window.location.href,
-      search: window.location.search
+      errorDesc: errorDescription,
+      state: state ? '(present)' : '(not present)'
     });
     
-    console.log("Credentials available:", { 
-      clientId: !!clientId, 
-      clientSecret: !!clientSecret, 
-      redirectUri 
-    });
-
+    // Check if we have an error from Fortnox
     if (errorParam) {
+      console.error("Fortnox returned an error:", errorParam, errorDescription);
       setStatus('error');
-      setError(errorDescription || 'Unknown error occurred');
+      setError(errorDescription || 'Unknown error occurred during Fortnox authorization');
       if (onError) onError(new Error(errorDescription || 'Unknown error occurred'));
       return;
     }
 
-    if (code && redirectUri && clientId && clientSecret) {
-      console.log("Proceeding with code exchange - all parameters available");
-      handleAuthorizationCode(code);
-    } else if (!code) {
+    // Check if we have a code parameter from Fortnox
+    if (!code) {
       console.log("No authorization code found in URL");
-      if (window.location.search && !code) {
-        console.log("URL parameters present but no code:", window.location.search);
-      }
-    } else {
-      console.log("Missing required parameters:", {
-        code: !code,
+      return; // This might be an initial load, so just return
+    }
+
+    // Validate that we have all required parameters to proceed
+    if (!redirectUri || !clientId || !clientSecret) {
+      console.error("Missing required parameters:", {
         redirectUri: !redirectUri,
         clientId: !clientId,
         clientSecret: !clientSecret
       });
+      setStatus('error');
+      setError("Missing configuration settings. Please check your Fortnox client ID and secret.");
+      return;
     }
+
+    // We have a code and all required parameters, proceed with token exchange
+    handleAuthorizationCode(code);
   }, [searchParams, clientId, clientSecret, redirectUri]);
 
   const handleAuthorizationCode = async (code: string) => {
     try {
       setStatus('processing');
-      
-      // Log the redirect URI for debugging
-      console.log("Using callback redirect URI:", redirectUri);
+      console.log("Processing authorization code, using redirect URI:", redirectUri);
 
       // Exchange the code for tokens
       const tokenData = await exchangeCodeForTokens(
@@ -98,7 +96,7 @@ export function FortnoxCallbackHandler({
         redirectUri
       );
 
-      console.log("Token exchange successful, proceeding to save credentials");
+      console.log("Token exchange successful, saving credentials");
 
       // Save the credentials in the database
       await saveFortnoxCredentials({
@@ -122,6 +120,7 @@ export function FortnoxCallbackHandler({
     }
   };
 
+  // Render different UI based on status
   if (status === 'idle') {
     return null;
   }

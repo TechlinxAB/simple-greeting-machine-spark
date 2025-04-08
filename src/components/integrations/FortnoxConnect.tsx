@@ -70,11 +70,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     try {
       setIsConnecting(true);
       
-      // Build the Fortnox authorization URL directly
+      // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
       const scope = 'invoice company-settings customer article';
       const state = Math.random().toString(36).substring(2, 15);
-      const accessType = 'offline'; // Add access_type parameter
       
       const authUrl = new URL(FORTNOX_AUTH_URL);
       authUrl.searchParams.append('client_id', clientId);
@@ -82,10 +81,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       authUrl.searchParams.append('scope', scope);
       authUrl.searchParams.append('response_type', 'code');
       authUrl.searchParams.append('state', state);
-      authUrl.searchParams.append('access_type', accessType);
+      authUrl.searchParams.append('access_type', 'offline'); // Request refresh token
       
       const fullAuthUrl = authUrl.toString();
-      console.log("Opening Fortnox auth URL:", fullAuthUrl);
+      
+      console.log("Redirecting to Fortnox auth URL:", fullAuthUrl);
       
       // Display a message to help the user
       toast.info("Redirecting to Fortnox for authorization");

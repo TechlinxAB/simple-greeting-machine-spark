@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -26,51 +25,6 @@ export interface SystemSettings {
 }
 
 /**
- * Initialize the OAuth flow with Fortnox
- * @param clientId The Fortnox client ID
- * @param redirectUri The URL to redirect to after authentication
- * @returns The URL to redirect the user to
- */
-export function getFortnoxAuthUrl(clientId: string, redirectUri: string): string {
-  if (!clientId) {
-    throw new Error("Client ID is required");
-  }
-  
-  if (!redirectUri) {
-    throw new Error("Redirect URI is required");
-  }
-  
-  // Use expanded scope for better integration
-  const scope = 'invoice company-settings customer article';
-  
-  try {
-    // Create the authorization URL with required parameters
-    const authUrl = new URL(FORTNOX_AUTH_URL);
-    authUrl.searchParams.append('client_id', clientId);
-    authUrl.searchParams.append('redirect_uri', redirectUri);
-    authUrl.searchParams.append('scope', scope);
-    authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('state', generateRandomState());
-    authUrl.searchParams.append('access_type', 'offline'); // Request refresh token
-    
-    // Log the full URL for debugging
-    console.log("Generated Fortnox auth URL:", authUrl.toString());
-    
-    return authUrl.toString();
-  } catch (error) {
-    console.error("Error generating Fortnox auth URL:", error);
-    throw new Error("Failed to generate Fortnox authorization URL");
-  }
-}
-
-/**
- * Generate a random state parameter for OAuth security
- */
-function generateRandomState(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
-
-/**
  * Exchange the authorization code for access and refresh tokens
  * @param code The authorization code from Fortnox
  * @param clientId The Fortnox client ID
@@ -84,7 +38,11 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<Partial<FortnoxCredentials>> {
   try {
-    console.log("Exchanging code for tokens with redirectUri:", redirectUri);
+    console.log("Exchanging code for tokens with parameters:", {
+      clientId,
+      redirectUri,
+      tokenUrl: FORTNOX_TOKEN_URL
+    });
     
     const tokenRequestBody = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -94,15 +52,8 @@ export async function exchangeCodeForTokens(
       redirect_uri: redirectUri,
     });
     
-    console.log("Token request body params:", {
-      grant_type: 'authorization_code',
-      code: code.substring(0, 5) + "...", // Only log part of the code for security
-      client_id: clientId,
-      redirect_uri: redirectUri
-    });
-    
-    // Extra logging for debugging
-    console.log("Sending token request to:", FORTNOX_TOKEN_URL);
+    // Log the request details for debugging
+    console.log("Making token exchange request to:", FORTNOX_TOKEN_URL);
     
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
@@ -123,7 +74,7 @@ export async function exchangeCodeForTokens(
         errorData = { error: "unknown", error_description: errorText };
       }
       
-      console.error("Token exchange failed with status:", response.status, errorData);
+      console.error("Token exchange failed:", response.status, errorData);
       throw new Error(`Token exchange failed: ${errorData.error_description || errorText || 'Unknown error'}`);
     }
 
@@ -157,7 +108,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       credentials: credentialsObj
     };
     
-    console.log("Saving Fortnox credentials");
+    console.log("Saving Fortnox credentials to database");
     
     // First check if the table exists by trying to select
     const { data: checkData, error: checkError } = await supabase
@@ -196,7 +147,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
-    console.log("Fetching Fortnox credentials");
+    console.log("Fetching Fortnox credentials from database");
     
     // Direct query to get system settings
     const { data, error } = await supabase
@@ -211,7 +162,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     }
     
     if (!data || !data.settings) {
-      console.log("No Fortnox credentials found");
+      console.log("No Fortnox credentials found in database");
       return null;
     }
     
@@ -235,47 +186,52 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
  * Check if Fortnox integration is connected and tokens are valid
  */
 export async function isFortnoxConnected(): Promise<boolean> {
-  const credentials = await getFortnoxCredentials();
-  
-  if (!credentials || !credentials.accessToken) {
-    console.log("Fortnox not connected: No credentials or access token");
+  try {
+    const credentials = await getFortnoxCredentials();
+    
+    if (!credentials || !credentials.accessToken) {
+      console.log("Fortnox not connected: No credentials or access token");
+      return false;
+    }
+    
+    // Check if token is expired
+    if (credentials.expiresAt && credentials.expiresAt < Date.now()) {
+      console.log("Fortnox token expired, attempting to refresh");
+      
+      // Token is expired, need to refresh
+      if (!credentials.refreshToken) {
+        console.log("No refresh token available");
+        return false;
+      }
+      
+      try {
+        // Attempt to refresh the token
+        const refreshed = await refreshAccessToken(
+          credentials.clientId,
+          credentials.clientSecret,
+          credentials.refreshToken
+        );
+        
+        // Save the refreshed tokens
+        await saveFortnoxCredentials({
+          ...credentials,
+          ...refreshed,
+        });
+        
+        console.log("Fortnox token refreshed successfully");
+        return true;
+      } catch (error) {
+        console.error('Error refreshing token:', error);
+        return false;
+      }
+    }
+    
+    console.log("Fortnox connected with valid token");
+    return true;
+  } catch (error) {
+    console.error("Error checking Fortnox connection:", error);
     return false;
   }
-  
-  // Check if token is expired
-  if (credentials.expiresAt && credentials.expiresAt < Date.now()) {
-    console.log("Fortnox token expired, attempting to refresh");
-    
-    // Token is expired, need to refresh
-    if (!credentials.refreshToken) {
-      console.log("No refresh token available");
-      return false;
-    }
-    
-    try {
-      // Attempt to refresh the token
-      const refreshed = await refreshAccessToken(
-        credentials.clientId,
-        credentials.clientSecret,
-        credentials.refreshToken
-      );
-      
-      // Save the refreshed tokens
-      await saveFortnoxCredentials({
-        ...credentials,
-        ...refreshed,
-      });
-      
-      console.log("Fortnox token refreshed successfully");
-      return true;
-    } catch (error) {
-      console.error('Error refreshing token:', error);
-      return false;
-    }
-  }
-  
-  console.log("Fortnox connected with valid token");
-  return true;
 }
 
 /**
@@ -287,6 +243,8 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<Partial<FortnoxCredentials>> {
   try {
+    console.log("Refreshing Fortnox access token");
+    
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -326,6 +284,8 @@ export async function refreshAccessToken(
  */
 export async function disconnectFortnox(): Promise<void> {
   try {
+    console.log("Disconnecting Fortnox integration");
+    
     // Direct query to delete the system settings
     const { error } = await supabase
       .from('system_settings')
@@ -333,6 +293,8 @@ export async function disconnectFortnox(): Promise<void> {
       .eq('id', 'fortnox');
       
     if (error) throw error;
+    
+    console.log("Fortnox disconnected successfully");
   } catch (error) {
     console.error('Error disconnecting Fortnox:', error);
     throw error;
