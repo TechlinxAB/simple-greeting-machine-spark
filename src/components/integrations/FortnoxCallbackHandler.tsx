@@ -1,11 +1,9 @@
-
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   exchangeCodeForTokens, 
-  saveFortnoxCredentials,
-  FortnoxCredentials
+  saveFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
@@ -28,6 +26,7 @@ export function FortnoxCallbackHandler({
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [redirectUri, setRedirectUri] = useState("");
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -60,11 +59,12 @@ export function FortnoxCallbackHandler({
 
     // Detailed logging for debugging
     console.log("Fortnox callback processing with params:", { 
-      code: code ? `${code.substring(0, 5)}...` : undefined, 
+      codeLength: code ? code.length : 0, 
       error: errorParam,
       errorDesc: errorDescription,
-      state: state ? '(present)' : '(not present)',
-      savedState: savedState ? '(present)' : '(not present)'
+      statePresent: !!state,
+      savedStatePresent: !!savedState,
+      stateMatch: state === savedState
     });
     
     // Check if we have an error from Fortnox
@@ -85,29 +85,36 @@ export function FortnoxCallbackHandler({
     // Verify state parameter to prevent CSRF attacks
     if (state && savedState && state !== savedState) {
       console.error("State mismatch - possible CSRF attack");
+      console.error("Received state:", state);
+      console.error("Expected state:", savedState);
       setStatus('error');
-      setError("Security verification failed - please try connecting again");
+      setError("Security verification failed - state mismatch");
+      setErrorDetails("The state parameter in the callback URL doesn't match the one stored in session storage. This could indicate a security issue.");
       if (onError) onError(new Error("State mismatch - security verification failed"));
       return;
+    }
+
+    // Check if we don't have a saved state (warn but proceed anyway)
+    if (!savedState && state) {
+      console.warn("No saved state found in session storage - possible security risk");
+      // Continue anyway since we have the code - this is just a warning
     }
 
     // Clean up the state from session storage
     if (savedState) {
       console.log("Clearing saved state from session storage");
       sessionStorage.removeItem('fortnox_oauth_state');
-    } else {
-      console.warn("No saved state found in session storage - possible security risk");
-      // Continue anyway since we have the code - this is just a warning
     }
 
     // Validate that we have all required parameters to proceed
     if (!clientId || !clientSecret) {
       console.error("Missing required OAuth credentials:", { 
-        clientIdExists: !!clientId, 
-        clientSecretExists: !!clientSecret 
+        clientIdPresent: !!clientId, 
+        clientSecretPresent: !!clientSecret 
       });
       setStatus('error');
-      setError("Missing Fortnox API credentials. Please check your Fortnox client ID and secret in the settings form above, save them, and try connecting again.");
+      setError("Missing Fortnox API credentials");
+      setErrorDetails("Please check your Fortnox client ID and secret in the settings form above, save them, and try connecting again.");
       if (onError) onError(new Error("Missing Fortnox API credentials"));
       return;
     }
@@ -172,8 +179,11 @@ export function FortnoxCallbackHandler({
       console.error("Error handling Fortnox callback:", error);
       
       let errorMessage = "Failed to exchange code for tokens";
+      let errorDetail = "";
+      
       if (error instanceof Error) {
         errorMessage = error.message;
+        errorDetail = error.stack || "";
       } else if (typeof error === 'object' && error !== null && 'message' in error) {
         errorMessage = String(error.message);
       } else if (typeof error === 'string') {
@@ -185,15 +195,26 @@ export function FortnoxCallbackHandler({
           errorMessage.includes('Network') || 
           errorMessage.includes('CORS') ||
           errorMessage.includes('cross-origin')) {
-        errorMessage = "Network error connecting to Fortnox API. This could be due to CORS restrictions or network connectivity issues.";
+        errorMessage = "Network error connecting to Fortnox API";
+        errorDetail = "This could be due to CORS restrictions or network connectivity issues.";
         
         // Additional guidance for CORS issues
         console.error("This is likely a CORS issue. The browser is preventing direct API calls to Fortnox from your frontend.");
-        console.error("Consider implementing a server-side proxy or edge function to handle the token exchange.");
+      }
+      
+      // Look for Fortnox API errors
+      if (errorMessage.includes('Fortnox API error')) {
+        errorDetail = "The Fortnox API rejected the request. Please check your client ID, client secret, and redirect URI.";
+      }
+      
+      // Handle edge function errors
+      if (errorMessage.includes('Edge function error')) {
+        errorDetail = "There was a problem with the server function that handles Fortnox authentication. Please check the logs for more details.";
       }
       
       setStatus('error');
       setError(errorMessage);
+      setErrorDetails(errorDetail);
       
       if (onError) onError(error instanceof Error ? error : new Error(errorMessage));
     }
@@ -235,6 +256,10 @@ export function FortnoxCallbackHandler({
         <AlertTitle>Connection failed</AlertTitle>
         <AlertDescription className="space-y-2">
           <p>{error || 'An unknown error occurred while connecting to Fortnox.'}</p>
+          
+          {errorDetails && (
+            <p className="text-sm mt-1">{errorDetails}</p>
+          )}
           
           {error?.includes('redirect_uri_mismatch') && (
             <div className="mt-2">
@@ -286,7 +311,7 @@ export function FortnoxCallbackHandler({
             </div>
           )}
           
-          {(error?.includes('invalid_grant') || error?.includes('invalid code')) && (
+          {error?.includes('invalid_grant') && (
             <div className="mt-2">
               <p className="font-medium">The authorization code has expired or is invalid.</p>
               <p className="text-sm mt-1">Authorization codes can only be used once and expire quickly. Please try connecting again.</p>
@@ -299,6 +324,24 @@ export function FortnoxCallbackHandler({
                   navigate("/settings?tab=fortnox", { replace: true });
                   // Reload the page
                   window.location.reload();
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+          
+          {error?.includes('state mismatch') && (
+            <div className="mt-2">
+              <p className="font-medium">Security verification failed.</p>
+              <p className="text-sm mt-1">The state parameter doesn't match what was expected. Please try connecting again.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  // Clear the URL parameters but keep the tab
+                  navigate("/settings?tab=fortnox", { replace: true });
                 }}
               >
                 Try again

@@ -40,9 +40,10 @@ export async function exchangeCodeForTokens(
 ): Promise<Partial<FortnoxCredentials>> {
   try {
     console.log("Exchanging code for tokens with parameters:", {
-      clientId: clientId ? `${clientId.substring(0, 3)}...` : undefined,
-      redirectUri,
-      codePrefix: code ? `${code.substring(0, 5)}...` : undefined
+      codeLength: code ? code.length : 0,
+      clientIdLength: clientId ? clientId.length : 0,
+      clientSecretLength: clientSecret ? clientSecret.length : 0,
+      redirectUri
     });
     
     if (!code || !clientId || !clientSecret || !redirectUri) {
@@ -93,6 +94,23 @@ export async function exchangeCodeForTokens(
       
       if (proxyError) {
         console.error("Error calling Supabase Edge Function:", proxyError);
+        
+        // Try to parse the error response if available
+        try {
+          if (typeof proxyError.message === 'string' && proxyError.message.includes('{')) {
+            const errorJson = JSON.parse(proxyError.message.substring(
+              proxyError.message.indexOf('{'),
+              proxyError.message.lastIndexOf('}') + 1
+            ));
+            
+            if (errorJson && errorJson.error) {
+              throw new Error(`Fortnox API error: ${errorJson.error} - ${errorJson.error_description || ''}`);
+            }
+          }
+        } catch (parseError) {
+          console.log("Could not parse error details:", parseError);
+        }
+        
         throw new Error(`Edge function error: ${proxyError.message}`);
       }
       
@@ -101,15 +119,15 @@ export async function exchangeCodeForTokens(
         throw new Error("Empty response from edge function");
       }
       
+      // Check for Fortnox API errors in the response
+      if (proxyResponse.error) {
+        console.error("Fortnox API returned an error:", proxyResponse.error, proxyResponse.error_description);
+        throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
+      }
+      
       if (!proxyResponse.access_token) {
         console.error("Invalid response from edge function:", proxyResponse);
-        
-        // If we have an error in the response, use that
-        if (proxyResponse.error) {
-          throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
-        }
-        
-        throw new Error("Invalid response from proxy service");
+        throw new Error("Invalid response from proxy service - missing access token");
       }
       
       console.log("Token exchange successful via Edge Function");
@@ -125,7 +143,7 @@ export async function exchangeCodeForTokens(
     } catch (edgeFunctionError) {
       // If edge function fails, log the error and throw it
       console.error("Edge function failed:", edgeFunctionError);
-      throw new Error(`Edge function error: ${edgeFunctionError.message || 'Unknown edge function error'}`);
+      throw edgeFunctionError;
     }
   } catch (error) {
     console.error('Error exchanging code for tokens:', error);

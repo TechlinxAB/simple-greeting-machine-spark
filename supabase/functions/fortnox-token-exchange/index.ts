@@ -27,11 +27,12 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
-      console.log("Parsed request data successfully", {
+      console.log("Request payload received:", {
         hasCode: !!requestData.code,
         hasClientId: !!requestData.client_id,
         hasClientSecret: !!requestData.client_secret,
         hasRedirectUri: !!requestData.redirect_uri,
+        hasRefreshToken: !!requestData.refresh_token,
         grantType: requestData.grant_type || 'authorization_code' // Default to authorization_code
       });
     } catch (e) {
@@ -58,10 +59,10 @@ serve(async (req) => {
         if (!requestData.redirect_uri) missingFields.push('redirect_uri');
         
         console.error(`Missing required parameters for authorization_code flow: ${missingFields.join(', ')}`, {
-          hasCode: !!requestData.code,
-          hasClientId: !!requestData.client_id,
-          hasClientSecret: !!requestData.client_secret,
-          hasRedirectUri: !!requestData.redirect_uri
+          code: requestData.code || null,
+          clientId: requestData.client_id || null,
+          clientSecretProvided: !!requestData.client_secret,
+          redirectUri: requestData.redirect_uri || null
         });
         
         return new Response(
@@ -151,19 +152,18 @@ serve(async (req) => {
     // Log received data (except sensitive data)
     console.log("Token exchange request data:", {
       grantType,
-      code: grantType === 'authorization_code' && requestData.code ? `${requestData.code.substring(0, 4)}...` : undefined,
-      refreshToken: grantType === 'refresh_token' && requestData.refresh_token ? '(present)' : undefined,
+      hasCode: grantType === 'authorization_code' && !!requestData.code,
+      hasRefreshToken: grantType === 'refresh_token' && !!requestData.refresh_token,
       clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
       clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0,
       redirectUri: requestData.redirect_uri
     });
     
     // Prepare the form data
-    const formData = new URLSearchParams({
-      grant_type: grantType,
-      client_id: requestData.client_id,
-      client_secret: requestData.client_secret,
-    });
+    const formData = new URLSearchParams();
+    formData.append('grant_type', grantType);
+    formData.append('client_id', requestData.client_id);
+    formData.append('client_secret', requestData.client_secret);
     
     // Add parameters specific to grant type
     if (grantType === 'authorization_code') {
@@ -173,13 +173,7 @@ serve(async (req) => {
       formData.append('refresh_token', requestData.refresh_token);
     }
     
-    console.log(`Making ${grantType} request to Fortnox with params`, {
-      grantType,
-      redirectUri: requestData.redirect_uri,
-      clientIdPrefix: requestData.client_id ? requestData.client_id.substring(0, 3) + "..." : "missing",
-      hasCode: grantType === 'authorization_code' ? !!requestData.code : undefined,
-      hasRefreshToken: grantType === 'refresh_token' ? !!requestData.refresh_token : undefined
-    });
+    console.log(`Making ${grantType} request to Fortnox`);
     
     // Make the request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
@@ -193,6 +187,7 @@ serve(async (req) => {
     // Get the response body
     const responseText = await response.text();
     console.log("Fortnox response status:", response.status);
+    console.log("Fortnox raw response:", responseText);
     
     let responseData;
     
@@ -219,29 +214,11 @@ serve(async (req) => {
       );
     }
     
-    // If the response is not OK, return the error but make sure to return valid JSON with CORS headers
-    if (!response.ok) {
-      console.error("Fortnox API error:", response.status, responseData);
-      return new Response(
-        JSON.stringify({ 
-          error: "Fortnox API error", 
-          status: response.status,
-          details: responseData
-        }),
-        { 
-          status: response.status, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    console.log(`${grantType} operation successful, returning response`);
-    
-    // Return the token data with proper CORS headers
+    // Return the response, including errors from Fortnox if any
     return new Response(
       JSON.stringify(responseData),
       { 
-        status: 200, 
+        status: response.status, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
