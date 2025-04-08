@@ -9,36 +9,49 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  loadingTimeout: boolean;
   role: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: { name?: string; avatar_url?: string; date_of_birth?: string }) => Promise<void>;
+  resetLoadingState: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isLoading: true,
+  loadingTimeout: false,
   role: null,
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
   updateProfile: async () => {},
+  resetLoadingState: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  
+  // Reset loading state function
+  const resetLoadingState = () => {
+    setIsLoading(true);
+    setLoadingTimeout(false);
+    // Initialize session check again
+    initialSession();
+  };
 
   // Handle profile fetching with improved retry mechanism
-  const fetchUserProfile = async (userId: string, retries = 3) => {
+  const fetchUserProfile = async (userId: string, retries = 2) => {
     let attempt = 0;
     
     // Add initial delay to ensure database trigger has time to execute
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     while (attempt < retries) {
       try {
@@ -52,8 +65,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error) {
           console.error(`Attempt ${attempt + 1}/${retries}: Error fetching user profile:`, error);
           attempt++;
-          // Add exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
+          // Add exponential backoff, but shorter
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(1.5, attempt)));
         } else if (data) {
           console.log("Profile fetched successfully:", data);
           setRole(data.role);
@@ -62,16 +75,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // No data but no error either - profile might not be created yet due to trigger delay
           console.log(`Attempt ${attempt + 1}/${retries}: User profile not found yet, retrying...`);
           attempt++;
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(1.5, attempt)));
         }
       } catch (err) {
         console.error(`Attempt ${attempt + 1}/${retries}: Failed to fetch profile:`, err);
         attempt++;
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(1.5, attempt)));
       }
     }
     
     console.warn("Maximum retries reached for fetching user profile");
+    // Just continue even if profile fetch fails - don't block the user
+    setIsLoading(false);
+  };
+
+  // Initial session check with timeout
+  const initialSession = async () => {
+    try {
+      // Set timeout for loading
+      const timeoutId = setTimeout(() => {
+        if (isLoading) {
+          setLoadingTimeout(true);
+          console.warn("Loading timeout reached");
+        }
+      }, 30000); // 30 seconds timeout
+      
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        // Fetch user role
+        await fetchUserProfile(session.user.id);
+      }
+      
+      setIsLoading(false);
+      clearTimeout(timeoutId);
+    } catch (err) {
+      console.error("Session initialization error:", err);
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -81,36 +125,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
+        setLoadingTimeout(false);
 
         if (session?.user) {
           // Fetch user role after user authentication
           await fetchUserProfile(session.user.id);
         } else {
           setRole(null);
+          setIsLoading(false);
         }
-
-        setIsLoading(false);
       }
     );
 
-    // Initial session check
-    const initialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // Fetch user role
-          await fetchUserProfile(session.user.id);
-        }
-      } catch (err) {
-        console.error("Session initialization error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    // Start initial session check
     initialSession();
 
     return () => {
@@ -218,11 +245,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         session,
         isLoading,
+        loadingTimeout,
         role,
         signIn,
         signUp,
         signOut,
         updateProfile,
+        resetLoadingState,
       }}
     >
       {children}

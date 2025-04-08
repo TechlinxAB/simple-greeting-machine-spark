@@ -8,40 +8,44 @@ import type { Database } from '@/integrations/supabase/types';
 const supabaseUrl = 'https://xojrleypudfrbmvejpow.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvanJsZXlwdWRmcmJtdmVqcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzUzNjEsImV4cCI6MjA1OTcxMTM2MX0.Wzo_PseuNTU2Lk3qTRbrJxN8H-M1U2FhMLEc_h7yrUc';
 
-// Create a single instance of the Supabase client with improved configuration
+// Create a single instance of the Supabase client with optimized configuration
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     storageKey: 'supabase.auth.token',
-    detectSessionInUrl: true, // Enable session detection in URLs for auth redirects
+    detectSessionInUrl: true,
   },
   global: {
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache' // Prevent browser caching of API responses
     },
     fetch: (url, options) => {
       const fetchOptions = {
         ...options,
-        cache: 'no-store' as RequestCache // Force fetch to bypass cache
+        // Set a reasonable timeout to prevent hanging requests
+        signal: AbortSignal.timeout(15000), // 15 second timeout
       };
       
-      // Enhanced fetch with retries for network issues
-      return fetch(url, fetchOptions)
-        .catch(err => {
-          console.error('Network error in Supabase request, retrying once:', err);
-          // Retry once after a short delay
-          return new Promise(resolve => setTimeout(resolve, 1000))
-            .then(() => fetch(url, fetchOptions));
-        });
+      return fetch(url, fetchOptions).catch(err => {
+        console.error('Network error in Supabase request:', err);
+        // Return a better error for timeout cases
+        if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+          throw new Error('Request timed out. Please check your connection and try again.');
+        }
+        throw err;
+      });
     }
   },
   db: {
     schema: 'public',
   },
   realtime: {
-    timeout: 60000, // Increased timeout for operations
+    timeout: 30000, // 30 second timeout for realtime connections
+  },
+  // Add a more aggressive cache policy
+  queries: {
+    keepPreviousData: true, // Keep displaying old data while fetching new data
   }
 });
 
