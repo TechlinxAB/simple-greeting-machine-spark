@@ -37,6 +37,9 @@ export function FortnoxCallbackHandler({
   }, []);
 
   useEffect(() => {
+    // Log the full URL to debug
+    console.log("Current URL in callback handler:", window.location.href);
+    
     // Extract parameters from the URL
     const code = searchParams.get('code');
     const errorParam = searchParams.get('error');
@@ -44,8 +47,7 @@ export function FortnoxCallbackHandler({
     const state = searchParams.get('state');
 
     // Detailed logging for debugging
-    console.log("Fortnox callback processing with URL:", window.location.href);
-    console.log("Search params:", { 
+    console.log("Fortnox callback processing with params:", { 
       code: code ? `${code.substring(0, 5)}...` : undefined, 
       error: errorParam,
       errorDesc: errorDescription,

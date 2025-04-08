@@ -44,6 +44,7 @@ export async function exchangeCodeForTokens(
       tokenUrl: FORTNOX_TOKEN_URL
     });
     
+    // Prepare the token request body
     const tokenRequestBody = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -54,6 +55,7 @@ export async function exchangeCodeForTokens(
     
     // Log the request details for debugging
     console.log("Making token exchange request to:", FORTNOX_TOKEN_URL);
+    console.log("Request body:", tokenRequestBody.toString());
     
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -87,10 +86,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       console.log("Redirecting to Fortnox auth URL:", fullAuthUrl);
       
-      // Display a message to help the user
-      toast.info("Redirecting to Fortnox for authorization");
-      
-      // CRITICAL: We must navigate to Fortnox auth URL in the CURRENT window, not a new tab
+      // CRITICAL: We must open in current window, not a popup
       window.location.href = fullAuthUrl;
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);

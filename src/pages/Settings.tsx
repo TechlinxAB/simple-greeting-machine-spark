@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const fortnoxSettingsSchema = z.object({
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "appearance");
   const [fortnoxConnected, setFortnoxConnected] = useState(false);
@@ -169,6 +171,7 @@ export default function Settings() {
   const handleFortnoxCallbackSuccess = () => {
     // Refresh the form after successful connection
     setFortnoxConnected(true);
+    toast.success("Successfully connected to Fortnox!");
   };
   
   const handleFortnoxCallbackError = (error: Error) => {
