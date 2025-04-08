@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,8 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.from("clients").insert([values]);
+      // Here's the fix: making sure name is always there (it is, because of our form validation)
+      const { error } = await supabase.from("clients").insert(values);
 
       if (error) throw error;
       

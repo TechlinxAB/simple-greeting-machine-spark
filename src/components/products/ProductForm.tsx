@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -42,12 +41,10 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.from("products").insert([
-        {
-          ...values,
-          type: productType,
-        }
-      ]);
+      const { error } = await supabase.from("products").insert({
+        ...values,
+        type: productType,
+      });
 
       if (error) throw error;
       
