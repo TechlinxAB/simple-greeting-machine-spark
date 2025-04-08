@@ -197,8 +197,6 @@ serve(async (req) => {
     // Prepare the form data
     const formData = new URLSearchParams();
     formData.append('grant_type', grantType);
-    formData.append('client_id', requestData.client_id);
-    formData.append('client_secret', requestData.client_secret);
     
     // Add parameters specific to grant type
     if (grantType === 'authorization_code') {
@@ -208,28 +206,29 @@ serve(async (req) => {
       formData.append('refresh_token', requestData.refresh_token);
     }
     
-    // Log the request to Fortnox (with masked sensitive data)
-    const maskedFormData = new URLSearchParams();
-    for (const [key, value] of formData.entries()) {
-      if (key === 'client_secret') {
-        maskedFormData.append(key, '•••');
-      } else if (key === 'code') {
-        maskedFormData.append(key, value.substring(0, 10) + '...');
-      } else if (key === 'client_id') {
-        maskedFormData.append(key, value.substring(0, 5) + '...');
-      } else {
-        maskedFormData.append(key, value);
-      }
-    }
-    console.log("🔁 Sending request to Fortnox:");
-    console.log(maskedFormData.toString());
+    // Create Basic Auth header from client_id and client_secret
+    const credentials = `${requestData.client_id}:${requestData.client_secret}`;
+    const base64Credentials = btoa(credentials);
+    const authHeader = `Basic ${base64Credentials}`;
     
-    // Make the request to Fortnox
+    // Log the request to Fortnox (with masked sensitive data)
+    console.log("🔁 Sending request to Fortnox:");
+    console.log("URL:", FORTNOX_TOKEN_URL);
+    console.log("Method: POST");
+    console.log("Headers:", {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+      "Authorization": "Basic •••" // Masked for security
+    });
+    console.log("Body (form data):", formData.toString());
+    
+    // Make the request to Fortnox with Basic Auth and form-urlencoded content
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
+        'Authorization': authHeader
       },
       body: formData,
     });
