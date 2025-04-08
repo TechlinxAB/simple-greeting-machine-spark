@@ -83,27 +83,41 @@ export async function exchangeCodeForTokens(
   try {
     console.log("Exchanging code for tokens with redirectUri:", redirectUri);
     
+    const tokenRequestBody = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+    });
+    
+    console.log("Token request body:", tokenRequestBody.toString());
+    
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-      }),
+      body: tokenRequestBody,
     });
 
+    console.log("Token exchange response status:", response.status);
+    
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: "unknown", error_description: errorText };
+      }
+      
       console.error("Token exchange failed with status:", response.status, errorData);
-      throw new Error(`Token exchange failed: ${errorData.error_description || 'Unknown error'}`);
+      throw new Error(`Token exchange failed: ${errorData.error_description || errorText || 'Unknown error'}`);
     }
 
     const data = await response.json();
+    console.log("Token exchange successful, received tokens");
     
     // Calculate token expiration time
     const expiresAt = Date.now() + data.expires_in * 1000;
@@ -134,6 +148,18 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
     
     console.log("Saving Fortnox credentials");
     
+    // First check if the table exists by trying to select
+    const { data: checkData, error: checkError } = await supabase
+      .from('system_settings')
+      .select('id')
+      .eq('id', 'fortnox')
+      .maybeSingle();
+      
+    if (checkError && !checkError.message.includes('does not exist')) {
+      console.error("Error checking system_settings table:", checkError);
+      throw new Error("Database error: " + checkError.message);
+    }
+    
     // Use upsert with type safety
     const { error } = await supabase
       .from('system_settings')
@@ -146,6 +172,8 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       console.error("Error saving Fortnox credentials:", error);
       throw error;
     }
+    
+    console.log("Fortnox credentials saved successfully");
   } catch (error) {
     console.error('Error saving Fortnox credentials:', error);
     throw error;

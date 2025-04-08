@@ -41,9 +41,20 @@ export function FortnoxCallbackHandler({
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
-    // Debug logging
-    console.log("Fortnox callback params:", { code, error: errorParam, errorDescription });
-    console.log("Credentials available:", { clientId: !!clientId, clientSecret: !!clientSecret, redirectUri });
+    // Enhanced debug logging
+    console.log("Fortnox callback params:", { 
+      code, 
+      error: errorParam, 
+      errorDescription,
+      url: window.location.href,
+      search: window.location.search
+    });
+    
+    console.log("Credentials available:", { 
+      clientId: !!clientId, 
+      clientSecret: !!clientSecret, 
+      redirectUri 
+    });
 
     if (errorParam) {
       setStatus('error');
@@ -53,9 +64,20 @@ export function FortnoxCallbackHandler({
     }
 
     if (code && redirectUri && clientId && clientSecret) {
+      console.log("Proceeding with code exchange - all parameters available");
       handleAuthorizationCode(code);
     } else if (!code) {
       console.log("No authorization code found in URL");
+      if (window.location.search && !code) {
+        console.log("URL parameters present but no code:", window.location.search);
+      }
+    } else {
+      console.log("Missing required parameters:", {
+        code: !code,
+        redirectUri: !redirectUri,
+        clientId: !clientId,
+        clientSecret: !clientSecret
+      });
     }
   }, [searchParams, clientId, clientSecret, redirectUri]);
 
@@ -73,6 +95,8 @@ export function FortnoxCallbackHandler({
         clientSecret,
         redirectUri
       );
+
+      console.log("Token exchange successful, proceeding to save credentials");
 
       // Save the credentials in the database
       await saveFortnoxCredentials({

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams } from "react-router-dom";
@@ -14,6 +13,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
+import { supabase } from "@/lib/supabase";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, { message: "App name is required" }),
@@ -31,7 +31,7 @@ export default function Settings() {
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "appearance");
   const [fortnoxConnected, setFortnoxConnected] = useState(false);
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   
   // Only admin should access this page
   if (role !== 'admin') {
@@ -71,6 +71,26 @@ export default function Settings() {
   
   // Update form from localStorage on component mount
   useEffect(() => {
+    // First check if system_settings table exists
+    const checkDatabaseTable = async () => {
+      try {
+        // Try to query the system_settings table
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('id')
+          .limit(1);
+          
+        if (error) {
+          console.error("Error checking system_settings table:", error);
+          toast.error("Failed to connect to database. Some features may not work properly.");
+        }
+      } catch (err) {
+        console.error("Error checking database:", err);
+      }
+    };
+    
+    checkDatabaseTable();
+    
     const storedAppSettings = localStorage.getItem('appSettings');
     if (storedAppSettings) {
       try {
@@ -92,19 +112,58 @@ export default function Settings() {
     }
   }, []);
   
-  const onAppSettingsSubmit = (values: z.infer<typeof appSettingsSchema>) => {
-    // Save to localStorage for demo purposes
-    localStorage.setItem('appSettings', JSON.stringify(values));
-    toast.success("App settings saved successfully");
-    
-    // In a real app, you would save to the database
-    // and apply the settings to the UI dynamically
+  // If tab is specified in URL, activate that tab
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+  
+  const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
+    try {
+      // Save to localStorage for immediate effect
+      localStorage.setItem('appSettings', JSON.stringify(values));
+      
+      // Also save to database for persistence
+      const { error } = await supabase
+        .from('system_settings')
+        .upsert({
+          id: 'app_settings',
+          settings: values
+        });
+      
+      if (error) throw error;
+      
+      toast.success("App settings saved successfully");
+    } catch (error) {
+      console.error("Error saving app settings:", error);
+      toast.error("Failed to save app settings to database");
+    }
   };
   
-  const onFortnoxSettingsSubmit = (values: z.infer<typeof fortnoxSettingsSchema>) => {
-    // Save to localStorage for demo purposes
-    localStorage.setItem('fortnoxSettings', JSON.stringify(values));
-    toast.success("Fortnox settings saved successfully");
+  const onFortnoxSettingsSubmit = async (values: z.infer<typeof fortnoxSettingsSchema>) => {
+    try {
+      // Save to localStorage for immediate effect
+      localStorage.setItem('fortnoxSettings', JSON.stringify(values));
+      
+      // Also save to database for persistence
+      const { error } = await supabase
+        .from('system_settings')
+        .upsert({
+          id: 'fortnox_credentials',
+          settings: {
+            clientId: values.fortnoxClientId,
+            clientSecret: values.fortnoxClientSecret
+          }
+        });
+      
+      if (error) throw error;
+      
+      toast.success("Fortnox settings saved successfully");
+    } catch (error) {
+      console.error("Error saving Fortnox settings:", error);
+      toast.error("Failed to save Fortnox settings to database");
+    }
   };
   
   const handleFortnoxCallbackSuccess = () => {

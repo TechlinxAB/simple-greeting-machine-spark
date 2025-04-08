@@ -72,18 +72,32 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     console.log("Using redirect URI:", redirectUri);
     
     try {
-      // Get the authorization URL with the exact redirect URI
-      const authUrl = getFortnoxAuthUrl(clientId, redirectUri);
+      // Create the Fortnox authorization URL directly here to avoid redirections
+      const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
+      const scope = 'invoice company-settings';
+      const state = Math.random().toString(36).substring(2, 15);
+      
+      const authUrl = new URL(FORTNOX_AUTH_URL);
+      authUrl.searchParams.append('client_id', clientId);
+      authUrl.searchParams.append('redirect_uri', redirectUri);
+      authUrl.searchParams.append('scope', scope);
+      authUrl.searchParams.append('response_type', 'code');
+      authUrl.searchParams.append('state', state);
+      
+      const fullAuthUrl = authUrl.toString();
+      console.log("Opening Fortnox auth URL:", fullAuthUrl);
+      
       setIsConnecting(true);
       
       // Display a message to help the user
       toast.info("Redirecting to Fortnox for authorization");
       
-      // Open in a new window/tab
-      window.open(authUrl, '_blank');
+      // Open in a new window/tab - using direct location navigation
+      window.open(fullAuthUrl, '_blank');
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);
       toast.error("Failed to generate Fortnox authorization URL");
+      setIsConnecting(false);
     }
   };
 
