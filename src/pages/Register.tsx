@@ -43,12 +43,26 @@ const Register = () => {
     setIsLoading(true);
     try {
       console.log("Submitting registration with values:", values);
+      
+      // Add some delay to ensure DB operations complete
       await signUp(values.email, values.password, values.name);
+      
       toast.success("Registration successful! Please sign in.");
-      navigate("/login");
+      // Navigate after a short delay to ensure backend processes complete
+      setTimeout(() => {
+        navigate("/login");
+      }, 500);
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(error.message || "Registration failed. Please try again.");
+      
+      // More specific error handling
+      if (error.message?.includes("Email already registered")) {
+        toast.error("This email is already registered. Please log in instead.");
+      } else if (error.message?.includes("Database error")) {
+        toast.error("Database error occurred. Please try again in a moment.");
+      } else {
+        toast.error(error.message || "Registration failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }

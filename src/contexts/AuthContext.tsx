@@ -44,18 +44,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           // Fetch user role after a delay to avoid recursive auth state changes
           setTimeout(async () => {
-            const { data, error } = await supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .single();
+            try {
+              const { data, error } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", session.user.id)
+                .maybeSingle();
 
-            if (error) {
-              console.error("Error fetching user role:", error);
-            } else if (data) {
-              setRole(data.role);
+              if (error) {
+                console.error("Error fetching user role:", error);
+              } else if (data) {
+                setRole(data.role);
+              }
+            } catch (err) {
+              console.error("Failed to fetch profile:", err);
             }
-          }, 0);
+          }, 100);
         } else {
           setRole(null);
         }
@@ -66,26 +70,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Initial session check
     const initialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        // Fetch user role
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+        if (session?.user) {
+          // Fetch user role
+          try {
+            const { data, error } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching user role:", error);
-        } else if (data) {
-          setRole(data.role);
+            if (error) {
+              console.error("Error fetching user role:", error);
+            } else if (data) {
+              setRole(data.role);
+            }
+          } catch (err) {
+            console.error("Failed to fetch profile:", err);
+          }
         }
+      } catch (err) {
+        console.error("Session initialization error:", err);
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
     initialSession();
@@ -151,16 +163,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (!user) throw new Error("No user logged in");
 
-      // Update profile table
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          updated_at: new Date().toISOString(),
-          ...userMetadata,
-        })
-        .eq("id", user.id);
+      // Update profile table with retry mechanism
+      let retries = 3;
+      let success = false;
+      let lastError = null;
 
-      if (error) throw error;
+      while (retries > 0 && !success) {
+        try {
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              updated_at: new Date().toISOString(),
+              ...userMetadata,
+            })
+            .eq("id", user.id);
+
+          if (error) {
+            lastError = error;
+            retries--;
+          } else {
+            success = true;
+          }
+        } catch (err) {
+          lastError = err;
+          retries--;
+        }
+
+        if (!success && retries > 0) {
+          // Wait a moment before retrying
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      if (!success && lastError) {
+        throw lastError;
+      }
       
       toast.success("Profile updated successfully");
     } catch (error: any) {

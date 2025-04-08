@@ -12,5 +12,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storageKey: 'supabase.auth.token',
+    // Disable auto-creation of user profiles through RLS policies
+    // as we're handling this with a database trigger
+    detectSessionInUrl: false,
   }
 });
