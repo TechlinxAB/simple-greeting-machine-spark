@@ -19,7 +19,7 @@ CREATE POLICY "Administrators can read system settings"
     WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
   ));
 
-CREATE POLICY "Administrators can insert/update system settings" 
+CREATE POLICY "Administrators can insert system settings" 
   ON public.system_settings 
   FOR INSERT 
   WITH CHECK (EXISTS (
@@ -30,6 +30,14 @@ CREATE POLICY "Administrators can insert/update system settings"
 CREATE POLICY "Administrators can update system settings" 
   ON public.system_settings 
   FOR UPDATE 
+  USING (EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+  ));
+
+CREATE POLICY "Administrators can delete system settings" 
+  ON public.system_settings 
+  FOR DELETE 
   USING (EXISTS (
     SELECT 1 FROM public.profiles 
     WHERE profiles.id = auth.uid() AND profiles.role = 'admin'

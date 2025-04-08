@@ -106,10 +106,11 @@ export async function exchangeCodeForTokens(
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    // Use the RPC method to safely interact with the database without type issues
-    const { error } = await supabase.rpc('save_system_settings', {
-      setting_id: 'fortnox',
-      setting_data: { credentials }
+    // Use a direct SQL query to insert/update the system settings
+    // This avoids TypeScript issues with RPC functions
+    const { error } = await supabase.from('system_settings').upsert({
+      id: 'fortnox',
+      settings: { credentials }
     });
       
     if (error) throw error;
@@ -124,17 +125,19 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
-    // Use the RPC method to safely interact with the database without type issues
-    const { data, error } = await supabase.rpc('get_system_settings', {
-      setting_id: 'fortnox'
-    });
+    // Direct query to get system settings
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('settings')
+      .eq('id', 'fortnox')
+      .maybeSingle();
       
     if (error) {
       console.error('Error fetching system settings:', error);
       return null;
     }
     
-    return data?.credentials || null;
+    return data?.settings?.credentials || null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
@@ -230,10 +233,11 @@ export async function refreshAccessToken(
  */
 export async function disconnectFortnox(): Promise<void> {
   try {
-    // Use the RPC method to safely interact with the database without type issues
-    const { error } = await supabase.rpc('delete_system_settings', {
-      setting_id: 'fortnox'
-    });
+    // Direct query to delete the system settings
+    const { error } = await supabase
+      .from('system_settings')
+      .delete()
+      .eq('id', 'fortnox');
       
     if (error) throw error;
   } catch (error) {
