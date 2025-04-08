@@ -72,6 +72,35 @@ serve(async (req) => {
         }
       );
     }
+
+    // Additional validation for parameter lengths
+    if (requestData.client_id.length < 5) {
+      console.error("Client ID appears to be too short", { length: requestData.client_id.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid client_id",
+          details: "Client ID appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    if (requestData.client_secret.length < 5) {
+      console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid client_secret",
+          details: "Client secret appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     // Log received data (except sensitive data)
     console.log("Token refresh data received:", {

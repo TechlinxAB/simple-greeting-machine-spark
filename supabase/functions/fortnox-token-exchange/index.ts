@@ -77,6 +77,35 @@ serve(async (req) => {
       );
     }
     
+    // Additional validation for parameter lengths
+    if (requestData.client_id.length < 5) {
+      console.error("Client ID appears to be too short", { length: requestData.client_id.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid client_id",
+          details: "Client ID appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    if (requestData.client_secret.length < 5) {
+      console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid client_secret",
+          details: "Client secret appears to be too short or invalid"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     // Log received data (except sensitive data)
     console.log("Token exchange data received:", {
       code: requestData.code ? `${requestData.code.substring(0, 4)}...` : null,
@@ -132,7 +161,7 @@ serve(async (req) => {
       );
     }
     
-    // If the response is not OK, return the error
+    // If the response is not OK, return the error but make sure to return valid JSON with CORS headers
     if (!response.ok) {
       console.error("Fortnox API error:", response.status, responseData);
       return new Response(
@@ -150,7 +179,7 @@ serve(async (req) => {
     
     console.log("Token exchange successful, returning response");
     
-    // Return the token data
+    // Return the token data with proper CORS headers
     return new Response(
       JSON.stringify(responseData),
       { 
@@ -159,7 +188,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Server error in fortnox-token-exchange:", error);
+    console.error("Server error in fortnox-token-refresh:", error);
     return new Response(
       JSON.stringify({ 
         error: "Server error", 

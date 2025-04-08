@@ -45,6 +45,14 @@ interface SystemSettingsResponse {
   appSettings: AppSettings | null;
 }
 
+// Type to match Supabase's JSON structure
+interface SettingsRow {
+  id: string;
+  settings: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -142,9 +150,20 @@ export default function Settings() {
           toast.error("Failed to load app settings");
         }
           
+        // Parse and type-cast the settings safely
+        const fortnoxSettings = fortnoxData?.settings as Record<string, any> | null;
+        const appSettings = appData?.settings as Record<string, any> | null;
+        
         return {
-          fortnoxSettings: fortnoxData?.settings as FortnoxSettings | null,
-          appSettings: appData?.settings as AppSettings | null
+          fortnoxSettings: fortnoxSettings ? {
+            clientId: fortnoxSettings.clientId || '',
+            clientSecret: fortnoxSettings.clientSecret || ''
+          } : null,
+          appSettings: appSettings ? {
+            appName: appSettings.appName || 'Techlinx Time Tracker',
+            primaryColor: appSettings.primaryColor || '#0ea5e9',
+            secondaryColor: appSettings.secondaryColor || '#6366f1'
+          } : null
         } as SystemSettingsResponse;
       } catch (err) {
         console.error("Error fetching system settings:", err);
@@ -268,6 +287,10 @@ export default function Settings() {
   // Get the client ID and secret from the form - this is what was missing
   const currentClientId = fortnoxSettingsForm.getValues('fortnoxClientId');
   const currentClientSecret = fortnoxSettingsForm.getValues('fortnoxClientSecret');
+  
+  // Debug: Log the values to help debugging
+  console.log("Current client ID:", currentClientId ? `${currentClientId.substring(0, 3)}...` : "not set");
+  console.log("Current client secret present:", !!currentClientSecret);
   
   return (
     <div className="container mx-auto py-6 space-y-6">
