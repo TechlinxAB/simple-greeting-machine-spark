@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { session } = await signInUser(email, password);
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
+      const { data } = await signInUser(email, password);
+      if (data.session?.user) {
+        await fetchUserProfile(data.session.user.id);
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      const { user } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -142,8 +142,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       });
       
-      if (user) {
-        console.log("Signup successful, user data:", user);
+      if (error) throw error;
+      
+      if (data.user) {
+        console.log("Signup successful, user data:", data.user);
       }
       
       return;
