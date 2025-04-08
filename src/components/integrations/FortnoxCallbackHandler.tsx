@@ -41,6 +41,10 @@ export function FortnoxCallbackHandler({
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
+    // Debug logging
+    console.log("Fortnox callback params:", { code, error: errorParam, errorDescription });
+    console.log("Credentials available:", { clientId: !!clientId, clientSecret: !!clientSecret, redirectUri });
+
     if (errorParam) {
       setStatus('error');
       setError(errorDescription || 'Unknown error occurred');
@@ -50,6 +54,8 @@ export function FortnoxCallbackHandler({
 
     if (code && redirectUri && clientId && clientSecret) {
       handleAuthorizationCode(code);
+    } else if (!code) {
+      console.log("No authorization code found in URL");
     }
   }, [searchParams, clientId, clientSecret, redirectUri]);
 

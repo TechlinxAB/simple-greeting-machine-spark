@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -32,17 +31,33 @@ export interface SystemSettings {
  * @returns The URL to redirect the user to
  */
 export function getFortnoxAuthUrl(clientId: string, redirectUri: string): string {
+  if (!clientId) {
+    throw new Error("Client ID is required");
+  }
+  
+  if (!redirectUri) {
+    throw new Error("Redirect URI is required");
+  }
+  
   const scope = 'invoice company-settings'; // Required scopes for invoice management
   
-  // Create the authorization URL with required parameters
-  const authUrl = new URL(FORTNOX_AUTH_URL);
-  authUrl.searchParams.append('client_id', clientId);
-  authUrl.searchParams.append('redirect_uri', redirectUri);
-  authUrl.searchParams.append('scope', scope);
-  authUrl.searchParams.append('response_type', 'code');
-  authUrl.searchParams.append('state', generateRandomState());
-  
-  return authUrl.toString();
+  try {
+    // Create the authorization URL with required parameters
+    const authUrl = new URL(FORTNOX_AUTH_URL);
+    authUrl.searchParams.append('client_id', clientId);
+    authUrl.searchParams.append('redirect_uri', redirectUri);
+    authUrl.searchParams.append('scope', scope);
+    authUrl.searchParams.append('response_type', 'code');
+    authUrl.searchParams.append('state', generateRandomState());
+    
+    // Log the full URL for debugging
+    console.log("Generated Fortnox auth URL:", authUrl.toString());
+    
+    return authUrl.toString();
+  } catch (error) {
+    console.error("Error generating Fortnox auth URL:", error);
+    throw new Error("Failed to generate Fortnox authorization URL");
+  }
 }
 
 /**

@@ -71,15 +71,20 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     // Log the redirect URI for debugging
     console.log("Using redirect URI:", redirectUri);
     
-    // Get the authorization URL with the exact redirect URI
-    const authUrl = getFortnoxAuthUrl(clientId, redirectUri);
-    setIsConnecting(true);
-    
-    // Display a message to help the user
-    toast.info("Redirecting to Fortnox for authorization");
-    
-    // Open in a new window/tab
-    window.open(authUrl, '_blank');
+    try {
+      // Get the authorization URL with the exact redirect URI
+      const authUrl = getFortnoxAuthUrl(clientId, redirectUri);
+      setIsConnecting(true);
+      
+      // Display a message to help the user
+      toast.info("Redirecting to Fortnox for authorization");
+      
+      // Open in a new window/tab
+      window.open(authUrl, '_blank');
+    } catch (error) {
+      console.error("Error generating Fortnox auth URL:", error);
+      toast.error("Failed to generate Fortnox authorization URL");
+    }
   };
 
   const handleDisconnect = async () => {
