@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -130,15 +129,13 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       ];
       
       // Generate a secure random state for CSRF protection
-      // Use crypto.getRandomValues for better security
-      const buffer = new Uint8Array(32); // Increased for better security
-      window.crypto.getRandomValues(buffer);
-      const state = Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+      // Use crypto.randomUUID() for better security
+      const state = crypto.randomUUID();
       
       // Store the state in sessionStorage to verify when we come back - with explicit error handling
       try {
         sessionStorage.setItem('fortnox_oauth_state', state);
-        console.log("Generated and stored secure state for OAuth:", state.substring(0, 6) + "...");
+        console.log("Generated and stored secure state for OAuth:", state);
       } catch (storageError) {
         console.error("Failed to store OAuth state in sessionStorage:", storageError);
         toast.error("Failed to secure the authorization process. Please check your browser settings and try again.");

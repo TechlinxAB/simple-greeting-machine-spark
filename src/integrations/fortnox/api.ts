@@ -82,10 +82,7 @@ export async function exchangeCodeForTokens(
     };
     
     // Log the request details for debugging
-    console.log("Making token exchange request via proxy");
-    
-    // Try to use Supabase Edge Function for token exchange
-    console.log("Attempting to use Supabase Edge Function for token exchange");
+    console.log("Making token exchange request via Edge Function");
     
     try {
       // First, try to call the test endpoint to verify the function is accessible
