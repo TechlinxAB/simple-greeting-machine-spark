@@ -24,6 +24,15 @@ interface FortnoxConnectProps {
 export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: FortnoxConnectProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [redirectUri, setRedirectUri] = useState("");
+
+  // Set the redirect URI when component mounts
+  useEffect(() => {
+    // Generate the current URL for the redirect - make sure it's exactly what's registered in Fortnox
+    const baseUrl = window.location.origin;
+    const redirectPath = "/settings?tab=fortnox";
+    setRedirectUri(`${baseUrl}${redirectPath}`);
+  }, []);
 
   // Get connection status
   const { data: connected = false, refetch: refetchStatus } = useQuery({
@@ -54,12 +63,20 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       return;
     }
 
-    // Generate the current URL for the redirect
-    const redirectUri = `${window.location.origin}/settings?tab=fortnox`;
+    if (!redirectUri) {
+      toast.error("Redirect URI is not set properly");
+      return;
+    }
     
-    // Get the authorization URL and redirect
+    // Log the redirect URI for debugging
+    console.log("Using redirect URI:", redirectUri);
+    
+    // Get the authorization URL with the exact redirect URI
     const authUrl = getFortnoxAuthUrl(clientId, redirectUri);
     setIsConnecting(true);
+    
+    // Display a message to help the user
+    toast.info("Make sure this exact redirect URI is registered in Fortnox: " + redirectUri);
     
     // Open in a new window/tab
     window.open(authUrl, '_blank');
@@ -125,11 +142,17 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               Connect to Fortnox to export invoices directly to your Fortnox account.
               You'll be redirected to Fortnox to authorize this application.
             </p>
+            <p className="text-sm mt-2 font-medium">
+              Important: Make sure to register this exact redirect URI in your Fortnox Developer settings:
+            </p>
+            <code className="mt-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
+              {redirectUri || "Loading redirect URI..."}
+            </code>
           </div>
           <div className="flex items-center gap-2">
             <Button 
               onClick={handleConnect} 
-              disabled={!clientId || !clientSecret || isConnecting}
+              disabled={!clientId || !clientSecret || isConnecting || !redirectUri}
               className="flex items-center gap-2"
             >
               <Link className="h-4 w-4" />

@@ -66,6 +66,8 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<Partial<FortnoxCredentials>> {
   try {
+    console.log("Exchanging code for tokens with redirectUri:", redirectUri);
+    
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -82,6 +84,7 @@ export async function exchangeCodeForTokens(
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error("Token exchange failed with status:", response.status, errorData);
       throw new Error(`Token exchange failed: ${errorData.error_description || 'Unknown error'}`);
     }
 
@@ -106,8 +109,11 @@ export async function exchangeCodeForTokens(
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    // Convert the credentials to a stringifiable object
-    const settingsData = { credentials: JSON.parse(JSON.stringify(credentials)) };
+    // Convert the credentials to a JSON-safe object and stringify it to ensure it's compatible with Supabase
+    const safeCredentials = JSON.parse(JSON.stringify(credentials));
+    const settingsData = { credentials: safeCredentials };
+    
+    console.log("Saving Fortnox credentials:", JSON.stringify(settingsData));
     
     // Use direct SQL query with proper type handling
     const { error } = await supabase.from('system_settings').upsert({
@@ -115,7 +121,10 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       settings: settingsData
     });
       
-    if (error) throw error;
+    if (error) {
+      console.error("Error saving Fortnox credentials:", error);
+      throw error;
+    }
   } catch (error) {
     console.error('Error saving Fortnox credentials:', error);
     throw error;
@@ -127,6 +136,8 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
+    console.log("Fetching Fortnox credentials");
+    
     // Direct query to get system settings
     const { data, error } = await supabase
       .from('system_settings')
@@ -140,12 +151,17 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     }
     
     if (!data || !data.settings) {
+      console.log("No Fortnox credentials found");
       return null;
     }
     
     // Type assertion and safe access
     const settings = data.settings as Record<string, any>;
-    return settings.credentials || null;
+    const credentials = settings.credentials;
+    
+    console.log("Found Fortnox credentials:", credentials ? "Yes" : "No");
+    
+    return credentials || null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
@@ -159,13 +175,17 @@ export async function isFortnoxConnected(): Promise<boolean> {
   const credentials = await getFortnoxCredentials();
   
   if (!credentials || !credentials.accessToken) {
+    console.log("Fortnox not connected: No credentials or access token");
     return false;
   }
   
   // Check if token is expired
   if (credentials.expiresAt && credentials.expiresAt < Date.now()) {
+    console.log("Fortnox token expired, attempting to refresh");
+    
     // Token is expired, need to refresh
     if (!credentials.refreshToken) {
+      console.log("No refresh token available");
       return false;
     }
     
@@ -183,6 +203,7 @@ export async function isFortnoxConnected(): Promise<boolean> {
         ...refreshed,
       });
       
+      console.log("Fortnox token refreshed successfully");
       return true;
     } catch (error) {
       console.error('Error refreshing token:', error);
@@ -190,6 +211,7 @@ export async function isFortnoxConnected(): Promise<boolean> {
     }
   }
   
+  console.log("Fortnox connected with valid token");
   return true;
 }
 

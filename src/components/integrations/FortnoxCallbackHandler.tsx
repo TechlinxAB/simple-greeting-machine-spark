@@ -26,6 +26,14 @@ export function FortnoxCallbackHandler({
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [redirectUri, setRedirectUri] = useState("");
+
+  // Set the redirect URI when component mounts - must match exactly what was used in auth request
+  useEffect(() => {
+    const baseUrl = window.location.origin;
+    const redirectPath = "/settings?tab=fortnox";
+    setRedirectUri(`${baseUrl}${redirectPath}`);
+  }, []);
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -39,17 +47,17 @@ export function FortnoxCallbackHandler({
       return;
     }
 
-    if (code) {
+    if (code && redirectUri) {
       handleAuthorizationCode(code);
     }
-  }, [searchParams, clientId, clientSecret]);
+  }, [searchParams, clientId, clientSecret, redirectUri]);
 
   const handleAuthorizationCode = async (code: string) => {
     try {
       setStatus('processing');
       
-      // Generate the current URL for the redirect (should match what was used in the auth request)
-      const redirectUri = `${window.location.origin}/settings?tab=fortnox`;
+      // Log the redirect URI for debugging
+      console.log("Using callback redirect URI:", redirectUri);
 
       // Exchange the code for tokens
       const tokenData = await exchangeCodeForTokens(
@@ -116,6 +124,14 @@ export function FortnoxCallbackHandler({
         <AlertTitle>Connection failed</AlertTitle>
         <AlertDescription>
           {error || 'An unknown error occurred while connecting to Fortnox.'}
+          {error?.includes('redirect_uri_mismatch') && (
+            <div className="mt-2">
+              <p className="font-medium">Please make sure this exact redirect URI is registered in Fortnox:</p>
+              <code className="mt-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
+                {redirectUri}
+              </code>
+            </div>
+          )}
         </AlertDescription>
       </Alert>
     );
