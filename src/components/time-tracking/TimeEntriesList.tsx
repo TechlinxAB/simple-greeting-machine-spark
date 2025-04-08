@@ -2,17 +2,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow } from "date-fns";
+import { format, startOfDay, endOfDay, formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Package, CalendarClock, ClipboardList } from "lucide-react";
+import { Clock, Package, CalendarClock, ClipboardList, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-export function TimeEntriesList() {
+interface TimeEntriesListProps {
+  selectedDate: Date;
+  formattedDate: string;
+}
+
+export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesListProps) {
   const { user } = useAuth();
 
+  const startDate = startOfDay(selectedDate);
+  const endDate = endOfDay(selectedDate);
+
   const { data: timeEntries = [], isLoading } = useQuery({
-    queryKey: ["time-entries"],
+    queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")],
     queryFn: async () => {
       if (!user) return [];
 
@@ -31,8 +40,9 @@ export function TimeEntriesList() {
             clients:client_id (id, name)
           `)
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(20);
+          .gte("created_at", startDate.toISOString())
+          .lte("created_at", endDate.toISOString())
+          .order("created_at", { ascending: false });
 
         if (error) throw error;
         
@@ -75,18 +85,25 @@ export function TimeEntriesList() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Recent Time Entries</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b">
+        <CardTitle className="text-base font-medium">
+          Activities for <span className="text-green-600">{formattedDate}</span>
+        </CardTitle>
+        <Button variant="outline" size="sm" className="flex items-center gap-1">
+          <Eye className="h-3.5 w-3.5" />
+          <span>View full list</span>
+        </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
           </div>
         ) : timeEntries.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-12 text-muted-foreground">
             <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-            <p>No time entries found. Create your first one!</p>
+            <p>No activities recorded for this day.</p>
+            <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
           </div>
         ) : (
           <Table>

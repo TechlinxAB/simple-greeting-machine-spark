@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -41,13 +42,6 @@ interface FortnoxSettings {
 interface SystemSettingsResponse {
   fortnoxSettings: FortnoxSettings | null;
   appSettings: AppSettings | null;
-}
-
-interface SettingsRow {
-  id: string;
-  settings: Record<string, any>;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export default function Settings() {
@@ -102,8 +96,8 @@ export default function Settings() {
     resolver: zodResolver(appSettingsSchema),
     defaultValues: {
       appName: "Techlinx Time Tracker",
-      primaryColor: "#0ea5e9",
-      secondaryColor: "#6366f1",
+      primaryColor: "#2e7d32", // Green color matching the screenshot
+      secondaryColor: "#e8f5e9", // Light green for secondary elements
     },
   });
   
@@ -151,8 +145,8 @@ export default function Settings() {
           } : null,
           appSettings: appSettings ? {
             appName: appSettings.appName || 'Techlinx Time Tracker',
-            primaryColor: appSettings.primaryColor || '#0ea5e9',
-            secondaryColor: appSettings.secondaryColor || '#6366f1'
+            primaryColor: appSettings.primaryColor || '#2e7d32',
+            secondaryColor: appSettings.secondaryColor || '#e8f5e9'
           } : null
         } as SystemSettingsResponse;
       } catch (err) {
@@ -167,6 +161,22 @@ export default function Settings() {
     if (systemSettings) {
       if (systemSettings.appSettings) {
         appSettingsForm.reset(systemSettings.appSettings);
+        
+        // Apply the color settings to CSS variables
+        const root = document.documentElement;
+        const primaryColorHsl = hexToHSL(systemSettings.appSettings.primaryColor);
+        const secondaryColorHsl = hexToHSL(systemSettings.appSettings.secondaryColor);
+        
+        if (primaryColorHsl) {
+          root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+          root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+        }
+        
+        if (secondaryColorHsl) {
+          root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+          root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+        }
+        
         localStorage.setItem('appSettings', JSON.stringify(systemSettings.appSettings));
       }
       
@@ -185,6 +195,21 @@ export default function Settings() {
         try {
           const settings = JSON.parse(storedAppSettings);
           appSettingsForm.reset(settings);
+          
+          // Apply stored settings from localStorage
+          const root = document.documentElement;
+          const primaryColorHsl = hexToHSL(settings.primaryColor);
+          const secondaryColorHsl = hexToHSL(settings.secondaryColor);
+          
+          if (primaryColorHsl) {
+            root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+            root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+          }
+          
+          if (secondaryColorHsl) {
+            root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+            root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+          }
         } catch (error) {
           console.error('Error parsing app settings:', error);
         }
@@ -208,9 +233,63 @@ export default function Settings() {
     }
   }, [tabFromUrl]);
   
+  // Function to convert hex to HSL
+  function hexToHSL(hex: string) {
+    // Remove the # if it exists
+    hex = hex.replace(/^#/, '');
+    
+    // Convert to RGB first
+    let r, g, b;
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16) / 255;
+      g = parseInt(hex[1] + hex[1], 16) / 255;
+      b = parseInt(hex[2] + hex[2], 16) / 255;
+    } else {
+      r = parseInt(hex.substring(0, 2), 16) / 255;
+      g = parseInt(hex.substring(2, 4), 16) / 255;
+      b = parseInt(hex.substring(4, 6), 16) / 255;
+    }
+    
+    // Find min and max
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      
+      h *= 60;
+    }
+    
+    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+  
   const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
       localStorage.setItem('appSettings', JSON.stringify(values));
+      
+      // Apply the color settings to CSS variables
+      const root = document.documentElement;
+      const primaryColorHsl = hexToHSL(values.primaryColor);
+      const secondaryColorHsl = hexToHSL(values.secondaryColor);
+      
+      if (primaryColorHsl) {
+        root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+        root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+      }
+      
+      if (secondaryColorHsl) {
+        root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+        root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+      }
+      
       const { error } = await supabase
         .from('system_settings')
         .upsert({
@@ -260,9 +339,6 @@ export default function Settings() {
   
   const currentClientId = fortnoxSettingsForm.watch('fortnoxClientId');
   const currentClientSecret = fortnoxSettingsForm.watch('fortnoxClientSecret');
-  
-  console.log("Current client ID:", currentClientId ? `${currentClientId.substring(0, 3)}...` : "not set");
-  console.log("Current client secret present:", !!currentClientSecret);
   
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -316,8 +392,13 @@ export default function Settings() {
                               style={{ backgroundColor: field.value }}
                             />
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} type="color" className="w-16 h-10 p-1" />
                             </FormControl>
+                            <Input 
+                              value={field.value} 
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="flex-1"
+                            />
                           </div>
                           <FormDescription>
                             Main accent color for buttons and highlights.
@@ -339,8 +420,13 @@ export default function Settings() {
                               style={{ backgroundColor: field.value }}
                             />
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} type="color" className="w-16 h-10 p-1" />
                             </FormControl>
+                            <Input 
+                              value={field.value} 
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="flex-1"
+                            />
                           </div>
                           <FormDescription>
                             Secondary accent color for complementary elements.
@@ -349,6 +435,40 @@ export default function Settings() {
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="mt-6 p-4 border rounded-md">
+                    <h3 className="font-medium mb-2">Preview</h3>
+                    <div className="flex gap-4 flex-wrap">
+                      <Button
+                        style={{
+                          backgroundColor: appSettingsForm.watch('primaryColor'),
+                          color: "#fff"
+                        }}
+                      >
+                        Primary Button
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        style={{
+                          borderColor: appSettingsForm.watch('primaryColor'),
+                          color: appSettingsForm.watch('primaryColor')
+                        }}
+                      >
+                        Outline Button
+                      </Button>
+                      
+                      <div 
+                        className="p-4 rounded-md"
+                        style={{ 
+                          backgroundColor: appSettingsForm.watch('secondaryColor'),
+                          color: '#000'
+                        }}
+                      >
+                        Secondary Background
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter>

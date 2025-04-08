@@ -5,33 +5,33 @@
 
 @layer base {
   :root {
-    --background: 210 50% 98%;
-    --foreground: 210 40% 12%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 40% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 142 72% 29%;
+    --primary-foreground: 355 100% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 210 40% 15%;
+    --secondary: 142 76% 94%;
+    --secondary-foreground: 142 72% 29%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 210 35% 50%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 94%;
-    --accent-foreground: 210 40% 15%;
+    --accent: 142 76% 94%;
+    --accent-foreground: 142 72% 29%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 90%;
-    --input: 214.3 31.8% 90%;
-    --ring: 210 100% 50%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 72% 29%;
 
     --radius: 0.5rem;
 
@@ -46,33 +46,33 @@
   }
 
   .dark {
-    --background: 210 50% 10%;
-    --foreground: 210 20% 92%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 210 50% 13%;
-    --card-foreground: 210 20% 92%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 210 50% 12%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 142 72% 29%;
+    --primary-foreground: 355 100% 100%;
 
-    --secondary: 210 40% 20%;
-    --secondary-foreground: 210 20% 92%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 20%;
-    --muted-foreground: 210 20% 70%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 210 40% 20%;
-    --accent-foreground: 210 20% 92%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 92%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 210 40% 22%;
-    --input: 210 40% 22%;
-    --ring: 210 100% 50%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142 72% 29%;
     
     --sidebar-background: 210 50% 10%;
     --sidebar-foreground: 210 20% 92%;
@@ -103,5 +103,33 @@
   .scrollbar-hidden {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out forwards;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }

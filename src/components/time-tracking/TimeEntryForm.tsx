@@ -6,7 +6,7 @@ import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,21 +29,36 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
+interface TimeEntryFormProps {
+  onSuccess?: () => void;
+  selectedDate?: Date;
+}
+
+export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntryFormProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<ProductType>("activity");
+
+  // Format the selected date for the time inputs (we'll use just the date part)
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+  const currentTimeStr = format(new Date(), "HH:mm");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientId: "",
       productId: "",
-      startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      startTime: `${selectedDateStr}T${currentTimeStr}`,
       endTime: "",
       quantity: undefined,
       description: "",
     },
   });
+
+  // Update the startTime when selectedDate changes
+  useEffect(() => {
+    const newDateStr = format(selectedDate, "yyyy-MM-dd");
+    form.setValue("startTime", `${newDateStr}T${currentTimeStr}`);
+  }, [selectedDate, form, currentTimeStr]);
 
   // Fetch clients
   const { data: clients = [] } = useQuery({
@@ -124,7 +139,7 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
       form.reset({
         clientId: values.clientId, // Keep the selected client
         productId: "", // Reset product
-        startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        startTime: `${selectedDateStr}T${currentTimeStr}`,
         endTime: "",
         quantity: undefined,
         description: "",
@@ -138,10 +153,19 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>New Time Entry</CardTitle>
+      <CardHeader className="bg-green-50 border-b border-green-100">
+        <div className="flex justify-between items-center">
+          <CardTitle>New time entry</CardTitle>
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="bg-green-500 text-white hover:bg-green-600 hover:text-white"
+          >
+            Today
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "activity" | "item")}>
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="activity" className="flex items-center gap-2">
@@ -156,74 +180,96 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="clientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select client" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Select client:</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a client" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="productId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{activeTab === "activity" ? "Activity" : "Item"}</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={`Select ${activeTab}`} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} - {product.price} SEK
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="productId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Activity / Item:</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={`Select ${activeTab}`} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {product.price} SEK
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <TabsContent value="activity" className="space-y-4 mt-4">
+              <TabsContent value="activity" className="space-y-4 mt-0">
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>What did you do?</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter description here..."
+                          className="min-h-20 bg-slate-50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="startTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Time</FormLabel>
+                        <FormLabel>Time from:</FormLabel>
                         <FormControl>
-                          <Input type="datetime-local" {...field} />
+                          <Input type="time" {...field} value={field.value?.split('T')[1] || ''} onChange={(e) => {
+                            field.onChange(`${selectedDateStr}T${e.target.value}`);
+                          }} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -235,9 +281,11 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
                     name="endTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>End Time</FormLabel>
+                        <FormLabel>Time to:</FormLabel>
                         <FormControl>
-                          <Input type="datetime-local" {...field} />
+                          <Input type="time" {...field} value={field.value?.split('T')[1] || ''} onChange={(e) => {
+                            field.onChange(`${selectedDateStr}T${e.target.value}`);
+                          }} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -246,7 +294,7 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="item" className="mt-4">
+              <TabsContent value="item" className="mt-0">
                 <FormField
                   control={form.control}
                   name="quantity"
@@ -260,26 +308,27 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="mt-4">
+                      <FormLabel>What did you do?</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter description here..."
+                          className="min-h-20 bg-slate-50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </TabsContent>
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Add a description for this entry..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full">Save Entry</Button>
+              <Button type="submit" className="w-full bg-green-500 hover:bg-green-600">Save time entry</Button>
             </form>
           </Form>
         </Tabs>

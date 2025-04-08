@@ -4,11 +4,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
 import { TimeEntriesList } from "@/components/time-tracking/TimeEntriesList";
+import { DateSelector } from "@/components/time-tracking/DateSelector";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { Plus, Users } from "lucide-react";
+import { Users } from "lucide-react";
+import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 
 export default function TimeTracking() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
 
@@ -32,10 +35,19 @@ export default function TimeTracking() {
     toast.success("Time entry recorded successfully.");
   };
 
+  const formattedDate = isToday(selectedDate) 
+    ? "today" 
+    : format(selectedDate, "d MMMM yyyy");
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Time Tracking</h1>
+        <div className="flex space-x-4 items-center">
+          <h1 className="text-2xl font-bold">Time Tracking</h1>
+          <div className="text-sm text-muted-foreground">
+            and reporting
+          </div>
+        </div>
         
         <Button 
           variant="outline" 
@@ -52,13 +64,28 @@ export default function TimeTracking() {
         </Button>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-[350px,1fr]">
+      <div className="grid gap-6 md:grid-cols-[280px,1fr]">
         <div>
-          <TimeEntryForm onSuccess={handleTimeEntryCreated} />
+          <DateSelector 
+            selectedDate={selectedDate} 
+            onDateChange={setSelectedDate} 
+          />
         </div>
         
-        <div>
-          <TimeEntriesList />
+        <div className="space-y-6">
+          <div>
+            <TimeEntryForm 
+              onSuccess={handleTimeEntryCreated} 
+              selectedDate={selectedDate}
+            />
+          </div>
+          
+          <div>
+            <TimeEntriesList 
+              selectedDate={selectedDate}
+              formattedDate={formattedDate}
+            />
+          </div>
         </div>
       </div>
       
