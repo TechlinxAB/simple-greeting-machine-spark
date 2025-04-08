@@ -42,7 +42,6 @@ export async function exchangeCodeForTokens(
     console.log("Exchanging code for tokens with parameters:", {
       clientId,
       redirectUri,
-      tokenUrl: FORTNOX_TOKEN_URL
     });
     
     // Prepare the token request body according to Fortnox specs
@@ -355,8 +354,16 @@ export async function fortnoxApiRequest(
     });
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Fortnox API Error: ${response.status} - ${errorData.message || response.statusText}`);
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: "unknown", error_description: errorText };
+      }
+      
+      console.error("Fortnox API request failed:", response.status, errorData);
+      throw new Error(`Fortnox API Error: ${response.status} - ${errorData.error_description || errorData.message || errorText || response.statusText}`);
     }
     
     return await response.json();

@@ -82,25 +82,41 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
-      const scope = 'invoice company-settings customer article';
-      const state = Math.random().toString(36).substring(2, 15);
+      
+      // Expanded scopes following the example from your Frappe implementation
+      const scopes = [
+        'companyinformation',
+        'invoice',
+        'customer',
+        'article' // For product data
+      ];
+      
+      // Generate a random state for CSRF protection
+      const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store the state in sessionStorage to verify when we come back
       sessionStorage.setItem('fortnox_oauth_state', state);
       
-      // Direct browser navigation - simplest and most reliable method
-      const authUrl = new URL(FORTNOX_AUTH_URL);
-      authUrl.searchParams.append('client_id', clientId);
-      authUrl.searchParams.append('redirect_uri', redirectUri);
-      authUrl.searchParams.append('scope', scope);
-      authUrl.searchParams.append('response_type', 'code');
-      authUrl.searchParams.append('state', state);
-      authUrl.searchParams.append('access_type', 'offline');
+      // Log state for debugging
+      console.log("Generated state for OAuth:", state);
+      console.log("Stored state in session storage");
       
-      console.log("Redirecting to Fortnox OAuth URL:", authUrl.toString());
+      // Build parameters following Fortnox's requirements
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        scope: scopes.join(' '), // Space-separated list of scopes
+        response_type: 'code',
+        state: state,
+        access_type: 'offline' // Request refresh token
+      });
+      
+      const authUrl = `${FORTNOX_AUTH_URL}?${params.toString()}`;
+      
+      console.log("Redirecting to Fortnox OAuth URL:", authUrl);
       
       // Use direct window location change for most reliable redirect
-      window.location.href = authUrl.toString();
+      window.location.href = authUrl;
       
       // Not setting isConnecting to false here because we're redirecting away
     } catch (error) {

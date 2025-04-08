@@ -86,27 +86,36 @@ export function FortnoxCallbackHandler({
       console.error("State mismatch - possible CSRF attack");
       setStatus('error');
       setError("Security verification failed - please try connecting again");
+      if (onError) onError(new Error("State mismatch - security verification failed"));
       return;
     }
 
     // Clean up the state from session storage
-    sessionStorage.removeItem('fortnox_oauth_state');
+    if (savedState) {
+      console.log("Clearing saved state from session storage");
+      sessionStorage.removeItem('fortnox_oauth_state');
+    } else {
+      console.warn("No saved state found in session storage - possible security risk");
+    }
 
     // Validate that we have all required parameters to proceed
-    if (!redirectUri || !clientId || !clientSecret) {
-      console.error("Missing required parameters:", {
-        redirectUri: !redirectUri,
-        clientId: !clientId,
-        clientSecret: !clientSecret
-      });
+    if (!clientId || !clientSecret) {
+      console.error("Missing required OAuth credentials:");
       setStatus('error');
-      setError("Missing configuration settings. Please check your Fortnox client ID and secret.");
+      setError("Missing Fortnox API credentials. Please check your Fortnox client ID and secret.");
+      return;
+    }
+
+    if (!redirectUri) {
+      console.error("Redirect URI not set");
+      setStatus('error');
+      setError("Application configuration error: Redirect URI not set");
       return;
     }
 
     // We have a code and all required parameters, proceed with token exchange
     handleAuthorizationCode(code);
-  }, [searchParams, clientId, clientSecret, redirectUri, user]);
+  }, [searchParams, clientId, clientSecret, redirectUri, user, onError]);
 
   const handleAuthorizationCode = async (code: string) => {
     try {
@@ -122,6 +131,11 @@ export function FortnoxCallbackHandler({
       );
 
       console.log("Token exchange successful, saving credentials");
+
+      // Verify we got the tokens
+      if (!tokenData.accessToken || !tokenData.refreshToken) {
+        throw new Error("Incomplete token data received from Fortnox");
+      }
 
       // Save the credentials in the database
       await saveFortnoxCredentials({
