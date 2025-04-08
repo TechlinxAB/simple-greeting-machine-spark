@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -119,12 +119,12 @@ export default function Reports() {
       try {
         const { data, error } = await supabase
           .from("system_settings")
-          .select("value")
-          .eq("key", "company_news")
+          .select("settings")
+          .eq("id", "company_news")
           .single();
           
         if (error && error.code !== 'PGRST116') throw error;
-        return data?.value || "Welcome to our company news section! No announcements yet.";
+        return data?.settings || "Welcome to our company news section! No announcements yet.";
       } catch (error) {
         console.error("Error fetching company news:", error);
         return "Error loading company news.";
@@ -132,12 +132,12 @@ export default function Reports() {
     },
   });
   
-  // Set news content when data is loaded
-  useState(() => {
+  // Update news content when data is loaded
+  useEffect(() => {
     if (newsData) {
       setNewsContent(newsData);
     }
-  });
+  }, [newsData]);
   
   // Calculate statistics
   const calculateTodayHours = () => {
@@ -242,8 +242,8 @@ export default function Reports() {
       const { error } = await supabase
         .from("system_settings")
         .upsert({ 
-          key: "company_news", 
-          value: newsContent,
+          id: "company_news", 
+          settings: newsContent,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });

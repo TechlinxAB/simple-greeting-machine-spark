@@ -10,38 +10,45 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 -- Add RLS policies to restrict access to system settings
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
--- Only administrators can access system settings
-CREATE POLICY "Administrators can read system settings" 
+-- Anyone can read system settings (for company news)
+CREATE POLICY "Anyone can read system settings" 
   ON public.system_settings 
   FOR SELECT 
-  USING (EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
-  ));
+  USING (true);
 
-CREATE POLICY "Administrators can insert system settings" 
+-- Only administrators and managers can update system settings
+CREATE POLICY "Administrators and managers can insert system settings" 
   ON public.system_settings 
   FOR INSERT 
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
-  ));
+  WITH CHECK (
+    auth.role() = 'service_role' 
+    OR EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
 
-CREATE POLICY "Administrators can update system settings" 
+CREATE POLICY "Administrators and managers can update system settings" 
   ON public.system_settings 
   FOR UPDATE 
-  USING (EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
-  ));
+  USING (
+    auth.role() = 'service_role' 
+    OR EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
 
 CREATE POLICY "Administrators can delete system settings" 
   ON public.system_settings 
   FOR DELETE 
-  USING (EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
-  ));
+  USING (
+    auth.role() = 'service_role' 
+    OR EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+  );
 
 -- Add trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_system_settings_updated_at()
