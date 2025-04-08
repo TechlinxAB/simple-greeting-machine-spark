@@ -100,7 +100,7 @@ export function FortnoxCallbackHandler({
 
     // Validate that we have all required parameters to proceed
     if (!clientId || !clientSecret) {
-      console.error("Missing required OAuth credentials:");
+      console.error("Missing required OAuth credentials:", { clientIdExists: !!clientId, clientSecretExists: !!clientSecret });
       setStatus('error');
       setError("Missing Fortnox API credentials. Please check your Fortnox client ID and secret.");
       return;
@@ -152,10 +152,25 @@ export function FortnoxCallbackHandler({
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error("Error handling Fortnox callback:", error);
-      setStatus('error');
-      setError(error instanceof Error ? error.message : 'Failed to exchange code for tokens');
       
-      if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
+      let errorMessage = "Failed to exchange code for tokens";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = String(error.message);
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Detect network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network') || errorMessage.includes('CORS')) {
+        errorMessage = "Network error connecting to Fortnox API. This could be due to CORS restrictions or network connectivity issues.";
+      }
+      
+      setStatus('error');
+      setError(errorMessage);
+      
+      if (onError) onError(error instanceof Error ? error : new Error(errorMessage));
     }
   };
 

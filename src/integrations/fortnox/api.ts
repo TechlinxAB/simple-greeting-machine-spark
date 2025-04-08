@@ -40,7 +40,7 @@ export async function exchangeCodeForTokens(
 ): Promise<Partial<FortnoxCredentials>> {
   try {
     console.log("Exchanging code for tokens with parameters:", {
-      clientId,
+      clientId: clientId ? `${clientId.substring(0, 3)}...` : undefined,
       redirectUri,
     });
     
@@ -55,42 +55,62 @@ export async function exchangeCodeForTokens(
     
     // Log the request details for debugging
     console.log("Making token exchange request to:", FORTNOX_TOKEN_URL);
-    console.log("Request body:", tokenRequestBody.toString());
+    console.log("Request body (without sensitive data):", 
+      `grant_type=authorization_code&code=${code.substring(0, 5)}...&client_id=${clientId.substring(0, 3)}...&redirect_uri=${encodeURIComponent(redirectUri)}`);
     
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: tokenRequestBody,
-    });
+    // Use a try-catch to catch network errors specifically
+    try {
+      const response = await fetch(FORTNOX_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenRequestBody,
+      });
 
-    console.log("Token exchange response status:", response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
+      console.log("Token exchange response status:", response.status);
+      
+      // Log the full response content for debugging
+      const responseText = await response.text();
+      console.log("Token exchange raw response:", responseText);
+      
+      // Parse the response as JSON if possible
+      let responseData;
       try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: "unknown", error_description: errorText };
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", parseError);
+        throw new Error(`Non-JSON response from Fortnox: ${responseText}`);
       }
       
-      console.error("Token exchange failed:", response.status, errorData);
-      throw new Error(`Token exchange failed: ${errorData.error_description || errorText || 'Unknown error'}`);
-    }
+      if (!response.ok) {
+        console.error("Token exchange failed:", response.status, responseData);
+        
+        // Enhanced error message with details from the response
+        const errorDescription = responseData?.error_description || 
+                                responseData?.message || 
+                                'Unknown error from Fortnox API';
+                                
+        throw new Error(`Token exchange failed: ${errorDescription}`);
+      }
 
-    const data = await response.json();
-    console.log("Token exchange successful, received tokens");
-    
-    // Calculate token expiration time
-    const expiresAt = Date.now() + data.expires_in * 1000;
-    
-    return {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      expiresAt,
-    };
+      // At this point, responseData should contain the token information
+      console.log("Token exchange successful, received tokens");
+      
+      // Calculate token expiration time
+      const expiresAt = Date.now() + responseData.expires_in * 1000;
+      
+      return {
+        accessToken: responseData.access_token,
+        refreshToken: responseData.refresh_token,
+        expiresAt,
+      };
+      
+    } catch (fetchError) {
+      // This will catch network errors like CORS, failed to fetch, etc.
+      console.error("Network error during token exchange:", fetchError);
+      throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to Fortnox API'}`);
+    }
   } catch (error) {
     console.error('Error exchanging code for tokens:', error);
     throw error;
@@ -247,35 +267,64 @@ export async function refreshAccessToken(
   try {
     console.log("Refreshing Fortnox access token");
     
-    // Updated to match the exact format you provided
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-      }),
+    // Prepare the refresh token request body
+    const tokenRequestBody = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
     });
+    
+    console.log("Making refresh token request to:", FORTNOX_TOKEN_URL);
+    
+    try {
+      const response = await fetch(FORTNOX_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenRequestBody,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Token refresh failed: ${errorData.error_description || 'Unknown error'}`);
+      console.log("Refresh token response status:", response.status);
+      
+      // Log the full response content for debugging
+      const responseText = await response.text();
+      
+      // Parse the response as JSON if possible
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse refresh response as JSON:", parseError);
+        throw new Error(`Non-JSON response from Fortnox during token refresh: ${responseText}`);
+      }
+      
+      if (!response.ok) {
+        console.error("Token refresh failed:", response.status, responseData);
+        
+        // Enhanced error message with details from the response
+        const errorDescription = responseData?.error_description || 
+                                responseData?.message || 
+                                'Unknown error from Fortnox API';
+                                
+        throw new Error(`Token refresh failed: ${errorDescription}`);
+      }
+
+      // Calculate token expiration time
+      const expiresAt = Date.now() + responseData.expires_in * 1000;
+      
+      return {
+        accessToken: responseData.access_token,
+        refreshToken: responseData.refresh_token, // Fortnox may provide a new refresh token
+        expiresAt,
+      };
+      
+    } catch (fetchError) {
+      // This will catch network errors like CORS, failed to fetch, etc.
+      console.error("Network error during token refresh:", fetchError);
+      throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to Fortnox API'}`);
     }
-
-    const data = await response.json();
-    
-    // Calculate token expiration time
-    const expiresAt = Date.now() + data.expires_in * 1000;
-    
-    return {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token, // Fortnox may provide a new refresh token
-      expiresAt,
-    };
   } catch (error) {
     console.error('Error refreshing access token:', error);
     throw error;

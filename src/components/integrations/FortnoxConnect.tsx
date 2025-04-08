@@ -67,8 +67,13 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       return;
     }
 
-    if (!clientId) {
+    if (!clientId || !clientId.trim()) {
       toast.error("Client ID is required to connect to Fortnox");
+      return;
+    }
+
+    if (!clientSecret || !clientSecret.trim()) {
+      toast.error("Client Secret is required to connect to Fortnox");
       return;
     }
 
@@ -83,7 +88,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
       
-      // Expanded scopes following the example from your Frappe implementation
+      // Expanded scopes following the example from the Frappe implementation
       const scopes = [
         'companyinformation',
         'invoice',
@@ -100,6 +105,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       // Log state for debugging
       console.log("Generated state for OAuth:", state);
       console.log("Stored state in session storage");
+      console.log("Using Client ID:", clientId.substring(0, 3) + "...");
+      console.log("Using Redirect URI:", redirectUri);
       
       // Build parameters following Fortnox's requirements
       const params = new URLSearchParams({
