@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -44,7 +45,7 @@ export async function exchangeCodeForTokens(
       tokenUrl: FORTNOX_TOKEN_URL
     });
     
-    // Prepare the token request body
+    // Prepare the token request body according to Fortnox specs
     const tokenRequestBody = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -247,6 +248,7 @@ export async function refreshAccessToken(
   try {
     console.log("Refreshing Fortnox access token");
     
+    // Updated to match the exact format you provided
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -272,7 +274,7 @@ export async function refreshAccessToken(
     
     return {
       accessToken: data.access_token,
-      refreshToken: data.refresh_token,
+      refreshToken: data.refresh_token, // Fortnox may provide a new refresh token
       expiresAt,
     };
   } catch (error) {
@@ -340,10 +342,12 @@ export async function fortnoxApiRequest(
       credentials.accessToken = refreshed.accessToken;
     }
     
+    // Updated headers to match the requirements you provided
     const response = await fetch(`${FORTNOX_API_BASE}${endpoint}`, {
       method,
       headers: {
         'Authorization': `Bearer ${credentials.accessToken}`,
+        'Client-Secret': credentials.clientSecret, // Added as per documentation
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
@@ -358,6 +362,63 @@ export async function fortnoxApiRequest(
     return await response.json();
   } catch (error) {
     console.error('Error in Fortnox API request:', error);
+    throw error;
+  }
+}
+
+// New function to get specific Fortnox resources
+export async function getFortnoxResource(
+  resource: string,
+  id?: string,
+  queryParams?: Record<string, string>
+): Promise<any> {
+  try {
+    let endpoint = `/${resource}`;
+    
+    // Add ID if provided
+    if (id) {
+      endpoint += `/${id}`;
+    }
+    
+    // Add query parameters if provided
+    if (queryParams) {
+      const params = new URLSearchParams();
+      Object.entries(queryParams).forEach(([key, value]) => {
+        params.append(key, value);
+      });
+      endpoint += `?${params.toString()}`;
+    }
+    
+    return await fortnoxApiRequest(endpoint, 'GET');
+  } catch (error) {
+    console.error(`Error fetching Fortnox ${resource}:`, error);
+    throw error;
+  }
+}
+
+// New function to create Fortnox resources
+export async function createFortnoxResource(
+  resource: string,
+  data: any
+): Promise<any> {
+  try {
+    return await fortnoxApiRequest(`/${resource}`, 'POST', data);
+  } catch (error) {
+    console.error(`Error creating Fortnox ${resource}:`, error);
+    throw error;
+  }
+}
+
+// New function to update Fortnox resources
+export async function updateFortnoxResource(
+  resource: string,
+  id: string,
+  data: any
+): Promise<any> {
+  try {
+    return await fortnoxApiRequest(`/${resource}/${id}`, 'PUT', data);
+  } catch (error) {
+    console.error(`Error updating Fortnox ${resource}:`, error);
     throw error;
   }
 }
