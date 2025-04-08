@@ -14,7 +14,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Clock, Users, Package, FileText, Settings, LogOut } from "lucide-react";
+import { Clock, Users, Package, FileText, Settings, LogOut, BarChart3, UserCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 
@@ -40,7 +40,7 @@ export function AppSidebar() {
       title: "Products",
       path: "/products",
       icon: Package,
-      allowedRoles: ["admin", "manager"],
+      allowedRoles: ["admin", "manager", "user"],
     },
     {
       title: "Invoices",
@@ -48,9 +48,21 @@ export function AppSidebar() {
       icon: FileText,
       allowedRoles: ["admin", "manager"],
     },
+    {
+      title: "Reports",
+      path: "/reports",
+      icon: BarChart3,
+      allowedRoles: ["admin", "manager"],
+    },
   ];
 
-  const adminMenuItems = [
+  const userMenuItems = [
+    {
+      title: "Profile",
+      path: "/profile",
+      icon: UserCircle,
+      allowedRoles: ["admin", "manager", "user"],
+    },
     {
       title: "Settings",
       path: "/settings",
@@ -74,7 +86,7 @@ export function AppSidebar() {
   };
 
   const filteredMainMenu = mainMenuItems.filter(isAllowed);
-  const filteredAdminMenu = adminMenuItems.filter(isAllowed);
+  const filteredUserMenu = userMenuItems.filter(isAllowed);
 
   return (
     <Sidebar>
@@ -109,12 +121,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {filteredAdminMenu.length > 0 && (
+        {filteredUserMenu.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupLabel>User</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {filteredAdminMenu.map((item) => (
+                {filteredUserMenu.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       isActive={location.pathname === item.path}

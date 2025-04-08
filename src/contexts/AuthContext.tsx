@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 type AuthContextType = {
@@ -12,7 +12,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (data: { name?: string, avatar_url?: string }) => Promise<void>;
+  updateProfile: (data: { name?: string, avatar_url?: string, date_of_birth?: string }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,26 +24,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<'admin' | 'manager' | 'user' | null>(null);
 
   useEffect(() => {
-    // Get initial session
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          fetchUserRole(session.user.id);
+        } else {
+          setRole(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserRole(session.user.id);
       } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setRole(null);
         setIsLoading(false);
       }
     });
@@ -63,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      setRole(data.role || 'user');
+      setRole(data.role as 'admin' | 'manager' | 'user' || 'user');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole('user'); // Default role if not found
@@ -76,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      toast.success('Signed in successfully');
     } catch (error: any) {
       toast.error(error.message || 'Error signing in');
       throw error;
@@ -96,19 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
       
-      if (data.user) {
-        // Create profile entry
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: data.user.id, 
-            name, 
-            email,
-            role: 'user' // Default role for new signups
-          }]);
-        
-        if (profileError) throw profileError;
-      }
+      toast.success('Account created successfully');
     } catch (error: any) {
       toast.error(error.message || 'Error signing up');
       throw error;
@@ -119,13 +110,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      toast.success('Signed out successfully');
     } catch (error: any) {
       toast.error(error.message || 'Error signing out');
       throw error;
     }
   };
 
-  const updateProfile = async (data: { name?: string, avatar_url?: string }) => {
+  const updateProfile = async (data: { name?: string, avatar_url?: string, date_of_birth?: string }) => {
     try {
       if (!user) throw new Error('No user logged in');
 

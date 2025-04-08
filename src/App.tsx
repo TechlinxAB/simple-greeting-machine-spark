@@ -10,6 +10,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import TimeTracking from "./pages/TimeTracking";
 import Clients from "./pages/Clients";
+import Products from "./pages/Products";
+import Invoices from "./pages/Invoices";
+import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +33,9 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/" element={<TimeTracking />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             

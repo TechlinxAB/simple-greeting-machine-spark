@@ -1,0 +1,176 @@
+
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Package, Clock, Info } from "lucide-react";
+import { ProductForm } from "@/components/products/ProductForm";
+
+export default function Products() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<"all" | "activity" | "item">("all");
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [productType, setProductType] = useState<"activity" | "item">("activity");
+  const queryClient = useQueryClient();
+  const { role } = useAuth();
+
+  const canManageProducts = role === 'admin' || role === 'manager';
+
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ["all-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filteredProducts = products.filter(product => 
+    (activeTab === "all" || product.type === activeTab) &&
+    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleAddProduct = (type: "activity" | "item") => {
+    setProductType(type);
+    setShowProductForm(true);
+  };
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold">Products</h1>
+        
+        <div className="flex w-full sm:w-auto gap-2">
+          <div className="relative flex-grow">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..." 
+              className="pl-8 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          {canManageProducts && (
+            <Button 
+              onClick={() => handleAddProduct("activity")}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>New Product</span>
+            </Button>
+          )}
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Product List</CardTitle>
+          <CardDescription>
+            Manage your activities and items
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "activity" | "item")} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="activity" className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                <span>Activities</span>
+              </TabsTrigger>
+              <TabsTrigger value="item" className="flex items-center gap-1">
+                <Package className="h-4 w-4" />
+                <span>Items</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Package className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
+              <p>No products found.</p>
+              {canManageProducts && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleAddProduct("activity")}
+                    className="flex items-center"
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    Add Activity
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleAddProduct("item")}
+                    className="flex items-center"
+                  >
+                    <Package className="mr-2 h-4 w-4" />
+                    Add Item
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Price (SEK)</TableHead>
+                    <TableHead>VAT (%)</TableHead>
+                    <TableHead>Account #</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {product.type === "activity" ? (
+                            <Clock className="mr-1 h-3 w-3 inline" />
+                          ) : (
+                            <Package className="mr-1 h-3 w-3 inline" />
+                          )}
+                          {product.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{product.price}</TableCell>
+                      <TableCell>{product.vat_percentage}%</TableCell>
+                      <TableCell>{product.account_number || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <ProductForm 
+        open={showProductForm} 
+        onOpenChange={setShowProductForm}
+        productType={productType}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["all-products"] });
+          queryClient.invalidateQueries({ queryKey: ["products"] });
+        }}
+      />
+    </div>
+  );
+}

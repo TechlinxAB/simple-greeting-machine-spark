@@ -9,7 +9,282 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          client_number: string | null
+          county: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          organization_number: string | null
+          postal_code: string | null
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          client_number?: string | null
+          county?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          organization_number?: string | null
+          postal_code?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          client_number?: string | null
+          county?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          organization_number?: string | null
+          postal_code?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      invoice_items: {
+        Row: {
+          description: string
+          id: string
+          invoice_id: string
+          product_id: string
+          quantity: number
+          time_entry_id: string | null
+          total_amount: number
+          unit_price: number
+          vat_percentage: number
+        }
+        Insert: {
+          description: string
+          id?: string
+          invoice_id: string
+          product_id: string
+          quantity: number
+          time_entry_id?: string | null
+          total_amount: number
+          unit_price: number
+          vat_percentage: number
+        }
+        Update: {
+          description?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string
+          quantity?: number
+          time_entry_id?: string | null
+          total_amount?: number
+          unit_price?: number
+          vat_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          due_date: string
+          exported_to_fortnox: boolean | null
+          fortnox_invoice_id: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          status: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          due_date: string
+          exported_to_fortnox?: boolean | null
+          fortnox_invoice_id?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          due_date?: string
+          exported_to_fortnox?: boolean | null
+          fortnox_invoice_id?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          account_number: string | null
+          created_at: string | null
+          id: string
+          name: string
+          price: number
+          type: string
+          updated_at: string | null
+          vat_percentage: number | null
+        }
+        Insert: {
+          account_number?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          price?: number
+          type: string
+          updated_at?: string | null
+          vat_percentage?: number | null
+        }
+        Update: {
+          account_number?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          price?: number
+          type?: string
+          updated_at?: string | null
+          vat_percentage?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          id: string
+          name: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          id: string
+          name?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          id?: string
+          name?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          id: string
+          invoice_id: string | null
+          invoiced: boolean | null
+          product_id: string | null
+          quantity: number | null
+          start_time: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoiced?: boolean | null
+          product_id?: string | null
+          quantity?: number | null
+          start_time?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoiced?: boolean | null
+          product_id?: string | null
+          quantity?: number | null
+          start_time?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
