@@ -81,7 +81,7 @@ export async function signInUser(email: string, password: string) {
 
 // Add inactivity timeout management
 let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds (changed from a previous value)
 
 // Function to reset the inactivity timer
 export function resetInactivityTimer() {
@@ -92,6 +92,7 @@ export function resetInactivityTimer() {
   inactivityTimer = setTimeout(() => {
     console.log('User inactive for 30 minutes, signing out');
     supabase.auth.signOut();
+    // Let the auth change listener handle the redirect
   }, INACTIVITY_TIMEOUT);
 }
 

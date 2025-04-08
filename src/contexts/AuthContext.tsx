@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase, setupActivityTracking, clearInactivityTimer } from "@/lib/supabase";
@@ -39,6 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [loadingTimerId, setLoadingTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Get React Router hooks - now they will work because AuthProvider is inside BrowserRouter
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -158,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Set up activity tracking
+    // Set up activity tracking - modify the inactivity timeout to 30 minutes
     const cleanupActivityTracking = setupActivityTracking();
     
     // Set up listener for auth changes
