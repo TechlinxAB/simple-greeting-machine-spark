@@ -26,6 +26,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -44,14 +45,41 @@ const Register = () => {
     try {
       console.log("Submitting registration with values:", values);
       
-      // Add some delay to ensure DB operations complete
-      await signUp(values.email, values.password, values.name);
+      // Add registration retry mechanism
+      let error = null;
+      let success = false;
+      const maxRetries = 3;
       
-      toast.success("Registration successful! Please sign in.");
-      // Navigate after a short delay to ensure backend processes complete
-      setTimeout(() => {
-        navigate("/login");
-      }, 500);
+      for (let attempt = 0; attempt <= retryCount && attempt < maxRetries; attempt++) {
+        try {
+          // Add delay between attempts
+          if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+          
+          await signUp(values.email, values.password, values.name);
+          success = true;
+          break;
+        } catch (err: any) {
+          console.error(`Registration attempt ${attempt + 1} failed:`, err);
+          error = err;
+          
+          // Break early if it's not a database error
+          if (!err.message?.includes("Database error")) {
+            break;
+          }
+        }
+      }
+      
+      if (success) {
+        toast.success("Registration successful! Please sign in.");
+        // Navigate after a short delay to ensure backend processes complete
+        setTimeout(() => {
+          navigate("/login");
+        }, 1000);
+      } else if (error) {
+        throw error;
+      }
     } catch (error: any) {
       console.error("Registration error:", error);
       
@@ -60,6 +88,9 @@ const Register = () => {
         toast.error("This email is already registered. Please log in instead.");
       } else if (error.message?.includes("Database error")) {
         toast.error("Database error occurred. Please try again in a moment.");
+        
+        // Increment retry count for next submission
+        setRetryCount(prev => Math.min(prev + 1, 3));
       } else {
         toast.error(error.message || "Registration failed. Please try again.");
       }
