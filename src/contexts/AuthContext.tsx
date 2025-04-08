@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up listener for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
@@ -93,13 +94,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log("Attempting sign in with:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+      
+      toast.success("Signed in successfully!");
     } catch (error: any) {
+      console.error("Sign in error:", error);
       toast.error(error.message || "Error signing in");
       throw error;
     }
@@ -107,6 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
+      console.log("Attempting sign up with:", email, name);
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -121,6 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       toast.success("Registration successful! Check your email for confirmation.");
     } catch (error: any) {
+      console.error("Sign up error:", error.message);
       toast.error(error.message || "Error signing up");
       throw error;
     }
@@ -130,6 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      toast.success("Signed out successfully");
     } catch (error: any) {
       toast.error(error.message || "Error signing out");
       throw error;
