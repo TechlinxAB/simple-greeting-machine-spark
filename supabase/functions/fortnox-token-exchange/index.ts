@@ -44,32 +44,42 @@ serve(async (req) => {
     
     try {
       if (contentType.includes("application/json")) {
-        // Handle JSON data
-        requestData = await req.json();
-        console.log("📦 Parsed JSON body:", {
-          client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
-          client_secret: requestData.client_secret ? '•••' : null,
-          code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
-          redirect_uri: requestData.redirect_uri
-        });
+        try {
+          requestData = await req.json();
+          console.log("📦 Parsed JSON body:", {
+            client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
+            client_secret: requestData.client_secret ? '•••' : null,
+            code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
+            redirect_uri: requestData.redirect_uri
+          });
+        } catch (err) {
+          console.error("❌ Failed to parse JSON body:", err.message);
+          return new Response(JSON.stringify({
+            error: "invalid_json",
+            error_description: "Failed to parse JSON body",
+            details: err.message
+          }), {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json"
+            }
+          });
+        }
       } else if (contentType.includes("application/x-www-form-urlencoded")) {
-        // Handle form data
         const bodyText = await req.text();
-        console.log("📦 Received form body:", bodyText);
-        
         const formEntries = new URLSearchParams(bodyText);
         for (const [key, value] of formEntries.entries()) {
           requestData[key] = value;
         }
-        
-        console.log("📦 Parsed form body:", {
+        console.log("📦 Parsed form-urlencoded body:", {
           client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
           client_secret: requestData.client_secret ? '•••' : null,
           code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
           redirect_uri: requestData.redirect_uri
         });
       } else {
-        // Try to parse as text as a fallback
+        // Try to parse as text as a fallback for compatibility
         console.log("⚠️ Unrecognized content type:", contentType);
         console.log("Attempting to parse as text and then detect format");
         
