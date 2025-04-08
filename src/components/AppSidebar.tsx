@@ -77,7 +77,7 @@ export function AppSidebar() {
   const filteredAdminMenu = adminMenuItems.filter(isAllowed);
 
   return (
-    <Sidebar defaultCollapsed={false}>
+    <Sidebar>
       <SidebarHeader className="py-6">
         <div className="flex items-center justify-between px-4">
           <div className="flex items-center">
@@ -97,7 +97,7 @@ export function AppSidebar() {
               {filteredMainMenu.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
-                    active={location.pathname === item.path}
+                    isActive={location.pathname === item.path}
                     onClick={() => navigate(item.path)}
                   >
                     <item.icon className="h-5 w-5" />
@@ -117,7 +117,7 @@ export function AppSidebar() {
                 {filteredAdminMenu.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
-                      active={location.pathname === item.path}
+                      isActive={location.pathname === item.path}
                       onClick={() => navigate(item.path)}
                     >
                       <item.icon className="h-5 w-5" />
