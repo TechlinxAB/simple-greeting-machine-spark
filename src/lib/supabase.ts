@@ -42,10 +42,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     timeout: 30000, // 30 second timeout for realtime connections
-  },
-  // Add a more aggressive cache policy
-  queries: {
-    keepPreviousData: true, // Keep displaying old data while fetching new data
   }
 });
 

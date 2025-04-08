@@ -70,19 +70,20 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
     try {
       console.log("Creating new client:", values.name);
       
-      // Since 'name' is required in our form schema, we can ensure it will always be present
-      // This way TypeScript knows it's not optional
-      const { error, data } = await supabase.from("clients").insert({
-        name: values.name, // Explicitly provide the required field
-        organization_number: values.organization_number,
-        client_number: values.client_number,
-        address: values.address,
-        postal_code: values.postal_code,
-        city: values.city,
-        county: values.county,
-        telephone: values.telephone,
-        email: values.email,
-      }).select().single();
+      // Create a client data object with proper typing
+      const clientData = {
+        name: values.name,
+        organization_number: values.organization_number || null,
+        client_number: values.client_number || null,
+        address: values.address || null,
+        postal_code: values.postal_code || null,
+        city: values.city || null,
+        county: values.county || null,
+        telephone: values.telephone || null,
+        email: values.email || null,
+      };
+      
+      const { error, data } = await supabase.from("clients").insert(clientData).select().single();
 
       if (error) {
         console.error("Error creating client:", error);

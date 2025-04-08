@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { Plus, Search, Users, Mail, Phone, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import type { Client } from "@/types";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +59,7 @@ export default function Clients() {
     queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 
-  const filteredClients = clients.filter(client => 
+  const filteredClients = clients.filter((client: Client) => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (client.organization_number && client.organization_number.includes(searchTerm)) ||
     (client.client_number && client.client_number.includes(searchTerm))

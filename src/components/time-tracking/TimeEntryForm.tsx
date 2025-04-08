@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
+import type { ProductType } from "@/types";
 
 const formSchema = z.object({
   clientId: z.string().min(1, { message: "Please select a client" }),
@@ -30,7 +31,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"activity" | "item">("activity");
+  const [activeTab, setActiveTab] = useState<ProductType>("activity");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -48,13 +49,18 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .order("name");
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("id, name")
+          .order("name");
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+        return [];
+      }
     },
   });
 
@@ -62,14 +68,19 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
   const { data: products = [], refetch: refetchProducts } = useQuery({
     queryKey: ["products", activeTab],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, price")
-        .eq("type", activeTab)
-        .order("name");
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("id, name, price")
+          .eq("type", activeTab as string)
+          .order("name");
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        return [];
+      }
     },
   });
 
@@ -84,25 +95,28 @@ export function TimeEntryForm({ onSuccess }: { onSuccess?: () => void }) {
     }
 
     try {
-      const newEntry = {
+      const baseEntry = {
         user_id: user.id,
         client_id: values.clientId,
         product_id: values.productId,
-        description: values.description,
-        ...(activeTab === "activity" 
-          ? { 
-              start_time: values.startTime, 
-              end_time: values.endTime 
-            } 
-          : { 
-              quantity: values.quantity 
-            }
-        )
+        description: values.description || null,
       };
+
+      // Create the entry object with the right fields based on the active tab
+      const entryData = activeTab === "activity" 
+        ? { 
+            ...baseEntry,
+            start_time: values.startTime || null, 
+            end_time: values.endTime || null 
+          } 
+        : { 
+            ...baseEntry,
+            quantity: values.quantity || null
+          };
 
       const { error } = await supabase
         .from("time_entries")
-        .insert(newEntry);
+        .insert(entryData);
 
       if (error) throw error;
       

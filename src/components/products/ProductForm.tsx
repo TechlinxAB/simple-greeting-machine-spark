@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import type { ProductType } from "@/types";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -22,7 +23,7 @@ type FormValues = z.infer<typeof formSchema>;
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  productType: "activity" | "item";
+  productType: ProductType;
   onSuccess?: () => void;
 }
 
@@ -42,14 +43,16 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      // Ensure name is explicitly included so TypeScript knows it's not optional
-      const { error } = await supabase.from("products").insert({
-        name: values.name, // Explicitly provide the required field
+      // Create the product data object with explicit typing
+      const productData = {
+        name: values.name,
         price: values.price,
-        account_number: values.account_number,
+        account_number: values.account_number || null,
         vat_percentage: values.vat_percentage,
-        type: productType, // This is a required field from the database perspective
-      });
+        type: productType,
+      };
+
+      const { error } = await supabase.from("products").insert(productData);
 
       if (error) throw error;
       

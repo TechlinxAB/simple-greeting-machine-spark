@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,12 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package, Clock, Info } from "lucide-react";
 import { ProductForm } from "@/components/products/ProductForm";
+import type { Product, ProductType } from "@/types";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "activity" | "item">("all");
+  const [activeTab, setActiveTab] = useState<"all" | ProductType>("all");
   const [showProductForm, setShowProductForm] = useState(false);
-  const [productType, setProductType] = useState<"activity" | "item">("activity");
+  const [productType, setProductType] = useState<ProductType>("activity");
   const queryClient = useQueryClient();
   const { role } = useAuth();
 
@@ -25,22 +26,27 @@ export default function Products() {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["all-products"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("name");
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        return [];
+      }
     },
   });
 
-  const filteredProducts = products.filter(product => 
+  const filteredProducts = products.filter((product: Product) => 
     (activeTab === "all" || product.type === activeTab) &&
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddProduct = (type: "activity" | "item") => {
+  const handleAddProduct = (type: ProductType) => {
     setProductType(type);
     setShowProductForm(true);
   };

@@ -1,6 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,25 +16,31 @@ export function TimeEntriesList() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("time_entries")
-        .select(`
-          id, 
-          description, 
-          start_time, 
-          end_time, 
-          quantity, 
-          created_at, 
-          invoiced,
-          products:product_id (id, name, type, price),
-          clients:client_id (id, name)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
+      try {
+        const { data, error } = await supabase
+          .from("time_entries")
+          .select(`
+            id, 
+            description, 
+            start_time, 
+            end_time, 
+            quantity, 
+            created_at, 
+            invoiced,
+            products:product_id (id, name, type, price),
+            clients:client_id (id, name)
+          `)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching time entries:", error);
+        return [];
+      }
     },
     enabled: !!user,
   });
@@ -48,20 +54,20 @@ export function TimeEntriesList() {
   };
 
   const getItemAmount = (entry: any) => {
-    if (entry.products.type === "activity" && entry.start_time && entry.end_time) {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
       return `${hours} hours × ${entry.products.price} SEK`;
-    } else if (entry.products.type === "item" && entry.quantity) {
+    } else if (entry.products?.type === "item" && entry.quantity) {
       return `${entry.quantity} × ${entry.products.price} SEK`;
     }
     return "-";
   };
 
   const getItemTotal = (entry: any) => {
-    if (entry.products.type === "activity" && entry.start_time && entry.end_time) {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
       return (hours * entry.products.price).toFixed(2);
-    } else if (entry.products.type === "item" && entry.quantity) {
+    } else if (entry.products?.type === "item" && entry.quantity) {
       return (entry.quantity * entry.products.price).toFixed(2);
     }
     return "-";
