@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,8 +7,9 @@ import {
   FortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 interface FortnoxCallbackHandlerProps {
   clientId: string;
@@ -129,6 +129,15 @@ export function FortnoxCallbackHandler({
       console.log("Using client ID:", clientId ? `${clientId.substring(0, 3)}...` : "missing");
       console.log("Client secret present:", !!clientSecret);
 
+      // Add validation for client credentials length
+      if (clientId.trim().length < 5) {
+        throw new Error("Client ID appears to be invalid (too short)");
+      }
+      
+      if (clientSecret.trim().length < 5) {
+        throw new Error("Client Secret appears to be invalid (too short)");
+      }
+
       // Exchange the code for tokens
       const tokenData = await exchangeCodeForTokens(
         code,
@@ -237,13 +246,62 @@ export function FortnoxCallbackHandler({
           {error?.includes('Missing Fortnox API credentials') && (
             <div className="mt-2">
               <p className="font-medium">Please enter your Client ID and Client Secret in the form above, save them, and try connecting again.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  // Focus on the client ID field in the form
+                  const clientIdField = document.querySelector('[name="fortnoxClientId"]') as HTMLInputElement;
+                  if (clientIdField) {
+                    clientIdField.focus();
+                  }
+                  
+                  // Switch to the form section
+                  const saveButton = document.querySelector('button[type="submit"]');
+                  if (saveButton) {
+                    saveButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+              >
+                Go to credentials form
+              </Button>
             </div>
           )}
           
           {error?.includes('Network error') && (
             <div className="mt-2">
               <p className="font-medium">This is likely due to CORS restrictions from your browser.</p>
-              <p className="text-sm mt-1">We're using a Supabase Edge Function to handle this request, but there might be an issue with it.</p>
+              <p className="text-sm mt-1">We're using a Supabase Edge Function to handle this request, but there might be an issue with it. Check the edge function logs for details.</p>
+              <Button
+                variant="outline" 
+                size="sm"
+                className="mt-2 flex items-center gap-1"
+                onClick={() => window.open("https://supabase.com/dashboard/project/xojrleypudfrbmvejpow/functions/fortnox-token-exchange/logs", "_blank")}
+              >
+                <span>View logs</span>
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          
+          {(error?.includes('invalid_grant') || error?.includes('invalid code')) && (
+            <div className="mt-2">
+              <p className="font-medium">The authorization code has expired or is invalid.</p>
+              <p className="text-sm mt-1">Authorization codes can only be used once and expire quickly. Please try connecting again.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  // Clear the URL parameters but keep the tab
+                  navigate("/settings?tab=fortnox", { replace: true });
+                  // Reload the page
+                  window.location.reload();
+                }}
+              >
+                Try again
+              </Button>
             </div>
           )}
           
@@ -251,6 +309,15 @@ export function FortnoxCallbackHandler({
             <div className="mt-2">
               <p className="font-medium">There was an error with the Edge Function.</p>
               <p className="text-sm mt-1">Check that your Client ID and Client Secret are correct and that you've saved them before connecting.</p>
+              <Button
+                variant="outline" 
+                size="sm"
+                className="mt-2 flex items-center gap-1"
+                onClick={() => window.open("https://supabase.com/dashboard/project/xojrleypudfrbmvejpow/functions/fortnox-token-exchange/logs", "_blank")}
+              >
+                <span>Check Edge Function logs</span>
+                <ExternalLink className="h-3 w-3" />
+              </Button>
             </div>
           )}
         </AlertDescription>

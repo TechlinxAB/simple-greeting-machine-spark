@@ -28,6 +28,23 @@ const fortnoxSettingsSchema = z.object({
   fortnoxClientSecret: z.string().min(1, { message: "Fortnox Client Secret is required" }),
 });
 
+// Define TypeScript interfaces for our settings data structure
+interface AppSettings {
+  appName: string;
+  primaryColor: string;
+  secondaryColor: string;
+}
+
+interface FortnoxSettings {
+  clientId: string;
+  clientSecret: string;
+}
+
+interface SystemSettingsResponse {
+  fortnoxSettings: FortnoxSettings | null;
+  appSettings: AppSettings | null;
+}
+
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -126,13 +143,13 @@ export default function Settings() {
         }
           
         return {
-          fortnoxSettings: fortnoxData?.settings,
-          appSettings: appData?.settings
-        };
+          fortnoxSettings: fortnoxData?.settings as FortnoxSettings | null,
+          appSettings: appData?.settings as AppSettings | null
+        } as SystemSettingsResponse;
       } catch (err) {
         console.error("Error fetching system settings:", err);
         toast.error("Failed to load settings");
-        return { fortnoxSettings: null, appSettings: null };
+        return { fortnoxSettings: null, appSettings: null } as SystemSettingsResponse;
       }
     }
   });

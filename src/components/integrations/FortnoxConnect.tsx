@@ -12,7 +12,7 @@ import {
   FortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -26,6 +26,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [redirectUri, setRedirectUri] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -36,6 +37,26 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     const redirectPath = "/settings?tab=fortnox";
     setRedirectUri(`${baseUrl}${redirectPath}`);
   }, []);
+
+  // Validate client ID and secret whenever they change
+  useEffect(() => {
+    // Clear any previous validation errors
+    setValidationError(null);
+    
+    // Only validate if both values are provided
+    if (clientId && clientSecret) {
+      // Simple validation for length
+      if (clientId.trim().length < 5) {
+        setValidationError("Client ID appears to be too short");
+        return;
+      }
+      
+      if (clientSecret.trim().length < 5) {
+        setValidationError("Client Secret appears to be too short");
+        return;
+      }
+    }
+  }, [clientId, clientSecret]);
 
   // Get connection status
   const { data: connected = false, refetch: refetchStatus } = useQuery({
@@ -79,6 +100,12 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
 
     if (!redirectUri) {
       toast.error("Redirect URI is not set properly");
+      return;
+    }
+    
+    // Check for validation errors
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     
@@ -216,16 +243,40 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                 </Button>
               </div>
             </div>
+            
+            {validationError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-700">{validationError}</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Please check your credentials and make sure you've saved them properly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button 
               onClick={handleConnect} 
-              disabled={!clientId || !clientSecret || isConnecting || !redirectUri}
+              disabled={!clientId || !clientSecret || isConnecting || !redirectUri || !!validationError}
               className="flex items-center gap-2"
             >
               <Link className="h-4 w-4" />
               <span>Connect to Fortnox</span>
               <ArrowUpRight className="h-3 w-3" />
+            </Button>
+            
+            <Button
+              variant="outline" 
+              size="sm"
+              className="ml-2 flex items-center gap-1"
+              onClick={() => window.open("https://developer.fortnox.se/", "_blank")}
+            >
+              <span>Fortnox Developer Portal</span>
+              <ExternalLink className="h-3 w-3" />
             </Button>
           </div>
         </div>

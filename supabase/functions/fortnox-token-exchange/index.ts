@@ -46,7 +46,13 @@ serve(async (req) => {
     
     // Validate required fields
     if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
-      console.error("Missing required parameters:", {
+      const missingFields = [];
+      if (!requestData.code) missingFields.push('code');
+      if (!requestData.client_id) missingFields.push('client_id');
+      if (!requestData.client_secret) missingFields.push('client_secret');
+      if (!requestData.redirect_uri) missingFields.push('redirect_uri');
+      
+      console.error(`Missing required parameters: ${missingFields.join(', ')}`, {
         hasCode: !!requestData.code,
         hasClientId: !!requestData.client_id,
         hasClientSecret: !!requestData.client_secret,
@@ -57,6 +63,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Missing required parameters",
           details: {
+            missing: missingFields,
             code: requestData.code ? "present" : "missing",
             client_id: requestData.client_id ? "present" : "missing",
             client_secret: requestData.client_secret ? "present" : "missing",
@@ -69,6 +76,14 @@ serve(async (req) => {
         }
       );
     }
+    
+    // Log received data (except sensitive data)
+    console.log("Token exchange data received:", {
+      code: requestData.code ? `${requestData.code.substring(0, 4)}...` : null,
+      clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
+      clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0,
+      redirectUri: requestData.redirect_uri
+    });
     
     // Prepare the form data
     const formData = new URLSearchParams({
