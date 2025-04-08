@@ -51,8 +51,19 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      // Here's the fix: making sure name is always there (it is, because of our form validation)
-      const { error } = await supabase.from("clients").insert(values);
+      // Since 'name' is required in our form schema, we can ensure it will always be present
+      // This way TypeScript knows it's not optional
+      const { error } = await supabase.from("clients").insert({
+        name: values.name, // Explicitly provide the required field
+        organization_number: values.organization_number,
+        client_number: values.client_number,
+        address: values.address,
+        postal_code: values.postal_code,
+        city: values.city,
+        county: values.county,
+        telephone: values.telephone,
+        email: values.email,
+      });
 
       if (error) throw error;
       

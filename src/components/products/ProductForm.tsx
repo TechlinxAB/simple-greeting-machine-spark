@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,9 +42,13 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
+      // Ensure name is explicitly included so TypeScript knows it's not optional
       const { error } = await supabase.from("products").insert({
-        ...values,
-        type: productType,
+        name: values.name, // Explicitly provide the required field
+        price: values.price,
+        account_number: values.account_number,
+        vat_percentage: values.vat_percentage,
+        type: productType, // This is a required field from the database perspective
       });
 
       if (error) throw error;
