@@ -68,13 +68,23 @@ export default function Products() {
           </div>
           
           {canManageProducts && (
-            <Button 
-              onClick={() => handleAddProduct("activity")}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>New Product</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => handleAddProduct("activity")}
+                variant="outline"
+                className="flex items-center gap-1"
+              >
+                <Clock className="h-4 w-4" />
+                <span>New Activity</span>
+              </Button>
+              <Button 
+                onClick={() => handleAddProduct("item")}
+                className="flex items-center gap-1"
+              >
+                <Package className="h-4 w-4" />
+                <span>New Item</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -87,7 +87,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     <Card>
       <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b">
         <CardTitle className="text-base font-medium">
-          Activities for <span className="text-green-600">{formattedDate}</span>
+          Activities for <span className="text-primary">{formattedDate}</span>
         </CardTitle>
         <Button variant="outline" size="sm" className="flex items-center gap-1">
           <Eye className="h-3.5 w-3.5" />
@@ -133,7 +133,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                       {entry.products?.type === 'activity' ? (
                         <Clock className="h-4 w-4 text-blue-500" />
                       ) : (
-                        <Package className="h-4 w-4 text-green-500" />
+                        <Package className="h-4 w-4 text-primary" />
                       )}
                       <span className="capitalize">{entry.products?.type}</span>
                     </div>

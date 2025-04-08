@@ -153,17 +153,15 @@ export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntr
 
   return (
     <Card>
-      <CardHeader className="bg-green-50 border-b border-green-100">
-        <div className="flex justify-between items-center">
-          <CardTitle>New time entry</CardTitle>
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="bg-green-500 text-white hover:bg-green-600 hover:text-white"
-          >
-            Today
-          </Button>
-        </div>
+      <CardHeader className="bg-secondary border-b flex flex-row items-center justify-between">
+        <CardTitle className="text-base font-medium">New time entry</CardTitle>
+        <Button 
+          size="sm" 
+          variant="ghost"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+        >
+          Today
+        </Button>
       </CardHeader>
       <CardContent className="pt-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "activity" | "item")}>
@@ -328,7 +326,7 @@ export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntr
                 />
               </TabsContent>
 
-              <Button type="submit" className="w-full bg-green-500 hover:bg-green-600">Save time entry</Button>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Save time entry</Button>
             </form>
           </Form>
         </Tabs>

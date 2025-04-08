@@ -9,6 +9,7 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function TimeTracking() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -42,11 +43,17 @@ export default function TimeTracking() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div className="flex space-x-4 items-center">
-          <h1 className="text-2xl font-bold">Time Tracking</h1>
-          <div className="text-sm text-muted-foreground">
-            and reporting
-          </div>
+        <div className="flex space-x-2 items-center">
+          <Tabs defaultValue="tracking" className="w-[400px]">
+            <TabsList>
+              <TabsTrigger value="tracking" className="flex-grow">
+                Time tracking and reporting
+              </TabsTrigger>
+              <TabsTrigger value="invoicing" className="flex-grow">
+                Invoicing
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         
         <Button 
@@ -64,7 +71,7 @@ export default function TimeTracking() {
         </Button>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-[280px,1fr]">
+      <div className="grid gap-6 md:grid-cols-[250px,1fr]">
         <div>
           <DateSelector 
             selectedDate={selectedDate} 

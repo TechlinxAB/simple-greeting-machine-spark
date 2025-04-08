@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { format, subDays, isSameDay } from "date-fns";
+import { format, subDays, addDays, isSameDay, isAfter } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,7 +15,7 @@ interface DateSelectorProps {
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const today = new Date();
   const [visibleDates, setVisibleDates] = useState<Date[]>(
-    Array.from({ length: 6 }, (_, i) => subDays(today, i + 1))
+    Array.from({ length: 6 }, (_, i) => subDays(today, i))
   );
 
   const handlePreviousDates = () => {
@@ -26,36 +26,35 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   };
 
   const handleNextDates = () => {
-    const firstDate = visibleDates[0];
-    // Don't allow going beyond today
-    if (isSameDay(firstDate, today)) return;
+    const lastDate = visibleDates[visibleDates.length - 1];
+    // Calculate the next set of dates
+    const nextDates = Array.from({ length: 6 }, (_, i) => addDays(lastDate, 6 - i));
     
-    // Calculate how many days we need to move forward
-    const daysToMove = Math.min(
-      6,
-      Math.floor((today.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
-    );
-    
-    if (daysToMove <= 0) return;
-    
-    setVisibleDates(
-      Array.from({ length: 6 }, (_, i) => 
-        i < daysToMove ? subDays(today, i + 1 - daysToMove) : visibleDates[i - daysToMove]
-      )
-    );
+    // Only allow future dates up to today
+    if (!isAfter(nextDates[0], today)) {
+      setVisibleDates(nextDates);
+    } else {
+      // If we would exceed today, set to the last 6 days up to today
+      setVisibleDates(
+        Array.from({ length: 6 }, (_, i) => subDays(today, i))
+      );
+    }
   };
 
   const isDateSelected = (date: Date) => {
     return isSameDay(date, selectedDate);
   };
 
+  // Check if we're showing the most recent dates
+  const isShowingMostRecentDates = isSameDay(visibleDates[0], today);
+
   return (
     <div className="space-y-4">
       <div className="rounded-md overflow-hidden">
-        <div className="bg-green-500 text-white p-4">
+        <div className="bg-primary text-primary-foreground p-4">
           <Button 
             variant="ghost" 
-            className="w-full justify-start p-2 text-white hover:bg-green-600 hover:text-white"
+            className="w-full justify-start p-2 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
             onClick={() => onDateChange(today)}
           >
             Today
@@ -69,7 +68,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               variant="ghost"
               className={cn(
                 "w-full justify-start p-2",
-                isDateSelected(date) ? "bg-green-100 text-green-800" : ""
+                isDateSelected(date) ? "bg-secondary text-secondary-foreground" : ""
               )}
               onClick={() => onDateChange(date)}
             >
@@ -92,7 +91,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="text-primary hover:text-primary/90 hover:bg-primary/10"
                 >
                   Choose a specific date
                 </Button>
@@ -112,7 +111,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               size="icon" 
               variant="outline" 
               onClick={handleNextDates}
-              disabled={visibleDates[0] && isSameDay(visibleDates[0], subDays(today, 1))}
+              disabled={isShowingMostRecentDates}
               className="rounded-full"
             >
               <ChevronRight className="h-4 w-4" />

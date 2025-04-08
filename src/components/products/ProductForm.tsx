@@ -9,6 +9,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, Package } from "lucide-react";
 import type { ProductType } from "@/types";
 
 const formSchema = z.object({
@@ -16,6 +18,7 @@ const formSchema = z.object({
   price: z.coerce.number().min(0, { message: "Price must be 0 or greater" }),
   account_number: z.string().optional(),
   vat_percentage: z.coerce.number().min(0).max(100).default(25),
+  type: z.enum(["activity", "item"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -23,12 +26,13 @@ type FormValues = z.infer<typeof formSchema>;
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  productType: ProductType;
+  productType?: ProductType;
   onSuccess?: () => void;
 }
 
-export function ProductForm({ open, onOpenChange, productType, onSuccess }: ProductFormProps) {
+export function ProductForm({ open, onOpenChange, productType = "activity", onSuccess }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedType, setSelectedType] = useState<ProductType>(productType);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -37,8 +41,15 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
       price: 0,
       account_number: "",
       vat_percentage: 25,
+      type: productType,
     },
   });
+
+  // Update the form values when the product type changes
+  const handleProductTypeChange = (value: string) => {
+    setSelectedType(value as ProductType);
+    form.setValue("type", value as "activity" | "item");
+  };
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
@@ -49,7 +60,7 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
         price: values.price,
         account_number: values.account_number || null,
         vat_percentage: values.vat_percentage,
-        type: productType,
+        type: values.type,
       };
 
       const { error } = await supabase.from("products").insert(productData);
@@ -71,14 +82,31 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Create new {productType}</DrawerTitle>
+          <DrawerTitle>Create new product</DrawerTitle>
           <DrawerDescription>
-            Add a new {productType} to your account
+            Add a new activity or item to your account
           </DrawerDescription>
         </DrawerHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="px-4 py-2 space-y-4">
+              <Tabs 
+                defaultValue={selectedType} 
+                onValueChange={handleProductTypeChange} 
+                className="mb-6"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Activity</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="item" className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    <span>Item</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
               <FormField
                 control={form.control}
                 name="name"
@@ -86,7 +114,7 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
                   <FormItem>
                     <FormLabel>Name*</FormLabel>
                     <FormControl>
-                      <Input placeholder={`Enter ${productType} name`} {...field} />
+                      <Input placeholder={`Enter ${selectedType} name`} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -100,7 +128,7 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        Price (SEK){productType === "activity" ? "/hour" : ""}*
+                        Price (SEK){selectedType === "activity" ? "/hour" : ""}*
                       </FormLabel>
                       <FormControl>
                         <Input type="number" min="0" step="0.01" {...field} />
@@ -142,7 +170,7 @@ export function ProductForm({ open, onOpenChange, productType, onSuccess }: Prod
             
             <DrawerFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : `Create ${productType}`}
+                {isLoading ? "Creating..." : `Create ${selectedType}`}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Cancel</Button>
