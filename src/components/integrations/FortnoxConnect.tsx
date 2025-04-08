@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -86,8 +87,33 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       console.log("Redirecting to Fortnox auth URL:", fullAuthUrl);
       
-      // CRITICAL: We must open in current window, not a popup
-      window.location.href = fullAuthUrl;
+      // Create a form and submit it to handle the redirect properly
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = FORTNOX_AUTH_URL;
+      form.target = '_self';
+      
+      // Add parameters as hidden fields
+      const appendHiddenField = (name: string, value: string) => {
+        const field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = name;
+        field.value = value;
+        form.appendChild(field);
+      };
+      
+      appendHiddenField('client_id', clientId);
+      appendHiddenField('redirect_uri', redirectUri);
+      appendHiddenField('scope', scope);
+      appendHiddenField('response_type', 'code');
+      appendHiddenField('state', state);
+      appendHiddenField('access_type', 'offline');
+      
+      // Append form to body, submit, and remove
+      document.body.appendChild(form);
+      form.submit();
+      
+      // Not setting isConnecting to false here because we're redirecting away
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);
       toast.error("Failed to generate Fortnox authorization URL");
