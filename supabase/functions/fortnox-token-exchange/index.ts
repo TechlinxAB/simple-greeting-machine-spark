@@ -38,30 +38,68 @@ serve(async (req) => {
   try {
     console.log("===== TOKEN EXCHANGE FUNCTION CALLED =====");
     
-    // Parse the request body
-    let requestData;
-    let requestText;
+    // Parse the request body based on Content-Type
+    const contentType = req.headers.get("content-type") || "";
+    let requestData: any = {};
+    
     try {
-      requestText = await req.text();
-      console.log("📦 Received request body:", requestText);
-      
-      try {
-        requestData = JSON.parse(requestText);
-        console.log("📦 Parsed request body:", {
+      if (contentType.includes("application/json")) {
+        // Handle JSON data
+        requestData = await req.json();
+        console.log("📦 Parsed JSON body:", {
           client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
           client_secret: requestData.client_secret ? '•••' : null,
           code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
           redirect_uri: requestData.redirect_uri
         });
-      } catch (parseError) {
-        console.error("JSON parse error:", parseError.message);
+      } else if (contentType.includes("application/x-www-form-urlencoded")) {
+        // Handle form data
+        const bodyText = await req.text();
+        console.log("📦 Received form body:", bodyText);
         
-        // Try to parse as form data
-        const formData = new URLSearchParams(requestText);
-        requestData = {};
-        for (const [key, value] of formData.entries()) {
+        const formEntries = new URLSearchParams(bodyText);
+        for (const [key, value] of formEntries.entries()) {
           requestData[key] = value;
         }
+        
+        console.log("📦 Parsed form body:", {
+          client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
+          client_secret: requestData.client_secret ? '•••' : null,
+          code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
+          redirect_uri: requestData.redirect_uri
+        });
+      } else {
+        // Try to parse as text as a fallback
+        console.log("⚠️ Unrecognized content type:", contentType);
+        console.log("Attempting to parse as text and then detect format");
+        
+        const bodyText = await req.text();
+        console.log("📦 Received raw body:", bodyText);
+        
+        try {
+          // First try to parse as JSON
+          requestData = JSON.parse(bodyText);
+          console.log("📦 Successfully parsed as JSON:");
+        } catch (jsonError) {
+          // If not JSON, try as form data
+          const formEntries = new URLSearchParams(bodyText);
+          if (Array.from(formEntries.entries()).length > 0) {
+            for (const [key, value] of formEntries.entries()) {
+              requestData[key] = value;
+            }
+            console.log("📦 Successfully parsed as form data:");
+          } else {
+            // Neither JSON nor form data worked
+            throw new Error("Could not parse request body as either JSON or form data");
+          }
+        }
+        
+        console.log({
+          client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
+          client_secret: requestData.client_secret ? '•••' : null,
+          code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
+          redirect_uri: requestData.redirect_uri
+        });
       }
     } catch (e) {
       console.error("Failed to parse request body:", e);
