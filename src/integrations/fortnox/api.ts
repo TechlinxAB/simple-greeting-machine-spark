@@ -109,17 +109,23 @@ export async function exchangeCodeForTokens(
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    // Convert the credentials to a JSON-safe object and stringify it to ensure it's compatible with Supabase
-    const safeCredentials = JSON.parse(JSON.stringify(credentials));
-    const settingsData = { credentials: safeCredentials };
+    // Convert credentials to a plain object to ensure it can be stored in JSON
+    const credentialsObj = { ...credentials };
     
-    console.log("Saving Fortnox credentials:", JSON.stringify(settingsData));
+    // Prepare settings object with the credentials
+    const settingsData = {
+      credentials: credentialsObj
+    };
     
-    // Use direct SQL query with proper type handling
-    const { error } = await supabase.from('system_settings').upsert({
-      id: 'fortnox',
-      settings: settingsData
-    });
+    console.log("Saving Fortnox credentials");
+    
+    // Use upsert with type safety
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({
+        id: 'fortnox',
+        settings: settingsData as any
+      });
       
     if (error) {
       console.error("Error saving Fortnox credentials:", error);
@@ -155,13 +161,16 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Type assertion and safe access
-    const settings = data.settings as Record<string, any>;
-    const credentials = settings.credentials;
+    // Safe access with type assertions
+    const settings = data.settings as any;
+    const credentials = settings?.credentials;
     
-    console.log("Found Fortnox credentials:", credentials ? "Yes" : "No");
+    if (!credentials) {
+      console.log("No credentials found in settings");
+      return null;
+    }
     
-    return credentials || null;
+    return credentials as FortnoxCredentials;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;

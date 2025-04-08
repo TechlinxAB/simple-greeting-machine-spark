@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   exchangeCodeForTokens, 
@@ -27,6 +27,7 @@ export function FortnoxCallbackHandler({
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [redirectUri, setRedirectUri] = useState("");
+  const navigate = useNavigate();
 
   // Set the redirect URI when component mounts - must match exactly what was used in auth request
   useEffect(() => {
@@ -37,17 +38,17 @@ export function FortnoxCallbackHandler({
 
   useEffect(() => {
     const code = searchParams.get('code');
-    const error = searchParams.get('error');
+    const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
-    if (error) {
+    if (errorParam) {
       setStatus('error');
       setError(errorDescription || 'Unknown error occurred');
       if (onError) onError(new Error(errorDescription || 'Unknown error occurred'));
       return;
     }
 
-    if (code && redirectUri) {
+    if (code && redirectUri && clientId && clientSecret) {
       handleAuthorizationCode(code);
     }
   }, [searchParams, clientId, clientSecret, redirectUri]);
@@ -83,9 +84,9 @@ export function FortnoxCallbackHandler({
     } catch (error) {
       console.error("Error handling Fortnox callback:", error);
       setStatus('error');
-      setError((error as Error).message || 'Failed to exchange code for tokens');
+      setError(error instanceof Error ? error.message : 'Failed to exchange code for tokens');
       
-      if (onError) onError(error as Error);
+      if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
     }
   };
 

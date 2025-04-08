@@ -13,7 +13,7 @@ import {
   FortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy } from "lucide-react";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -76,7 +76,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     setIsConnecting(true);
     
     // Display a message to help the user
-    toast.info("Make sure this exact redirect URI is registered in Fortnox: " + redirectUri);
+    toast.info("Redirecting to Fortnox for authorization");
     
     // Open in a new window/tab
     window.open(authUrl, '_blank');
@@ -94,6 +94,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     } finally {
       setIsDisconnecting(false);
     }
+  };
+
+  const copyRedirectUri = () => {
+    navigator.clipboard.writeText(redirectUri);
+    toast.success("Redirect URI copied to clipboard");
   };
 
   return (
@@ -142,12 +147,24 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               Connect to Fortnox to export invoices directly to your Fortnox account.
               You'll be redirected to Fortnox to authorize this application.
             </p>
-            <p className="text-sm mt-2 font-medium">
-              Important: Make sure to register this exact redirect URI in your Fortnox Developer settings:
-            </p>
-            <code className="mt-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
-              {redirectUri || "Loading redirect URI..."}
-            </code>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium">
+                Important: Make sure to register this exact redirect URI in your Fortnox Developer settings:
+              </p>
+              <div className="flex items-center mt-1">
+                <code className="flex-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
+                  {redirectUri || "Loading redirect URI..."}
+                </code>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="ml-2"
+                  onClick={copyRedirectUri}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button 
