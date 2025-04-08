@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { signUpUser } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,6 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const form = useForm<RegisterFormValues>({
@@ -49,12 +48,10 @@ const Register = () => {
     setError(null);
     
     try {
-      console.log("Submitting registration with values:", values.email, values.name);
+      console.log("Starting registration with values:", values.email, values.name);
       
-      // Add a small delay before signup to ensure clean state
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      await signUp(values.email, values.password, values.name);
+      // Signup with our enhanced helper function
+      await signUpUser(values.email, values.password, values.name);
       
       // Registration successful
       toast.success("Registration successful! Please sign in.");
@@ -62,7 +59,7 @@ const Register = () => {
       // Navigate after a short delay to ensure backend processes complete
       setTimeout(() => {
         navigate("/login");
-      }, 2000);
+      }, 1500);
       
     } catch (error: any) {
       console.error("Registration error:", error);

@@ -10,6 +10,8 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 // Define schema for form validation
 const loginSchema = z.object({
@@ -21,6 +23,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -34,13 +37,16 @@ const Login = () => {
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
       console.log("Attempting login with:", values.email);
       await signIn(values.email, values.password);
+      toast.success("Signed in successfully!");
       navigate("/");
     } catch (error: any) {
       console.error("Login error:", error);
-      // Error handling is done in the signIn function
+      setError(error.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +65,12 @@ const Login = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            
               <FormField
                 control={form.control}
                 name="email"
@@ -90,7 +102,14 @@ const Login = () => {
             
             <CardFooter className="flex flex-col space-y-4">
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </Button>
               <div className="text-center text-sm">
                 Don't have an account?{" "}

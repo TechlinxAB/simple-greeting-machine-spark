@@ -3,6 +3,7 @@ import { createContext, useState, useContext, useEffect, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { signInUser } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -33,11 +34,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
 
   // Handle profile fetching with improved retry mechanism
-  const fetchUserProfile = async (userId: string, retries = 5) => {
+  const fetchUserProfile = async (userId: string, retries = 3) => {
     let attempt = 0;
     
     // Add initial delay to ensure database trigger has time to execute
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     while (attempt < retries) {
       try {
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error(`Attempt ${attempt + 1}/${retries}: Error fetching user profile:`, error);
           attempt++;
           // Add exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
         } else if (data) {
           console.log("Profile fetched successfully:", data);
           setRole(data.role);
@@ -61,12 +62,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // No data but no error either - profile might not be created yet due to trigger delay
           console.log(`Attempt ${attempt + 1}/${retries}: User profile not found yet, retrying...`);
           attempt++;
-          await new Promise(resolve => setTimeout(resolve, 1500 * Math.pow(2, attempt)));
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
         }
       } catch (err) {
         console.error(`Attempt ${attempt + 1}/${retries}: Failed to fetch profile:`, err);
         attempt++;
-        await new Promise(resolve => setTimeout(resolve, 1500 * Math.pow(2, attempt)));
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
       }
     }
     
@@ -76,17 +77,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up listener for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch user role after a delay to avoid recursive auth state changes
-          // Using setTimeout to defer the operation and prevent auth deadlocks
-          setTimeout(async () => {
-            await fetchUserProfile(session.user.id);
-          }, 1500);
+          // Fetch user role after user authentication
+          await fetchUserProfile(session.user.id);
         } else {
           setRole(null);
         }
@@ -122,30 +120,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log("Attempting sign in with:", email);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      
-      toast.success("Signed in successfully!");
+      const { session } = await signInUser(email, password);
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
+      }
     } catch (error: any) {
       console.error("Sign in error:", error);
-      toast.error(error.message || "Error signing in");
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      console.log("Attempting sign up with:", email, name);
-      
-      // Add delay before signup to ensure clean state
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const { error, data } = await supabase.auth.signUp({
+      const { user } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -154,26 +141,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           },
         },
       });
-
-      if (error) throw error;
       
-      // Add significant delay after successful signup to allow database trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      console.log("Signup successful, user data:", data);
+      if (user) {
+        console.log("Signup successful, user data:", user);
+      }
       
       return;
     } catch (error: any) {
       console.error("Sign up error:", error.message);
-      
-      if (error.message?.includes("Database error")) {
-        toast.error("Server issue occurred. Please try again in a moment.");
-      } else if (error.message?.includes("User already registered")) {
-        toast.error("This email is already registered. Please sign in instead.");
-      } else {
-        toast.error(error.message || "Error signing up");
-      }
-      
       throw error;
     }
   };
@@ -194,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!user) throw new Error("No user logged in");
 
       // Update profile table with retry mechanism
-      let retries = 5;
+      let retries = 3;
       let success = false;
       let lastError = null;
 
@@ -212,7 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             lastError = error;
             retries--;
             // Add exponential backoff
-            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, 5 - retries)));
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, 3 - retries)));
           } else {
             success = true;
           }
@@ -220,7 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastError = err;
           retries--;
           // Add exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, 5 - retries)));
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, 3 - retries)));
         }
       }
 

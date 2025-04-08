@@ -34,3 +34,37 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     timeout: 60000, // Increased timeout for operations
   }
 });
+
+// Helper functions for auth operations
+export async function signUpUser(email: string, password: string, name: string) {
+  console.log(`Attempting to sign up user: ${email}`);
+  
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { name },
+    },
+  });
+  
+  if (error) {
+    console.error('Sign up error:', error);
+    throw error;
+  }
+  
+  return data;
+}
+
+export async function signInUser(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  
+  if (error) {
+    console.error('Sign in error:', error);
+    throw error;
+  }
+  
+  return data;
+}
