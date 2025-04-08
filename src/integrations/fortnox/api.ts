@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -39,7 +40,8 @@ export function getFortnoxAuthUrl(clientId: string, redirectUri: string): string
     throw new Error("Redirect URI is required");
   }
   
-  const scope = 'invoice company-settings'; // Required scopes for invoice management
+  // Use expanded scope for better integration
+  const scope = 'invoice company-settings customer article';
   
   try {
     // Create the authorization URL with required parameters
@@ -49,6 +51,7 @@ export function getFortnoxAuthUrl(clientId: string, redirectUri: string): string
     authUrl.searchParams.append('scope', scope);
     authUrl.searchParams.append('response_type', 'code');
     authUrl.searchParams.append('state', generateRandomState());
+    authUrl.searchParams.append('access_type', 'offline'); // Request refresh token
     
     // Log the full URL for debugging
     console.log("Generated Fortnox auth URL:", authUrl.toString());
@@ -91,7 +94,15 @@ export async function exchangeCodeForTokens(
       redirect_uri: redirectUri,
     });
     
-    console.log("Token request body:", tokenRequestBody.toString());
+    console.log("Token request body params:", {
+      grant_type: 'authorization_code',
+      code: code.substring(0, 5) + "...", // Only log part of the code for security
+      client_id: clientId,
+      redirect_uri: redirectUri
+    });
+    
+    // Extra logging for debugging
+    console.log("Sending token request to:", FORTNOX_TOKEN_URL);
     
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',

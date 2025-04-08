@@ -40,12 +40,14 @@ export function FortnoxCallbackHandler({
     const code = searchParams.get('code');
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
+    const state = searchParams.get('state');
 
     // Enhanced debug logging
-    console.log("Fortnox callback params:", { 
-      code, 
-      error: errorParam, 
+    console.log("Fortnox callback received with params:", { 
+      code: code?.substring(0, 5) + "...", // Only show part of the code for security
+      error: errorParam,
       errorDescription,
+      state: !!state,
       url: window.location.href,
       search: window.location.search
     });

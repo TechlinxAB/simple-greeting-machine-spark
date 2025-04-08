@@ -6,10 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
-  getFortnoxAuthUrl, 
-  getFortnoxCredentials, 
   isFortnoxConnected,
   disconnectFortnox,
+  getFortnoxCredentials,
   FortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
@@ -71,10 +70,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     try {
       setIsConnecting(true);
       
-      // CRITICAL FIX: Direct construction of Fortnox auth URL
+      // Build the Fortnox authorization URL directly
       const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
-      const scope = 'invoice company-settings';
+      const scope = 'invoice company-settings customer article';
       const state = Math.random().toString(36).substring(2, 15);
+      const accessType = 'offline'; // Add access_type parameter
       
       const authUrl = new URL(FORTNOX_AUTH_URL);
       authUrl.searchParams.append('client_id', clientId);
@@ -82,6 +82,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       authUrl.searchParams.append('scope', scope);
       authUrl.searchParams.append('response_type', 'code');
       authUrl.searchParams.append('state', state);
+      authUrl.searchParams.append('access_type', accessType);
       
       const fullAuthUrl = authUrl.toString();
       console.log("Opening Fortnox auth URL:", fullAuthUrl);
@@ -89,7 +90,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       // Display a message to help the user
       toast.info("Redirecting to Fortnox for authorization");
       
-      // Open in the current tab - this is important for OAuth to work correctly
+      // CRITICAL: We must navigate to Fortnox auth URL in the CURRENT window, not a new tab
       window.location.href = fullAuthUrl;
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);
