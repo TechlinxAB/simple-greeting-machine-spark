@@ -1,5 +1,6 @@
 
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 // API endpoints for Fortnox
 const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
@@ -41,7 +42,9 @@ export async function exchangeCodeForTokens(
   try {
     console.log("Exchanging code for tokens with parameters:", {
       codeLength: code ? code.length : 0,
+      code: code ? `${code.substring(0, 5)}...` : 'missing',
       clientIdLength: clientId ? clientId.length : 0,
+      clientId: clientId ? `${clientId.substring(0, 5)}...` : 'missing',
       clientSecretLength: clientSecret ? clientSecret.length : 0,
       redirectUri
     });
@@ -95,23 +98,39 @@ export async function exchangeCodeForTokens(
       if (proxyError) {
         console.error("Error calling Supabase Edge Function:", proxyError);
         
+        // Try to extract more detailed error information
+        let detailedError = proxyError.message || "Unknown edge function error";
+        
         // Try to parse the error response if available
         try {
+          // Sometimes error messages contain JSON
           if (typeof proxyError.message === 'string' && proxyError.message.includes('{')) {
-            const errorJson = JSON.parse(proxyError.message.substring(
-              proxyError.message.indexOf('{'),
-              proxyError.message.lastIndexOf('}') + 1
-            ));
+            const errorText = proxyError.message;
+            const jsonStart = errorText.indexOf('{');
+            const jsonEnd = errorText.lastIndexOf('}') + 1;
             
-            if (errorJson && errorJson.error) {
-              throw new Error(`Fortnox API error: ${errorJson.error} - ${errorJson.error_description || ''}`);
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+              const errorJson = JSON.parse(errorText.substring(jsonStart, jsonEnd));
+              
+              if (errorJson) {
+                if (errorJson.error && errorJson.error_description) {
+                  detailedError = `Fortnox error: ${errorJson.error} - ${errorJson.error_description}`;
+                } else if (errorJson.error) {
+                  detailedError = `Error: ${errorJson.error}`;
+                } else if (errorJson.message) {
+                  detailedError = errorJson.message;
+                }
+                
+                // If we have detailed error information, log it
+                console.error("Detailed error from Edge Function:", errorJson);
+              }
             }
           }
         } catch (parseError) {
           console.log("Could not parse error details:", parseError);
         }
         
-        throw new Error(`Edge function error: ${proxyError.message}`);
+        throw new Error(`Edge function error: ${detailedError}`);
       }
       
       if (!proxyResponse) {
@@ -121,7 +140,7 @@ export async function exchangeCodeForTokens(
       
       // Check for Fortnox API errors in the response
       if (proxyResponse.error) {
-        console.error("Fortnox API returned an error:", proxyResponse.error, proxyResponse.error_description);
+        console.error("Fortnox API returned an error:", proxyResponse);
         throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
       }
       

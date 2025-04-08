@@ -21,24 +21,54 @@ serve(async (req) => {
   }
   
   try {
-    console.log("Received token exchange request");
+    console.log("===== TOKEN EXCHANGE FUNCTION CALLED =====");
+    console.log(`Request method: ${req.method}`);
+    console.log(`Request URL: ${req.url}`);
+    
+    // Log all request headers for debugging
+    console.log("Request headers:");
+    for (const [key, value] of req.headers.entries()) {
+      console.log(`  ${key}: ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`);
+    }
     
     // Parse the request body
     let requestData;
+    let requestText;
     try {
-      requestData = await req.json();
-      console.log("Request payload received:", {
-        hasCode: !!requestData.code,
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret,
-        hasRedirectUri: !!requestData.redirect_uri,
-        hasRefreshToken: !!requestData.refresh_token,
-        grantType: requestData.grant_type || 'authorization_code' // Default to authorization_code
+      requestText = await req.text();
+      console.log("Raw request body:", requestText);
+      
+      try {
+        requestData = JSON.parse(requestText);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError.message);
+        console.log("Attempting to parse as URL encoded form data");
+        
+        // Try to parse as form data
+        const formData = new URLSearchParams(requestText);
+        requestData = {};
+        for (const [key, value] of formData.entries()) {
+          requestData[key] = value;
+        }
+      }
+      
+      // Log request data with sensitive info partially masked
+      console.log("Parsed request payload:", {
+        grant_type: requestData.grant_type || 'authorization_code',
+        code: requestData.code ? `${requestData.code.substring(0, 5)}...` : null,
+        client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
+        client_secret: requestData.client_secret ? 'PROVIDED (masked)' : null,
+        redirect_uri: requestData.redirect_uri,
+        refresh_token: requestData.refresh_token ? 'PROVIDED (masked)' : null,
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
       return new Response(
-        JSON.stringify({ error: "Invalid request body - could not parse JSON" }),
+        JSON.stringify({
+          error: "Invalid request body",
+          details: e.message,
+          raw_body: requestText?.substring(0, 200) || 'Empty body'
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -48,6 +78,7 @@ serve(async (req) => {
     
     // Set default grant_type if not provided
     const grantType = requestData.grant_type || 'authorization_code';
+    console.log(`Using grant type: ${grantType}`);
     
     // Validate required fields based on grant type
     if (grantType === 'authorization_code') {
@@ -58,22 +89,14 @@ serve(async (req) => {
         if (!requestData.client_secret) missingFields.push('client_secret');
         if (!requestData.redirect_uri) missingFields.push('redirect_uri');
         
-        console.error(`Missing required parameters for authorization_code flow: ${missingFields.join(', ')}`, {
-          code: requestData.code || null,
-          clientId: requestData.client_id || null,
-          clientSecretProvided: !!requestData.client_secret,
-          redirectUri: requestData.redirect_uri || null
-        });
+        console.error(`Missing required parameters for authorization_code flow: ${missingFields.join(', ')}`);
         
         return new Response(
           JSON.stringify({ 
             error: "Missing required parameters",
             details: {
               missing: missingFields,
-              code: requestData.code ? "present" : "missing",
-              client_id: requestData.client_id ? "present" : "missing",
-              client_secret: requestData.client_secret ? "present" : "missing",
-              redirect_uri: requestData.redirect_uri ? "present" : "missing"
+              got: Object.keys(requestData)
             }
           }),
           { 
@@ -95,7 +118,8 @@ serve(async (req) => {
           JSON.stringify({ 
             error: "Missing required parameters for token refresh",
             details: {
-              missing: missingFields
+              missing: missingFields,
+              got: Object.keys(requestData)
             }
           }),
           { 
@@ -112,7 +136,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Invalid client_id",
-          details: "Client ID appears to be too short or invalid"
+          details: "Client ID appears to be too short or invalid",
+          length: requestData.client_id.length,
+          value: requestData.client_id
         }),
         { 
           status: 400, 
@@ -126,7 +152,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Invalid client_secret",
-          details: "Client secret appears to be too short or invalid"
+          details: "Client secret appears to be too short or invalid",
+          length: requestData.client_secret.length
         }),
         { 
           status: 400, 
@@ -140,7 +167,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Invalid authorization code",
-          details: "Authorization code appears to be too short or invalid"
+          details: "Authorization code appears to be too short or invalid",
+          length: requestData.code.length,
+          value: requestData.code
         }),
         { 
           status: 400, 
@@ -148,16 +177,6 @@ serve(async (req) => {
         }
       );
     }
-    
-    // Log received data (except sensitive data)
-    console.log("Token exchange request data:", {
-      grantType,
-      hasCode: grantType === 'authorization_code' && !!requestData.code,
-      hasRefreshToken: grantType === 'refresh_token' && !!requestData.refresh_token,
-      clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
-      clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0,
-      redirectUri: requestData.redirect_uri
-    });
     
     // Prepare the form data
     const formData = new URLSearchParams();
@@ -173,9 +192,27 @@ serve(async (req) => {
       formData.append('refresh_token', requestData.refresh_token);
     }
     
-    console.log(`Making ${grantType} request to Fortnox`);
+    console.log(`===== MAKING ${grantType.toUpperCase()} REQUEST TO FORTNOX =====`);
+    console.log(`Fortnox Token URL: ${FORTNOX_TOKEN_URL}`);
+    console.log("Form data parameters:", Array.from(formData.keys()));
+    
+    // Log the exact form-encoded body being sent (with sensitive data masked)
+    const maskedFormData = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+      if (key === 'client_secret' || key === 'refresh_token') {
+        maskedFormData.append(key, '********');
+      } else if (key === 'code') {
+        maskedFormData.append(key, value.substring(0, 5) + '...');
+      } else if (key === 'client_id') {
+        maskedFormData.append(key, value.substring(0, 5) + '...');
+      } else {
+        maskedFormData.append(key, value);
+      }
+    }
+    console.log("Encoded request body:", maskedFormData.toString());
     
     // Make the request to Fortnox
+    console.log("Sending request to Fortnox API...");
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -187,13 +224,14 @@ serve(async (req) => {
     // Get the response body
     const responseText = await response.text();
     console.log("Fortnox response status:", response.status);
+    console.log("Fortnox response headers:", Object.fromEntries([...response.headers.entries()]));
     console.log("Fortnox raw response:", responseText);
     
     let responseData;
     
     try {
       responseData = JSON.parse(responseText);
-      console.log("Successfully parsed Fortnox response as JSON", {
+      console.log("Successfully parsed Fortnox response as JSON:", {
         hasAccessToken: !!responseData.access_token,
         hasRefreshToken: !!responseData.refresh_token,
         hasError: !!responseData.error,
@@ -205,7 +243,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Failed to parse Fortnox response", 
-          rawResponse: responseText 
+          rawResponse: responseText,
+          status: response.status,
+          headers: Object.fromEntries([...response.headers.entries()]),
+          parseError: e.message
         }),
         { 
           status: 500, 
@@ -214,11 +255,30 @@ serve(async (req) => {
       );
     }
     
-    // Return the response, including errors from Fortnox if any
+    // If Fortnox returned a non-200 status, pass that through with the error details
+    if (!response.ok) {
+      console.error(`Fortnox API returned error status ${response.status}:`, responseData);
+      return new Response(
+        JSON.stringify({
+          error: responseData.error || "Fortnox API error",
+          error_description: responseData.error_description || "Unknown error from Fortnox API",
+          http_status: response.status,
+          fortnox_response: responseData
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    console.log("Token exchange/refresh successful");
+    
+    // Return the successful response
     return new Response(
       JSON.stringify(responseData),
       { 
-        status: response.status, 
+        status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
@@ -228,7 +288,8 @@ serve(async (req) => {
       JSON.stringify({ 
         error: "Server error", 
         message: error.message || "Unknown error",
-        stack: error.stack || "No stack trace"
+        stack: error.stack || "No stack trace",
+        time: new Date().toISOString()
       }),
       { 
         status: 500, 
