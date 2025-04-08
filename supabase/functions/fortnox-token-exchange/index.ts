@@ -37,15 +37,26 @@ serve(async (req) => {
   
   try {
     console.log("===== TOKEN EXCHANGE FUNCTION CALLED =====");
+    console.log("Request method:", req.method);
+    console.log("Request headers:", Object.fromEntries([...req.headers.entries()]));
     
     // Parse the request body based on Content-Type
     const contentType = req.headers.get("content-type") || "";
+    console.log("Content-Type:", contentType);
+    
     let requestData: any = {};
     
     try {
       if (contentType.includes("application/json")) {
         try {
-          requestData = await req.json();
+          const bodyText = await req.text();
+          console.log("Raw JSON body:", bodyText);
+          
+          if (!bodyText || bodyText.trim() === '') {
+            throw new Error("Empty request body");
+          }
+          
+          requestData = JSON.parse(bodyText);
           console.log("📦 Parsed JSON body:", {
             client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
             client_secret: requestData.client_secret ? '•••' : null,
@@ -68,6 +79,12 @@ serve(async (req) => {
         }
       } else if (contentType.includes("application/x-www-form-urlencoded")) {
         const bodyText = await req.text();
+        console.log("Raw form body:", bodyText);
+        
+        if (!bodyText || bodyText.trim() === '') {
+          throw new Error("Empty request body");
+        }
+        
         const formEntries = new URLSearchParams(bodyText);
         for (const [key, value] of formEntries.entries()) {
           requestData[key] = value;
@@ -85,6 +102,10 @@ serve(async (req) => {
         
         const bodyText = await req.text();
         console.log("📦 Received raw body:", bodyText);
+        
+        if (!bodyText || bodyText.trim() === '') {
+          throw new Error("Empty request body");
+        }
         
         try {
           // First try to parse as JSON
