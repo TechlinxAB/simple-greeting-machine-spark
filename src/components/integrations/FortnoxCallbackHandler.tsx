@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -96,6 +97,7 @@ export function FortnoxCallbackHandler({
       sessionStorage.removeItem('fortnox_oauth_state');
     } else {
       console.warn("No saved state found in session storage - possible security risk");
+      // Continue anyway since we have the code - this is just a warning
     }
 
     // Validate that we have all required parameters to proceed

@@ -8,8 +8,7 @@ import { toast } from "sonner";
 import { 
   isFortnoxConnected,
   disconnectFortnox,
-  getFortnoxCredentials,
-  FortnoxCredentials
+  getFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink } from "lucide-react";
@@ -123,15 +122,25 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         'article' // For product data
       ];
       
-      // Generate a random state for CSRF protection
-      const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      // Generate a secure random state for CSRF protection
+      // Use crypto.getRandomValues for better security
+      const buffer = new Uint8Array(16);
+      window.crypto.getRandomValues(buffer);
+      const state = Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
       
-      // Store the state in sessionStorage to verify when we come back
-      sessionStorage.setItem('fortnox_oauth_state', state);
+      // Store the state in sessionStorage to verify when we come back - with explicit error handling
+      try {
+        sessionStorage.setItem('fortnox_oauth_state', state);
+        console.log("Generated and stored secure state for OAuth");
+      } catch (storageError) {
+        console.error("Failed to store OAuth state in sessionStorage:", storageError);
+        toast.error("Failed to secure the authorization process. Please check your browser settings and try again.");
+        setIsConnecting(false);
+        return;
+      }
       
       // Log state for debugging
-      console.log("Generated state for OAuth:", state);
-      console.log("Stored state in session storage");
+      console.log("Using OAuth with state:", state.substring(0, 6) + "...");
       console.log("Using Client ID:", clientId.substring(0, 3) + "...");
       console.log("Using Redirect URI:", redirectUri);
       

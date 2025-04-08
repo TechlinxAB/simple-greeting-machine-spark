@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -69,6 +70,7 @@ export async function exchangeCodeForTokens(
     
     // Prepare the token request data for sending to our edge function
     const tokenExchangeData = {
+      grant_type: 'authorization_code',
       code,
       client_id: clientId,
       client_secret: clientSecret,
@@ -299,18 +301,19 @@ export async function refreshAccessToken(
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
     
-    // Similar approach as the token exchange - try to use a proxy to avoid CORS
+    // Similar approach as the token exchange - using the same edge function with refresh_token grant type
     const refreshData = {
+      grant_type: 'refresh_token',
       client_id: clientId,
       client_secret: clientSecret,
       refresh_token: refreshToken,
     };
     
-    // Try to use edge function first
+    // Use the token-exchange edge function for refresh too
     try {
       console.log("Attempting to use Supabase Edge Function for token refresh");
       
-      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
+      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
         body: JSON.stringify(refreshData)
       });
       

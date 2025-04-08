@@ -31,7 +31,8 @@ serve(async (req) => {
         hasCode: !!requestData.code,
         hasClientId: !!requestData.client_id,
         hasClientSecret: !!requestData.client_secret,
-        hasRedirectUri: !!requestData.redirect_uri
+        hasRedirectUri: !!requestData.redirect_uri,
+        grantType: requestData.grant_type || 'authorization_code' // Default to authorization_code
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -44,41 +45,68 @@ serve(async (req) => {
       );
     }
     
-    // Validate required fields
-    if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
-      const missingFields = [];
-      if (!requestData.code) missingFields.push('code');
-      if (!requestData.client_id) missingFields.push('client_id');
-      if (!requestData.client_secret) missingFields.push('client_secret');
-      if (!requestData.redirect_uri) missingFields.push('redirect_uri');
-      
-      console.error(`Missing required parameters: ${missingFields.join(', ')}`, {
-        hasCode: !!requestData.code,
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret,
-        hasRedirectUri: !!requestData.redirect_uri
-      });
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "Missing required parameters",
-          details: {
-            missing: missingFields,
-            code: requestData.code ? "present" : "missing",
-            client_id: requestData.client_id ? "present" : "missing",
-            client_secret: requestData.client_secret ? "present" : "missing",
-            redirect_uri: requestData.redirect_uri ? "present" : "missing"
+    // Set default grant_type if not provided
+    const grantType = requestData.grant_type || 'authorization_code';
+    
+    // Validate required fields based on grant type
+    if (grantType === 'authorization_code') {
+      if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
+        const missingFields = [];
+        if (!requestData.code) missingFields.push('code');
+        if (!requestData.client_id) missingFields.push('client_id');
+        if (!requestData.client_secret) missingFields.push('client_secret');
+        if (!requestData.redirect_uri) missingFields.push('redirect_uri');
+        
+        console.error(`Missing required parameters for authorization_code flow: ${missingFields.join(', ')}`, {
+          hasCode: !!requestData.code,
+          hasClientId: !!requestData.client_id,
+          hasClientSecret: !!requestData.client_secret,
+          hasRedirectUri: !!requestData.redirect_uri
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "Missing required parameters",
+            details: {
+              missing: missingFields,
+              code: requestData.code ? "present" : "missing",
+              client_id: requestData.client_id ? "present" : "missing",
+              client_secret: requestData.client_secret ? "present" : "missing",
+              redirect_uri: requestData.redirect_uri ? "present" : "missing"
+            }
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+        );
+      }
+    } else if (grantType === 'refresh_token') {
+      if (!requestData.refresh_token || !requestData.client_id || !requestData.client_secret) {
+        const missingFields = [];
+        if (!requestData.refresh_token) missingFields.push('refresh_token');
+        if (!requestData.client_id) missingFields.push('client_id');
+        if (!requestData.client_secret) missingFields.push('client_secret');
+        
+        console.error(`Missing required parameters for refresh_token flow: ${missingFields.join(', ')}`);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "Missing required parameters for token refresh",
+            details: {
+              missing: missingFields
+            }
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     }
     
     // Additional validation for parameter lengths
-    if (requestData.client_id.length < 5) {
+    if (requestData.client_id && requestData.client_id.length < 5) {
       console.error("Client ID appears to be too short", { length: requestData.client_id.length });
       return new Response(
         JSON.stringify({ 
@@ -92,7 +120,7 @@ serve(async (req) => {
       );
     }
     
-    if (requestData.client_secret.length < 5) {
+    if (requestData.client_secret && requestData.client_secret.length < 5) {
       console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
       return new Response(
         JSON.stringify({ 
@@ -106,7 +134,7 @@ serve(async (req) => {
       );
     }
     
-    if (requestData.code.length < 5) {
+    if (grantType === 'authorization_code' && requestData.code && requestData.code.length < 5) {
       console.error("Authorization code appears to be too short", { length: requestData.code.length });
       return new Response(
         JSON.stringify({ 
@@ -121,8 +149,10 @@ serve(async (req) => {
     }
     
     // Log received data (except sensitive data)
-    console.log("Token exchange data received:", {
-      code: requestData.code ? `${requestData.code.substring(0, 4)}...` : null,
+    console.log("Token exchange request data:", {
+      grantType,
+      code: grantType === 'authorization_code' && requestData.code ? `${requestData.code.substring(0, 4)}...` : undefined,
+      refreshToken: grantType === 'refresh_token' && requestData.refresh_token ? '(present)' : undefined,
       clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
       clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0,
       redirectUri: requestData.redirect_uri
@@ -130,18 +160,25 @@ serve(async (req) => {
     
     // Prepare the form data
     const formData = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: requestData.code,
+      grant_type: grantType,
       client_id: requestData.client_id,
       client_secret: requestData.client_secret,
-      redirect_uri: requestData.redirect_uri,
     });
     
-    console.log("Making token exchange request to Fortnox with params", {
-      grantType: 'authorization_code',
+    // Add parameters specific to grant type
+    if (grantType === 'authorization_code') {
+      formData.append('code', requestData.code);
+      formData.append('redirect_uri', requestData.redirect_uri);
+    } else if (grantType === 'refresh_token') {
+      formData.append('refresh_token', requestData.refresh_token);
+    }
+    
+    console.log(`Making ${grantType} request to Fortnox with params`, {
+      grantType,
       redirectUri: requestData.redirect_uri,
       clientIdPrefix: requestData.client_id ? requestData.client_id.substring(0, 3) + "..." : "missing",
-      codePrefix: requestData.code ? requestData.code.substring(0, 4) + "..." : "missing"
+      hasCode: grantType === 'authorization_code' ? !!requestData.code : undefined,
+      hasRefreshToken: grantType === 'refresh_token' ? !!requestData.refresh_token : undefined
     });
     
     // Make the request to Fortnox
@@ -161,7 +198,13 @@ serve(async (req) => {
     
     try {
       responseData = JSON.parse(responseText);
-      console.log("Successfully parsed Fortnox response as JSON", responseData);
+      console.log("Successfully parsed Fortnox response as JSON", {
+        hasAccessToken: !!responseData.access_token,
+        hasRefreshToken: !!responseData.refresh_token,
+        hasError: !!responseData.error,
+        error: responseData.error,
+        errorDescription: responseData.error_description
+      });
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
@@ -192,7 +235,7 @@ serve(async (req) => {
       );
     }
     
-    console.log("Token exchange successful, returning response");
+    console.log(`${grantType} operation successful, returning response`);
     
     // Return the token data with proper CORS headers
     return new Response(
