@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data } = await signInUser(email, password);
-      if (data.session?.user) {
-        await fetchUserProfile(data.session.user.id);
+      const { session, user } = await signInUser(email, password);
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
