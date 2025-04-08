@@ -35,6 +35,14 @@ export default function Settings() {
   const [fortnoxConnected, setFortnoxConnected] = useState(false);
   const { role, user } = useAuth();
   
+  // Ensure the user is authenticated and redirect if not
+  useEffect(() => {
+    if (!user) {
+      toast.error("You must be logged in to access settings");
+      navigate("/login");
+    }
+  }, [user, navigate]);
+  
   // Only admin should access this page
   if (role !== 'admin') {
     return (
@@ -48,6 +56,22 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <p>Please contact an administrator for assistance.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // If user is not authenticated, show loading state
+  if (!user) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Loading settings...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please wait while we load your settings.</p>
           </CardContent>
         </Card>
       </div>

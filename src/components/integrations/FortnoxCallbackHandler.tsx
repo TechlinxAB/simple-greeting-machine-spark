@@ -9,6 +9,7 @@ import {
 } from "@/integrations/fortnox/api";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FortnoxCallbackHandlerProps {
   clientId: string;
@@ -28,6 +29,7 @@ export function FortnoxCallbackHandler({
   const [error, setError] = useState<string | null>(null);
   const [redirectUri, setRedirectUri] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Set the redirect URI when component mounts - must match exactly what was used in auth request
   useEffect(() => {
@@ -37,6 +39,14 @@ export function FortnoxCallbackHandler({
   }, []);
 
   useEffect(() => {
+    // Check if user is logged in
+    if (!user) {
+      console.error("User not authenticated in callback handler");
+      setStatus('error');
+      setError("You must be logged in to complete the Fortnox authorization process");
+      return;
+    }
+    
     // Log the full URL to debug
     console.log("Current URL in callback handler:", window.location.href);
     
@@ -45,13 +55,15 @@ export function FortnoxCallbackHandler({
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
     const state = searchParams.get('state');
+    const savedState = sessionStorage.getItem('fortnox_oauth_state');
 
     // Detailed logging for debugging
     console.log("Fortnox callback processing with params:", { 
       code: code ? `${code.substring(0, 5)}...` : undefined, 
       error: errorParam,
       errorDesc: errorDescription,
-      state: state ? '(present)' : '(not present)'
+      state: state ? '(present)' : '(not present)',
+      savedState: savedState ? '(present)' : '(not present)'
     });
     
     // Check if we have an error from Fortnox
@@ -69,6 +81,17 @@ export function FortnoxCallbackHandler({
       return; // This might be an initial load, so just return
     }
 
+    // Verify state parameter to prevent CSRF attacks
+    if (state && savedState && state !== savedState) {
+      console.error("State mismatch - possible CSRF attack");
+      setStatus('error');
+      setError("Security verification failed - please try connecting again");
+      return;
+    }
+
+    // Clean up the state from session storage
+    sessionStorage.removeItem('fortnox_oauth_state');
+
     // Validate that we have all required parameters to proceed
     if (!redirectUri || !clientId || !clientSecret) {
       console.error("Missing required parameters:", {
@@ -83,7 +106,7 @@ export function FortnoxCallbackHandler({
 
     // We have a code and all required parameters, proceed with token exchange
     handleAuthorizationCode(code);
-  }, [searchParams, clientId, clientSecret, redirectUri]);
+  }, [searchParams, clientId, clientSecret, redirectUri, user]);
 
   const handleAuthorizationCode = async (code: string) => {
     try {

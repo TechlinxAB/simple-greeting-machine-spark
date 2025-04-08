@@ -13,6 +13,8 @@ import {
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -24,6 +26,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [redirectUri, setRedirectUri] = useState("");
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Set the redirect URI when component mounts
   useEffect(() => {
@@ -57,6 +61,12 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   }, [connected, onStatusChange]);
 
   const handleConnect = () => {
+    if (!user) {
+      toast.error("You need to be logged in to connect to Fortnox");
+      navigate("/login");
+      return;
+    }
+
     if (!clientId) {
       toast.error("Client ID is required to connect to Fortnox");
       return;
@@ -75,43 +85,22 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       const scope = 'invoice company-settings customer article';
       const state = Math.random().toString(36).substring(2, 15);
       
+      // Store the state in sessionStorage to verify when we come back
+      sessionStorage.setItem('fortnox_oauth_state', state);
+      
+      // Direct browser navigation - simplest and most reliable method
       const authUrl = new URL(FORTNOX_AUTH_URL);
       authUrl.searchParams.append('client_id', clientId);
       authUrl.searchParams.append('redirect_uri', redirectUri);
       authUrl.searchParams.append('scope', scope);
       authUrl.searchParams.append('response_type', 'code');
       authUrl.searchParams.append('state', state);
-      authUrl.searchParams.append('access_type', 'offline'); // Request refresh token
+      authUrl.searchParams.append('access_type', 'offline');
       
-      const fullAuthUrl = authUrl.toString();
+      console.log("Redirecting to Fortnox OAuth URL:", authUrl.toString());
       
-      console.log("Redirecting to Fortnox auth URL:", fullAuthUrl);
-      
-      // Create a form and submit it to handle the redirect properly
-      const form = document.createElement('form');
-      form.method = 'GET';
-      form.action = FORTNOX_AUTH_URL;
-      form.target = '_self';
-      
-      // Add parameters as hidden fields
-      const appendHiddenField = (name: string, value: string) => {
-        const field = document.createElement('input');
-        field.type = 'hidden';
-        field.name = name;
-        field.value = value;
-        form.appendChild(field);
-      };
-      
-      appendHiddenField('client_id', clientId);
-      appendHiddenField('redirect_uri', redirectUri);
-      appendHiddenField('scope', scope);
-      appendHiddenField('response_type', 'code');
-      appendHiddenField('state', state);
-      appendHiddenField('access_type', 'offline');
-      
-      // Append form to body, submit, and remove
-      document.body.appendChild(form);
-      form.submit();
+      // Use direct window location change for most reliable redirect
+      window.location.href = authUrl.toString();
       
       // Not setting isConnecting to false here because we're redirecting away
     } catch (error) {
