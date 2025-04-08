@@ -106,12 +106,11 @@ export async function exchangeCodeForTokens(
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('system_settings')
-      .upsert({ 
-        id: 'fortnox',
-        settings: { credentials }
-      });
+    // Use the RPC method to safely interact with the database without type issues
+    const { error } = await supabase.rpc('save_system_settings', {
+      setting_id: 'fortnox',
+      setting_data: { credentials }
+    });
       
     if (error) throw error;
   } catch (error) {
@@ -125,21 +124,17 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
-    const { data, error } = await supabase
-      .from('system_settings')
-      .select('settings')
-      .eq('id', 'fortnox')
-      .single();
+    // Use the RPC method to safely interact with the database without type issues
+    const { data, error } = await supabase.rpc('get_system_settings', {
+      setting_id: 'fortnox'
+    });
       
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No settings found
-        return null;
-      }
-      throw error;
+      console.error('Error fetching system settings:', error);
+      return null;
     }
     
-    return data?.settings?.credentials || null;
+    return data?.credentials || null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
@@ -235,10 +230,10 @@ export async function refreshAccessToken(
  */
 export async function disconnectFortnox(): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('system_settings')
-      .delete()
-      .eq('id', 'fortnox');
+    // Use the RPC method to safely interact with the database without type issues
+    const { error } = await supabase.rpc('delete_system_settings', {
+      setting_id: 'fortnox'
+    });
       
     if (error) throw error;
   } catch (error) {
