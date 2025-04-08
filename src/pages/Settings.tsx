@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, { message: "App name is required" }),
@@ -95,48 +96,93 @@ export default function Settings() {
     },
   });
   
-  // Update form from localStorage on component mount
-  useEffect(() => {
-    // First check if system_settings table exists
-    const checkDatabaseTable = async () => {
+  // Load settings from database on mount
+  const { data: systemSettings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["system-settings"],
+    queryFn: async () => {
       try {
-        // Try to query the system_settings table
-        const { data, error } = await supabase
+        // Fetch fortnox settings
+        const { data: fortnoxData, error: fortnoxError } = await supabase
           .from('system_settings')
-          .select('id')
-          .limit(1);
+          .select('settings')
+          .eq('id', 'fortnox_credentials')
+          .maybeSingle();
           
-        if (error) {
-          console.error("Error checking system_settings table:", error);
-          toast.error("Failed to connect to database. Some features may not work properly.");
+        if (fortnoxError && !fortnoxError.message.includes('does not exist')) {
+          console.error("Error fetching Fortnox settings:", fortnoxError);
+          toast.error("Failed to load Fortnox settings");
         }
+          
+        // Fetch app settings
+        const { data: appData, error: appError } = await supabase
+          .from('system_settings')
+          .select('settings')
+          .eq('id', 'app_settings')
+          .maybeSingle();
+          
+        if (appError && !appError.message.includes('does not exist')) {
+          console.error("Error fetching app settings:", appError);
+          toast.error("Failed to load app settings");
+        }
+          
+        return {
+          fortnoxSettings: fortnoxData?.settings,
+          appSettings: appData?.settings
+        };
       } catch (err) {
-        console.error("Error checking database:", err);
-      }
-    };
-    
-    checkDatabaseTable();
-    
-    const storedAppSettings = localStorage.getItem('appSettings');
-    if (storedAppSettings) {
-      try {
-        const settings = JSON.parse(storedAppSettings);
-        appSettingsForm.reset(settings);
-      } catch (error) {
-        console.error('Error parsing app settings:', error);
+        console.error("Error fetching system settings:", err);
+        toast.error("Failed to load settings");
+        return { fortnoxSettings: null, appSettings: null };
       }
     }
-    
-    const storedFortnoxSettings = localStorage.getItem('fortnoxSettings');
-    if (storedFortnoxSettings) {
-      try {
-        const settings = JSON.parse(storedFortnoxSettings);
-        fortnoxSettingsForm.reset(settings);
-      } catch (error) {
-        console.error('Error parsing Fortnox settings:', error);
+  });
+  
+  // Update forms when settings are loaded
+  useEffect(() => {
+    if (systemSettings) {
+      // Update app settings form
+      if (systemSettings.appSettings) {
+        appSettingsForm.reset(systemSettings.appSettings);
+        
+        // Also save to localStorage for immediate effect
+        localStorage.setItem('appSettings', JSON.stringify(systemSettings.appSettings));
+      }
+      
+      // Update Fortnox settings form
+      if (systemSettings.fortnoxSettings) {
+        const fortnoxCreds = {
+          fortnoxClientId: systemSettings.fortnoxSettings.clientId || "",
+          fortnoxClientSecret: systemSettings.fortnoxSettings.clientSecret || ""
+        };
+        
+        fortnoxSettingsForm.reset(fortnoxCreds);
+        
+        // Also save to localStorage for immediate effect
+        localStorage.setItem('fortnoxSettings', JSON.stringify(fortnoxCreds));
+      }
+    } else {
+      // Try to load from localStorage as fallback
+      const storedAppSettings = localStorage.getItem('appSettings');
+      if (storedAppSettings) {
+        try {
+          const settings = JSON.parse(storedAppSettings);
+          appSettingsForm.reset(settings);
+        } catch (error) {
+          console.error('Error parsing app settings:', error);
+        }
+      }
+      
+      const storedFortnoxSettings = localStorage.getItem('fortnoxSettings');
+      if (storedFortnoxSettings) {
+        try {
+          const settings = JSON.parse(storedFortnoxSettings);
+          fortnoxSettingsForm.reset(settings);
+        } catch (error) {
+          console.error('Error parsing Fortnox settings:', error);
+        }
       }
     }
-  }, []);
+  }, [systemSettings, appSettingsForm, fortnoxSettingsForm]);
   
   // If tab is specified in URL, activate that tab
   useEffect(() => {
@@ -201,6 +247,10 @@ export default function Settings() {
   const handleFortnoxCallbackError = (error: Error) => {
     toast.error(`Failed to connect to Fortnox: ${error.message}`);
   };
+  
+  // Get the client ID and secret from the form - this is what was missing
+  const currentClientId = fortnoxSettingsForm.getValues('fortnoxClientId');
+  const currentClientSecret = fortnoxSettingsForm.getValues('fortnoxClientSecret');
   
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -310,8 +360,8 @@ export default function Settings() {
             {searchParams.has('code') && (
               <CardContent className="mb-6">
                 <FortnoxCallbackHandler 
-                  clientId={fortnoxSettingsForm.getValues('fortnoxClientId')}
-                  clientSecret={fortnoxSettingsForm.getValues('fortnoxClientSecret')}
+                  clientId={currentClientId}
+                  clientSecret={currentClientSecret}
                   onSuccess={handleFortnoxCallbackSuccess}
                   onError={handleFortnoxCallbackError}
                 />
@@ -360,8 +410,8 @@ export default function Settings() {
                   <Separator className="my-6" />
                   
                   <FortnoxConnect 
-                    clientId={fortnoxSettingsForm.getValues('fortnoxClientId')}
-                    clientSecret={fortnoxSettingsForm.getValues('fortnoxClientSecret')}
+                    clientId={currentClientId}
+                    clientSecret={currentClientSecret}
                     onStatusChange={setFortnoxConnected}
                   />
                   

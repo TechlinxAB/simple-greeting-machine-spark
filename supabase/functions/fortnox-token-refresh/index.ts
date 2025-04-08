@@ -13,6 +13,7 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests (OPTIONS)
   if (req.method === 'OPTIONS') {
+    console.log("Handling CORS preflight request");
     return new Response(null, {
       status: 204,
       headers: corsHeaders
@@ -20,13 +21,45 @@ serve(async (req) => {
   }
   
   try {
+    console.log("Received token refresh request");
+    
     // Parse the request body
-    const requestData = await req.json();
+    let requestData;
+    try {
+      requestData = await req.json();
+      console.log("Parsed request data successfully", {
+        hasRefreshToken: !!requestData.refresh_token,
+        hasClientId: !!requestData.client_id,
+        hasClientSecret: !!requestData.client_secret
+      });
+    } catch (e) {
+      console.error("Failed to parse request body:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid request body - could not parse JSON" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     // Validate required fields
     if (!requestData.client_id || !requestData.client_secret || !requestData.refresh_token) {
+      console.error("Missing required parameters:", {
+        hasClientId: !!requestData.client_id,
+        hasClientSecret: !!requestData.client_secret,
+        hasRefreshToken: !!requestData.refresh_token
+      });
+      
       return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
+        JSON.stringify({ 
+          error: "Missing required parameters",
+          details: {
+            client_id: requestData.client_id ? "present" : "missing",
+            client_secret: requestData.client_secret ? "present" : "missing",
+            refresh_token: requestData.refresh_token ? "present" : "missing"
+          }
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -55,11 +88,15 @@ serve(async (req) => {
     
     // Get the response body
     const responseText = await response.text();
+    console.log("Fortnox response status:", response.status);
+    
     let responseData;
     
     try {
       responseData = JSON.parse(responseText);
+      console.log("Successfully parsed Fortnox response as JSON");
     } catch (e) {
+      console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
         JSON.stringify({ 
           error: "Failed to parse Fortnox response", 
@@ -74,6 +111,7 @@ serve(async (req) => {
     
     // If the response is not OK, return the error
     if (!response.ok) {
+      console.error("Fortnox API error:", response.status, responseData);
       return new Response(
         JSON.stringify({ 
           error: "Fortnox API error", 
@@ -86,6 +124,8 @@ serve(async (req) => {
         }
       );
     }
+    
+    console.log("Token refresh successful, returning response");
     
     // Return the token data
     return new Response(
