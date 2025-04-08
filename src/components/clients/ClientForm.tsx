@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { AlertCircle } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -32,6 +33,7 @@ interface ClientFormProps {
 
 export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -48,12 +50,29 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
     },
   });
 
+  // Reset form when drawer opens or closes
+  useEffect(() => {
+    if (open) {
+      setFormError(null);
+    } else {
+      // Reset form with a slight delay to ensure the drawer is closed first
+      const timer = setTimeout(() => {
+        form.reset();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, form]);
+
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    setFormError(null);
+    
     try {
+      console.log("Creating new client:", values.name);
+      
       // Since 'name' is required in our form schema, we can ensure it will always be present
       // This way TypeScript knows it's not optional
-      const { error } = await supabase.from("clients").insert({
+      const { error, data } = await supabase.from("clients").insert({
         name: values.name, // Explicitly provide the required field
         organization_number: values.organization_number,
         client_number: values.client_number,
@@ -63,15 +82,26 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
         county: values.county,
         telephone: values.telephone,
         email: values.email,
-      });
+      }).select().single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating client:", error);
+        throw error;
+      }
       
+      console.log("Client created successfully:", data);
       toast.success("Client created successfully");
       form.reset();
       onOpenChange(false);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        // Use setTimeout to ensure the drawer animation completes
+        setTimeout(() => {
+          onSuccess();
+        }, 100);
+      }
     } catch (error: any) {
+      console.error("Failed to create client:", error);
+      setFormError(error.message || "Failed to create client");
       toast.error(error.message || "Failed to create client");
     } finally {
       setIsLoading(false);
@@ -90,6 +120,13 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="px-4 py-2 space-y-4 max-h-[60vh] overflow-y-auto">
+              {formError && (
+                <div className="bg-red-50 p-3 rounded-md border border-red-200 text-red-700 flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">{formError}</div>
+                </div>
+              )}
+              
               <FormField
                 control={form.control}
                 name="name"
@@ -225,7 +262,12 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
             
             <DrawerFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create client"}
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                    Creating...
+                  </>
+                ) : "Create client"}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Cancel</Button>

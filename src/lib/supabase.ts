@@ -17,14 +17,23 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache' // Prevent browser caching of API responses
     },
     fetch: (url, options) => {
+      const fetchOptions = {
+        ...options,
+        cache: 'no-store' as RequestCache // Force fetch to bypass cache
+      };
+      
       // Enhanced fetch with retries for network issues
-      return fetch(url, options).catch(err => {
-        console.error('Network error in Supabase request:', err);
-        throw err;
-      });
+      return fetch(url, fetchOptions)
+        .catch(err => {
+          console.error('Network error in Supabase request, retrying once:', err);
+          // Retry once after a short delay
+          return new Promise(resolve => setTimeout(resolve, 1000))
+            .then(() => fetch(url, fetchOptions));
+        });
     }
   },
   db: {

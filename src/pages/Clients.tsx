@@ -7,25 +7,56 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { Plus, Search, Users, Mail, Phone } from "lucide-react";
+import { Plus, Search, Users, Mail, Phone, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: clients = [], isLoading } = useQuery({
+  const { data: clients = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      return data;
+      try {
+        console.log("Fetching all clients data...");
+        const { data, error } = await supabase
+          .from("clients")
+          .select("*")
+          .order("name");
+        
+        if (error) {
+          console.error("Error fetching clients:", error);
+          throw error;
+        }
+        
+        console.log(`Fetched ${data?.length || 0} clients`);
+        return data || [];
+      } catch (error) {
+        console.error("Client fetch query failed:", error);
+        throw error;
+      }
     },
+    staleTime: 10000, // Consider data stale after 10 seconds
+    refetchOnMount: "always", // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gets focus
+    retry: 2, // Retry failed requests twice
   });
+
+  const handleRefresh = () => {
+    toast.info("Refreshing client list...");
+    refetch().then(() => {
+      toast.success("Client list refreshed");
+    }).catch(error => {
+      toast.error("Failed to refresh: " + error.message);
+    });
+  };
+
+  const handleClientCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["all-clients"] });
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
+  };
 
   const filteredClients = clients.filter(client => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,6 +81,16 @@ export default function Clients() {
           </div>
           
           <Button 
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            title="Refresh client list"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          
+          <Button 
             onClick={() => setShowClientForm(true)}
             className="flex items-center gap-2"
           >
@@ -68,8 +109,26 @@ export default function Clients() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            <div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex flex-col space-y-3 mb-4">
+                  <Skeleton className="h-6 w-52" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-red-500">Error loading clients. Please try again.</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
             </div>
           ) : clients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -136,10 +195,7 @@ export default function Clients() {
       <ClientForm 
         open={showClientForm} 
         onOpenChange={setShowClientForm} 
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["all-clients"] });
-          queryClient.invalidateQueries({ queryKey: ["clients"] });
-        }}
+        onSuccess={handleClientCreated}
       />
     </div>
   );

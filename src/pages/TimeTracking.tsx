@@ -1,22 +1,35 @@
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
 import { TimeEntriesList } from "@/components/time-tracking/TimeEntriesList";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { Plus, Users } from "lucide-react";
+import { toast } from "sonner";
 
 export default function TimeTracking() {
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
 
+  // Refetch clients data when the component mounts to ensure data freshness
+  const { isLoading: isClientsLoading } = useQuery({
+    queryKey: ["clients"],
+    staleTime: 15000, // Consider data stale after 15 seconds
+    refetchOnMount: "always", // Always refetch on component mount
+  });
+
   const handleClientCreated = () => {
+    // Invalidate the clients query to force refresh
     queryClient.invalidateQueries({ queryKey: ["clients"] });
+    queryClient.invalidateQueries({ queryKey: ["all-clients"] });
+    toast.success("Client created successfully. Client list refreshed.");
   };
 
   const handleTimeEntryCreated = () => {
+    // Invalidate the time entries query to force refresh
     queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+    toast.success("Time entry recorded successfully.");
   };
 
   return (
@@ -28,8 +41,13 @@ export default function TimeTracking() {
           variant="outline" 
           className="flex items-center gap-2"
           onClick={() => setShowClientForm(true)}
+          disabled={isClientsLoading}
         >
-          <Users className="h-4 w-4" />
+          {isClientsLoading ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          ) : (
+            <Users className="h-4 w-4" />
+          )}
           <span>Add Client</span>
         </Button>
       </div>
