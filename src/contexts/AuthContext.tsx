@@ -40,24 +40,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
 
         if (session?.user) {
-          // Fetch user role
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
+          // Fetch user role after a delay to avoid recursive auth state changes
+          setTimeout(async () => {
+            const { data, error } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single();
 
-          if (error) {
-            console.error("Error fetching user role:", error);
-          } else if (data) {
-            setRole(data.role);
-          }
+            if (error) {
+              console.error("Error fetching user role:", error);
+            } else if (data) {
+              setRole(data.role);
+            }
+          }, 0);
         } else {
           setRole(null);
         }
+
+        setIsLoading(false);
       }
     );
 
