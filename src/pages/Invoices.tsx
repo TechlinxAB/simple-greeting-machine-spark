@@ -2,20 +2,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Calendar, ArrowUpDown } from "lucide-react";
+import { CalendarRange, FilePlus2, Search, FileText } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { role } = useAuth();
-
-  const canManageInvoices = role === 'admin' || role === 'manager';
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["invoices"],
@@ -23,12 +18,12 @@ export default function Invoices() {
       const { data, error } = await supabase
         .from("invoices")
         .select(`
-          id, 
-          invoice_number, 
-          issue_date, 
-          due_date, 
-          total_amount, 
-          status, 
+          id,
+          invoice_number,
+          status,
+          issue_date,
+          due_date,
+          total_amount,
           exported_to_fortnox,
           clients:client_id (id, name)
         `)
@@ -39,23 +34,16 @@ export default function Invoices() {
     },
   });
 
-  const filteredInvoices = invoices.filter(invoice => 
-    invoice.invoice_number.includes(searchTerm) ||
-    invoice.clients?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusBadge = (status: string) => {
+  const getBadgeVariant = (status: string) => {
     switch (status) {
-      case "draft":
-        return <Badge variant="outline">Draft</Badge>;
-      case "sent":
-        return <Badge variant="secondary">Sent</Badge>;
       case "paid":
-        return <Badge variant="success">Paid</Badge>;
+        return "default" as const;
+      case "sent":
+        return "secondary" as const;
       case "overdue":
-        return <Badge variant="destructive">Overdue</Badge>;
+        return "destructive" as const;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return "outline" as const;
     }
   };
 
@@ -67,31 +55,26 @@ export default function Invoices() {
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
+            <input
               placeholder="Search invoices..." 
-              className="pl-8 w-full"
+              className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          {canManageInvoices && (
-            <Button 
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>New Invoice</span>
-            </Button>
-          )}
+          <Button 
+            className="flex items-center gap-2"
+          >
+            <FilePlus2 className="h-4 w-4" />
+            <span>New Invoice</span>
+          </Button>
         </div>
       </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>Invoice List</CardTitle>
-          <CardDescription>
-            Manage your invoices and track payments
-          </CardDescription>
+          <CardTitle>All Invoices</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -101,16 +84,11 @@ export default function Invoices() {
           ) : invoices.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>No invoices found.</p>
-              {canManageInvoices && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Invoice
-                </Button>
-              )}
+              <p>No invoices found. Create your first invoice to get started!</p>
+              <Button variant="outline" className="mt-4">
+                <FilePlus2 className="mr-2 h-4 w-4" />
+                Create Invoice
+              </Button>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -121,36 +99,39 @@ export default function Invoices() {
                     <TableHead>Client</TableHead>
                     <TableHead>Issue Date</TableHead>
                     <TableHead>Due Date</TableHead>
-                    <TableHead>Amount (SEK)</TableHead>
+                    <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Exported</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredInvoices.map((invoice) => (
+                  {invoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                      <TableCell>{invoice.clients?.name || "Unknown client"}</TableCell>
+                      <TableCell>{invoice.clients?.name || 'Unknown Client'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="mr-1 h-3 w-3 text-muted-foreground" />
-                          {format(new Date(invoice.issue_date), "yyyy-MM-dd")}
+                        <div className="flex items-center gap-1">
+                          <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{format(new Date(invoice.issue_date), 'yyyy-MM-dd')}</span>
                         </div>
                       </TableCell>
+                      <TableCell>{format(new Date(invoice.due_date), 'yyyy-MM-dd')}</TableCell>
+                      <TableCell className="font-medium">{invoice.total_amount.toFixed(2)} SEK</TableCell>
                       <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="mr-1 h-3 w-3 text-muted-foreground" />
-                          {format(new Date(invoice.due_date), "yyyy-MM-dd")}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {invoice.total_amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell>
-                        <Badge variant={invoice.exported_to_fortnox ? "secondary" : "outline"}>
-                          {invoice.exported_to_fortnox ? "Exported" : "Not exported"}
+                        <Badge variant={getBadgeVariant(invoice.status)}>
+                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {invoice.exported_to_fortnox ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            Exported
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            Not Exported
+                          </Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

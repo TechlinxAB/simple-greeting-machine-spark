@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 // Use the correct URL and key for the Supabase project
 const supabaseUrl = 'https://xojrleypudfrbmvejpow.supabase.co';
@@ -10,7 +11,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
 // const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'your-anon-key';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
