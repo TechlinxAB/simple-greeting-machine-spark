@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 // API endpoints for Fortnox
@@ -44,22 +43,64 @@ export async function exchangeCodeForTokens(
       redirectUri,
     });
     
-    // Prepare the token request body according to Fortnox specs
-    const tokenRequestBody = new URLSearchParams({
+    // Instead of making the request directly (which causes CORS issues),
+    // we'll use a serverless function or proxy
+    
+    // Prepare the token request body for sending to our proxy
+    const tokenExchangeData = {
       grant_type: 'authorization_code',
       code,
       client_id: clientId,
       client_secret: clientSecret,
       redirect_uri: redirectUri,
-    });
+    };
     
     // Log the request details for debugging
-    console.log("Making token exchange request to:", FORTNOX_TOKEN_URL);
-    console.log("Request body (without sensitive data):", 
-      `grant_type=authorization_code&code=${code.substring(0, 5)}...&client_id=${clientId.substring(0, 3)}...&redirect_uri=${encodeURIComponent(redirectUri)}`);
+    console.log("Making token exchange request via proxy");
     
-    // Use a try-catch to catch network errors specifically
+    // First check if we can use a Supabase Edge Function (if deployed)
     try {
+      console.log("Attempting to use Supabase Edge Function for token exchange");
+      
+      // Call Supabase edge function - this avoids CORS issues
+      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
+        body: JSON.stringify(tokenExchangeData)
+      });
+      
+      if (proxyError) {
+        console.error("Error calling Supabase Edge Function:", proxyError);
+        throw new Error(`Edge function error: ${proxyError.message}`);
+      }
+      
+      if (!proxyResponse || !proxyResponse.access_token) {
+        console.error("Invalid response from edge function:", proxyResponse);
+        throw new Error("Invalid response from proxy service");
+      }
+      
+      console.log("Token exchange successful via Edge Function");
+      
+      // Calculate token expiration time
+      const expiresAt = Date.now() + (proxyResponse.expires_in || 3600) * 1000;
+      
+      return {
+        accessToken: proxyResponse.access_token,
+        refreshToken: proxyResponse.refresh_token,
+        expiresAt,
+      };
+    } catch (edgeFunctionError) {
+      // If edge function fails or doesn't exist, fall back to direct request as a last resort
+      console.warn("Edge function not available or failed, falling back to direct request (may cause CORS issues):", edgeFunctionError);
+      
+      // Prepare the token request body
+      const tokenRequestBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+      });
+      
+      // Use a try-catch to catch network errors specifically
       const response = await fetch(FORTNOX_TOKEN_URL, {
         method: 'POST',
         headers: {
@@ -88,9 +129,9 @@ export async function exchangeCodeForTokens(
         
         // Enhanced error message with details from the response
         const errorDescription = responseData?.error_description || 
-                                responseData?.message || 
-                                'Unknown error from Fortnox API';
-                                
+                              responseData?.message || 
+                              'Unknown error from Fortnox API';
+                              
         throw new Error(`Token exchange failed: ${errorDescription}`);
       }
 
@@ -105,14 +146,18 @@ export async function exchangeCodeForTokens(
         refreshToken: responseData.refresh_token,
         expiresAt,
       };
-      
-    } catch (fetchError) {
-      // This will catch network errors like CORS, failed to fetch, etc.
-      console.error("Network error during token exchange:", fetchError);
-      throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to Fortnox API'}`);
     }
   } catch (error) {
     console.error('Error exchanging code for tokens:', error);
+    
+    // Check if this is a CORS or network error
+    if (error instanceof Error && 
+        (error.message.includes('Failed to fetch') || 
+         error.message.includes('NetworkError') ||
+         error.message.includes('Network request failed'))) {
+      throw new Error('Network error connecting to Fortnox API. This could be due to CORS restrictions or network connectivity issues.');
+    }
+    
     throw error;
   }
 }
@@ -267,17 +312,50 @@ export async function refreshAccessToken(
   try {
     console.log("Refreshing Fortnox access token");
     
-    // Prepare the refresh token request body
-    const tokenRequestBody = new URLSearchParams({
+    // Similar approach as the token exchange - try to use a proxy to avoid CORS
+    const refreshData = {
       grant_type: 'refresh_token',
       client_id: clientId,
       client_secret: clientSecret,
       refresh_token: refreshToken,
-    });
+    };
     
-    console.log("Making refresh token request to:", FORTNOX_TOKEN_URL);
-    
+    // Try to use edge function first
     try {
+      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
+        body: JSON.stringify(refreshData)
+      });
+      
+      if (proxyError) {
+        console.error("Error calling refresh token edge function:", proxyError);
+        throw new Error(`Edge function error: ${proxyError.message}`);
+      }
+      
+      if (!proxyResponse || !proxyResponse.access_token) {
+        console.error("Invalid response from edge function for refresh:", proxyResponse);
+        throw new Error("Invalid response from proxy service");
+      }
+      
+      // Calculate token expiration time
+      const expiresAt = Date.now() + (proxyResponse.expires_in || 3600) * 1000;
+      
+      return {
+        accessToken: proxyResponse.access_token,
+        refreshToken: proxyResponse.refresh_token || refreshToken, // Use new refresh token if provided
+        expiresAt,
+      };
+    } catch (edgeFunctionError) {
+      // Fall back to direct request
+      console.warn("Refresh token edge function failed, falling back to direct request:", edgeFunctionError);
+      
+      // Prepare the refresh token request body
+      const tokenRequestBody = new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+      });
+      
       const response = await fetch(FORTNOX_TOKEN_URL, {
         method: 'POST',
         headers: {
@@ -319,11 +397,6 @@ export async function refreshAccessToken(
         refreshToken: responseData.refresh_token, // Fortnox may provide a new refresh token
         expiresAt,
       };
-      
-    } catch (fetchError) {
-      // This will catch network errors like CORS, failed to fetch, etc.
-      console.error("Network error during token refresh:", fetchError);
-      throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to Fortnox API'}`);
     }
   } catch (error) {
     console.error('Error refreshing access token:', error);

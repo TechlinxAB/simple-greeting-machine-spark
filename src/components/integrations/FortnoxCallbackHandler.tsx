@@ -162,9 +162,16 @@ export function FortnoxCallbackHandler({
         errorMessage = error;
       }
       
-      // Detect network errors
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network') || errorMessage.includes('CORS')) {
+      // Better network error detection and messaging
+      if (errorMessage.includes('Failed to fetch') || 
+          errorMessage.includes('Network') || 
+          errorMessage.includes('CORS') ||
+          errorMessage.includes('cross-origin')) {
         errorMessage = "Network error connecting to Fortnox API. This could be due to CORS restrictions or network connectivity issues.";
+        
+        // Additional guidance for CORS issues
+        console.error("This is likely a CORS issue. The browser is preventing direct API calls to Fortnox from your frontend.");
+        console.error("Consider implementing a server-side proxy or edge function to handle the token exchange.");
       }
       
       setStatus('error');
@@ -216,6 +223,12 @@ export function FortnoxCallbackHandler({
               <code className="mt-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
                 {redirectUri}
               </code>
+            </div>
+          )}
+          {error?.includes('Network error') && (
+            <div className="mt-2">
+              <p className="font-medium">This is likely due to CORS restrictions from your browser.</p>
+              <p className="text-sm mt-1">Please check your developer console for more details.</p>
             </div>
           )}
         </AlertDescription>
