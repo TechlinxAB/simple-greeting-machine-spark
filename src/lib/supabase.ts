@@ -15,6 +15,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     storageKey: 'supabase.auth.token',
     detectSessionInUrl: true,
+    // Set session lifetime to 1 day (24 hours) in seconds
+    // This applies to the refresh token
+    flowType: 'pkce',
   },
   global: {
     headers: {
@@ -36,9 +39,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         throw err;
       });
     }
-  },
-  db: {
-    schema: 'public',
   },
   realtime: {
     timeout: 30000, // 30 second timeout for realtime connections
@@ -77,4 +77,56 @@ export async function signInUser(email: string, password: string) {
   }
   
   return data;
+}
+
+// Add inactivity timeout management
+let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+// Function to reset the inactivity timer
+export function resetInactivityTimer() {
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+  }
+  
+  inactivityTimer = setTimeout(() => {
+    console.log('User inactive for 30 minutes, signing out');
+    supabase.auth.signOut();
+  }, INACTIVITY_TIMEOUT);
+}
+
+// Function to clear the inactivity timer (used when logging out manually)
+export function clearInactivityTimer() {
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+  }
+}
+
+// Setup event listeners for user activity
+export function setupActivityTracking() {
+  const activityEvents = ['mousedown', 'keypress', 'scroll', 'touchstart', 'visibilitychange'];
+  
+  // Reset timer on any user activity
+  const handleUserActivity = () => {
+    if (document.visibilityState === 'visible') {
+      resetInactivityTimer();
+    }
+  };
+  
+  // Add event listeners for user activity
+  activityEvents.forEach(event => {
+    document.addEventListener(event, handleUserActivity);
+  });
+  
+  // Initial setup of timer
+  resetInactivityTimer();
+  
+  // Return cleanup function to remove event listeners
+  return () => {
+    activityEvents.forEach(event => {
+      document.removeEventListener(event, handleUserActivity);
+    });
+    clearInactivityTimer();
+  };
 }

@@ -1,16 +1,17 @@
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Header } from "./Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, RefreshCw, LogOut } from "lucide-react";
+import { useEffect } from "react";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState } = useAuth();
+  const navigate = useNavigate();
 
   const handleForceReload = () => {
     window.location.reload();
@@ -19,14 +20,32 @@ export function AppLayout() {
   const handleForceLogout = async () => {
     try {
       await signOut();
-      window.location.href = "/login";
+      navigate('/login');
     } catch (error) {
       console.error("Force logout error:", error);
       // Clear local storage as a fallback
       localStorage.clear();
-      window.location.href = "/login";
+      navigate('/login');
     }
   };
+
+  // Auto-redirect to login after 5 seconds on timeout
+  useEffect(() => {
+    let redirectTimer: ReturnType<typeof setTimeout> | null = null;
+    
+    if (loadingTimeout) {
+      redirectTimer = setTimeout(() => {
+        console.log("Auto-redirecting to login after timeout");
+        handleForceLogout();
+      }, 20000); // 20 seconds before auto-redirect
+    }
+    
+    return () => {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+      }
+    };
+  }, [loadingTimeout]);
 
   if (isLoading) {
     return (
@@ -37,8 +56,8 @@ export function AppLayout() {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Loading Timeout</AlertTitle>
               <AlertDescription>
-                The application is taking longer than expected to load. This might be due to network 
-                issues or server problems.
+                The application is taking longer than expected to load. This might be due to a session 
+                expiration or network issues.
               </AlertDescription>
             </Alert>
             
@@ -66,9 +85,13 @@ export function AppLayout() {
                 variant="destructive"
               >
                 <LogOut className="h-4 w-4" />
-                Force Logout
+                Return to Login
               </Button>
             </div>
+            
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              You will be automatically redirected to the login page shortly...
+            </p>
           </div>
         ) : (
           <div className="flex flex-col items-center">
