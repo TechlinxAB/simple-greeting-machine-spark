@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
@@ -498,13 +499,14 @@ export async function fortnoxApiRequest(
       hasData: !!data
     });
     
+    // Modified to include authorization headers in the request body
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: {
         method,
         path,
         payload: data,
         headers: {
-          'Access-Token': credentials.accessToken,
+          'Authorization': `Bearer ${credentials.accessToken}`,
           'Client-Secret': credentials.clientSecret
         }
       }

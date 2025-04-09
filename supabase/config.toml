@@ -9,4 +9,3 @@ verify_jwt = false
 
 [functions.fortnox-token-refresh]
 verify_jwt = false
-

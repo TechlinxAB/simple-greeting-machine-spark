@@ -56,6 +56,7 @@ serve(async (req) => {
         method: requestData.method,
         path: requestData.path || requestData.endpoint,
         hasBody: !!requestData.body || !!requestData.payload,
+        hasHeaders: !!requestData.headers,
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -95,7 +96,7 @@ serve(async (req) => {
       );
     }
 
-    // Get the Fortnox credentials from the request or from environment variables
+    // Get the Fortnox credentials from the request.headers object
     const accessToken = requestData.headers?.Authorization?.replace('Bearer ', '') || 
       requestData.headers?.['Access-Token'] ||
       Deno.env.get('FORTNOX_ACCESS_TOKEN');
