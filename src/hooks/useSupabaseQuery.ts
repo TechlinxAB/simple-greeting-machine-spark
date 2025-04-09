@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase, executeWithRetry } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -70,23 +71,26 @@ export function useSupabaseQuery<T>(
  * Helper function specifically for delete operations that incorporates retry logic
  * and proper error handling.
  * 
- * @param table The table to delete from
+ * @param table The table to delete from (must be a valid table name in the schema)
  * @param id The ID of the record to delete
  * @returns Promise with success/error status
  */
 export async function deleteWithRetry(
-  table: string, 
+  table: "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings", 
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
     console.log(`Attempting to delete ${table} with ID: ${id}`);
     
-    const result = await executeWithRetry(() => 
-      supabase
+    // Use the executeWithRetry function which returns a Promise
+    const result = await executeWithRetry(async () => {
+      const response = await supabase
         .from(table)
         .delete()
-        .eq('id', id)
-    );
+        .eq('id', id);
+      
+      return response;
+    });
     
     if (result.error) {
       console.error(`Error deleting from ${table}:`, result.error);
