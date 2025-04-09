@@ -140,7 +140,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         .delete()
         .eq("id", selectedEntry.id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting time entry:", error);
+        throw error;
+      }
       
       // Refresh queries
       await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });

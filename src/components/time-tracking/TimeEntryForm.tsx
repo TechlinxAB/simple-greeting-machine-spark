@@ -69,6 +69,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
       productId: "",
       description: "",
     },
+    mode: "onSubmit" // Only validate on form submission
   });
 
   const watchProductId = form.watch("productId");

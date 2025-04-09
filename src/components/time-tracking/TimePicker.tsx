@@ -1,14 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock } from "lucide-react";
-import { format } from "date-fns";
 
 interface TimePickerProps {
   value: Date | null;
@@ -25,14 +17,15 @@ export function TimePicker({
   roundOnBlur = false,
   onComplete
 }: TimePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [timeInput, setTimeInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Update the time input when the value changes
   useEffect(() => {
     if (value) {
-      setTimeInput(format(value, "HH:mm"));
+      const hours = value.getHours().toString().padStart(2, '0');
+      const minutes = value.getMinutes().toString().padStart(2, '0');
+      setTimeInput(`${hours}:${minutes}`);
     } else {
       setTimeInput("");
     }
@@ -57,37 +50,31 @@ export function TimePicker({
     
     // Check if 5 characters have been entered (full time in format HH:MM)
     if (filtered.length === 5 && filtered.includes(":")) {
-      // If we have a complete time, wait a moment and then trigger the onComplete
+      // If we have a complete time, trigger the onComplete
       setTimeout(() => {
-        handleBlur();
-      }, 100);
+        handleTimeUpdate(filtered);
+        if (onComplete) {
+          onComplete();
+        }
+      }, 50);
     }
   };
   
-  // Validate and update time when input loses focus
-  const handleBlur = () => {
-    if (!timeInput) {
-      onChange(null);
+  // Parse time and create Date object
+  const handleTimeUpdate = (timeStr: string = timeInput) => {
+    if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
       return;
     }
     
-    let hours = 0;
-    let minutes = 0;
-    
-    if (timeInput.includes(":")) {
-      const [hoursStr, minutesStr] = timeInput.split(":");
-      hours = parseInt(hoursStr) || 0;
-      minutes = parseInt(minutesStr) || 0;
-    } else if (timeInput.length <= 2) {
-      hours = parseInt(timeInput) || 0;
-    } else if (timeInput.length <= 4) {
-      hours = parseInt(timeInput.substring(0, 2)) || 0;
-      minutes = parseInt(timeInput.substring(2)) || 0;
-    }
+    const [hoursStr, minutesStr] = timeStr.split(":");
+    let hours = parseInt(hoursStr) || 0;
+    let minutes = parseInt(minutesStr) || 0;
     
     // Validate hours and minutes
-    if (hours < 0 || hours > 23) hours = 0;
-    if (minutes < 0 || minutes > 59) minutes = 0;
+    if (hours < 0) hours = 0;
+    if (hours > 23) hours = 23;
+    if (minutes < 0) minutes = 0;
+    if (minutes > 59) minutes = 59;
     
     // Create a new date with the selected time
     const now = new Date();
@@ -102,25 +89,30 @@ export function TimePicker({
     );
     
     onChange(newDate);
-    setTimeInput(format(newDate, "HH:mm"));
-    setIsOpen(false);
-    
-    // Call onComplete if provided
-    if (onComplete) {
-      onComplete();
-    }
   };
   
-  // Handle when the user presses Enter
+  // Handle when the user presses Enter or Tab
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleBlur();
-    } else if (e.key === "Tab" && !e.shiftKey) {
-      e.preventDefault();
-      handleBlur();
+    if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+      if (timeInput) {
+        handleTimeUpdate();
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (onComplete) {
+          onComplete();
+        }
+      }
     }
   };
   
+  // Handle blur event
+  const handleBlur = () => {
+    if (timeInput) {
+      handleTimeUpdate();
+    }
+  };
+
   return (
     <div className="relative w-full">
       <Input

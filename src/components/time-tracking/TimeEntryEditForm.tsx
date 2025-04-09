@@ -18,6 +18,7 @@ import { differenceInMinutes } from "date-fns";
 // Let's declare a variable to store products for the schema validation
 let editProducts: any[] = [];
 
+// Modified schema to make validation more flexible
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -26,18 +27,25 @@ const timeEntrySchema = z.object({
   quantity: z.number().optional(),
   description: z.string().optional(),
 }).refine((data) => {
-  // If it's an activity, both startTime and endTime must be provided
+  // Get product type to determine validation
   const product = editProducts.find(p => p.id === data.productId);
+  
   if (product?.type === "activity") {
-    return data.startTime !== undefined && data.endTime !== undefined;
+    // For activities, only validate times if both are provided or both are undefined
+    if ((data.startTime && !data.endTime) || (!data.startTime && data.endTime)) {
+      return false;
+    }
+    return true;
   }
-  // If it's an item, quantity must be provided
-  if (product?.type === "item") {
-    return data.quantity !== undefined && data.quantity > 0;
+  
+  // For items, only validate quantity if it's provided
+  if (product?.type === "item" && data.quantity !== undefined) {
+    return data.quantity > 0;
   }
+  
   return true;
 }, {
-  message: "Both start and end times are required for activities",
+  message: "Please provide all required information",
   path: ["endTime"]
 });
 
@@ -62,6 +70,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   // Ref for focus management
   const endTimeRef = useRef<HTMLDivElement>(null);
 
+  // Setup form with the existing time entry data
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
     defaultValues: {
@@ -72,6 +81,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       endTime: timeEntry.end_time ? new Date(timeEntry.end_time) : undefined,
       quantity: timeEntry.quantity,
     },
+    // This is important - it makes the form more permissive
+    mode: "onSubmit"
   });
 
   const watchProductId = form.watch("productId");
@@ -172,19 +183,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       return;
     }
 
-    // Additional validation based on product type
-    if (product.type === "activity") {
-      if (!values.startTime || !values.endTime) {
-        toast.error("Both start and end times are required for activities");
-        return;
-      }
-    } else if (product.type === "item") {
-      if (!values.quantity || values.quantity <= 0) {
-        toast.error("Quantity must be a positive number for items");
-        return;
-      }
-    }
-
     setIsLoading(true);
     try {
       const timeEntryData: any = {
@@ -193,17 +191,20 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
         description: values.description || null,
       };
 
-      if (product.type === "activity" && values.startTime && values.endTime) {
-        const roundedStartTime = applyTimeRounding(values.startTime);
-        const roundedEndTime = applyTimeRounding(values.endTime);
-        
-        if (roundedStartTime && roundedEndTime) {
-          timeEntryData.start_time = roundedStartTime.toISOString();
-          timeEntryData.end_time = roundedEndTime.toISOString();
+      if (product.type === "activity") {
+        // Handle start and end times, but only if both are provided
+        if (values.startTime && values.endTime) {
+          const roundedStartTime = applyTimeRounding(values.startTime);
+          const roundedEndTime = applyTimeRounding(values.endTime);
+          
+          if (roundedStartTime && roundedEndTime) {
+            timeEntryData.start_time = roundedStartTime.toISOString();
+            timeEntryData.end_time = roundedEndTime.toISOString();
+          }
+          
+          // Clear quantity field if it's an activity
+          timeEntryData.quantity = null;
         }
-        
-        // Clear quantity field if it's an activity
-        timeEntryData.quantity = null;
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
         
@@ -374,13 +375,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                           const product = getProductById(value);
                           if (product) {
                             setSelectedProductType(product.type);
-                          }
-                          
-                          if (product?.type === "activity") {
-                            form.setValue("quantity", undefined);
-                          } else if (product?.type === "item") {
-                            form.setValue("startTime", undefined);
-                            form.setValue("endTime", undefined);
                           }
                         }}
                         defaultValue={field.value}
