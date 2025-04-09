@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "@/components/clients/ClientForm";
+import { DeleteClientDialog } from "@/components/clients/DeleteClientDialog";
 import { Plus, Search, Users, Mail, Phone, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -54,7 +55,7 @@ export default function Clients() {
     });
   };
 
-  const handleClientCreated = () => {
+  const handleClientChanged = () => {
     queryClient.invalidateQueries({ queryKey: ["all-clients"] });
     queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
@@ -154,6 +155,7 @@ export default function Clients() {
                     <TableHead>Client #</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -184,6 +186,12 @@ export default function Clients() {
                           {!client.email && !client.telephone && "-"}
                         </div>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <DeleteClientDialog 
+                          client={client} 
+                          onClientDeleted={handleClientChanged} 
+                        />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -196,7 +204,7 @@ export default function Clients() {
       <ClientForm 
         open={showClientForm} 
         onOpenChange={setShowClientForm} 
-        onSuccess={handleClientCreated}
+        onSuccess={handleClientChanged}
       />
     </div>
   );
