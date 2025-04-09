@@ -48,7 +48,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 // Define a type for valid table names to be used with deleteRecord
 type TableName = "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings";
 
-// Direct delete operation without verification or retries
+/**
+ * Improved delete operation with better error handling
+ */
 export async function deleteRecord(
   table: TableName,
   id: string
@@ -62,7 +64,21 @@ export async function deleteRecord(
       .eq('id', id);
     
     if (error) {
-      console.error(`Error in direct delete of ${table}:`, error);
+      console.error(`Error in delete operation for ${table}:`, error);
+      
+      // More detailed error handling based on error codes
+      if (error.code === '23503') {
+        return { 
+          success: false, 
+          error: `Cannot delete this record as it's being referenced by other records.` 
+        };
+      } else if (error.code === '42501' || error.message.includes('permission denied')) {
+        return { 
+          success: false, 
+          error: `Permission denied: You don't have the required permissions to delete this record.` 
+        };
+      }
+      
       return { 
         success: false, 
         error: error.message || `Failed to delete ${table} record` 
@@ -71,7 +87,7 @@ export async function deleteRecord(
     
     return { success: true, error: null };
   } catch (err) {
-    console.error(`Unexpected error in direct delete of ${table}:`, err);
+    console.error(`Unexpected error in delete operation for ${table}:`, err);
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
     return { success: false, error: errorMessage };
   }

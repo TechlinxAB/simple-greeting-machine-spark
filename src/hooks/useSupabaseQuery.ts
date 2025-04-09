@@ -70,7 +70,7 @@ export function useSupabaseQuery<T>(
 type TableName = "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings";
 
 /**
- * Completely rewritten delete function with improved error handling for RLS issues.
+ * Enhanced delete function with improved error handling for RLS issues.
  * 
  * @param tableName The table to delete from (must be a valid table name in the schema)
  * @param id The ID of the record to delete
@@ -100,7 +100,7 @@ export async function deleteWithRetry(
       return { success: true, error: null }; // Consider it a success if already deleted
     }
     
-    // Attempt direct deletion with the enhanced deleteRecord function
+    // Attempt direct deletion
     const result = await deleteRecord(tableName, id);
     
     if (!result.success) {
@@ -117,26 +117,24 @@ export async function deleteWithRetry(
       return { success: false, error: result.error };
     }
     
-    // Slight delay before verification to allow for database propagation
+    // Delay slightly to allow the database to process the deletion
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Always verify the deletion actually happened
-    const { data: verifyDeletion, error: verifyError } = await supabase
+    // Verify deletion was successful
+    const { data: verifyItem, error: verifyError } = await supabase
       .from(tableName)
       .select('id')
       .eq('id', id)
       .maybeSingle();
       
     if (verifyError) {
-      console.error(`Error verifying deletion for ${tableName}:`, verifyError);
-      // Don't return here, we still want to check if it was deleted
+      console.error(`Error verifying deletion of ${tableName}:`, verifyError);
+      // We'll still check if the item exists despite the error
     }
     
-    // If the item still exists, it means the delete operation reported success but didn't actually delete
-    if (verifyDeletion) {
+    // If the item still exists after deletion attempt, there's likely an RLS issue
+    if (verifyItem) {
       console.error(`Delete operation reported success but ${tableName} with ID ${id} still exists`);
-      
-      // This is likely an RLS issue - throw a specific error
       return { 
         success: false, 
         error: `Permission denied: You may not have the required permissions to delete this item.` 
