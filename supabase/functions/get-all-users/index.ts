@@ -2,10 +2,20 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://xojrleypudfrbmvejpow.supabase.co'
 const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   // Create a Supabase client with the Auth context of the logged in user
   const supabaseClient = createClient(
     supabaseUrl,
@@ -24,7 +34,7 @@ serve(async (req) => {
 
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 401,
     })
   }
@@ -38,7 +48,7 @@ serve(async (req) => {
 
   if (profileError || profile?.role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Unauthorized. Only administrators can access this function' }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 403,
     })
   }
@@ -47,16 +57,25 @@ serve(async (req) => {
   const { data: users, error } = await supabaseClient.auth.admin.listUsers()
   
   if (error) {
+    console.error("Error listing users:", error);
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
   }
 
   // Get all profiles to merge with user data
-  const { data: profiles } = await supabaseClient
+  const { data: profiles, error: profilesError } = await supabaseClient
     .from('profiles')
     .select('id, name, role, avatar_url')
+
+  if (profilesError) {
+    console.error("Error fetching profiles:", profilesError);
+    return new Response(JSON.stringify({ error: profilesError.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
 
   // Map profiles to a dictionary for easy lookup
   const profileMap = new Map()
@@ -78,8 +97,10 @@ serve(async (req) => {
     }
   })
 
+  console.log("Returning users:", combinedData.length);
+  
   return new Response(JSON.stringify(combinedData), { 
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
 })

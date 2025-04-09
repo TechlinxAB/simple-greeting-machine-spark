@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -51,24 +52,35 @@ export function UserManagement() {
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('get-all-users');
-      
-      if (error) throw error;
-      
-      if (!data || !Array.isArray(data)) {
-        console.error("Unexpected data format from get-all-users:", data);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-all-users');
+        
+        if (error) {
+          console.error("Error fetching users:", error);
+          throw error;
+        }
+        
+        if (!data || !Array.isArray(data)) {
+          console.error("Unexpected data format from get-all-users:", data);
+          return [] as User[];
+        }
+        
+        console.log("Users data:", data);
+        
+        const transformedUsers = data.map(user => ({
+          id: user.id,
+          email: user.email,
+          name: user.profile_name || user.email.split('@')[0],
+          role: user.profile_role || 'user',
+          avatar_url: user.profile_avatar_url
+        }));
+        
+        return transformedUsers as User[];
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+        toast.error("Failed to load users");
         return [] as User[];
       }
-      
-      const transformedUsers = data.map(user => ({
-        id: user.id,
-        email: user.email,
-        name: user.profile_name || user.email.split('@')[0],
-        role: user.profile_role || 'user',
-        avatar_url: user.profile_avatar_url
-      }));
-      
-      return transformedUsers as User[];
     }
   });
 
