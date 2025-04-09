@@ -27,6 +27,18 @@ interface FortnoxInvoiceRow {
   UnitCode?: string;
 }
 
+// Interface for Fortnox customer creation - excluding CustomerNumber as per API spec
+interface FortnoxCustomerData {
+  Name: string;
+  OrganisationNumber?: string;
+  Address1?: string;
+  ZipCode?: string;
+  City?: string;
+  CountryCode?: string;
+  Email?: string;
+  Phone1?: string;
+}
+
 /**
  * Format time entries for export to Fortnox
  */
@@ -122,9 +134,9 @@ export async function formatTimeEntriesForFortnox(
       };
     });
     
-    // FIXED: Prepare the invoice data with only CustomerNumber, not full Customer object
+    // Prepare the invoice data with CustomerNumber, not full Customer object
     const invoiceData: FortnoxInvoiceData = {
-      CustomerNumber: client.client_number || client.id.substring(0, 10),
+      CustomerNumber: client.client_number || "", // Will be set after customer validation
       InvoiceRows: invoiceRows,
       InvoiceDate: new Date().toISOString().split('T')[0],
       DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
@@ -154,6 +166,16 @@ export async function createFortnoxInvoice(
   timeEntryIds: string[]
 ): Promise<{ invoiceNumber: string; invoiceId: string }> {
   try {
+    // Get client data for customer check
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", clientId)
+      .single();
+      
+    if (clientError) throw clientError;
+    if (!client) throw new Error("Client not found");
+    
     // Format time entries for Fortnox
     const invoiceData = await formatTimeEntriesForFortnox(clientId, timeEntryIds);
     
@@ -161,29 +183,69 @@ export async function createFortnoxInvoice(
       throw new Error("Failed to format invoice data");
     }
     
-    // Check if client exists in Fortnox
-    let customerExists = false;
-    try {
-      customerExists = await checkFortnoxCustomer(invoiceData.CustomerNumber);
-    } catch (error) {
-      console.log("Customer check failed, will attempt to create:", error);
+    // First check if a customer with this organization number already exists in Fortnox
+    let customerNumber = "";
+    
+    if (client.organization_number) {
+      try {
+        // Search for customer by OrganisationNumber
+        console.log(`Searching for existing customer with OrganisationNumber: ${client.organization_number}`);
+        const customersResponse = await fortnoxApiRequest(`/customers?filter=organisationnumber&filtername=${encodeURIComponent(client.organization_number)}`);
+        
+        if (customersResponse?.Customers?.Customer?.length > 0) {
+          // Customer exists, use the first match
+          customerNumber = customersResponse.Customers.Customer[0].CustomerNumber;
+          console.log(`Found existing customer with CustomerNumber: ${customerNumber}`);
+          
+          // Update our local record with the Fortnox CustomerNumber
+          if (!client.client_number) {
+            await supabase
+              .from("clients")
+              .update({ client_number: customerNumber })
+              .eq("id", clientId);
+            
+            console.log(`Updated local client record with Fortnox CustomerNumber: ${customerNumber}`);
+          }
+        }
+      } catch (error) {
+        console.warn("Error searching for customer by OrganisationNumber:", error);
+        // Continue with creation if search fails
+      }
     }
     
-    // Create client in Fortnox if not exists
-    if (!customerExists) {
-      console.log("Creating customer in Fortnox:", invoiceData.CustomerNumber);
-      // Get full client data for customer creation
-      const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", clientId)
-        .single();
-        
-      if (clientError) throw clientError;
-      if (!client) throw new Error("Client not found");
-      
-      await createFortnoxCustomer(client);
+    // If no customer found by OrganisationNumber, check by CustomerNumber if we have one stored
+    if (!customerNumber && client.client_number) {
+      try {
+        const customerExists = await checkFortnoxCustomer(client.client_number);
+        if (customerExists) {
+          customerNumber = client.client_number;
+          console.log(`Found existing customer using stored CustomerNumber: ${customerNumber}`);
+        }
+      } catch (error) {
+        console.log("Error checking customer by CustomerNumber:", error);
+      }
     }
+    
+    // Create customer in Fortnox if not found
+    if (!customerNumber) {
+      console.log("No existing customer found, creating new customer in Fortnox");
+      customerNumber = await createFortnoxCustomer(client);
+      
+      if (!customerNumber) {
+        throw new Error("Failed to create or find customer in Fortnox");
+      }
+      
+      // Update our client record with the new CustomerNumber from Fortnox
+      await supabase
+        .from("clients")
+        .update({ client_number: customerNumber })
+        .eq("id", clientId);
+      
+      console.log(`Updated local client record with new Fortnox CustomerNumber: ${customerNumber}`);
+    }
+    
+    // Update invoice data with the correct CustomerNumber
+    invoiceData.CustomerNumber = customerNumber;
     
     // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
     console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
@@ -286,13 +348,12 @@ export async function checkFortnoxCustomer(customerNumber: string): Promise<bool
 }
 
 /**
- * Create a customer in Fortnox
+ * Create a customer in Fortnox - no longer sends CustomerNumber
  */
 export async function createFortnoxCustomer(client: Client): Promise<string> {
   try {
-    // Format customer data for Fortnox
-    const customerData = {
-      CustomerNumber: client.client_number || client.id.substring(0, 10),
+    // Format customer data for Fortnox without CustomerNumber
+    const customerData: FortnoxCustomerData = {
       Name: client.name,
       OrganisationNumber: client.organization_number,
       Address1: client.address,
@@ -304,6 +365,7 @@ export async function createFortnoxCustomer(client: Client): Promise<string> {
     };
     
     // Create customer in Fortnox
+    console.log("Creating customer in Fortnox with data:", JSON.stringify(customerData, null, 2));
     const response = await fortnoxApiRequest("/customers", "POST", {
       Customer: customerData
     });
@@ -312,6 +374,7 @@ export async function createFortnoxCustomer(client: Client): Promise<string> {
       throw new Error("Failed to create customer in Fortnox");
     }
     
+    console.log("Customer created in Fortnox:", response.Customer);
     return response.Customer.CustomerNumber;
   } catch (error) {
     console.error("Error creating Fortnox customer:", error);

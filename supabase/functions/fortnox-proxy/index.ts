@@ -60,6 +60,11 @@ serve(async (req) => {
         authHeaderPresent: requestData.headers?.Authorization ? "yes" : "no",
         clientSecretPresent: requestData.headers?.['Client-Secret'] ? "yes" : "no"
       });
+      
+      // Log the complete request payload for debugging
+      if (requestData.payload || requestData.body) {
+        console.log("Detailed request payload:", JSON.stringify(requestData.payload || requestData.body, null, 2));
+      }
     } catch (e) {
       console.error("Failed to parse request body:", e);
       return new Response(
