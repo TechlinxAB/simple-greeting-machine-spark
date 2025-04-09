@@ -55,13 +55,12 @@ export async function formatTimeEntriesForFortnox(
     if (clientError) throw clientError;
     if (!client) throw new Error("Client not found");
     
-    // Get time entries including user information and product details
+    // Get time entries including product details
     const { data: timeEntries, error: entriesError } = await supabase
       .from("time_entries")
       .select(`
         *,
-        products:product_id (*),
-        profiles:user_id (id, name, email)
+        products:product_id (*)
       `)
       .in("id", timeEntryIds)
       .eq("client_id", clientId)
@@ -72,11 +71,29 @@ export async function formatTimeEntriesForFortnox(
       throw new Error("No time entries found");
     }
     
+    // Get user profiles in a separate query to avoid the relationship error
+    const userIds = timeEntries.map(entry => entry.user_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .in("id", userIds);
+      
+    if (profilesError) throw profilesError;
+    
+    // Create a map of user_id to profile data for easy lookup
+    const userProfileMap = new Map();
+    if (profiles) {
+      profiles.forEach(profile => {
+        userProfileMap.set(profile.id, profile);
+      });
+    }
+    
     // Format invoice data for Fortnox with complete client information
     const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
       const product = entry.products;
-      // Fix TypeScript error - make sure profiles exists before accessing properties
-      const userName = entry.profiles?.name || 'Unknown User';
+      // Get user profile from the map
+      const userProfile = userProfileMap.get(entry.user_id);
+      const userName = userProfile?.name || 'Unknown User';
       
       // Calculate quantity
       let quantity = 1;
@@ -181,7 +198,7 @@ export async function createFortnoxInvoice(
         email: invoiceData.Customer.Email || '',
         telephone: invoiceData.Customer.Phone1 || '',
         county: '',
-        created_at: new Date().toISOString(), // Add required fields from Client type
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
     }

@@ -61,22 +61,46 @@ export default function Invoices() {
     queryFn: async () => {
       if (!selectedClient) return [];
       
-      const { data, error } = await supabase
+      const { data: entriesData, error: entriesError } = await supabase
         .from("time_entries")
         .select(`
           id, 
+          user_id,
           start_time, 
           end_time, 
           quantity, 
           description,
-          products:product_id (id, name, type, price, vat_percentage),
-          profiles:user_id (name)
+          products:product_id (id, name, type, price, vat_percentage)
         `)
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
-      if (error) throw error;
-      return data || [];
+      if (entriesError) throw entriesError;
+      
+      if (entriesData && entriesData.length > 0) {
+        const userIds = entriesData.map(entry => entry.user_id);
+        
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", userIds);
+        
+        if (profilesError) throw profilesError;
+        
+        const userProfileMap = new Map();
+        if (profiles) {
+          profiles.forEach(profile => {
+            userProfileMap.set(profile.id, profile);
+          });
+        }
+        
+        return entriesData.map(entry => ({
+          ...entry,
+          user_profile: userProfileMap.get(entry.user_id) || { name: 'Unknown User' }
+        }));
+      }
+      
+      return entriesData || [];
     },
     enabled: !!selectedClient,
   });
@@ -402,7 +426,7 @@ export default function Invoices() {
                             return (
                               <TableRow key={entry.id}>
                                 <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
-                                <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
+                                <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
                                 <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
                                 <TableCell>
                                   {quantity} {entry.products?.type === 'activity' ? 'hr' : 'pcs'}
