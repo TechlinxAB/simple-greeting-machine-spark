@@ -209,9 +209,11 @@ export async function createFortnoxInvoice(
       });
     }
     
-    // Create invoice in Fortnox - FIXED: No longer wrapping in Invoice object
-    console.log("Sending invoice data directly to Fortnox without Invoice wrapper");
-    const response = await fortnoxApiRequest("/invoices", "POST", invoiceData);
+    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
+    console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
+    const response = await fortnoxApiRequest("/invoices", "POST", {
+      Invoice: invoiceData
+    });
     
     if (!response || !response.Invoice) {
       throw new Error("Failed to create invoice in Fortnox");
