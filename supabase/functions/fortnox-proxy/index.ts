@@ -9,23 +9,38 @@ const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
 serve(async (req) => {
+  // Log request details for debugging
+  console.log("Received Fortnox proxy request");
+  console.log("Request method:", req.method);
+  console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log("Handling OPTIONS preflight request");
     return new Response(null, {
       status: 204,
       headers: corsHeaders
     });
   }
   
-  console.log("Received Fortnox proxy request");
-  console.log("Request method:", req.method);
-  console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
-  
   try {
+    // Simple test response to check if function is accessible
+    const url = new URL(req.url);
+    if (url.pathname.endsWith('/test')) {
+      console.log("Returning test response");
+      return new Response(
+        JSON.stringify({ ok: true, message: "Fortnox proxy is working" }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     // Parse the request body
     let requestData;
     try {

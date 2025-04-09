@@ -3,3 +3,10 @@ project_id = "xojrleypudfrbmvejpow"
 
 [functions.fortnox-proxy]
 verify_jwt = false
+
+[functions.fortnox-token-exchange]
+verify_jwt = false
+
+[functions.fortnox-token-refresh]
+verify_jwt = false
+

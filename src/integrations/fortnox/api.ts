@@ -490,7 +490,7 @@ export async function fortnoxApiRequest(
     
     // Call our Edge Function proxy instead of directly calling Fortnox API
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
-      body: JSON.stringify({
+      body: {
         method,
         endpoint,
         headers: {
@@ -498,7 +498,7 @@ export async function fortnoxApiRequest(
           'Client-Secret': credentials.clientSecret
         },
         body: data
-      })
+      }
     });
     
     if (error) {
