@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { format, addDays, isSameDay, startOfWeek, addWeeks, endOfWeek, isToday, isWithinInterval } from "date-fns";
+import { format, addDays, isSameDay, isToday, subDays } from "date-fns";
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -17,12 +17,11 @@ interface DateSelectorProps {
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarDate, setCalendarDate] = useState<Date>(selectedDate);
   const [dateList, setDateList] = useState<Date[]>([]);
   
   // Navigate to previous day
   const goToPreviousDay = () => {
-    const newDate = addDays(selectedDate, -1);
+    const newDate = subDays(selectedDate, 1);
     onDateChange(newDate);
   };
   
@@ -39,18 +38,25 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   
   // Update date list when selected date changes
   useEffect(() => {
-    // Generate dates for the week, plus some days before and after
-    const today = new Date();
+    updateDateList(selectedDate);
+  }, [selectedDate]);
+  
+  // Generate a list of dates centered around the selected date
+  const updateDateList = (centerDate: Date) => {
     const dates = [];
     
-    // Add today and 6 days after it
-    for (let i = 0; i < 7; i++) {
-      dates.push(addDays(today, -i));
+    // Add days before the selected date
+    for (let i = 4; i >= 0; i--) {
+      dates.push(subDays(centerDate, i));
+    }
+    
+    // Add days after the selected date
+    for (let i = 1; i <= 2; i++) {
+      dates.push(addDays(centerDate, i));
     }
     
     setDateList(dates);
-    setCalendarDate(selectedDate);
-  }, [selectedDate]);
+  };
   
   return (
     <div className="space-y-4">
@@ -75,14 +81,14 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               <span>
                 {isToday(selectedDate) 
                   ? "Today" 
-                  : format(selectedDate, "MMM dd, yyyy")}
+                  : format(selectedDate, "d MMM yyyy")}
               </span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center">
             <Calendar
               mode="single"
-              selected={calendarDate}
+              selected={selectedDate}
               onSelect={(date) => {
                 if (date) {
                   onDateChange(date);
@@ -90,6 +96,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
                 }
               }}
               initialFocus
+              className="pointer-events-auto"
             />
           </PopoverContent>
         </Popover>
@@ -108,7 +115,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
       <div className="space-y-1">
         <Button
           variant={isToday(selectedDate) ? "default" : "ghost"}
-          className="w-full justify-start"
+          className="w-full justify-start bg-green-500 hover:bg-green-600 text-white"
           onClick={goToToday}
         >
           Today
@@ -118,13 +125,37 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           <Button
             key={index}
             variant={isSameDay(date, selectedDate) && !isToday(date) ? "default" : "ghost"}
-            className="w-full justify-start"
+            className={`w-full justify-start ${isSameDay(date, selectedDate) ? "bg-gray-100 text-gray-900" : ""}`}
             onClick={() => onDateChange(date)}
           >
-            {format(date, "EEE, MMM d")}
+            {format(date, "d MMM")}
           </Button>
         ))}
       </div>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-center"
+          >
+            Choose a specific date
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="center">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (date) {
+                onDateChange(date);
+              }
+            }}
+            initialFocus
+            className="pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfDay, endOfDay, formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Package, CalendarClock, ClipboardList, Eye } from "lucide-react";
+import { Clock, Package, CalendarClock, ClipboardList, Eye, Edit, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -85,14 +85,16 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
         <CardTitle className="text-base font-medium">
           Activities for <span className="text-primary">{formattedDate}</span>
         </CardTitle>
-        <Button variant="outline" size="sm" className="flex items-center gap-1">
-          <Eye className="h-3.5 w-3.5" />
-          <span>View full list</span>
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-1">
+            <Eye className="h-3.5 w-3.5" />
+            <span>View full list</span>
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
@@ -159,6 +161,26 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
           </Table>
         )}
       </CardContent>
+      <div className="p-2 flex justify-end border-t">
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+          >
+            <Edit className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New
+          </Button>
+        </div>
+      </div>
     </Card>
   );
 }

@@ -9,7 +9,6 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function TimeTracking() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -41,21 +40,8 @@ export default function TimeTracking() {
     : format(selectedDate, "d MMMM yyyy");
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-2 items-center">
-          <Tabs defaultValue="tracking" className="w-[400px]">
-            <TabsList>
-              <TabsTrigger value="tracking" className="flex-grow">
-                Time tracking and reporting
-              </TabsTrigger>
-              <TabsTrigger value="invoicing" className="flex-grow">
-                Invoicing
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        
+    <div className="container mx-auto py-6">
+      <div className="flex justify-end mb-4">
         <Button 
           variant="outline" 
           className="flex items-center gap-2"
@@ -80,19 +66,15 @@ export default function TimeTracking() {
         </div>
         
         <div className="space-y-6">
-          <div>
-            <TimeEntryForm 
-              onSuccess={handleTimeEntryCreated} 
-              selectedDate={selectedDate}
-            />
-          </div>
+          <TimeEntryForm 
+            onSuccess={handleTimeEntryCreated} 
+            selectedDate={selectedDate}
+          />
           
-          <div>
-            <TimeEntriesList 
-              selectedDate={selectedDate}
-              formattedDate={formattedDate}
-            />
-          </div>
+          <TimeEntriesList 
+            selectedDate={selectedDate}
+            formattedDate={formattedDate}
+          />
         </div>
       </div>
       

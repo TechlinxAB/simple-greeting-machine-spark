@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Clock } from "lucide-react";
-import { addMinutes, format, parse, roundToNearestMinutes, set } from "date-fns";
+import { addMinutes, format, set } from "date-fns";
 
 interface TimePickerProps {
   value: Date | null;
@@ -31,18 +31,35 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
     }
   }, [value]);
   
-  // Apply rounding to the selected time
+  // Apply rounding to the selected time as per the requirements
   const applyTimeRounding = (date: Date): Date => {
     if (!roundToMinutes) return date;
     
-    // Ensure roundToMinutes is a valid value for the roundToNearestMinutes function
-    // Valid values are 1, 5, 10, 15, 20, 30
-    const validNearestValues = [1, 5, 10, 15, 20, 30];
-    const nearestTo = validNearestValues.includes(roundToMinutes) ? 
-      roundToMinutes as 1 | 5 | 10 | 15 | 20 | 30 : 
-      15; // Default to 15 if not a valid value
-      
-    return roundToNearestMinutes(date, { nearestTo });
+    const mins = date.getMinutes();
+    let roundedMins = 0;
+    
+    // Rules: 
+    // - Less than 15 minutes rounds to 15
+    // - 15-29 minutes rounds to 30
+    // - 30-44 minutes rounds to 45
+    // - 45+ minutes rounds to next hour
+    if (mins < 15) {
+      roundedMins = 15;
+    } else if (mins < 30) {
+      roundedMins = 30;
+    } else if (mins < 45) {
+      roundedMins = 45;
+    } else {
+      roundedMins = 0;
+      date = addMinutes(date, 60 - mins); // Add remaining minutes to next hour
+    }
+    
+    const result = new Date(date);
+    result.setMinutes(roundedMins);
+    result.setSeconds(0);
+    result.setMilliseconds(0);
+    
+    return result;
   };
   
   // Update the time based on selected hours, minutes and period
@@ -83,7 +100,7 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
   
   const timeDisplay = value 
     ? format(value, "h:mm a") 
-    : "Select time";
+    : "HH:MM";
   
   // Generate time preset buttons (hourly intervals)
   const generateTimePresets = () => {
