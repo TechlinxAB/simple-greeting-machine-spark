@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // API base URL for Fortnox
 const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
@@ -53,10 +52,10 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
-      console.log("Parsed request data successfully", {
+      console.log("Parsed request data:", {
         method: requestData.method,
-        endpoint: requestData.endpoint,
-        hasBody: !!requestData.body
+        path: requestData.path || requestData.endpoint,
+        hasBody: !!requestData.body || !!requestData.payload,
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -69,11 +68,16 @@ serve(async (req) => {
       );
     }
     
+    // Get path and method from request data
+    const method = requestData.method;
+    const path = requestData.path || requestData.endpoint;
+    const payload = requestData.payload || requestData.body;
+    
     // Validate required fields
-    if (!requestData.endpoint || !requestData.method) {
+    if (!path || !method) {
       const missingFields = [];
-      if (!requestData.endpoint) missingFields.push('endpoint');
-      if (!requestData.method) missingFields.push('method');
+      if (!path) missingFields.push('path (or endpoint)');
+      if (!method) missingFields.push('method');
       
       console.error(`Missing required parameters: ${missingFields.join(', ')}`);
       
@@ -93,6 +97,7 @@ serve(async (req) => {
 
     // Get the Fortnox credentials from the request or from environment variables
     const accessToken = requestData.headers?.Authorization?.replace('Bearer ', '') || 
+      requestData.headers?.['Access-Token'] ||
       Deno.env.get('FORTNOX_ACCESS_TOKEN');
     
     const clientSecret = requestData.headers?.['Client-Secret'] || 
@@ -119,106 +124,60 @@ serve(async (req) => {
       );
     }
     
-    // Construct the full URL
-    const fortnoxUrl = `${FORTNOX_API_BASE}${requestData.endpoint}`;
-    console.log(`Making ${requestData.method} request to Fortnox: ${fortnoxUrl}`);
+    // Construct the full URL - ensure path starts with a slash
+    const fortnoxPath = path.startsWith('/') ? path : `/${path}`;
+    const fortnoxUrl = `${FORTNOX_API_BASE}${fortnoxPath}`;
     
-    // Prepare headers
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Client-Secret': clientSecret,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      ...requestData.headers
-    };
+    console.log(`Making ${method} request to Fortnox: ${fortnoxUrl}`);
     
-    // Remove duplicate auth headers if they were included in the custom headers
-    delete headers['Authorization'];
-    delete headers['Client-Secret'];
-    
-    // Log the request (with sensitive data masked)
-    console.log("Fortnox request details:", {
-      url: fortnoxUrl,
-      method: requestData.method,
-      headers: {
-        ...headers,
-        'Authorization': headers['Authorization'] ? 'Bearer ***masked***' : undefined,
-        'Client-Secret': headers['Client-Secret'] ? '***masked***' : undefined,
-      },
-      body: requestData.body ? '***present but not logged***' : null,
-    });
-    
+    // IMPROVED ERROR HANDLING AND RESPONSE FORWARDING
     try {
-      // Make the request to Fortnox
-      const fortnoxResponse = await fetch(fortnoxUrl, {
-        method: requestData.method,
-        headers,
-        body: requestData.body ? JSON.stringify(requestData.body) : undefined,
+      const fortnoxRes = await fetch(fortnoxUrl, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Client-Secret': clientSecret,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(method !== 'GET' ? {} : { 'Cache-Control': 'no-cache' }),
+        },
+        body: method !== 'GET' ? JSON.stringify(payload) : undefined,
       });
       
-      console.log(`Fortnox API response status: ${fortnoxResponse.status}`);
+      const text = await fortnoxRes.text();
       
-      // Get the response body as text first to handle both JSON and non-JSON responses
-      const responseText = await fortnoxResponse.text();
-      console.log(`Fortnox API raw response (first 500 chars): ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
+      console.log("✅ Fortnox request completed", {
+        url: fortnoxUrl,
+        status: fortnoxRes.status,
+        headersSent: {
+          'Authorization': 'Bearer ***masked***',
+          'Client-Secret': '***masked***',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        response: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
+      });
       
-      // Try to parse as JSON, but handle non-JSON responses gracefully
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-        console.log("Successfully parsed Fortnox response as JSON");
-      } catch (e) {
-        console.log("Response is not valid JSON, returning as text");
-        // If it's not JSON, just return the raw text with appropriate status
-        return new Response(responseText, {
-          status: fortnoxResponse.status,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': fortnoxResponse.headers.get('Content-Type') || 'text/plain'
-          }
-        });
-      }
-      
-      // If Fortnox returned an error status, log it and return it with same status
-      if (!fortnoxResponse.ok) {
-        console.error("❌ Fortnox API returned error status:", fortnoxResponse.status);
-        console.error("❌ Fortnox error details:", responseData);
-        
-        return new Response(
-          JSON.stringify({ 
-            error: "Fortnox API error", 
-            status: fortnoxResponse.status,
-            details: responseData 
-          }),
-          { 
-            status: fortnoxResponse.status, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-      
-      // Return successful response
-      return new Response(
-        JSON.stringify(responseData),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    } catch (fetchError) {
-      console.error("❌ Fetch error while calling Fortnox API:", fetchError);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "Failed to connect to Fortnox API", 
-          message: fetchError.message || "Unknown fetch error",
-          stack: fetchError.stack || "No stack trace" 
-        }),
-        { 
-          status: 502, // Bad Gateway
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      // Forward the exact response from Fortnox, including status code
+      return new Response(text, {
+        status: fortnoxRes.status,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        },
+      });
+    } catch (error) {
+      console.error("❌ Fortnox proxy fetch failed:", error.message);
+      return new Response(JSON.stringify({ 
+        error: "Failed to connect to Fortnox API",
+        message: error.message 
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        },
+      });
     }
   } catch (error) {
     console.error("❌ Server error in fortnox-proxy:", error);

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
@@ -488,50 +487,31 @@ export async function fortnoxApiRequest(
     }
     
     console.log(`Making ${method} request to Fortnox endpoint: ${endpoint}`);
+
+    // Format endpoint to ensure it starts with a slash
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Test if the edge function is accessible with a direct test call
-    try {
-      console.log("Testing edge function connectivity with direct status endpoint...");
-      const response = await fetch(`https://xojrleypudfrbmvejpow.supabase.co/functions/v1/fortnox-proxy/status`);
-      const testResult = await response.json();
-      console.log("Edge function direct test response:", testResult);
-    } catch (testError) {
-      console.error("Edge function direct test failed:", testError);
-      // Continue anyway as this is just a diagnostic test
-    }
+    // IMPROVED ERROR HANDLING FOR EDGE FUNCTION
+    console.log("Calling edge function for Fortnox request:", {
+      method,
+      path,
+      hasData: !!data
+    });
     
-    // Try the invoke method for the status endpoint
-    try {
-      console.log("Testing edge function with invoke method...");
-      const { data: invokeTest, error: invokeError } = await supabase.functions.invoke('fortnox-proxy/status');
-      if (invokeError) {
-        console.error("Edge function invoke test error:", invokeError);
-      } else {
-        console.log("Edge function invoke test response:", invokeTest);
-      }
-    } catch (invokeTestError) {
-      console.error("Edge function invoke test failed:", invokeTestError);
-      // Continue anyway
-    }
-    
-    // Call our Edge Function proxy with proper payload structure
-    console.log("Calling edge function with actual request...");
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: {
         method,
-        endpoint,
+        path,
+        payload: data,
         headers: {
-          'Authorization': `Bearer ${credentials.accessToken}`,
-          'Client-Secret': credentials.clientSecret,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: data
+          'Access-Token': credentials.accessToken,
+          'Client-Secret': credentials.clientSecret
+        }
       }
     });
     
     if (error) {
-      console.error("Error from fortnox-proxy edge function:", error);
+      console.error("❌ Edge Function error:", error.message, error);
       
       // Try to extract more detailed error information
       let errorMessage = "Fortnox API Error";
@@ -565,10 +545,25 @@ export async function fortnoxApiRequest(
       throw new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`);
     }
     
+    // Handle case where data contains an error object from Fortnox
     if (!responseData) {
       throw new Error('Empty response from Fortnox API');
     }
     
+    // Check if the response contains a Fortnox error
+    if (responseData.error || responseData.ErrorInformation) {
+      console.error("❌ Fortnox API returned error:", responseData);
+      
+      const errorMessage = 
+        responseData.error?.message || 
+        responseData.ErrorInformation?.message || 
+        responseData.error || 
+        'Unknown Fortnox error';
+      
+      throw new Error(`Fortnox API Error: ${errorMessage}`);
+    }
+    
+    console.log("✅ Fortnox API Success:", responseData);
     return responseData;
   } catch (error) {
     console.error('Error in Fortnox API request:', error);
