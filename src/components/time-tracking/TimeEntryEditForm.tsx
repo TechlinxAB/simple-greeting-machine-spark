@@ -25,8 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import { toast } from "sonner";
+import { format, parse } from "date-fns";
+import { toast } from "@/components/ui/use-toast";
 
 // Form schema with validation
 const formSchema = z.object({
@@ -51,6 +51,10 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
+  
+  // Create state to store Date objects for TimePicker
+  const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
+  const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
 
   // Form setup with react-hook-form and zod validation
   const form = useForm<FormValues>({
@@ -68,6 +72,54 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
         : undefined,
     },
   });
+
+  // Convert string time to Date objects when form values change
+  useEffect(() => {
+    const startTimeValue = form.watch("startTime");
+    const endTimeValue = form.watch("endTime");
+    
+    if (startTimeValue) {
+      try {
+        // Create a date object for today with the specified time
+        const today = new Date();
+        const [hours, minutes] = startTimeValue.split(":");
+        const startDate = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+          Number(hours),
+          Number(minutes)
+        );
+        setStartTimeDate(startDate);
+      } catch (error) {
+        console.error("Error parsing start time:", error);
+        setStartTimeDate(null);
+      }
+    } else {
+      setStartTimeDate(null);
+    }
+    
+    if (endTimeValue) {
+      try {
+        // Create a date object for today with the specified time
+        const today = new Date();
+        const [hours, minutes] = endTimeValue.split(":");
+        const endDate = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+          Number(hours),
+          Number(minutes)
+        );
+        setEndTimeDate(endDate);
+      } catch (error) {
+        console.error("Error parsing end time:", error);
+        setEndTimeDate(null);
+      }
+    } else {
+      setEndTimeDate(null);
+    }
+  }, [form.watch("startTime"), form.watch("endTime")]);
 
   // Fetch clients for dropdown
   const { data: clients = [] } = useQuery({
@@ -109,6 +161,17 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       setSelectedProductType(timeEntry.products.type);
     }
   }, [form.watch("productId"), products, timeEntry]);
+
+  // Handle time change from TimePicker component
+  const handleTimeChange = (field: string, value: Date | null) => {
+    if (value) {
+      // Convert Date to string in HH:mm format for form values
+      const timeString = format(value, "HH:mm");
+      form.setValue(field as "startTime" | "endTime", timeString);
+    } else {
+      form.setValue(field as "startTime" | "endTime", undefined);
+    }
+  };
 
   // Function to handle form submission
   const onSubmit = async (values: FormValues) => {
@@ -186,6 +249,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Update successful");
       
       // Call onSuccess to close the dialog and refresh the list
+      toast.success("Time entry updated successfully");
       onSuccess(); 
     } catch (error: any) {
       console.error("Error updating time entry:", error);
@@ -273,8 +337,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
                     <TimePicker 
-                      value={field.value} 
-                      onChange={field.onChange}
+                      value={startTimeDate} 
+                      onChange={(date) => handleTimeChange("startTime", date)}
                       ref={startTimeRef}
                       disabled={loading}
                     />
@@ -292,8 +356,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                   <FormLabel>End Time</FormLabel>
                   <FormControl>
                     <TimePicker 
-                      value={field.value} 
-                      onChange={field.onChange}
+                      value={endTimeDate} 
+                      onChange={(date) => handleTimeChange("endTime", date)}
                       ref={endTimeRef}
                       disabled={loading}
                     />

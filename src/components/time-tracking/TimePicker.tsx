@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 
 interface TimePickerProps {
@@ -8,21 +8,23 @@ interface TimePickerProps {
   roundToMinutes?: number;
   roundOnBlur?: boolean;
   onComplete?: () => void;
+  disabled?: boolean;
 }
 
-export function TimePicker({ 
+export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({ 
   value, 
   onChange, 
   roundToMinutes = 15, 
   roundOnBlur = false,
-  onComplete
-}: TimePickerProps) {
+  onComplete,
+  disabled = false
+}, ref) => {
   const [timeInput, setTimeInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Update the time input when the value changes
   useEffect(() => {
-    if (value) {
+    if (value && value instanceof Date) {
       const hours = value.getHours().toString().padStart(2, '0');
       const minutes = value.getMinutes().toString().padStart(2, '0');
       setTimeInput(`${hours}:${minutes}`);
@@ -63,6 +65,7 @@ export function TimePicker({
   // Parse time and create Date object
   const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
+      onChange(null);
       return;
     }
     
@@ -128,7 +131,15 @@ export function TimePicker({
   return (
     <div className="relative w-full">
       <Input
-        ref={inputRef}
+        ref={(el) => {
+          // Assign to both forwarded ref and local ref
+          if (typeof ref === 'function') {
+            ref(el);
+          } else if (ref) {
+            ref.current = el;
+          }
+          inputRef.current = el;
+        }}
         value={timeInput}
         onChange={handleTimeInput}
         onBlur={handleBlur}
@@ -136,10 +147,13 @@ export function TimePicker({
         className="w-full text-base"
         placeholder="HH:mm"
         maxLength={5}
+        disabled={disabled}
         onFocus={() => {
           inputRef.current?.select();
         }}
       />
     </div>
   );
-}
+});
+
+TimePicker.displayName = "TimePicker";
