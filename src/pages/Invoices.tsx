@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +21,6 @@ export default function Invoices() {
   const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
 
-  // Get invoices data
   const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
@@ -45,7 +43,6 @@ export default function Invoices() {
     },
   });
 
-  // Get clients data for dropdown
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -59,7 +56,6 @@ export default function Invoices() {
     },
   });
 
-  // Get unbilled time entries for selected client
   const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery({
     queryKey: ["unbilled-entries", selectedClient],
     queryFn: async () => {
@@ -85,7 +81,6 @@ export default function Invoices() {
     enabled: !!selectedClient,
   });
 
-  // Check if Fortnox is connected
   const { data: fortnoxConnected = false } = useQuery({
     queryKey: ["fortnox-connected"],
     queryFn: async () => {
@@ -110,9 +105,6 @@ export default function Invoices() {
     setExportingInvoiceId(invoiceId);
     
     try {
-      // In a real implementation, this would call the appropriate Fortnox API
-      // For this demo, we'll just update the exported_to_fortnox field
-      
       const { error } = await supabase
         .from("invoices")
         .update({ exported_to_fortnox: true })
@@ -138,15 +130,12 @@ export default function Invoices() {
 
     setIsExportingInvoice(true);
     try {
-      // Get all time entry IDs to include in the invoice
       const timeEntryIds = unbilledEntries.map(entry => entry.id);
       
-      // Create invoice in Fortnox
       const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
       
       toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`);
       
-      // Close dialog and refresh data
       setIsCreatingInvoice(false);
       setSelectedClient("");
       refetch();
@@ -159,7 +148,6 @@ export default function Invoices() {
     }
   };
 
-  // Calculate total for unbilled entries
   const calculateTotal = () => {
     let total = 0;
     
@@ -183,7 +171,6 @@ export default function Invoices() {
     return total.toFixed(2);
   };
 
-  // Filter invoices based on search term
   const filteredInvoices = searchTerm
     ? invoices.filter(invoice => 
         invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -341,7 +328,6 @@ export default function Invoices() {
         </CardContent>
       </Card>
       
-      {/* New Invoice Dialog */}
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>

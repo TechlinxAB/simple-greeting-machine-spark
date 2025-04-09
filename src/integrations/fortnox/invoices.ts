@@ -61,8 +61,7 @@ export async function formatTimeEntriesForFortnox(
       .select(`
         *,
         products:product_id (*),
-        users:user_id (id, email),
-        profiles:user_id (id, name)
+        profiles:user_id (id, name, email)
       `)
       .in("id", timeEntryIds)
       .eq("client_id", clientId)
@@ -76,7 +75,8 @@ export async function formatTimeEntriesForFortnox(
     // Format invoice data for Fortnox with complete client information
     const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
       const product = entry.products;
-      const userName = entry.profiles?.name || entry.users?.email || 'Unknown User';
+      // Fix TypeScript error - make sure profiles exists before accessing properties
+      const userName = entry.profiles?.name || 'Unknown User';
       
       // Calculate quantity
       let quantity = 1;
@@ -180,7 +180,9 @@ export async function createFortnoxInvoice(
         city: invoiceData.Customer.City || '',
         email: invoiceData.Customer.Email || '',
         telephone: invoiceData.Customer.Phone1 || '',
-        county: '', // Not used in Fortnox
+        county: '',
+        created_at: new Date().toISOString(), // Add required fields from Client type
+        updated_at: new Date().toISOString()
       });
     }
     
