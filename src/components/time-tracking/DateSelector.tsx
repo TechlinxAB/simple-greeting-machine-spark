@@ -46,47 +46,42 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     const today = new Date();
     const dates = [];
     
-    // Add days before and after the selected date
+    // Generate dates - 3 days before and 3 days after the center date
     for (let i = -3; i <= 3; i++) {
       dates.push(addDays(centerDate, i));
     }
     
-    // Sort dates: Future dates first (ascending), then today, then past dates (descending)
-    dates.sort((a, b) => {
-      // If both dates are in the future (compared to today)
-      if (isAfter(a, today) && isAfter(b, today)) {
-        return isBefore(a, b) ? -1 : 1; // Ascending order for future dates
-      }
-      
-      // If both dates are in the past (compared to today)
-      if (isBefore(a, today) && isBefore(b, today)) {
-        return isBefore(a, b) ? 1 : -1; // Descending order for past dates
-      }
-      
-      // If one is future and one is past
-      if (isAfter(a, today) && isBefore(b, today)) {
-        return -1; // Future dates before past dates
-      }
-      
-      if (isBefore(a, today) && isAfter(b, today)) {
-        return 1; // Future dates before past dates
-      }
-      
-      // If one is today
-      if (isToday(a)) return 0;
-      if (isToday(b)) return 0;
-      
-      return 0;
-    });
-
-    // Move today to the top if it exists in the list
-    const todayIndex = dates.findIndex(date => isToday(date));
-    if (todayIndex !== -1) {
-      const today = dates.splice(todayIndex, 1)[0];
-      dates.unshift(today); // Add today to the beginning
+    // Separate upcoming and past dates
+    const upcomingDates = dates.filter(date => 
+      isAfter(date, today) || isSameDay(date, today)
+    ).sort((a, b) => isBefore(a, b) ? -1 : 1); // Sort upcoming dates in ascending order
+    
+    const pastDates = dates.filter(date => 
+      isBefore(date, today) && !isSameDay(date, today)
+    ).sort((a, b) => isBefore(a, b) ? 1 : -1); // Sort past dates in descending order
+    
+    // Combine with today first (if present), then upcoming dates, then past dates
+    const sortedDates = [];
+    
+    // Add today if it exists in the list
+    const todayDate = dates.find(date => isToday(date));
+    if (todayDate) {
+      sortedDates.push(todayDate);
     }
     
-    setDateList(dates);
+    // Add upcoming dates (except today which is already added)
+    upcomingDates.forEach(date => {
+      if (!isToday(date)) {
+        sortedDates.push(date);
+      }
+    });
+    
+    // Add past dates
+    pastDates.forEach(date => {
+      sortedDates.push(date);
+    });
+    
+    setDateList(sortedDates);
   };
   
   return (
