@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [editingNews, setEditingNews] = useState(false);
   const [newsContent, setNewsContent] = useState("");
+  const queryClient = useQueryClient();
   
   const today = new Date();
   const startOfToday = startOfDay(today);
@@ -122,7 +123,7 @@ export default function Reports() {
           .from("system_settings")
           .select("settings")
           .eq("id", "company_news")
-          .single();
+          .maybeSingle();
           
         if (error && error.code !== 'PGRST116') throw error;
         
@@ -180,9 +181,9 @@ export default function Reports() {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + (hours * entry.products.price);
+        return total + (hours * (entry.products.price || 0));
       } else if (entry.products?.type === 'item' && entry.quantity) {
-        return total + (entry.quantity * entry.products.price);
+        return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
     }, 0).toFixed(2);
@@ -194,9 +195,9 @@ export default function Reports() {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + (hours * entry.products.price);
+        return total + (hours * (entry.products.price || 0));
       } else if (entry.products?.type === 'item' && entry.quantity) {
-        return total + (entry.quantity * entry.products.price);
+        return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
     }, 0).toFixed(2);
@@ -209,7 +210,7 @@ export default function Reports() {
     
     monthEntries.forEach(entry => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const date = new Date(entry.created_at);
+        const date = new Date(entry.created_at || new Date());
         const dayIndex = (date.getDay() + 6) % 7; // Make Monday index 0
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -227,7 +228,7 @@ export default function Reports() {
     
     monthEntries.forEach(entry => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const activityName = entry.products.name;
+        const activityName = entry.products.name || 'Unknown';
         if (!activityMap.has(activityName)) {
           activityMap.set(activityName, 0);
         }
@@ -253,15 +254,14 @@ export default function Reports() {
         .from("system_settings")
         .upsert({ 
           id: "company_news", 
-          settings: newsContent,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          settings: newsContent
         });
         
       if (error) throw error;
       
       toast.success("Company news updated successfully");
       setEditingNews(false);
+      queryClient.invalidateQueries({ queryKey: ["company-news"] });
       refetchNews();
     } catch (error) {
       console.error("Error updating news:", error);
@@ -464,9 +464,9 @@ export default function Reports() {
                               const start = new Date(entry.start_time);
                               const end = new Date(entry.end_time);
                               const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              return total + (hours * entry.products.price);
+                              return total + (hours * (entry.products.price || 0));
                             } else if (entry.products?.type === 'item' && entry.quantity) {
-                              return total + (entry.quantity * entry.products.price);
+                              return total + (entry.quantity * (entry.products.price || 0));
                             }
                             return total;
                           }, 0).toFixed(2)} SEK

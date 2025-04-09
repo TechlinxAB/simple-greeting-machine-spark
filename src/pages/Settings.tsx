@@ -15,12 +15,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 import { supabase } from "@/lib/supabase";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, { message: "App name is required" }),
   primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
+  sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
+  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
 });
 
 const fortnoxSettingsSchema = z.object({
@@ -32,6 +34,8 @@ interface AppSettings {
   appName: string;
   primaryColor: string;
   secondaryColor: string;
+  sidebarColor: string;
+  accentColor: string;
 }
 
 interface FortnoxSettings {
@@ -47,6 +51,7 @@ interface SystemSettingsResponse {
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "appearance");
   const [fortnoxConnected, setFortnoxConnected] = useState(false);
@@ -98,6 +103,8 @@ export default function Settings() {
       appName: "Techlinx Time Tracker",
       primaryColor: "#2e7d32", // Green color matching the screenshot
       secondaryColor: "#e8f5e9", // Light green for secondary elements
+      sidebarColor: "#2e7d32", // Sidebar color
+      accentColor: "#4caf50", // Accent color
     },
   });
   
@@ -146,7 +153,9 @@ export default function Settings() {
           appSettings: appSettings ? {
             appName: appSettings.appName || 'Techlinx Time Tracker',
             primaryColor: appSettings.primaryColor || '#2e7d32',
-            secondaryColor: appSettings.secondaryColor || '#e8f5e9'
+            secondaryColor: appSettings.secondaryColor || '#e8f5e9',
+            sidebarColor: appSettings.sidebarColor || '#2e7d32',
+            accentColor: appSettings.accentColor || '#4caf50'
           } : null
         } as SystemSettingsResponse;
       } catch (err) {
@@ -157,73 +166,58 @@ export default function Settings() {
     }
   });
   
+  // Function to apply color theme to the site
+  const applyColorTheme = (values: AppSettings) => {
+    // Apply the color settings to CSS variables
+    const root = document.documentElement;
+    const primaryColorHsl = hexToHSL(values.primaryColor);
+    const secondaryColorHsl = hexToHSL(values.secondaryColor);
+    const sidebarColorHsl = hexToHSL(values.sidebarColor);
+    const accentColorHsl = hexToHSL(values.accentColor);
+    
+    if (primaryColorHsl) {
+      root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+      root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+    }
+    
+    if (secondaryColorHsl) {
+      root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+    }
+    
+    if (accentColorHsl) {
+      root.style.setProperty('--accent', `${accentColorHsl.h} ${accentColorHsl.s}% ${accentColorHsl.l}%`);
+    }
+    
+    if (sidebarColorHsl) {
+      root.style.setProperty('--sidebar-background', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${sidebarColorHsl.l}%`);
+      root.style.setProperty('--sidebar-primary', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.min(sidebarColorHsl.l + 10, 100)}%`);
+      root.style.setProperty('--sidebar-accent', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.max(sidebarColorHsl.l - 10, 0)}%`);
+      root.style.setProperty('--sidebar-border', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.max(sidebarColorHsl.l - 5, 0)}%`);
+      root.style.setProperty('--sidebar-ring', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.min(sidebarColorHsl.l + 5, 100)}%`);
+    }
+  };
+  
   useEffect(() => {
-    if (systemSettings) {
-      if (systemSettings.appSettings) {
-        appSettingsForm.reset(systemSettings.appSettings);
-        
-        // Apply the color settings to CSS variables
-        const root = document.documentElement;
-        const primaryColorHsl = hexToHSL(systemSettings.appSettings.primaryColor);
-        const secondaryColorHsl = hexToHSL(systemSettings.appSettings.secondaryColor);
-        
-        if (primaryColorHsl) {
-          root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-          root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-        }
-        
-        if (secondaryColorHsl) {
-          root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-          root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-        }
-        
-        localStorage.setItem('appSettings', JSON.stringify(systemSettings.appSettings));
-      }
+    if (systemSettings?.appSettings) {
+      appSettingsForm.reset({
+        appName: systemSettings.appSettings.appName,
+        primaryColor: systemSettings.appSettings.primaryColor,
+        secondaryColor: systemSettings.appSettings.secondaryColor,
+        sidebarColor: systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor,
+        accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
+      });
       
-      if (systemSettings.fortnoxSettings) {
-        const fortnoxCreds = {
-          fortnoxClientId: systemSettings.fortnoxSettings.clientId || "",
-          fortnoxClientSecret: systemSettings.fortnoxSettings.clientSecret || ""
-        };
-        
-        fortnoxSettingsForm.reset(fortnoxCreds);
-        localStorage.setItem('fortnoxSettings', JSON.stringify(fortnoxCreds));
-      }
-    } else {
-      const storedAppSettings = localStorage.getItem('appSettings');
-      if (storedAppSettings) {
-        try {
-          const settings = JSON.parse(storedAppSettings);
-          appSettingsForm.reset(settings);
-          
-          // Apply stored settings from localStorage
-          const root = document.documentElement;
-          const primaryColorHsl = hexToHSL(settings.primaryColor);
-          const secondaryColorHsl = hexToHSL(settings.secondaryColor);
-          
-          if (primaryColorHsl) {
-            root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-            root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-          }
-          
-          if (secondaryColorHsl) {
-            root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-            root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-          }
-        } catch (error) {
-          console.error('Error parsing app settings:', error);
-        }
-      }
+      // Apply the color settings to the site
+      applyColorTheme(systemSettings.appSettings);
+    }
+    
+    if (systemSettings?.fortnoxSettings) {
+      const fortnoxCreds = {
+        fortnoxClientId: systemSettings.fortnoxSettings.clientId || "",
+        fortnoxClientSecret: systemSettings.fortnoxSettings.clientSecret || ""
+      };
       
-      const storedFortnoxSettings = localStorage.getItem('fortnoxSettings');
-      if (storedFortnoxSettings) {
-        try {
-          const settings = JSON.parse(storedFortnoxSettings);
-          fortnoxSettingsForm.reset(settings);
-        } catch (error) {
-          console.error('Error parsing Fortnox settings:', error);
-        }
-      }
+      fortnoxSettingsForm.reset(fortnoxCreds);
     }
   }, [systemSettings, appSettingsForm, fortnoxSettingsForm]);
   
@@ -273,22 +267,8 @@ export default function Settings() {
   
   const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
-      localStorage.setItem('appSettings', JSON.stringify(values));
-      
-      // Apply the color settings to CSS variables
-      const root = document.documentElement;
-      const primaryColorHsl = hexToHSL(values.primaryColor);
-      const secondaryColorHsl = hexToHSL(values.secondaryColor);
-      
-      if (primaryColorHsl) {
-        root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-        root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-      }
-      
-      if (secondaryColorHsl) {
-        root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-        root.style.setProperty('--accent', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
-      }
+      // Apply the color settings to the site
+      applyColorTheme(values);
       
       const { error } = await supabase
         .from('system_settings')
@@ -299,6 +279,9 @@ export default function Settings() {
       
       if (error) throw error;
       
+      // Invalidate the query to refresh system settings across the app
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+      
       toast.success("App settings saved successfully");
     } catch (error) {
       console.error("Error saving app settings:", error);
@@ -308,7 +291,6 @@ export default function Settings() {
   
   const onFortnoxSettingsSubmit = async (values: z.infer<typeof fortnoxSettingsSchema>) => {
     try {
-      localStorage.setItem('fortnoxSettings', JSON.stringify(values));
       const { error } = await supabase
         .from('system_settings')
         .upsert({
@@ -356,7 +338,7 @@ export default function Settings() {
             <CardHeader>
               <CardTitle>Appearance Settings</CardTitle>
               <CardDescription>
-                Customize how the application looks and feels
+                Customize how the application looks and feels for all users
               </CardDescription>
             </CardHeader>
             <Form {...appSettingsForm}>
@@ -379,7 +361,7 @@ export default function Settings() {
                     )}
                   />
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={appSettingsForm.control}
                       name="primaryColor"
@@ -435,6 +417,62 @@ export default function Settings() {
                         </FormItem>
                       )}
                     />
+
+                    <FormField
+                      control={appSettingsForm.control}
+                      name="accentColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Accent Color</FormLabel>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-8 h-8 rounded-full border"
+                              style={{ backgroundColor: field.value }}
+                            />
+                            <FormControl>
+                              <Input {...field} type="color" className="w-16 h-10 p-1" />
+                            </FormControl>
+                            <Input 
+                              value={field.value} 
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="flex-1"
+                            />
+                          </div>
+                          <FormDescription>
+                            Accent color for certain UI elements and highlights.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={appSettingsForm.control}
+                      name="sidebarColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sidebar Color</FormLabel>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-8 h-8 rounded-full border"
+                              style={{ backgroundColor: field.value }}
+                            />
+                            <FormControl>
+                              <Input {...field} type="color" className="w-16 h-10 p-1" />
+                            </FormControl>
+                            <Input 
+                              value={field.value} 
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="flex-1"
+                            />
+                          </div>
+                          <FormDescription>
+                            Background color for the sidebar navigation.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   
                   <div className="mt-6 p-4 border rounded-md">
@@ -467,6 +505,26 @@ export default function Settings() {
                         }}
                       >
                         Secondary Background
+                      </div>
+
+                      <div 
+                        className="p-4 rounded-md"
+                        style={{ 
+                          backgroundColor: appSettingsForm.watch('accentColor'),
+                          color: '#fff'
+                        }}
+                      >
+                        Accent Background
+                      </div>
+
+                      <div 
+                        className="p-4 rounded-md"
+                        style={{ 
+                          backgroundColor: appSettingsForm.watch('sidebarColor'),
+                          color: '#fff'
+                        }}
+                      >
+                        Sidebar Color
                       </div>
                     </div>
                   </div>

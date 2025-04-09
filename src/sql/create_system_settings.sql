@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 -- Add RLS policies to restrict access to system settings
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
--- Anyone can read system settings (for company news)
+-- Anyone can read system settings (for company news and appearance)
 CREATE POLICY "Anyone can read system settings" 
   ON public.system_settings 
   FOR SELECT 
@@ -63,3 +63,19 @@ CREATE TRIGGER update_system_settings_updated_at
 BEFORE UPDATE ON public.system_settings
 FOR EACH ROW
 EXECUTE FUNCTION update_system_settings_updated_at();
+
+-- Insert default settings
+INSERT INTO public.system_settings (id, settings)
+VALUES ('app_settings', '{
+  "appName": "Techlinx Time Tracker", 
+  "primaryColor": "#2e7d32", 
+  "secondaryColor": "#e8f5e9",
+  "sidebarColor": "#2e7d32",
+  "accentColor": "#4caf50"
+}')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert default company news
+INSERT INTO public.system_settings (id, settings)
+VALUES ('company_news', 'Welcome to Techlinx Time Tracker company news! This is where important company announcements will be posted by administrators and managers.')
+ON CONFLICT (id) DO NOTHING;

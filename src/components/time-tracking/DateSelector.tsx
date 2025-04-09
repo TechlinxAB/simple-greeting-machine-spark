@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { format, subDays, addDays, isSameDay, isAfter } from "date-fns";
+import { format, subDays, addDays, isSameDay, isAfter, startOfToday } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,40 +13,37 @@ interface DateSelectorProps {
 }
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
-  const today = new Date();
+  const today = startOfToday();
   const [visibleDates, setVisibleDates] = useState<Date[]>(
     Array.from({ length: 6 }, (_, i) => subDays(today, i))
   );
 
   const handlePreviousDates = () => {
-    const lastDate = visibleDates[visibleDates.length - 1];
+    const firstDate = visibleDates[0];
     setVisibleDates(
-      Array.from({ length: 6 }, (_, i) => subDays(lastDate, i + 1))
+      Array.from({ length: 6 }, (_, i) => subDays(firstDate, i + 1))
     );
   };
 
   const handleNextDates = () => {
-    const lastDate = visibleDates[visibleDates.length - 1];
-    // Calculate the next set of dates
-    const nextDates = Array.from({ length: 6 }, (_, i) => addDays(lastDate, 6 - i));
-    
-    // Only allow future dates up to today
-    if (!isAfter(nextDates[0], today)) {
-      setVisibleDates(nextDates);
-    } else {
-      // If we would exceed today, set to the last 6 days up to today
-      setVisibleDates(
-        Array.from({ length: 6 }, (_, i) => subDays(today, i))
-      );
-    }
+    const firstDate = visibleDates[0];
+    // Calculate the next set of dates - move forward by 6 days
+    const nextDates = Array.from({ length: 6 }, (_, i) => addDays(firstDate, 6 - i));
+    setVisibleDates(nextDates.reverse());
+  };
+
+  const goToToday = () => {
+    // Set today as the selected date
+    onDateChange(today);
+    // Update visible dates to include today and previous 5 days
+    setVisibleDates(
+      Array.from({ length: 6 }, (_, i) => subDays(today, i))
+    );
   };
 
   const isDateSelected = (date: Date) => {
     return isSameDay(date, selectedDate);
   };
-
-  // Check if we're showing the most recent dates
-  const isShowingMostRecentDates = isSameDay(visibleDates[0], today);
 
   return (
     <div className="space-y-4">
@@ -55,7 +52,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           <Button 
             variant="ghost" 
             className="w-full justify-start p-2 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            onClick={() => onDateChange(today)}
+            onClick={goToToday}
           >
             Today
           </Button>
@@ -111,7 +108,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               size="icon" 
               variant="outline" 
               onClick={handleNextDates}
-              disabled={isShowingMostRecentDates}
               className="rounded-full"
             >
               <ChevronRight className="h-4 w-4" />
