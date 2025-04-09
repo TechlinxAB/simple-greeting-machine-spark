@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -16,14 +15,14 @@ import {
   FileText, Megaphone, Plus, ScrollText
 } from "lucide-react";
 import { NewsEditor } from "@/components/news/NewsEditor";
-import { NewsPost } from "@/components/news/NewsPost";
-import { NewsPost as NewsPostType } from "@/types/database";
+import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
+import { NewsPost } from "@/types/database";
 
 export default function Dashboard() {
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [creatingPost, setCreatingPost] = useState(false);
-  const [editingPost, setEditingPost] = useState<NewsPostType | null>(null);
+  const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const queryClient = useQueryClient();
   
   const today = new Date();
@@ -34,7 +33,6 @@ export default function Dashboard() {
   
   const canManagePosts = role === 'admin' || role === 'manager';
 
-  // Fetch user's time entries for today
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["time-entries", "today", user?.id],
     queryFn: async () => {
@@ -61,7 +59,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
   
-  // Fetch user's time entries for the current month
   const { data: monthEntries = [] } = useQuery({
     queryKey: ["time-entries", "month", user?.id],
     queryFn: async () => {
@@ -88,7 +85,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
   
-  // Fetch all time entries for the company (for admins/managers)
   const { data: companyEntries = [] } = useQuery({
     queryKey: ["time-entries", "company", "month"],
     queryFn: async () => {
@@ -114,7 +110,6 @@ export default function Dashboard() {
     enabled: !!user && (role === 'admin' || role === 'manager'),
   });
   
-  // Fetch news posts
   const { data: newsPosts = [], refetch: refetchNews } = useQuery({
     queryKey: ["news-posts"],
     queryFn: async () => {
@@ -125,7 +120,7 @@ export default function Dashboard() {
           .order("created_at", { ascending: false });
           
         if (error) throw error;
-        return data as NewsPostType[];
+        return data as NewsPost[];
       } catch (error) {
         console.error("Error fetching news posts:", error);
         return [];
@@ -133,7 +128,6 @@ export default function Dashboard() {
     },
   });
   
-  // Calculate statistics
   const calculateTodayHours = () => {
     return todayEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
@@ -186,7 +180,6 @@ export default function Dashboard() {
     }, 0).toFixed(2);
   };
   
-  // Prepare chart data
   const prepareWeeklyActivityData = () => {
     const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const weekData = weekDays.map(day => ({ name: day, hours: 0 }));
@@ -230,7 +223,6 @@ export default function Dashboard() {
     }));
   };
   
-  // Handle news post management
   const handleNewsPostCreated = () => {
     setCreatingPost(false);
     setEditingPost(null);
@@ -238,7 +230,7 @@ export default function Dashboard() {
     refetchNews();
   };
   
-  const handleStartEditing = (post: NewsPostType) => {
+  const handleStartEditing = (post: NewsPost) => {
     setEditingPost(post);
     setCreatingPost(true);
   };
@@ -253,7 +245,6 @@ export default function Dashboard() {
     refetchNews();
   };
   
-  // Colors for charts
   const COLORS = ['#7FB069', '#5A9A5A', '#96C7A9', '#4E9258', '#8FCA8F', '#3C5948'];
   
   return (
@@ -487,7 +478,7 @@ export default function Dashboard() {
               <div className="space-y-6">
                 {newsPosts.length > 0 ? (
                   newsPosts.map((post) => (
-                    <NewsPost 
+                    <NewsPostComponent 
                       key={post.id} 
                       post={post} 
                       onEdit={handleStartEditing}

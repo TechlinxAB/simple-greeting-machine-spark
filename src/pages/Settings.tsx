@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -197,7 +196,7 @@ export default function Settings() {
           .from("system_settings")
           .upsert({ 
             id: "app_settings", 
-            settings: DEFAULT_THEME
+            settings: DEFAULT_THEME as unknown as Record<string, any>
           });
           
         if (error) throw error;
@@ -232,7 +231,7 @@ export default function Settings() {
         .from("system_settings")
         .upsert({ 
           id: "app_settings", 
-          settings: data 
+          settings: data as unknown as Record<string, any>
         });
         
       if (error) throw error;
@@ -258,7 +257,7 @@ export default function Settings() {
         .from("system_settings")
         .upsert({ 
           id: "fortnox_settings", 
-          settings: data 
+          settings: data as unknown as Record<string, any>
         });
         
       if (error) throw error;
@@ -522,10 +521,12 @@ export default function Settings() {
                     />
                     
                     <div className="flex justify-between pt-6">
-                      <FortnoxConnect 
-                        clientId={fortnoxSettingsForm.getValues("clientId")}
-                        clientSecret={fortnoxSettingsForm.getValues("clientSecret")}
-                      />
+                      {fortnoxSettings && (
+                        <FortnoxConnect 
+                          clientId={fortnoxSettings.clientId}
+                          clientSecret={fortnoxSettings.clientSecret}
+                        />
+                      )}
                       
                       <Button 
                         type="submit" 

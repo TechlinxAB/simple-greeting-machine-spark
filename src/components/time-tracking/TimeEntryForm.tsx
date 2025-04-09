@@ -2,299 +2,407 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { format, startOfDay, parse, addMinutes, differenceInMinutes } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { TimePicker } from "./TimePicker";
-import { toast } from "sonner";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { differenceInMinutes, addMinutes, roundToNearestMinutes } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateSelector } from "./DateSelector";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { TimePicker } from "./TimePicker";
 
-// Define schema for form validation
-const formSchema = z.object({
-  clientId: z.string().min(1, "Client is required"),
-  productId: z.string().min(1, "Product is required"),
+// Define the schema for time tracking form
+const timeEntrySchema = z.object({
+  clientId: z.string({ required_error: "Client is required" }),
+  productId: z.string({ required_error: "Product or activity is required" }),
   startTime: z.date().optional(),
   endTime: z.date().optional(),
-  quantity: z.number().min(1, "Quantity is required").optional(),
+  quantity: z.number().optional(),
   description: z.string().optional(),
 });
 
-// Define the form input type
-type FormInput = z.infer<typeof formSchema>;
+// Type for the time entry form values
+type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
 
+// Define props for TimeEntryForm component
 interface TimeEntryFormProps {
-  onSuccess: () => void;
   selectedDate: Date;
+  onSuccess: () => void;
 }
 
-export function TimeEntryForm({ onSuccess, selectedDate }: TimeEntryFormProps) {
+// Main TimeEntryForm component
+export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
-  
-  // Initialize the form
-  const form = useForm<FormInput>({
-    resolver: zodResolver(formSchema),
+  const [clients, setClients] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProductType, setSelectedProductType] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Initialize form
+  const form = useForm<TimeEntryFormValues>({
+    resolver: zodResolver(timeEntrySchema),
     defaultValues: {
       clientId: "",
       productId: "",
       description: "",
-      quantity: 1,
     },
   });
 
-  // Fetch clients
-  const { data: clients = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .order("name");
-        
-      if (error) throw error;
-      return data || [];
-    },
-  });
-  
-  // Fetch products
-  const { data: products = [] } = useQuery({
-    queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, type, price")
-        .order("name");
-        
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Update selected product type when product changes
   const watchProductId = form.watch("productId");
-  
-  useEffect(() => {
-    if (watchProductId) {
-      const selectedProduct = products.find(product => product.id === watchProductId);
-      if (selectedProduct) {
-        setSelectedProductType(selectedProduct.type);
-        
-        // Reset fields based on product type
-        if (selectedProduct.type === "activity") {
-          form.setValue("quantity", undefined);
-          
-          // Initialize start and end time if they're not set
-          if (!form.getValues("startTime")) {
-            const currentTime = new Date();
-            form.setValue("startTime", currentTime);
-          }
-          
-          if (!form.getValues("endTime")) {
-            const startTime = form.getValues("startTime");
-            if (startTime) {
-              form.setValue("endTime", new Date(startTime.getTime() + 60 * 60 * 1000)); // Add 1 hour
-            }
-          }
-        } else {
-          form.setValue("startTime", undefined);
-          form.setValue("endTime", undefined);
-          
-          // Set default quantity if not set
-          if (!form.getValues("quantity")) {
-            form.setValue("quantity", 1);
-          }
-        }
-      }
-    } else {
-      setSelectedProductType(null);
-    }
-  }, [watchProductId, products, form]);
+  const watchClientId = form.watch("clientId");
 
-  // Function to round minutes to nearest 15-minute interval
-  const roundToNearestInterval = (date: Date): Date => {
-    const minutes = date.getMinutes();
-    let roundedMinutes = 0;
-    
-    if (minutes < 15) {
-      roundedMinutes = 15;
-    } else if (minutes < 30) {
-      roundedMinutes = 30;
-    } else if (minutes < 45) {
-      roundedMinutes = 45;
+  // Fetch clients and products on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch clients
+        const { data: clientsData, error: clientsError } = await supabase
+          .from("clients")
+          .select("id, name")
+          .order("name");
+
+        if (clientsError) throw clientsError;
+        setClients(clientsData || []);
+
+        // Fetch products
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("id, name, type, price")
+          .order("name");
+
+        if (productsError) throw productsError;
+        setProducts(productsData || []);
+      } catch (error: any) {
+        console.error("Error fetching data:", error.message);
+        toast.error("Failed to load clients and products");
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Filter products based on selected product type
+  useEffect(() => {
+    if (selectedProductType === "") {
+      setFilteredProducts(products);
     } else {
-      roundedMinutes = 0;
-      date = addMinutes(date, 60); // Add an hour
+      setFilteredProducts(products.filter(product => product.type === selectedProductType));
     }
-    
-    const result = new Date(date);
-    result.setMinutes(roundedMinutes);
-    result.setSeconds(0);
-    result.setMilliseconds(0);
-    
-    return result;
+  }, [selectedProductType, products]);
+
+  // Handle date change
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
   };
 
-  // Handle form submission
-  const onSubmit = async (values: FormInput) => {
+  // Find product details by ID
+  const getProductById = (id: string) => {
+    return products.find(product => product.id === id);
+  };
+
+  // Round time to 15-minute intervals
+  const roundToNearestQuarter = (date: Date): Date => {
+    return roundToNearestMinutes(date, { nearestTo: 15 });
+  };
+
+  // Submit handler for form
+  const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
-      toast.error("You must be logged in to create time entries");
+      toast.error("You must be logged in to track time");
       return;
     }
-    
+
+    const product = getProductById(values.productId);
+    if (!product) {
+      toast.error("Invalid product selected");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setIsSubmitting(true);
-      
-      const entryData: any = {
+      // Prepare the time entry data based on product type
+      const timeEntryData: any = {
         client_id: values.clientId,
         product_id: values.productId,
         user_id: user.id,
         description: values.description || null,
       };
-      
-      // Format data based on product type
-      if (selectedProductType === "activity" && values.startTime && values.endTime) {
-        // Apply 15-minute rounding to start and end times
-        const roundedStartTime = roundToNearestInterval(values.startTime);
-        const roundedEndTime = roundToNearestInterval(values.endTime);
+
+      if (product.type === "activity" && values.startTime && values.endTime) {
+        // Round times to nearest 15 minutes
+        const roundedStartTime = roundToNearestQuarter(values.startTime);
+        const roundedEndTime = roundToNearestQuarter(values.endTime);
         
-        // Ensure end time is after start time
-        if (roundedEndTime <= roundedStartTime) {
-          toast.error("End time must be after start time");
-          setIsSubmitting(false);
-          return;
-        }
-        
-        // Set the date part from selectedDate
-        const dateStr = format(selectedDate, "yyyy-MM-dd");
-        
-        // Combine date from selectedDate with time from start/end time
-        const startStr = format(roundedStartTime, "HH:mm:ss");
-        const endStr = format(roundedEndTime, "HH:mm:ss");
-        
-        const fullStartTime = parse(`${dateStr} ${startStr}`, "yyyy-MM-dd HH:mm:ss", new Date());
-        const fullEndTime = parse(`${dateStr} ${endStr}`, "yyyy-MM-dd HH:mm:ss", new Date());
-        
-        entryData.start_time = fullStartTime.toISOString();
-        entryData.end_time = fullEndTime.toISOString();
-        
-      } else if (selectedProductType === "item" && values.quantity) {
-        entryData.quantity = values.quantity;
-      } else {
-        toast.error("Invalid form data for the selected product type");
-        setIsSubmitting(false);
-        return;
+        timeEntryData.start_time = roundedStartTime.toISOString();
+        timeEntryData.end_time = roundedEndTime.toISOString();
+      } else if (product.type === "item" && values.quantity) {
+        timeEntryData.quantity = values.quantity;
       }
-      
+
       // Insert the time entry
       const { error } = await supabase
         .from("time_entries")
-        .insert(entryData);
-        
+        .insert(timeEntryData);
+
       if (error) throw error;
-      
-      toast.success("Time entry created successfully");
+
+      // Reset form and show success message
       form.reset({
-        clientId: "",
+        clientId: values.clientId, // Keep the selected client
         productId: "",
         description: "",
-        quantity: 1,
       });
       
-      setSelectedProductType(null);
+      if (product.type === "activity") {
+        form.setValue("startTime", undefined);
+        form.setValue("endTime", undefined);
+      } else {
+        form.setValue("quantity", undefined);
+      }
+
+      toast.success("Time entry saved successfully");
       onSuccess();
-      
     } catch (error: any) {
-      toast.error(`Error creating time entry: ${error.message}`);
+      console.error("Error saving time entry:", error);
+      toast.error(error.message || "Failed to save time entry");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
+  // Show different form fields based on selected product type
+  const renderProductSpecificFields = () => {
+    const product = getProductById(watchProductId);
+    
+    if (!product) return null;
+    
+    if (product.type === "activity") {
+      return (
+        <>
+          <FormField
+            control={form.control}
+            name="startTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start Time</FormLabel>
+                <FormControl>
+                  <TimePicker 
+                    value={field.value || null} 
+                    onChange={field.onChange}
+                    roundToMinutes={15}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="endTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Time</FormLabel>
+                <FormControl>
+                  <TimePicker 
+                    value={field.value || null} 
+                    onChange={field.onChange}
+                    roundToMinutes={15}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      );
+    }
+    
+    if (product.type === "item") {
+      return (
+        <FormField
+          control={form.control}
+          name="quantity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Quantity</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Enter quantity"
+                  {...field}
+                  value={field.value || ""}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      );
+    }
+    
+    return null;
+  };
+
+  // Calculate and display duration if both start and end times are set
+  const calculateDuration = () => {
+    const startTime = form.getValues("startTime");
+    const endTime = form.getValues("endTime");
+    
+    if (startTime && endTime) {
+      const minutes = differenceInMinutes(endTime, startTime);
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      
+      return `${hours}h ${remainingMinutes}m`;
+    }
+    
+    return null;
+  };
+
   return (
-    <div className="border rounded-md p-4 bg-card shadow-sm">
-      <h2 className="text-xl font-semibold mb-4">Create Time Entry</h2>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a client" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create Time Entry</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <DateSelector 
+              selectedDate={selectedDate} 
+              onDateChange={handleDateChange} 
             />
             
-            <FormField
-              control={form.control}
-              name="productId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.type === "activity" ? "Activity" : "Item"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="flex gap-4 mt-4">
+              <Button
+                type="button"
+                variant={selectedProductType === "" ? "default" : "outline"}
+                onClick={() => setSelectedProductType("")}
+                className="flex-1"
+              >
+                All Products
+              </Button>
+              <Button
+                type="button"
+                variant={selectedProductType === "activity" ? "default" : "outline"}
+                onClick={() => setSelectedProductType("activity")}
+                className="flex-1"
+              >
+                Activities
+              </Button>
+              <Button
+                type="button"
+                variant={selectedProductType === "item" ? "default" : "outline"}
+                onClick={() => setSelectedProductType("item")}
+                className="flex-1"
+              >
+                Items
+              </Button>
+            </div>
           </div>
-          
-          {selectedProductType === "activity" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardContent className="pt-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="startTime"
+                name="clientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Time</FormLabel>
+                    <FormLabel>Client</FormLabel>
                     <FormControl>
-                      <TimePicker
-                        date={field.value || new Date()}
-                        setDate={field.onChange}
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {watchClientId && (
+                <FormField
+                  control={form.control}
+                  name="productId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Product</FormLabel>
+                      <FormControl>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Reset related fields when product changes
+                            form.setValue("startTime", undefined);
+                            form.setValue("endTime", undefined);
+                            form.setValue("quantity", undefined);
+                          }}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredProducts.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name} ({product.type})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              {watchProductId && renderProductSpecificFields()}
+              
+              {form.getValues("startTime") && form.getValues("endTime") && (
+                <div className="text-sm text-muted-foreground">
+                  Duration: {calculateDuration()}
+                </div>
+              )}
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Add notes or description"
+                        {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -302,76 +410,22 @@ export function TimeEntryForm({ onSuccess, selectedDate }: TimeEntryFormProps) {
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Time</FormLabel>
-                    <FormControl>
-                      <TimePicker
-                        date={field.value || new Date()}
-                        setDate={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
-          
-          {selectedProductType === "item" && (
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantity</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      min="1" 
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-          
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description (Optional)</FormLabel>
-                <FormControl>
-                  <Textarea {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <Button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="w-full"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Create Time Entry'
-            )}
-          </Button>
-        </form>
-      </Form>
+              <CardFooter className="px-0 pb-0">
+                <Button type="submit" disabled={isLoading} className="w-full">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Time Entry"
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
