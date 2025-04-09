@@ -1,83 +1,94 @@
-import React, { useState } from "react";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog";
+
+import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { deleteWithRetry } from "@/hooks/useSupabaseQuery";
-import { toast } from "sonner";
-import { Client } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface DeleteClientDialogProps {
-  client: Client;
-  onSuccess: () => void;
+  clientId: string;
+  clientName: string;
 }
 
-export function DeleteClientDialog({ client, onSuccess }: DeleteClientDialogProps) {
+export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogProps) {
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleDelete = async () => {
-    if (!client.id) return;
-    setIsDeleting(true);
-
     try {
-      // Check if the client has any time entries
-      const { data: timeEntries, error: entriesError } = await supabase
-        .from("time_entries")
-        .select("id")
-        .eq("client_id", client.id)
+      setIsDeleting(true);
+      
+      // Check for linked time entries or invoices first
+      const { data: timeEntries, error: timeEntriesError } = await supabase
+        .from('time_entries')
+        .select('id')
+        .eq('client_id', clientId)
         .limit(1);
-
-      if (entriesError) {
-        throw entriesError;
+        
+      if (timeEntriesError) {
+        throw new Error(timeEntriesError.message);
       }
-
-      // Check if the client has any invoices
-      const { data: invoices, error: invoicesError } = await supabase
-        .from("invoices")
-        .select("id")
-        .eq("client_id", client.id)
-        .limit(1);
-
-      if (invoicesError) {
-        throw invoicesError;
-      }
-
-      // If the client has time entries or invoices, don't delete
+      
       if (timeEntries && timeEntries.length > 0) {
-        toast.error("Cannot delete client with existing time entries");
+        toast({
+          variant: "destructive",
+          title: "Cannot delete client",
+          description: "This client has associated time entries. Please delete those first."
+        });
         setOpen(false);
+        setIsDeleting(false);
         return;
       }
-
+      
+      // Check for invoices
+      const { data: invoices, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('client_id', clientId)
+        .limit(1);
+        
+      if (invoicesError) {
+        throw new Error(invoicesError.message);
+      }
+      
       if (invoices && invoices.length > 0) {
-        toast.error("Cannot delete client with existing invoices");
+        toast({
+          variant: "destructive",
+          title: "Cannot delete client",
+          description: "This client has associated invoices. Please delete those first."
+        });
         setOpen(false);
+        setIsDeleting(false);
         return;
       }
-
-      // Delete the client
-      const result = await deleteWithRetry("clients", client.id);
-
-      if (!result.success) {
-        toast.error(result.error || "Failed to delete client");
-        return;
-      }
-
-      toast.success(`Client "${client.name}" deleted successfully`);
-      onSuccess();
+      
+      // If no linked entities, proceed with deletion
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Client deleted",
+        description: `${clientName} has been removed successfully.`
+      });
+      
+      // Invalidate queries to refresh client list
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      
     } catch (error) {
-      console.error("Error deleting client:", error);
-      toast.error("Failed to delete client: " + (error instanceof Error ? error.message : "Unknown error"));
+      console.error('Error deleting client:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete client. Please try again."
+      });
     } finally {
       setIsDeleting(false);
       setOpen(false);
@@ -86,42 +97,35 @@ export function DeleteClientDialog({ client, onSuccess }: DeleteClientDialogProp
 
   return (
     <>
-      <Button 
-        variant="outline" 
-        size="icon" 
-        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+      <Button
+        variant="destructive"
+        size="sm"
         onClick={() => setOpen(true)}
+        className="flex items-center gap-1"
       >
         <Trash2 className="h-4 w-4" />
-        <span className="sr-only">Delete {client.name}</span>
+        <span>Delete</span>
       </Button>
-
+      
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Client</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{client.name}</span>?
-              <br /><br />
-              This action cannot be undone. This will permanently delete the client and cannot be recovered.
+              Are you sure you want to delete <strong>{clientName}</strong>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogAction 
               onClick={(e) => {
                 e.preventDefault();
                 handleDelete();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-destructive-foreground border-t-transparent"></div>
-                  Deleting...
-                </>
-              ) : "Delete Client"}
+              {isDeleting ? "Deleting..." : "Delete Client"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
