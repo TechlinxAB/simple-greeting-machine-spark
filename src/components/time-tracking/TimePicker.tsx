@@ -50,7 +50,7 @@ export function TimePicker({
     
     // Check if 5 characters have been entered (full time in format HH:MM)
     if (filtered.length === 5 && filtered.includes(":")) {
-      // If we have a complete time, trigger the onComplete
+      // If we have a complete time, create the Date object immediately
       setTimeout(() => {
         handleTimeUpdate(filtered, false); // Don't round on auto-complete
         if (onComplete) {
@@ -88,10 +88,16 @@ export function TimePicker({
       0
     );
     
-    // Only apply rounding if specifically requested (not during normal input)
+    // Never apply rounding unless explicitly required
     if (shouldRound && roundToMinutes > 0) {
       const roundedMinutes = Math.round(minutes / roundToMinutes) * roundToMinutes;
-      newDate.setMinutes(roundedMinutes);
+      if (roundedMinutes !== minutes) {
+        newDate.setMinutes(roundedMinutes);
+        // Update the input field to show the rounded time
+        const roundedHours = newDate.getHours().toString().padStart(2, '0');
+        const roundedMins = newDate.getMinutes().toString().padStart(2, '0');
+        setTimeInput(`${roundedHours}:${roundedMins}`);
+      }
     }
     
     onChange(newDate);

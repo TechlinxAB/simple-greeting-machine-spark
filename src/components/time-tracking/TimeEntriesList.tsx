@@ -141,6 +141,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
+      // Perform the delete operation
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -151,23 +152,19 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         throw error;
       }
       
-      // Manually remove the entry from the local state temporarily for immediate UI update
-      const updatedEntries = timeEntries.filter(entry => entry.id !== selectedEntry.id);
-      
-      // Invalidate and refetch
+      // Invalidate and refetch queries to update the UI
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-      await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
       
-      // Force a refetch to ensure the UI is up to date
-      refetch();
+      // Fetch the updated data
+      await refetch();
       
       toast.success("Time entry deleted successfully");
+      setDeleteDialogOpen(false);
     } catch (error: any) {
-      console.error("Error deleting time entry:", error);
+      console.error("Delete time entry error:", error);
       toast.error(error.message || "Failed to delete time entry");
     } finally {
       setIsDeleting(false);
-      setDeleteDialogOpen(false);
       setSelectedEntry(null);
     }
   };
@@ -181,13 +178,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   // Handle edit success
   const handleEditSuccess = async () => {
     setEditDialogOpen(false);
+    setSelectedEntry(null);
     
     // Invalidate and refetch
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
     
     // Force a refetch to ensure the UI is up to date
-    refetch();
+    await refetch();
   };
 
   return (

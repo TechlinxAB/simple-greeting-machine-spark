@@ -24,7 +24,7 @@ const timeEntrySchema = z.object({
   quantity: z.number().optional(),
   description: z.string().optional(),
 }).refine((data) => {
-  // If it's an activity type, make sure both times are present or both are absent
+  // For activity entries, ensure end time is present if start time is present
   if (data.startTime && !data.endTime) {
     return false;
   }
@@ -65,7 +65,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       endTime: timeEntry.end_time ? new Date(timeEntry.end_time) : undefined,
       quantity: timeEntry.quantity,
     },
-    // This is important - it makes the form more permissive
     mode: "onSubmit"
   });
 
