@@ -102,12 +102,14 @@ export default function Products() {
           throw new Error(`Cannot delete product that is used in ${invoiceItemCount} invoice items`);
         }
         
-        // Now use our robust delete function with retries
-        console.log("No dependencies found, proceeding with robust deletion...");
-        const { success, error } = await deleteWithRetry("products", productId);
+        // Now use our robust delete function
+        console.log("No dependencies found, proceeding with deletion...");
         
-        if (!success) {
-          throw new Error(error || "Failed to delete product");
+        // Try direct deletion first for better error reporting
+        const deleteResult = await deleteWithRetry("products", productId);
+        
+        if (!deleteResult.success) {
+          throw new Error(deleteResult.error || "Failed to delete product");
         }
         
         console.log("Product successfully deleted!");

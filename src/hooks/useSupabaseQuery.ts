@@ -82,7 +82,30 @@ export async function deleteWithRetry(
   try {
     console.log(`Attempting to delete ${table} with ID: ${id}`);
     
-    // Use the executeWithRetry function which returns a Promise
+    // Direct delete operation with no retries to see if there's a permission issue
+    const directResult = await supabase
+      .from(table)
+      .delete()
+      .eq('id', id);
+      
+    if (directResult.error) {
+      console.error(`Direct delete error for ${table}:`, directResult.error);
+      
+      if (directResult.error.code === '42501') {
+        return { 
+          success: false, 
+          error: `Permission denied. You don't have permission to delete this ${table.slice(0, -1)}.` 
+        };
+      }
+      
+      // If it's not a permission error, try with the retry function
+      console.log("Attempting delete with retry mechanism...");
+    } else {
+      console.log(`Successfully deleted ${table} with ID: ${id} (direct method)`);
+      return { success: true, error: null };
+    }
+    
+    // Fallback to retry mechanism if direct delete had a non-permission error
     const result = await executeWithRetry(async () => {
       const response = await supabase
         .from(table)
@@ -106,7 +129,7 @@ export async function deleteWithRetry(
       return { success: false, error: errorMessage };
     }
     
-    console.log(`Successfully deleted ${table} with ID: ${id}`);
+    console.log(`Successfully deleted ${table} with ID: ${id} (retry method)`);
     return { success: true, error: null };
   } catch (err) {
     console.error(`Unexpected error during ${table} deletion:`, err);
