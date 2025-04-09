@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, subDays, addDays, isSameDay, startOfToday } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,48 +14,58 @@ interface DateSelectorProps {
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const today = startOfToday();
-  const [visibleDates, setVisibleDates] = useState<Date[]>(
-    Array.from({ length: 6 }, (_, i) => subDays(today, i))
-  );
+  
+  // Initialize visible dates with today and previous 5 days
+  const [visibleDates, setVisibleDates] = useState<Date[]>(() => {
+    // Start with today at the top and go backwards for 5 more days
+    return [today, ...Array(5).fill(0).map((_, i) => subDays(today, i + 1))];
+  });
+
+  // Update visible dates when today changes (midnight)
+  useEffect(() => {
+    const currentToday = startOfToday();
+    if (!isSameDay(currentToday, visibleDates[0])) {
+      setVisibleDates([currentToday, ...Array(5).fill(0).map((_, i) => subDays(currentToday, i + 1))]);
+    }
+  }, [today]);
 
   const handlePreviousDates = () => {
-    // Move backward by 1 day
-    const lastDate = visibleDates[visibleDates.length - 1];
-    const prevDate = subDays(lastDate, 1);
-    
-    // Create a new array with the previous date added at the end
-    // and remove the first (newest) date from the beginning
-    const newDates = [...visibleDates.slice(1), prevDate];
-    setVisibleDates(newDates);
+    // Move backward by one day
+    setVisibleDates(prevDates => {
+      const lastDate = prevDates[prevDates.length - 1];
+      const dayBefore = subDays(lastDate, 1);
+      return [...prevDates.slice(1), dayBefore];
+    });
   };
 
   const handleNextDates = () => {
-    // Move forward by 1 day
-    const firstDate = visibleDates[0];
-    const nextDate = addDays(firstDate, 1);
-    
-    // Create a new array with the next date added at the beginning
-    // and remove the last (oldest) date from the end
-    const newDates = [nextDate, ...visibleDates.slice(0, -1)];
-    setVisibleDates(newDates);
+    // Move forward by one day
+    setVisibleDates(prevDates => {
+      const firstDate = prevDates[0];
+      const nextDay = addDays(firstDate, 1);
+      return [nextDay, ...prevDates.slice(0, -1)];
+    });
   };
 
   const goToToday = () => {
     // Set today as the selected date
     onDateChange(today);
-    // Update visible dates to include today and previous 5 days
-    setVisibleDates(
-      Array.from({ length: 6 }, (_, i) => subDays(today, i))
-    );
+    
+    // Reset visible dates to today and previous 5 days
+    setVisibleDates([today, ...Array(5).fill(0).map((_, i) => subDays(today, i + 1))]);
   };
 
   const isDateSelected = (date: Date) => {
     return isSameDay(date, selectedDate);
   };
 
+  const isToday = (date: Date) => {
+    return isSameDay(date, today);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="rounded-md overflow-hidden">
+      <div className="rounded-md overflow-hidden border">
         <div className="bg-primary text-primary-foreground p-4">
           <Button 
             variant="ghost" 
@@ -73,11 +83,12 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               variant="ghost"
               className={cn(
                 "w-full justify-start p-2",
-                isDateSelected(date) ? "bg-secondary text-secondary-foreground" : ""
+                isDateSelected(date) ? "bg-secondary text-secondary-foreground" : "",
+                isToday(date) && !isDateSelected(date) ? "text-primary font-medium" : ""
               )}
               onClick={() => onDateChange(date)}
             >
-              {format(date, "d MMM")}
+              {isToday(date) ? "Today" : format(date, "d MMM")}
             </Button>
           ))}
           

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -15,7 +15,7 @@ import Products from "./pages/Products";
 import Invoices from "./pages/Invoices";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
-import Dashboard from "./pages/Dashboard"; // Renamed from Reports
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,9 +38,12 @@ const App = () => (
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
-                <Route path="/dashboard" element={<Dashboard />} /> {/* Updated route */}
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/profile" element={<Profile />} />
+                
+                {/* Redirect old /reports path to /dashboard */}
+                <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
               </Route>
               
               {/* Catch-all route */}

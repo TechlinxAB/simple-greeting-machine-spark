@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, parse, differenceInMinutes, addMinutes } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
 import type { ProductType } from "@/types";
@@ -32,6 +32,14 @@ type FormValues = z.infer<typeof formSchema>;
 interface TimeEntryFormProps {
   onSuccess?: () => void;
   selectedDate?: Date;
+}
+
+// Helper function for 15-minute rounding
+function roundToFifteenMinutes(minutes: number): number {
+  if (minutes < 15) return 15;
+  if (minutes < 30) return 30;
+  if (minutes < 45) return 45;
+  return 60;
 }
 
 export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntryFormProps) {
@@ -110,6 +118,33 @@ export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntr
     }
 
     try {
+      // If this is an activity, perform 15-minute interval rounding
+      if (activeTab === "activity" && values.startTime && values.endTime) {
+        const startTime = new Date(values.startTime);
+        const endTime = new Date(values.endTime);
+        
+        // Calculate the total duration in minutes and round it to the nearest 15-minute interval
+        const durationInMinutes = differenceInMinutes(endTime, startTime);
+        
+        if (durationInMinutes <= 0) {
+          toast.error("End time must be after start time");
+          return;
+        }
+        
+        // Round the duration
+        const roundedMinutes = roundToFifteenMinutes(durationInMinutes);
+        
+        // If the duration has changed, adjust the end time
+        if (roundedMinutes !== durationInMinutes) {
+          const newEndTime = addMinutes(startTime, roundedMinutes);
+          values.endTime = newEndTime.toISOString();
+          
+          toast.info(`Time duration rounded to ${roundedMinutes} minutes`, {
+            description: "Time entries are rounded to 15-minute intervals"
+          });
+        }
+      }
+
       const baseEntry = {
         user_id: user.id,
         client_id: values.clientId,
@@ -159,6 +194,7 @@ export function TimeEntryForm({ onSuccess, selectedDate = new Date() }: TimeEntr
           size="sm" 
           variant="ghost"
           className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+          onClick={() => onDateChange(new Date())}
         >
           Today
         </Button>

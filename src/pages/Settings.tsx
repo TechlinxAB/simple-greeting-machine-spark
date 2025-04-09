@@ -1,406 +1,329 @@
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link } from "lucide-react";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
-import { supabase } from "@/lib/supabase";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useLocation } from "react-router-dom";
+import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
 
+// Define schema for app settings
 const appSettingsSchema = z.object({
-  appName: z.string().min(1, { message: "App name is required" }),
-  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
-  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
-  sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
-  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
+  appName: z.string().min(1, "Application name is required"),
+  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
+  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
+  sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
+  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
 });
 
-// Add the Fortnox settings schema that was missing
+// Define Fortnox schema
 const fortnoxSettingsSchema = z.object({
-  fortnoxClientId: z.string().min(5, { message: "Fortnox Client ID is too short" }),
-  fortnoxClientSecret: z.string().min(5, { message: "Fortnox Client Secret is too short" }),
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  enabled: z.boolean().default(false),
 });
 
-interface AppSettings {
-  appName: string;
-  primaryColor: string;
-  secondaryColor: string;
-  sidebarColor: string;
-  accentColor: string;
-}
-
-interface FortnoxSettings {
-  clientId: string;
-  clientSecret: string;
-}
-
-interface SystemSettingsResponse {
-  fortnoxSettings: FortnoxSettings | null;
-  appSettings: AppSettings | null;
-}
+type AppSettingsFormValues = z.infer<typeof appSettingsSchema>;
+type FortnoxSettingsFormValues = z.infer<typeof fortnoxSettingsSchema>;
 
 export default function Settings() {
-  const [searchParams] = useSearchParams();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const tabFromUrl = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabFromUrl || "appearance");
-  const [fortnoxConnected, setFortnoxConnected] = useState(false);
-  const { role, user } = useAuth();
+  const [activeTab, setActiveTab] = useState("appearance");
+  const [isDefaultSystemSettings, setIsDefaultSystemSettings] = useState(false);
   
-  useEffect(() => {
-    if (!user) {
-      toast.error("You must be logged in to access settings");
-      navigate("/login");
-    }
-  }, [user, navigate]);
+  const isAdmin = role === 'admin';
+  const canManageSettings = isAdmin || role === 'manager';
   
-  if (role !== 'admin') {
-    return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You don't have permission to access the settings page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Please contact an administrator for assistance.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  // Handle OAuth callback
+  const isFortnoxCallback = location.search.includes('code=') && location.search.includes('state=');
+  
+  if (isFortnoxCallback) {
+    return <FortnoxCallbackHandler />;
   }
   
-  if (!user) {
-    return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Loading settings...</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Please wait while we load your settings.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
-  const appSettingsForm = useForm<z.infer<typeof appSettingsSchema>>({
-    resolver: zodResolver(appSettingsSchema),
-    defaultValues: {
-      appName: "Techlinx Time Tracker",
-      primaryColor: "#2e7d32", // Green color matching the screenshot
-      secondaryColor: "#e8f5e9", // Light green for secondary elements
-      sidebarColor: "#2e7d32", // Sidebar color
-      accentColor: "#4caf50", // Accent color
-    },
-  });
-  
-  const fortnoxSettingsForm = useForm<z.infer<typeof fortnoxSettingsSchema>>({
-    resolver: zodResolver(fortnoxSettingsSchema),
-    defaultValues: {
-      fortnoxClientId: "",
-      fortnoxClientSecret: "",
-    },
-  });
-  
-  const { data: systemSettings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ["system-settings"],
+  // Get app settings
+  const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
+    queryKey: ["app-settings"],
     queryFn: async () => {
       try {
-        const { data: fortnoxData, error: fortnoxError } = await supabase
-          .from('system_settings')
-          .select('settings')
-          .eq('id', 'fortnox_credentials')
-          .maybeSingle();
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("settings")
+          .eq("id", "app_settings")
+          .single();
           
-        if (fortnoxError && !fortnoxError.message.includes('does not exist')) {
-          console.error("Error fetching Fortnox settings:", fortnoxError);
-          toast.error("Failed to load Fortnox settings");
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Record not found, use defaults
+            setIsDefaultSystemSettings(true);
+            return DEFAULT_THEME;
+          }
+          throw error;
         }
-          
-        const { data: appData, error: appError } = await supabase
-          .from('system_settings')
-          .select('settings')
-          .eq('id', 'app_settings')
-          .maybeSingle();
-          
-        if (appError && !appError.message.includes('does not exist')) {
-          console.error("Error fetching app settings:", appError);
-          toast.error("Failed to load app settings");
-        }
-          
-        const fortnoxSettings = fortnoxData?.settings as Record<string, any> | null;
-        const appSettings = appData?.settings as Record<string, any> | null;
         
-        return {
-          fortnoxSettings: fortnoxSettings ? {
-            clientId: fortnoxSettings.clientId || '',
-            clientSecret: fortnoxSettings.clientSecret || ''
-          } : null,
-          appSettings: appSettings ? {
-            appName: appSettings.appName || 'Techlinx Time Tracker',
-            primaryColor: appSettings.primaryColor || '#2e7d32',
-            secondaryColor: appSettings.secondaryColor || '#e8f5e9',
-            sidebarColor: appSettings.sidebarColor || '#2e7d32',
-            accentColor: appSettings.accentColor || '#4caf50'
-          } : null
-        } as SystemSettingsResponse;
-      } catch (err) {
-        console.error("Error fetching system settings:", err);
-        toast.error("Failed to load settings");
-        return { fortnoxSettings: null, appSettings: null } as SystemSettingsResponse;
+        // Ensure we have a complete settings object
+        if (data?.settings) {
+          const settings = data.settings as Record<string, any>;
+          return {
+            appName: settings.appName || DEFAULT_THEME.appName,
+            primaryColor: settings.primaryColor || DEFAULT_THEME.primaryColor,
+            secondaryColor: settings.secondaryColor || DEFAULT_THEME.secondaryColor,
+            sidebarColor: settings.sidebarColor || DEFAULT_THEME.sidebarColor,
+            accentColor: settings.accentColor || DEFAULT_THEME.accentColor,
+          } as AppSettings;
+        }
+        
+        return DEFAULT_THEME;
+      } catch (error) {
+        console.error("Error fetching app settings:", error);
+        return DEFAULT_THEME;
       }
-    }
+    },
   });
   
-  const applyColorTheme = (values: AppSettings) => {
-    const root = document.documentElement;
-    const primaryColorHsl = hexToHSL(values.primaryColor);
-    const secondaryColorHsl = hexToHSL(values.secondaryColor);
-    const sidebarColorHsl = hexToHSL(values.sidebarColor);
-    const accentColorHsl = hexToHSL(values.accentColor);
-    
-    if (primaryColorHsl) {
-      root.style.setProperty('--primary', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
-      root.style.setProperty('--ring', `${primaryColorHsl.h} ${primaryColorHsl.s}% ${primaryColorHsl.l}%`);
+  // Get Fortnox settings
+  const { data: fortnoxSettings, isLoading: isLoadingFortnoxSettings } = useQuery({
+    queryKey: ["fortnox-settings"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("settings")
+          .eq("id", "fortnox_settings")
+          .single();
+          
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Record not found
+            return { clientId: "", clientSecret: "", enabled: false };
+          }
+          throw error;
+        }
+        
+        const fortnoxData = data.settings as Record<string, any>;
+        
+        return {
+          clientId: fortnoxData.clientId || "",
+          clientSecret: fortnoxData.clientSecret || "",
+          enabled: fortnoxData.enabled || false,
+        };
+      } catch (error) {
+        console.error("Error fetching Fortnox settings:", error);
+        return { clientId: "", clientSecret: "", enabled: false };
+      }
+    },
+    enabled: canManageSettings, // Only fetch if user can manage settings
+  });
+  
+  // Form for app settings
+  const appSettingsForm = useForm<AppSettingsFormValues>({
+    resolver: zodResolver(appSettingsSchema),
+    defaultValues: {
+      appName: DEFAULT_THEME.appName,
+      primaryColor: DEFAULT_THEME.primaryColor,
+      secondaryColor: DEFAULT_THEME.secondaryColor,
+      sidebarColor: DEFAULT_THEME.sidebarColor,
+      accentColor: DEFAULT_THEME.accentColor
+    },
+  });
+  
+  // Form for Fortnox settings
+  const fortnoxSettingsForm = useForm<FortnoxSettingsFormValues>({
+    resolver: zodResolver(fortnoxSettingsSchema),
+    defaultValues: {
+      clientId: "",
+      clientSecret: "",
+      enabled: false,
+    },
+  });
+  
+  // Update form values when data is loaded
+  useEffect(() => {
+    if (appSettings) {
+      appSettingsForm.reset({
+        appName: appSettings.appName,
+        primaryColor: appSettings.primaryColor,
+        secondaryColor: appSettings.secondaryColor,
+        sidebarColor: appSettings.sidebarColor,
+        accentColor: appSettings.accentColor,
+      });
     }
-    
-    if (secondaryColorHsl) {
-      root.style.setProperty('--secondary', `${secondaryColorHsl.h} ${secondaryColorHsl.s}% ${secondaryColorHsl.l}%`);
+  }, [appSettings, appSettingsForm]);
+  
+  useEffect(() => {
+    if (fortnoxSettings) {
+      fortnoxSettingsForm.reset({
+        clientId: fortnoxSettings.clientId,
+        clientSecret: fortnoxSettings.clientSecret,
+        enabled: fortnoxSettings.enabled,
+      });
     }
+  }, [fortnoxSettings, fortnoxSettingsForm]);
+
+  const handleResetToDefault = () => {
+    appSettingsForm.reset({
+      appName: DEFAULT_THEME.appName,
+      primaryColor: DEFAULT_THEME.primaryColor,
+      secondaryColor: DEFAULT_THEME.secondaryColor,
+      sidebarColor: DEFAULT_THEME.sidebarColor,
+      accentColor: DEFAULT_THEME.accentColor,
+    });
+
+    // Also apply the default theme immediately
+    applyColorTheme(DEFAULT_THEME);
     
-    if (accentColorHsl) {
-      root.style.setProperty('--accent', `${accentColorHsl.h} ${accentColorHsl.s}% ${accentColorHsl.l}%`);
-    }
-    
-    if (sidebarColorHsl) {
-      root.style.setProperty('--sidebar-background', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${sidebarColorHsl.l}%`);
-      root.style.setProperty('--sidebar-primary', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.min(sidebarColorHsl.l + 10, 100)}%`);
-      root.style.setProperty('--sidebar-accent', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.max(sidebarColorHsl.l - 10, 0)}%`);
-      root.style.setProperty('--sidebar-border', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.max(sidebarColorHsl.l - 5, 0)}%`);
-      root.style.setProperty('--sidebar-ring', `${sidebarColorHsl.h} ${sidebarColorHsl.s}% ${Math.min(sidebarColorHsl.l + 5, 100)}%`);
-    }
+    toast.success("Colors reset to default", {
+      description: "Click Save to persist these changes."
+    });
   };
   
-  useEffect(() => {
-    if (systemSettings?.appSettings) {
-      appSettingsForm.reset({
-        appName: systemSettings.appSettings.appName,
-        primaryColor: systemSettings.appSettings.primaryColor,
-        secondaryColor: systemSettings.appSettings.secondaryColor,
-        sidebarColor: systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor,
-        accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
-      });
-      
-      if (
-        systemSettings.appSettings.appName &&
-        systemSettings.appSettings.primaryColor &&
-        systemSettings.appSettings.secondaryColor &&
-        (systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor) &&
-        (systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor)
-      ) {
-        const completeSettings: AppSettings = {
-          appName: systemSettings.appSettings.appName,
-          primaryColor: systemSettings.appSettings.primaryColor,
-          secondaryColor: systemSettings.appSettings.secondaryColor,
-          sidebarColor: systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor,
-          accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
-        };
-        
-        applyColorTheme(completeSettings);
-      }
+  const onSubmitAppSettings = async (data: AppSettingsFormValues) => {
+    if (!canManageSettings) {
+      toast.error("You don't have permission to change application settings");
+      return;
     }
     
-    if (systemSettings?.fortnoxSettings) {
-      const fortnoxCreds = {
-        fortnoxClientId: systemSettings.fortnoxSettings.clientId || "",
-        fortnoxClientSecret: systemSettings.fortnoxSettings.clientSecret || ""
-      };
-      
-      fortnoxSettingsForm.reset(fortnoxCreds);
-    }
-  }, [systemSettings, appSettingsForm, fortnoxSettingsForm]);
-  
-  useEffect(() => {
-    if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [tabFromUrl]);
-  
-  function hexToHSL(hex: string) {
-    hex = hex.replace(/^#/, '');
-    
-    let r, g, b;
-    if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16) / 255;
-      g = parseInt(hex[1] + hex[1], 16) / 255;
-      b = parseInt(hex[2] + hex[2], 16) / 255;
-    } else {
-      r = parseInt(hex.substring(0, 2), 16) / 255;
-      g = parseInt(hex.substring(2, 4), 16) / 255;
-      b = parseInt(hex.substring(4, 6), 16) / 255;
-    }
-    
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h = 0, s = 0, l = (max + min) / 2;
-    
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      
-      switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: h = (b - r) / d + 2; break;
-        case b: h = (r - g) / d + 4; break;
-      }
-      
-      h *= 60;
-    }
-    
-    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
-  }
-  
-  const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
-      // Create a complete AppSettings object to ensure all required properties are present
-      const completeSettings: AppSettings = {
-        appName: values.appName,
-        primaryColor: values.primaryColor,
-        secondaryColor: values.secondaryColor,
-        sidebarColor: values.sidebarColor,
-        accentColor: values.accentColor
-      };
+      // Apply the theme immediately
+      applyColorTheme(data as AppSettings);
       
-      applyColorTheme(completeSettings);
-      
+      // Save to database
       const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          id: 'app_settings',
-          settings: values
+        .from("system_settings")
+        .upsert({ 
+          id: "app_settings", 
+          settings: data 
         });
-      
+        
       if (error) throw error;
       
-      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+      // Invalidate the query to refetch
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
       
-      toast.success("App settings saved successfully");
+      toast.success("Application settings saved");
     } catch (error) {
       console.error("Error saving app settings:", error);
-      toast.error("Failed to save app settings to database");
+      toast.error("Failed to save application settings");
     }
   };
   
-  const onFortnoxSettingsSubmit = async (values: z.infer<typeof fortnoxSettingsSchema>) => {
+  const onSubmitFortnoxSettings = async (data: FortnoxSettingsFormValues) => {
+    if (!isAdmin) {
+      toast.error("You don't have permission to change Fortnox settings");
+      return;
+    }
+    
     try {
       const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          id: 'fortnox_credentials',
-          settings: {
-            clientId: values.fortnoxClientId,
-            clientSecret: values.fortnoxClientSecret
-          }
+        .from("system_settings")
+        .upsert({ 
+          id: "fortnox_settings", 
+          settings: data 
         });
-      
+        
       if (error) throw error;
       
-      toast.success("Fortnox settings saved successfully");
+      // Invalidate the query to refetch
+      queryClient.invalidateQueries({ queryKey: ["fortnox-settings"] });
+      
+      toast.success("Fortnox settings saved");
     } catch (error) {
       console.error("Error saving Fortnox settings:", error);
-      toast.error("Failed to save Fortnox settings to database");
+      toast.error("Failed to save Fortnox settings");
     }
   };
   
-  const handleFortnoxCallbackSuccess = () => {
-    setFortnoxConnected(true);
-    toast.success("Successfully connected to Fortnox!");
-  };
-  
-  const handleFortnoxCallbackError = (error: Error) => {
-    toast.error(`Failed to connect to Fortnox: ${error.message}`);
-  };
-  
-  const currentClientId = fortnoxSettingsForm.watch('fortnoxClientId');
-  const currentClientSecret = fortnoxSettingsForm.watch('fortnoxClientSecret');
+  if (!user) {
+    return null;
+  }
   
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <SettingsIcon className="h-6 w-6" />
+          <span>Settings</span>
+        </h1>
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="fortnox">Fortnox Integration</TabsTrigger>
-          <TabsTrigger value="users">User Management</TabsTrigger>
+        <TabsList className="mb-4">
+          <TabsTrigger value="appearance" className="flex items-center gap-2">
+            <Brush className="h-4 w-4" />
+            <span>Appearance</span>
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <Link className="h-4 w-4" />
+              <span>Integrations</span>
+            </TabsTrigger>
+          )}
         </TabsList>
         
-        <TabsContent value="appearance" className="mt-6">
+        <TabsContent value="appearance">
           <Card>
             <CardHeader>
               <CardTitle>Appearance Settings</CardTitle>
-              <CardDescription>
-                Customize how the application looks and feels for all users
-              </CardDescription>
+              <CardDescription>Customize the look and feel of the application</CardDescription>
             </CardHeader>
-            <Form {...appSettingsForm}>
-              <form onSubmit={appSettingsForm.handleSubmit(onAppSettingsSubmit)}>
-                <CardContent className="space-y-4">
+            <CardContent>
+              <Form {...appSettingsForm}>
+                <form onSubmit={appSettingsForm.handleSubmit(onSubmitAppSettings)} className="space-y-6">
                   <FormField
                     control={appSettingsForm.control}
                     name="appName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>App Name</FormLabel>
+                        <FormLabel>Application Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input placeholder="Application Name" {...field} />
                         </FormControl>
                         <FormDescription>
-                          This is the name displayed in the app header and browser title.
+                          This will be displayed in the browser tab and application header.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Separator className="my-6" />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={appSettingsForm.control}
                       name="primaryColor"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Primary Color</FormLabel>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded-full border"
-                              style={{ backgroundColor: field.value }}
-                            />
+                          <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} type="color" className="w-16 h-10 p-1" />
+                              <Input type="color" {...field} />
                             </FormControl>
                             <Input 
                               value={field.value} 
-                              onChange={(e) => field.onChange(e.target.value)}
-                              className="flex-1"
+                              onChange={field.onChange}
+                              className="font-mono"
                             />
                           </div>
                           <FormDescription>
-                            Main accent color for buttons and highlights.
+                            Used for buttons, active states, and accents.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -413,50 +336,18 @@ export default function Settings() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Secondary Color</FormLabel>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded-full border"
-                              style={{ backgroundColor: field.value }}
-                            />
+                          <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} type="color" className="w-16 h-10 p-1" />
+                              <Input type="color" {...field} />
                             </FormControl>
                             <Input 
                               value={field.value} 
-                              onChange={(e) => field.onChange(e.target.value)}
-                              className="flex-1"
+                              onChange={field.onChange}
+                              className="font-mono"
                             />
                           </div>
                           <FormDescription>
-                            Secondary accent color for complementary elements.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={appSettingsForm.control}
-                      name="accentColor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Accent Color</FormLabel>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded-full border"
-                              style={{ backgroundColor: field.value }}
-                            />
-                            <FormControl>
-                              <Input {...field} type="color" className="w-16 h-10 p-1" />
-                            </FormControl>
-                            <Input 
-                              value={field.value} 
-                              onChange={(e) => field.onChange(e.target.value)}
-                              className="flex-1"
-                            />
-                          </div>
-                          <FormDescription>
-                            Accent color for certain UI elements and highlights.
+                            Used for backgrounds and secondary elements.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -469,22 +360,42 @@ export default function Settings() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Sidebar Color</FormLabel>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded-full border"
-                              style={{ backgroundColor: field.value }}
-                            />
+                          <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} type="color" className="w-16 h-10 p-1" />
+                              <Input type="color" {...field} />
                             </FormControl>
                             <Input 
                               value={field.value} 
-                              onChange={(e) => field.onChange(e.target.value)}
-                              className="flex-1"
+                              onChange={field.onChange}
+                              className="font-mono"
                             />
                           </div>
                           <FormDescription>
-                            Background color for the sidebar navigation.
+                            Background color for the sidebar.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={appSettingsForm.control}
+                      name="accentColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Accent Color</FormLabel>
+                          <div className="flex space-x-2">
+                            <FormControl>
+                              <Input type="color" {...field} />
+                            </FormControl>
+                            <Input 
+                              value={field.value} 
+                              onChange={field.onChange}
+                              className="font-mono"
+                            />
+                          </div>
+                          <FormDescription>
+                            Used for highlights and accents.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -492,167 +403,121 @@ export default function Settings() {
                     />
                   </div>
                   
-                  <div className="mt-6 p-4 border rounded-md">
-                    <h3 className="font-medium mb-2">Preview</h3>
-                    <div className="flex gap-4 flex-wrap">
-                      <Button
-                        style={{
-                          backgroundColor: appSettingsForm.watch('primaryColor'),
-                          color: "#fff"
-                        }}
-                      >
-                        Primary Button
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        style={{
-                          borderColor: appSettingsForm.watch('primaryColor'),
-                          color: appSettingsForm.watch('primaryColor')
-                        }}
-                      >
-                        Outline Button
-                      </Button>
-                      
-                      <div 
-                        className="p-4 rounded-md"
-                        style={{ 
-                          backgroundColor: appSettingsForm.watch('secondaryColor'),
-                          color: '#000'
-                        }}
-                      >
-                        Secondary Background
-                      </div>
-
-                      <div 
-                        className="p-4 rounded-md"
-                        style={{ 
-                          backgroundColor: appSettingsForm.watch('accentColor'),
-                          color: '#fff'
-                        }}
-                      >
-                        Accent Background
-                      </div>
-
-                      <div 
-                        className="p-4 rounded-md"
-                        style={{ 
-                          backgroundColor: appSettingsForm.watch('sidebarColor'),
-                          color: '#fff'
-                        }}
-                      >
-                        Sidebar Color
-                      </div>
-                    </div>
+                  <div className="flex justify-between pt-6">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleResetToDefault}
+                      className="flex items-center gap-2"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      <span>Reset to Default</span>
+                    </Button>
+                    
+                    <Button 
+                      type="submit" 
+                      disabled={!canManageSettings || !appSettingsForm.formState.isDirty}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span>Save Settings</span>
+                    </Button>
                   </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit">Save Changes</Button>
-                </CardFooter>
-              </form>
-            </Form>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="fortnox" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Fortnox Integration</CardTitle>
-              <CardDescription>
-                Connect to Fortnox API for invoice exports
-              </CardDescription>
-            </CardHeader>
-            
-            {searchParams.has('code') && (
-              <CardContent className="mb-6">
-                <FortnoxCallbackHandler 
-                  onSuccess={handleFortnoxCallbackSuccess}
-                  onError={handleFortnoxCallbackError}
-                />
-              </CardContent>
-            )}
-            
-            <Form {...fortnoxSettingsForm}>
-              <form onSubmit={fortnoxSettingsForm.handleSubmit(onFortnoxSettingsSubmit)}>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={fortnoxSettingsForm.control}
-                    name="fortnoxClientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Fortnox Client ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Client ID from your Fortnox Developer Portal
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={fortnoxSettingsForm.control}
-                    name="fortnoxClientSecret"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Fortnox Client Secret</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Client Secret from your Fortnox Developer Portal
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button type="submit" className="mt-2">Save Credentials</Button>
-                  
-                  <Separator className="my-6" />
-                  
-                  <FortnoxConnect 
-                    clientId={currentClientId}
-                    clientSecret={currentClientSecret}
-                    onStatusChange={setFortnoxConnected}
-                  />
-                  
-                  <div className="bg-muted p-4 rounded-md mt-6">
-                    <p className="text-sm text-muted-foreground">
-                      Note: To integrate with Fortnox, you'll need to register your application in the Fortnox Developer Portal.
-                      After registration, you'll receive a Client ID and Client Secret to use with this application.
-                    </p>
-                  </div>
-                </CardContent>
-              </form>
-            </Form>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="users" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                Manage user roles and permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                User management features coming soon. This will allow administrators to:
-              </p>
-              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                <li>View all registered users</li>
-                <li>Assign or change user roles (Admin, Manager, User)</li>
-                <li>Invite new users to the platform</li>
-                <li>Disable or delete user accounts</li>
-              </ul>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {isAdmin && (
+          <TabsContent value="integrations">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fortnox Integration</CardTitle>
+                <CardDescription>Configure integration with Fortnox accounting software</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...fortnoxSettingsForm}>
+                  <form onSubmit={fortnoxSettingsForm.handleSubmit(onSubmitFortnoxSettings)} className="space-y-6">
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="clientId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client ID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Fortnox Client ID" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            The client ID from your Fortnox developer account.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="clientSecret"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client Secret</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Fortnox Client Secret" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            The client secret from your Fortnox developer account.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                            <FormLabel>Enable Fortnox Integration</FormLabel>
+                            <FormDescription>
+                              Allow integration with Fortnox for invoicing and customer sync.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="flex justify-between pt-6">
+                      <FortnoxConnect />
+                      
+                      <Button 
+                        type="submit" 
+                        disabled={!isAdmin || !fortnoxSettingsForm.formState.isDirty}
+                        className="flex items-center gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>Save Settings</span>
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
 }
+

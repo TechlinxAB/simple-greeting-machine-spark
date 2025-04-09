@@ -10,19 +10,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
-import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { 
   Calendar, Clock, DollarSign, Users, BarChart2, Activity, 
-  FileText, Edit, Save, X, Megaphone
+  FileText, Megaphone, Plus, ScrollText
 } from "lucide-react";
-import { toast } from "sonner";
+import { NewsEditor } from "@/components/news/NewsEditor";
+import { NewsPost } from "@/components/news/NewsPost";
 
 export default function Dashboard() {
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [editingNews, setEditingNews] = useState(false);
-  const [newsContent, setNewsContent] = useState("");
+  const [creatingPost, setCreatingPost] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const queryClient = useQueryClient();
   
   const today = new Date();
@@ -31,7 +31,7 @@ export default function Dashboard() {
   const startOfCurrentMonth = startOfMonth(today);
   const endOfCurrentMonth = endOfMonth(today);
   
-  const canEditNews = role === 'admin' || role === 'manager';
+  const canManagePosts = role === 'admin' || role === 'manager';
 
   // Fetch user's time entries for today
   const { data: todayEntries = [] } = useQuery({
@@ -113,41 +113,24 @@ export default function Dashboard() {
     enabled: !!user && (role === 'admin' || role === 'manager'),
   });
   
-  // Fetch company news
-  const { data: newsData, refetch: refetchNews } = useQuery({
-    queryKey: ["company-news"],
+  // Fetch news posts
+  const { data: newsPosts = [], refetch: refetchNews } = useQuery({
+    queryKey: ["news-posts"],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from("system_settings")
-          .select("settings")
-          .eq("id", "company_news")
-          .maybeSingle();
+          .from("news_posts")
+          .select("*")
+          .order("created_at", { ascending: false });
           
         if (error) throw error;
-        
-        // Handle the JSON data appropriately
-        if (data?.settings && typeof data.settings === 'string') {
-          return data.settings;
-        } else if (data?.settings) {
-          // If it's an object or other non-string JSON, convert to string
-          return JSON.stringify(data.settings);
-        }
-        
-        return "Welcome to our company news section! No announcements yet.";
+        return data || [];
       } catch (error) {
-        console.error("Error fetching company news:", error);
-        return "Error loading company news.";
+        console.error("Error fetching news posts:", error);
+        return [];
       }
     },
   });
-  
-  // Update news content when data is loaded
-  useEffect(() => {
-    if (newsData) {
-      setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData));
-    }
-  }, [newsData]);
   
   // Calculate statistics
   const calculateTodayHours = () => {
@@ -246,35 +229,31 @@ export default function Dashboard() {
     }));
   };
   
-  // Handle news updates
-  const handleSaveNews = async () => {
-    try {
-      const { error } = await supabase
-        .from("system_settings")
-        .upsert({ 
-          id: "company_news", 
-          settings: newsContent
-        });
-        
-      if (error) throw error;
-      
-      toast.success("Company news updated successfully");
-      setEditingNews(false);
-      queryClient.invalidateQueries({ queryKey: ["company-news"] });
-      refetchNews();
-    } catch (error) {
-      console.error("Error updating news:", error);
-      toast.error("Failed to update company news");
-    }
+  // Handle news post management
+  const handleNewsPostCreated = () => {
+    setCreatingPost(false);
+    setEditingPost(null);
+    queryClient.invalidateQueries({ queryKey: ["news-posts"] });
+    refetchNews();
   };
   
-  const handleCancelEdit = () => {
-    setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData || ""));
-    setEditingNews(false);
+  const handleStartEditing = (post: any) => {
+    setEditingPost(post);
+    setCreatingPost(true);
+  };
+  
+  const handleCancelEditing = () => {
+    setCreatingPost(false);
+    setEditingPost(null);
+  };
+  
+  const handlePostDeleted = () => {
+    queryClient.invalidateQueries({ queryKey: ["news-posts"] });
+    refetchNews();
   };
   
   // Colors for charts
-  const COLORS = ['#8BC34A', '#4CAF50', '#009688', '#2196F3', '#3F51B5', '#673AB7', '#9C27B0'];
+  const COLORS = ['#7FB069', '#5A9A5A', '#96C7A9', '#4E9258', '#8FCA8F', '#3C5948'];
   
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -374,7 +353,7 @@ export default function Dashboard() {
                       labelFormatter={(label) => `${label}`}
                     />
                     <Legend />
-                    <Bar dataKey="hours" fill="#4CAF50" name="Hours Logged" />
+                    <Bar dataKey="hours" fill="#7FB069" name="Hours Logged" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -479,75 +458,55 @@ export default function Dashboard() {
         </TabsContent>
         
         <TabsContent value="news">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Company News & Announcements</CardTitle>
-                <CardDescription>Latest updates from management</CardDescription>
+          {creatingPost ? (
+            <NewsEditor 
+              onSuccess={handleNewsPostCreated} 
+              editingPost={editingPost} 
+              onCancel={handleCancelEditing}
+            />
+          ) : (
+            <>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <ScrollText className="h-5 w-5" />
+                  <span>Company News & Announcements</span>
+                </h2>
+                
+                {canManagePosts && (
+                  <Button 
+                    onClick={() => setCreatingPost(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add News Post</span>
+                  </Button>
+                )}
               </div>
               
-              {canEditNews && !editingNews && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setEditingNews(true)}
-                  className="flex items-center gap-1"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span>Edit News</span>
-                </Button>
-              )}
-              
-              {canEditNews && editingNews && (
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCancelEdit}
-                    className="flex items-center gap-1"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>Cancel</span>
-                  </Button>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    onClick={handleSaveNews}
-                    className="flex items-center gap-1"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>Save</span>
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            
-            <CardContent>
-              {editingNews ? (
-                <Textarea 
-                  value={newsContent} 
-                  onChange={(e) => setNewsContent(e.target.value)}
-                  className="min-h-[300px]"
-                  placeholder="Enter company news and announcements here..."
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  {newsData ? (
-                    <div className="bg-secondary/30 p-6 rounded-lg whitespace-pre-wrap">
-                      {typeof newsData === 'string' ? newsData : JSON.stringify(newsData)}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <div className="text-center">
-                        <Megaphone className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-                        <p>Loading company news...</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              <div className="space-y-6">
+                {newsPosts.length > 0 ? (
+                  newsPosts.map((post) => (
+                    <NewsPost 
+                      key={post.id} 
+                      post={post} 
+                      onEdit={handleStartEditing}
+                      onDelete={handlePostDeleted}
+                    />
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-center">
+                        No news posts available.
+                        {canManagePosts && " Click the 'Add News Post' button to create one."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

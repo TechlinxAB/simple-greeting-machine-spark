@@ -3,13 +3,22 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-interface AppSettings {
+export interface AppSettings {
   appName: string;
   primaryColor: string;
   secondaryColor: string;
   sidebarColor: string;
   accentColor: string;
 }
+
+// Default color theme based on the provided screenshot
+export const DEFAULT_THEME: AppSettings = {
+  appName: "Techlinx Time Tracker",
+  primaryColor: "#7FB069", // Softer green that matches the screenshot
+  secondaryColor: "#E8F5E9", // Light green background
+  sidebarColor: "#5A9A5A", // Darker green for sidebar
+  accentColor: "#96C7A9", // Accent green
+};
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Fetch app settings from Supabase
@@ -24,10 +33,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           .single();
           
         if (error) throw error;
-        return data.settings as AppSettings;
+        
+        // Ensure we have a complete settings object with all required properties
+        if (data?.settings) {
+          const settings = data.settings as Record<string, any>;
+          return {
+            appName: settings.appName || DEFAULT_THEME.appName,
+            primaryColor: settings.primaryColor || DEFAULT_THEME.primaryColor,
+            secondaryColor: settings.secondaryColor || DEFAULT_THEME.secondaryColor,
+            sidebarColor: settings.sidebarColor || DEFAULT_THEME.sidebarColor,
+            accentColor: settings.accentColor || DEFAULT_THEME.accentColor,
+          } as AppSettings;
+        }
+        
+        return DEFAULT_THEME;
       } catch (error) {
         console.error("Error fetching app settings:", error);
-        return null;
+        return DEFAULT_THEME;
       }
     },
     staleTime: 60000, // 1 minute
