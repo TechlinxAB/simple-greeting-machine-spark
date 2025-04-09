@@ -103,44 +103,33 @@ export default function Products() {
           throw new Error(`Cannot delete product that is used in ${invoiceItemCount} invoice items`);
         }
         
-        // Now use our robust delete function
         console.log("No dependencies found, proceeding with deletion...");
         
-        // Use our enhanced deleteWithRetry function
+        // Use our completely rewritten deleteWithRetry function
         const deleteResult = await deleteWithRetry("products", productId);
         
         if (!deleteResult.success) {
           throw new Error(deleteResult.error || "Failed to delete product");
         }
         
-        // Verify the product is truly gone with a direct query
-        const { data: checkProduct } = await supabase
-          .from("products")
-          .select("id")
-          .eq("id", productId)
-          .maybeSingle();
-          
-        if (checkProduct) {
-          // This should never happen with our enhanced function
-          console.error("Product still exists after deletion!", checkProduct);
-          throw new Error("Delete operation reported success but product still exists. Please try again.");
-        }
-        
         console.log("Product successfully deleted!");
         return productId;
       } catch (error) {
         console.error("Error in delete mutation:", error);
-        throw error; // Re-throw to trigger onError handler
+        throw error;
       } finally {
         setIsDeleting(false);
       }
     },
     onSuccess: (deletedId) => {
       console.log("Delete mutation successful, invalidating queries");
-      // Force-refetch the products list to ensure it's up to date
+      // Explicitly refresh the product list to ensure UI is up to date
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      refetch(); // Explicitly trigger a refetch
+      
+      // Force an immediate refetch to update the UI
+      refetch();
+      
       toast.success("Product deleted successfully");
       setProductToDelete(null);
     },

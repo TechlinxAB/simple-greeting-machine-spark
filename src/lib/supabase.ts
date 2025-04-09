@@ -45,42 +45,33 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Enhanced function for Supabase database operations with retries
-export async function executeWithRetry<T>(
-  operation: () => Promise<{ data: T | null; error: any }>,
-  maxRetries: number = 3,
-  retryDelay: number = 500
-): Promise<{ data: T | null; error: any }> {
-  let retries = 0;
-  let lastResult = { data: null as T | null, error: null };
-
-  while (retries < maxRetries) {
-    lastResult = await operation();
+// Direct delete operation without verification or retries
+export async function deleteRecord(
+  table: string,
+  id: string
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`Direct delete operation on ${table} with ID: ${id}`);
     
-    if (!lastResult.error) {
-      // Verify operation success if deleting
-      if (typeof operation === 'function' && 
-          operation.toString().includes('delete') && 
-          lastResult.data === null) {
-        // Success case for delete operations
-        console.log(`Delete operation successful on retry ${retries + 1}`);
-      }
-      return lastResult;
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error(`Error in direct delete of ${table}:`, error);
+      return { 
+        success: false, 
+        error: error.message || `Failed to delete ${table} record` 
+      };
     }
     
-    // If we get a postgres error that might benefit from retry
-    if (lastResult.error.code && 
-        ['23505', '40001', '40P01', '55P03', '55006', '57014'].includes(lastResult.error.code)) {
-      retries++;
-      console.log(`Database operation failed, retrying (${retries}/${maxRetries})...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retries - 1)));
-    } else {
-      // If it's a different error that won't benefit from retry, break out
-      break;
-    }
+    return { success: true, error: null };
+  } catch (err) {
+    console.error(`Unexpected error in direct delete of ${table}:`, err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    return { success: false, error: errorMessage };
   }
-  
-  return lastResult;
 }
 
 // Helper functions for auth operations

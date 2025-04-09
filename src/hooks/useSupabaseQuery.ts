@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase, executeWithRetry } from '@/lib/supabase';
+import { supabase, deleteRecord } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
 
 interface QueryResult<T> {
@@ -68,116 +68,112 @@ export function useSupabaseQuery<T>(
 }
 
 /**
- * Helper function specifically for delete operations that incorporates retry logic
- * and proper error handling.
+ * Completely rewritten delete function with better error handling and verification.
+ * This addresses the silent failure issue where products appear to be deleted but aren't.
  * 
- * @param table The table to delete from (must be a valid table name in the schema)
+ * @param tableName The table to delete from (must be a valid table name in the schema)
  * @param id The ID of the record to delete
  * @returns Promise with success/error status
  */
 export async function deleteWithRetry(
-  table: "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings", 
+  tableName: "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings", 
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log(`Attempting to delete ${table} with ID: ${id}`);
+    console.log(`Starting deletion process for ${tableName} with ID: ${id}`);
     
-    // First check if the product exists before trying to delete it
+    // First verify the item exists
     const { data: existingItem, error: checkError } = await supabase
-      .from(table)
+      .from(tableName)
       .select('id')
       .eq('id', id)
       .maybeSingle();
       
     if (checkError) {
-      console.error(`Error checking if ${table} exists:`, checkError);
-      return { success: false, error: `Error verifying ${table}: ${checkError.message}` };
+      console.error(`Error checking if ${tableName} exists:`, checkError);
+      return { success: false, error: `Error verifying ${tableName}: ${checkError.message}` };
     }
     
     if (!existingItem) {
-      console.warn(`${table} with ID ${id} does not exist or was already deleted`);
-      return { success: true, error: null }; // Return success since the item doesn't exist anymore
+      console.warn(`${tableName} with ID ${id} does not exist or was already deleted`);
+      return { success: true, error: null }; // Consider it a success if already deleted
     }
     
-    // Direct delete operation with no retries to see if there's a permission issue
-    const directResult = await supabase
-      .from(table)
-      .delete()
-      .eq('id', id);
+    // Attempt direct deletion first
+    const result = await deleteRecord(tableName, id);
+    
+    if (!result.success) {
+      console.error(`Failed to delete ${tableName}:`, result.error);
       
-    if (directResult.error) {
-      console.error(`Direct delete error for ${table}:`, directResult.error);
-      
-      if (directResult.error.code === '42501') {
+      // Special error handling for common cases
+      if (result.error?.includes('violates foreign key constraint')) {
         return { 
           success: false, 
-          error: `Permission denied. You don't have permission to delete this ${table.slice(0, -1)}.` 
+          error: `Cannot delete this ${tableName.slice(0, -1)} as it is being used by other records.` 
         };
       }
       
-      // If it's not a permission error, try with the retry function
-      console.log("Attempting delete with retry mechanism...");
-    } else {
-      // Double-check that the item was actually deleted
-      const { data: checkAfterDelete, error: checkAfterError } = await supabase
-        .from(table)
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-        
-      if (checkAfterError) {
-        console.error(`Error checking after delete for ${table}:`, checkAfterError);
-      } else if (checkAfterDelete) {
-        console.error(`Delete operation reported success but item still exists in ${table}`);
-        // Will fall through to retry mechanism
-      } else {
-        console.log(`Successfully deleted ${table} with ID: ${id} (direct method)`);
-        return { success: true, error: null };
-      }
-    }
-    
-    // Fallback to retry mechanism if direct delete had a non-permission error
-    const result = await executeWithRetry(async () => {
-      const response = await supabase
-        .from(table)
-        .delete()
-        .eq('id', id);
-      
-      return response;
-    });
-    
-    if (result.error) {
-      console.error(`Error deleting from ${table}:`, result.error);
-      
-      let errorMessage = result.error.message;
-      
-      if (result.error.code === '23503') {
-        errorMessage = `Cannot delete this ${table.slice(0, -1)} as it is referenced by other records.`;
-      } else if (result.error.code === '42501') {
-        errorMessage = `You don't have permission to delete this ${table.slice(0, -1)}.`;
+      if (result.error?.includes('permission denied')) {
+        return { 
+          success: false, 
+          error: `You don't have permission to delete this ${tableName.slice(0, -1)}.` 
+        };
       }
       
-      return { success: false, error: errorMessage };
+      return { success: false, error: result.error };
     }
     
-    // Final verification that the item was actually deleted
-    const { data: finalCheck, error: finalCheckError } = await supabase
-      .from(table)
+    // Always verify the deletion actually happened
+    const { data: verifyDeletion, error: verifyError } = await supabase
+      .from(tableName)
       .select('id')
       .eq('id', id)
       .maybeSingle();
       
-    if (finalCheckError) {
-      console.error(`Error in final verification for ${table}:`, finalCheckError);
-    } else if (finalCheck) {
-      console.error(`Delete operation reported success but item still exists in ${table} after retry`);
-      return { success: false, error: `Delete operation failed silently. The ${table.slice(0, -1)} could not be removed.` };
+    if (verifyError) {
+      console.error(`Error verifying deletion for ${tableName}:`, verifyError);
     }
     
-    console.log(`Successfully deleted ${table} with ID: ${id} (retry method)`);
+    if (verifyDeletion) {
+      console.error(`Delete operation reported success but ${tableName} with ID ${id} still exists`);
+      
+      // Try a second time with a forceful approach
+      console.log(`Attempting second deletion for ${tableName} with ID: ${id}`);
+      
+      // Force a second deletion attempt
+      const secondAttempt = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', id);
+        
+      if (secondAttempt.error) {
+        console.error(`Second deletion attempt failed for ${tableName}:`, secondAttempt.error);
+        return { 
+          success: false, 
+          error: `Multiple deletion attempts failed. ${secondAttempt.error.message}` 
+        };
+      }
+      
+      // Final verification
+      const { data: finalCheck } = await supabase
+        .from(tableName)
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+        
+      if (finalCheck) {
+        console.error(`${tableName} still exists after multiple deletion attempts`);
+        return { 
+          success: false, 
+          error: `Unable to delete ${tableName.slice(0, -1)} after multiple attempts. Please try again later.` 
+        };
+      }
+    }
+    
+    console.log(`Successfully deleted ${tableName} with ID: ${id}`);
     return { success: true, error: null };
   } catch (err) {
-    console.error(`Unexpected error during ${table} deletion:`, err);
+    console.error(`Unexpected error during ${tableName} deletion:`, err);
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
     return { success: false, error: errorMessage };
   }
