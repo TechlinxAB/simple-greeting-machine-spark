@@ -6,15 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload } from "lucide-react";
+import { CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { createFortnoxInvoice } from "@/integrations/fortnox/invoices";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
+  const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
 
   // Get invoices data
   const { data: invoices = [], isLoading, refetch } = useQuery({
@@ -37,6 +43,46 @@ export default function Invoices() {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  // Get clients data for dropdown
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Get unbilled time entries for selected client
+  const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery({
+    queryKey: ["unbilled-entries", selectedClient],
+    queryFn: async () => {
+      if (!selectedClient) return [];
+      
+      const { data, error } = await supabase
+        .from("time_entries")
+        .select(`
+          id, 
+          start_time, 
+          end_time, 
+          quantity, 
+          description,
+          products:product_id (id, name, type, price, vat_percentage),
+          profiles:user_id (name)
+        `)
+        .eq("client_id", selectedClient)
+        .eq("invoiced", false);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedClient,
   });
 
   // Check if Fortnox is connected
@@ -84,11 +130,64 @@ export default function Invoices() {
     }
   };
 
+  const handleCreateInvoice = async () => {
+    if (!selectedClient || unbilledEntries.length === 0) {
+      toast.error("Please select a client with unbilled time entries");
+      return;
+    }
+
+    setIsExportingInvoice(true);
+    try {
+      // Get all time entry IDs to include in the invoice
+      const timeEntryIds = unbilledEntries.map(entry => entry.id);
+      
+      // Create invoice in Fortnox
+      const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
+      
+      toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`);
+      
+      // Close dialog and refresh data
+      setIsCreatingInvoice(false);
+      setSelectedClient("");
+      refetch();
+      refetchUnbilled();
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      toast.error(`Failed to create invoice: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExportingInvoice(false);
+    }
+  };
+
+  // Calculate total for unbilled entries
+  const calculateTotal = () => {
+    let total = 0;
+    
+    unbilledEntries.forEach(entry => {
+      if (entry.products) {
+        let quantity = 1;
+        
+        if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
+          const start = new Date(entry.start_time);
+          const end = new Date(entry.end_time);
+          const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          quantity = parseFloat(diffHours.toFixed(2));
+        } else if (entry.products.type === 'item' && entry.quantity) {
+          quantity = entry.quantity;
+        }
+        
+        total += entry.products.price * quantity;
+      }
+    });
+    
+    return total.toFixed(2);
+  };
+
   // Filter invoices based on search term
   const filteredInvoices = searchTerm
     ? invoices.filter(invoice => 
-        invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.clients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoice.status.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : invoices;
@@ -111,6 +210,8 @@ export default function Invoices() {
           
           <Button 
             className="flex items-center gap-2"
+            onClick={() => setIsCreatingInvoice(true)}
+            disabled={!fortnoxConnected}
           >
             <FilePlus2 className="h-4 w-4" />
             <span>New Invoice</span>
@@ -141,7 +242,12 @@ export default function Invoices() {
               <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
               <p>{searchTerm ? "No invoices match your search" : "No invoices found. Create your first invoice to get started!"}</p>
               {!searchTerm && (
-                <Button variant="outline" className="mt-4">
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => setIsCreatingInvoice(true)}
+                  disabled={!fortnoxConnected}
+                >
                   <FilePlus2 className="mr-2 h-4 w-4" />
                   Create Invoice
                 </Button>
@@ -234,6 +340,128 @@ export default function Invoices() {
           )}
         </CardContent>
       </Card>
+      
+      {/* New Invoice Dialog */}
+      <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create New Invoice</DialogTitle>
+            <DialogDescription>
+              Create and export a new invoice to Fortnox for a selected client.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Client</label>
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedClient && (
+              <>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => refetchUnbilled()}
+                      className="h-8"
+                    >
+                      <RefreshCcw className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+                  
+                  {unbilledEntries.length === 0 ? (
+                    <div className="text-center py-4 border rounded-md bg-muted/20">
+                      <p className="text-sm text-muted-foreground">No unbilled time entries for this client.</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead className="text-right">Amount (SEK)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {unbilledEntries.map((entry) => {
+                            let quantity = 1;
+                            
+                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+                              const start = new Date(entry.start_time);
+                              const end = new Date(entry.end_time);
+                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                              quantity = parseFloat(diffHours.toFixed(2));
+                            } else if (entry.products?.type === 'item' && entry.quantity) {
+                              quantity = entry.quantity;
+                            }
+                            
+                            const amount = entry.products ? entry.products.price * quantity : 0;
+                            
+                            return (
+                              <TableRow key={entry.id}>
+                                <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
+                                <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
+                                <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
+                                <TableCell>
+                                  {quantity} {entry.products?.type === 'activity' ? 'hr' : 'pcs'}
+                                </TableCell>
+                                <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow>
+                            <TableCell colSpan={4} className="font-bold text-right">Total:</TableCell>
+                            <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreatingInvoice(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateInvoice} 
+              disabled={!selectedClient || unbilledEntries.length === 0 || isExportingInvoice}
+              className="flex items-center gap-2"
+            >
+              {isExportingInvoice ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>Create & Export</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

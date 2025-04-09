@@ -7,6 +7,14 @@ import type { Client, Product, TimeEntry, Invoice } from "@/types";
 interface FortnoxInvoiceData {
   Customer: {
     CustomerNumber: string;
+    Name?: string;
+    OrganisationNumber?: string;
+    Address1?: string;
+    ZipCode?: string;
+    City?: string;
+    CountryCode?: string;
+    Email?: string;
+    Phone1?: string;
   };
   InvoiceRows: FortnoxInvoiceRow[];
   InvoiceDate?: string;
@@ -26,6 +34,7 @@ interface FortnoxInvoiceRow {
   Price: number;
   VAT: number;
   AccountNumber?: string;
+  UnitCode?: string;
 }
 
 /**
@@ -36,7 +45,7 @@ export async function formatTimeEntriesForFortnox(
   timeEntryIds: string[]
 ): Promise<FortnoxInvoiceData | null> {
   try {
-    // Get client data
+    // Get client data with complete details
     const { data: client, error: clientError } = await supabase
       .from("clients")
       .select("*")
@@ -46,12 +55,14 @@ export async function formatTimeEntriesForFortnox(
     if (clientError) throw clientError;
     if (!client) throw new Error("Client not found");
     
-    // Get time entries
+    // Get time entries including user information and product details
     const { data: timeEntries, error: entriesError } = await supabase
       .from("time_entries")
       .select(`
         *,
-        products:product_id (*)
+        products:product_id (*),
+        users:user_id (id, email),
+        profiles:user_id (id, name)
       `)
       .in("id", timeEntryIds)
       .eq("client_id", clientId)
@@ -62,35 +73,60 @@ export async function formatTimeEntriesForFortnox(
       throw new Error("No time entries found");
     }
     
-    // Format invoice data for Fortnox
+    // Format invoice data for Fortnox with complete client information
     const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
       const product = entry.products;
+      const userName = entry.profiles?.name || entry.users?.email || 'Unknown User';
       
       // Calculate quantity
       let quantity = 1;
+      let unitCode = "st"; // Default unit code (piece/item)
+      
       if (product.type === 'activity' && entry.start_time && entry.end_time) {
         // Calculate hours from start_time to end_time
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         quantity = parseFloat(diffHours.toFixed(2));
+        unitCode = "tim"; // Hour unit code
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
       }
       
+      // Format description including user information
+      const baseDescription = entry.description || product.name;
+      const timeInfo = product.type === 'activity' && entry.start_time && entry.end_time ? 
+        `${new Date(entry.start_time).toLocaleString()} - ${new Date(entry.end_time).toLocaleString()}` : '';
+      
+      const description = [
+        baseDescription,
+        `Utförd av: ${userName}`,
+        timeInfo
+      ].filter(Boolean).join(' | ');
+      
       return {
         ArticleNumber: product.id.substring(0, 10), // Fortnox has limits on article number length
-        Description: entry.description || product.name,
+        Description: description,
         DeliveredQuantity: quantity,
         Price: product.price,
         VAT: product.vat_percentage,
-        AccountNumber: product.account_number
+        AccountNumber: product.account_number,
+        UnitCode: unitCode
       };
     });
     
+    // Prepare complete customer information for Fortnox
     return {
       Customer: {
-        CustomerNumber: client.client_number || client.id.substring(0, 10)
+        CustomerNumber: client.client_number || client.id.substring(0, 10),
+        Name: client.name,
+        OrganisationNumber: client.organization_number,
+        Address1: client.address,
+        ZipCode: client.postal_code,
+        City: client.city,
+        CountryCode: "SE", // Default to Sweden
+        Email: client.email,
+        Phone1: client.telephone
       },
       InvoiceRows: invoiceRows,
       InvoiceDate: new Date().toISOString().split('T')[0],
@@ -121,6 +157,31 @@ export async function createFortnoxInvoice(
     
     if (!invoiceData) {
       throw new Error("Failed to format invoice data");
+    }
+    
+    // Check if client exists in Fortnox
+    let customerExists = false;
+    try {
+      customerExists = await checkFortnoxCustomer(invoiceData.Customer.CustomerNumber);
+    } catch (error) {
+      console.log("Customer check failed, will attempt to create:", error);
+    }
+    
+    // Create client in Fortnox if not exists
+    if (!customerExists) {
+      console.log("Creating customer in Fortnox:", invoiceData.Customer.Name);
+      await createFortnoxCustomer({
+        id: clientId,
+        client_number: invoiceData.Customer.CustomerNumber,
+        name: invoiceData.Customer.Name || '',
+        organization_number: invoiceData.Customer.OrganisationNumber || '',
+        address: invoiceData.Customer.Address1 || '',
+        postal_code: invoiceData.Customer.ZipCode || '',
+        city: invoiceData.Customer.City || '',
+        email: invoiceData.Customer.Email || '',
+        telephone: invoiceData.Customer.Phone1 || '',
+        county: '', // Not used in Fortnox
+      });
     }
     
     // Create invoice in Fortnox
