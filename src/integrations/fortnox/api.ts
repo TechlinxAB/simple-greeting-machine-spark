@@ -488,7 +488,16 @@ export async function fortnoxApiRequest(
     
     console.log(`Making ${method} request to Fortnox endpoint: ${endpoint}`);
     
-    // Call our Edge Function proxy instead of directly calling Fortnox API
+    // First test if the edge function is accessible
+    try {
+      const testResponse = await supabase.functions.invoke('fortnox-proxy/test');
+      console.log("Edge function test response:", testResponse);
+    } catch (testError) {
+      console.error("Edge function test failed:", testError);
+      // Continue anyway as this is just a diagnostic test
+    }
+    
+    // Call our Edge Function proxy with proper payload structure
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: {
         method,
