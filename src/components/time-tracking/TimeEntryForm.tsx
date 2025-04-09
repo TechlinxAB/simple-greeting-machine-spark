@@ -44,7 +44,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<Date>(selectedDate);
 
   // Initialize form
   const form = useForm<TimeEntryFormValues>({
@@ -58,6 +58,11 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
 
   const watchProductId = form.watch("productId");
   const watchClientId = form.watch("clientId");
+
+  // Update currentDate when selectedDate changes
+  useEffect(() => {
+    setCurrentDate(selectedDate);
+  }, [selectedDate]);
 
   // Fetch clients and products on component mount
   useEffect(() => {
@@ -100,7 +105,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
 
   // Handle date change
   const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
+    setCurrentDate(date);
   };
 
   // Find product details by ID
@@ -280,7 +285,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
         <CardContent>
           <div className="space-y-4">
             <DateSelector 
-              selectedDate={selectedDate} 
+              selectedDate={currentDate} 
               onDateChange={handleDateChange} 
             />
             
