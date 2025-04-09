@@ -74,6 +74,11 @@ export async function fortnoxApiRequest(
       }
     });
     
+    // Add debug logging for the exact payload for POST/PUT
+    if (method !== 'GET' && data) {
+      console.log("Request payload:", JSON.stringify(data, null, 2));
+    }
+    
     // Call the edge function with the properly structured request body
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: requestBody

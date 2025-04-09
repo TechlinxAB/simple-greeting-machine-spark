@@ -132,6 +132,11 @@ serve(async (req) => {
     console.log(`Making ${method} request to Fortnox: ${fortnoxUrl}`);
     console.log(`Using headers: Authorization=Bearer ${accessToken.substring(0, 5)}..., Client-Secret=${clientSecret.substring(0, 5)}...`);
     
+    // Log the complete payload for debugging
+    if (method !== 'GET' && payload) {
+      console.log("Request payload to Fortnox:", JSON.stringify(payload, null, 2));
+    }
+    
     // IMPROVED ERROR HANDLING AND RESPONSE FORWARDING
     try {
       const fortnoxRes = await fetch(fortnoxUrl, {
@@ -147,6 +152,34 @@ serve(async (req) => {
       });
       
       const text = await fortnoxRes.text();
+      
+      // If response is not successful, log the complete error message
+      if (!fortnoxRes.ok) {
+        console.error(`❌ Fortnox API Error (${fortnoxRes.status}): ${text}`);
+        
+        // Try to parse the error response
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(text);
+        } catch (e) {
+          errorDetails = { rawText: text };
+        }
+        
+        return new Response(
+          JSON.stringify({
+            error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
+            details: errorDetails,
+            fortnoxStatus: fortnoxRes.status
+          }),
+          {
+            status: fortnoxRes.status,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          }
+        );
+      }
       
       console.log("✅ Fortnox request completed", {
         url: fortnoxUrl,

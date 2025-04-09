@@ -132,7 +132,8 @@ export async function formatTimeEntriesForFortnox(
     });
     
     // Prepare complete customer information for Fortnox
-    return {
+    // Make sure the schema exactly matches what Fortnox expects
+    const invoiceData: FortnoxInvoiceData = {
       Customer: {
         CustomerNumber: client.client_number || client.id.substring(0, 10),
         Name: client.name,
@@ -154,6 +155,11 @@ export async function formatTimeEntriesForFortnox(
         EmailBody: "Please find attached your invoice."
       } : undefined
     };
+    
+    // Log the exact structure being sent to Fortnox for debugging
+    console.log("Formatted invoice data for Fortnox:", JSON.stringify(invoiceData, null, 2));
+    
+    return invoiceData;
   } catch (error) {
     console.error("Error formatting time entries for Fortnox:", error);
     throw error;
@@ -202,7 +208,7 @@ export async function createFortnoxInvoice(
       });
     }
     
-    // Create invoice in Fortnox
+    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
     const response = await fortnoxApiRequest("/invoices", "POST", {
       Invoice: invoiceData
     });
