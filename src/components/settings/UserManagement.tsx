@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -41,24 +40,26 @@ export function UserManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   
-  // Fetch all users using our custom RPC function
+  type UserResponse = {
+    id: string;
+    email: string;
+    profile_name: string | null;
+    profile_role: string | null;
+    profile_avatar_url: string | null;
+  };
+  
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      // Using the generic function call to avoid TypeScript errors
-      const { data, error } = await supabase.rpc('get_all_users') as {
-        data: any[] | null;
-        error: any;
-      };
+      const { data, error } = await supabase.functions.invoke('get-all-users');
       
       if (error) throw error;
       
       if (!data || !Array.isArray(data)) {
-        console.error("Unexpected data format from get_all_users:", data);
+        console.error("Unexpected data format from get-all-users:", data);
         return [] as User[];
       }
       
-      // Transform the data to match our User type
       const transformedUsers = data.map(user => ({
         id: user.id,
         email: user.email,
@@ -71,10 +72,8 @@ export function UserManagement() {
     }
   });
 
-  // Update user role
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      // First, ensure a profile exists for this user
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -82,7 +81,6 @@ export function UserManagement() {
         .single();
         
       if (!existingProfile) {
-        // Create a profile if it doesn't exist
         const { error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -92,7 +90,6 @@ export function UserManagement() {
           
         if (createError) throw createError;
       } else {
-        // Update the role using our RPC function
         const { data, error } = await supabase.rpc(
           "update_user_role", 
           { user_id: userId, new_role: role }
@@ -112,7 +109,6 @@ export function UserManagement() {
     }
   });
 
-  // Filter users based on search term
   const filteredUsers = users?.filter(user => {
     const searchLower = search.toLowerCase();
     return (
