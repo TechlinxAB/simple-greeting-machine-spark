@@ -155,7 +155,8 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         
       if (error) {
         console.error("Error deleting time entry:", error);
-        throw error;
+        toast.error(error.message || "Failed to delete time entry");
+        return;
       }
       
       // Close dialog first before showing success toast
@@ -164,8 +165,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       
       toast.success("Time entry deleted successfully");
       
-      // Force a refetch of time entries
-      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      // Force a refetch of all time entries
+      await queryClient.invalidateQueries({ 
+        queryKey: ["time-entries"]
+      });
       
       // Also refetch the current date's entries explicitly
       await refetch();
@@ -190,7 +193,9 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setSelectedEntry(null);
     
     // Invalidate all time entries queries to ensure data consistency
-    await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+    await queryClient.invalidateQueries({ 
+      queryKey: ["time-entries"]
+    });
     
     // Explicit refetch for the current view
     await refetch();
