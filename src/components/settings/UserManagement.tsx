@@ -50,6 +50,11 @@ export function UserManagement() {
       
       if (error) throw error;
       
+      if (!data || !Array.isArray(data)) {
+        console.error("Unexpected data format from get_all_users:", data);
+        return [] as User[];
+      }
+      
       // Transform the data to match our User type
       const transformedUsers = data.map(user => ({
         id: user.id,
