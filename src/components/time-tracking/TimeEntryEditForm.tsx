@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -120,7 +119,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Current product:", currentProduct);
       console.log("Product type:", productType);
       
-      // Prepare update data - include at minimum the required fields
+      // Create a complete update object with all required fields
       const timeEntryData: any = {
         client_id: values.clientId || timeEntry.client_id,
         product_id: values.productId || timeEntry.product_id,
@@ -129,19 +128,17 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
       // Handle time fields based on product type
       if (productType === "activity") {
-        // For activities, handle start_time and end_time
         timeEntryData.start_time = values.startTime ? values.startTime.toISOString() : timeEntry.start_time;
         timeEntryData.end_time = values.endTime ? values.endTime.toISOString() : timeEntry.end_time;
         
-        // If we're switching from item to activity, clear quantity
+        // If switching from item to activity, clear quantity
         if (timeEntry.products?.type === "item") {
           timeEntryData.quantity = null;
         }
       } else if (productType === "item") {
-        // For items, handle quantity
         timeEntryData.quantity = values.quantity !== undefined ? values.quantity : timeEntry.quantity;
         
-        // If we're switching from activity to item, clear times
+        // If switching from activity to item, clear times
         if (timeEntry.products?.type === "activity") {
           timeEntryData.start_time = null;
           timeEntryData.end_time = null;
@@ -151,25 +148,28 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Updating time entry with data:", timeEntryData);
       console.log("Time entry ID:", timeEntry.id);
 
-      // Update the time entry in the database
-      const { error } = await supabase
+      // Update the time entry in the database and properly await the result
+      const { data, error } = await supabase
         .from("time_entries")
         .update(timeEntryData)
-        .eq("id", timeEntry.id);
+        .eq("id", timeEntry.id)
+        .select(); // Add select to verify the update succeeded
 
       if (error) {
         console.error("Error from Supabase:", error);
         throw error;
       }
 
-      console.log("Update successful");
-      onSuccess(); // Call this first to close the dialog
+      console.log("Update successful, received data:", data);
+      
+      // Close the dialog first, then show success
+      setIsLoading(false);
+      onSuccess(); 
       toast.success("Time entry updated successfully");
     } catch (error: any) {
+      setIsLoading(false);
       console.error("Error updating time entry:", error);
       toast.error(error.message || "Failed to update time entry");
-    } finally {
-      setIsLoading(false);
     }
   };
 

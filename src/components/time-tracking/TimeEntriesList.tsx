@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -130,8 +129,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     }
     return "-";
   };
-  
-  // Handle delete time entry
+
   const handleDeleteClick = (entry: any) => {
     console.log("Delete clicked for entry:", entry);
     setSelectedEntry(entry);
@@ -149,23 +147,21 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
-      // Perform the delete operation directly
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from("time_entries")
         .delete()
         .eq("id", selectedEntry.id);
         
-      if (error) {
-        console.error("Error deleting time entry:", error);
-        throw error;
+      if (deleteError) {
+        console.error("Error deleting time entry:", deleteError);
+        throw deleteError;
       }
       
-      // Close the dialog first before any other operations
       setDeleteDialogOpen(false);
       setSelectedEntry(null);
+      
       toast.success("Time entry deleted successfully");
       
-      // Then invalidate queries and refetch
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
       await refetch();
     } catch (error: any) {
@@ -176,23 +172,18 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     }
   };
   
-  // Handle edit time entry
   const handleEditClick = (entry: any) => {
     console.log("Edit clicked for entry:", entry);
     setSelectedEntry(entry);
     setEditDialogOpen(true);
   };
   
-  // Handle edit success
   const handleEditSuccess = async () => {
     console.log("Edit successful, refreshing data");
     setEditDialogOpen(false);
     setSelectedEntry(null);
     
-    // Invalidate all time entries queries
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    
-    // Force immediate refetch of this specific date's entries
     await refetch();
   };
 
@@ -312,7 +303,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         </div>
       </Card>
       
-      {/* Delete confirmation dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -344,7 +334,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Edit dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
