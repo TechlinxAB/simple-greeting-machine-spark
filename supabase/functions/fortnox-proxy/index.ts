@@ -130,6 +130,7 @@ serve(async (req) => {
     const fortnoxUrl = `${FORTNOX_API_BASE}${fortnoxPath}`;
     
     console.log(`Making ${method} request to Fortnox: ${fortnoxUrl}`);
+    console.log(`Using headers: Authorization=Bearer ${accessToken.substring(0, 5)}..., Client-Secret=${clientSecret.substring(0, 5)}...`);
     
     // IMPROVED ERROR HANDLING AND RESPONSE FORWARDING
     try {
