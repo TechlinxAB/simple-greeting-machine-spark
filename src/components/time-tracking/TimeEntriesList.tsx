@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -147,21 +148,24 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from("time_entries")
         .delete()
-        .eq("id", selectedEntry.id);
+        .eq("id", selectedEntry.id)
+        .single();
         
-      if (deleteError) {
-        console.error("Error deleting time entry:", deleteError);
-        throw deleteError;
+      if (error) {
+        console.error("Error deleting time entry:", error);
+        throw error;
       }
       
+      // Close dialog first before showing success toast
       setDeleteDialogOpen(false);
       setSelectedEntry(null);
       
       toast.success("Time entry deleted successfully");
       
+      // Force a refetch of time entries
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
       await refetch();
     } catch (error: any) {

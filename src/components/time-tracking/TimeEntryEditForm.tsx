@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,8 +17,8 @@ import { differenceInMinutes } from "date-fns";
 
 // Simplified schema for editing - all fields are optional to allow partial updates
 const timeEntrySchema = z.object({
-  clientId: z.string().optional(),
-  productId: z.string().optional(),
+  clientId: z.string(),
+  productId: z.string(),
   startTime: z.date().optional(),
   endTime: z.date().optional(),
   quantity: z.number().optional(),
@@ -128,15 +129,28 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
       // Handle time fields based on product type
       if (productType === "activity") {
-        timeEntryData.start_time = values.startTime ? values.startTime.toISOString() : timeEntry.start_time;
-        timeEntryData.end_time = values.endTime ? values.endTime.toISOString() : timeEntry.end_time;
+        if (values.startTime) {
+          timeEntryData.start_time = values.startTime.toISOString();
+        } else if (timeEntry.start_time) {
+          timeEntryData.start_time = timeEntry.start_time;
+        }
+        
+        if (values.endTime) {
+          timeEntryData.end_time = values.endTime.toISOString();
+        } else if (timeEntry.end_time) {
+          timeEntryData.end_time = timeEntry.end_time;
+        }
         
         // If switching from item to activity, clear quantity
         if (timeEntry.products?.type === "item") {
           timeEntryData.quantity = null;
         }
       } else if (productType === "item") {
-        timeEntryData.quantity = values.quantity !== undefined ? values.quantity : timeEntry.quantity;
+        if (values.quantity !== undefined) {
+          timeEntryData.quantity = values.quantity;
+        } else if (timeEntry.quantity) {
+          timeEntryData.quantity = timeEntry.quantity;
+        }
         
         // If switching from activity to item, clear times
         if (timeEntry.products?.type === "activity") {
@@ -148,28 +162,28 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Updating time entry with data:", timeEntryData);
       console.log("Time entry ID:", timeEntry.id);
 
-      // Update the time entry in the database and properly await the result
-      const { data, error } = await supabase
+      // Update the time entry in the database
+      const { error } = await supabase
         .from("time_entries")
         .update(timeEntryData)
         .eq("id", timeEntry.id)
-        .select(); // Add select to verify the update succeeded
+        .select();
 
       if (error) {
         console.error("Error from Supabase:", error);
         throw error;
       }
 
-      console.log("Update successful, received data:", data);
+      console.log("Update successful");
       
-      // Close the dialog first, then show success
-      setIsLoading(false);
+      // Call onSuccess to close the dialog and refresh the list
       onSuccess(); 
       toast.success("Time entry updated successfully");
     } catch (error: any) {
-      setIsLoading(false);
       console.error("Error updating time entry:", error);
       toast.error(error.message || "Failed to update time entry");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -236,7 +250,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                   placeholder="Enter quantity"
                   {...field}
                   value={field.value || ""}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                 />
               </FormControl>
               <FormMessage />
