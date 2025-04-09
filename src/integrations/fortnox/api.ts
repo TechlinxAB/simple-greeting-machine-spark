@@ -459,10 +459,11 @@ export async function fortnoxApiRequest(
   data?: any
 ): Promise<any> {
   try {
+    // Get the Fortnox credentials from the database
     const credentials = await getFortnoxCredentials();
     
     if (!credentials || !credentials.accessToken) {
-      throw new Error('Fortnox credentials not found');
+      throw new Error('Fortnox credentials not found or missing access token');
     }
     
     // Check if token is expired and refresh if needed
@@ -487,33 +488,39 @@ export async function fortnoxApiRequest(
       credentials.accessToken = refreshed.accessToken;
     }
     
+    // Log the request details
     console.log(`Making ${method} request to Fortnox endpoint: ${endpoint}`);
+    console.log("Using access token:", credentials.accessToken?.substring(0, 10) + "...");
+    console.log("Using client secret:", credentials.clientSecret?.substring(0, 5) + "...");
 
     // Format endpoint to ensure it starts with a slash
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // IMPROVED ERROR HANDLING FOR EDGE FUNCTION
-    console.log("Calling edge function for Fortnox request with credentials:", {
+    // Prepare the request body for the edge function
+    // IMPORTANT: We need to include the headers explicitly in the body
+    const requestBody = {
       method,
       path,
-      hasData: !!data,
-      accessTokenPresent: !!credentials.accessToken,
-      accessTokenLength: credentials.accessToken ? credentials.accessToken.length : 0,
-      clientSecretPresent: !!credentials.clientSecret,
-      clientSecretLength: credentials.clientSecret ? credentials.clientSecret.length : 0
+      payload: data,
+      headers: {
+        'Authorization': `Bearer ${credentials.accessToken}`,
+        'Client-Secret': credentials.clientSecret
+      }
+    };
+    
+    console.log("Sending request to fortnox-proxy with body:", {
+      method: requestBody.method,
+      path: requestBody.path,
+      hasPayload: !!requestBody.payload,
+      headers: {
+        'Authorization': `Bearer ${credentials.accessToken?.substring(0, 5)}...`,
+        'Client-Secret': `${credentials.clientSecret?.substring(0, 5)}...`
+      }
     });
     
-    // Modified to ensure headers are properly included in the request body
+    // Call the edge function with the properly structured request body
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
-      body: {
-        method,
-        path,
-        payload: data,
-        headers: {
-          'Authorization': `Bearer ${credentials.accessToken}`,
-          'Client-Secret': credentials.clientSecret
-        }
-      }
+      body: requestBody
     });
     
     if (error) {

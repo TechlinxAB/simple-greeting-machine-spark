@@ -57,8 +57,8 @@ serve(async (req) => {
         path: requestData.path || requestData.endpoint,
         hasBody: !!requestData.body || !!requestData.payload,
         hasHeaders: !!requestData.headers,
-        authHeaderPresent: requestData.headers?.Authorization ? true : false,
-        clientSecretPresent: requestData.headers?.['Client-Secret'] ? true : false
+        authHeaderPresent: requestData.headers?.Authorization ? "yes" : "no",
+        clientSecretPresent: requestData.headers?.['Client-Secret'] ? "yes" : "no"
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -100,11 +100,9 @@ serve(async (req) => {
 
     // Get the Fortnox credentials from the request.headers object
     const accessToken = requestData.headers?.Authorization?.replace('Bearer ', '') || 
-      requestData.headers?.['Access-Token'] ||
-      Deno.env.get('FORTNOX_ACCESS_TOKEN');
+      requestData.headers?.['Access-Token'];
     
-    const clientSecret = requestData.headers?.['Client-Secret'] || 
-      Deno.env.get('FORTNOX_CLIENT_SECRET');
+    const clientSecret = requestData.headers?.['Client-Secret'];
     
     if (!accessToken || !clientSecret) {
       const missingAuth = [];
