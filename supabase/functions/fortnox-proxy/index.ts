@@ -57,6 +57,8 @@ serve(async (req) => {
         path: requestData.path || requestData.endpoint,
         hasBody: !!requestData.body || !!requestData.payload,
         hasHeaders: !!requestData.headers,
+        authHeaderPresent: requestData.headers?.Authorization ? true : false,
+        clientSecretPresent: requestData.headers?.['Client-Secret'] ? true : false
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);

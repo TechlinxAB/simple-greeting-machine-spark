@@ -10,9 +10,10 @@ import {
   saveFortnoxCredentials
 } from "@/integrations/fortnox/api";
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -25,6 +26,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [redirectUri, setRedirectUri] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showToken, setShowToken] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -188,6 +190,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     toast.success("Redirect URI copied to clipboard");
   };
 
+  const copyToken = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${type} copied to clipboard`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -212,10 +219,45 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               <p className="text-sm">
                 Connected to Fortnox. You can now export invoices directly to your Fortnox account.
               </p>
-              {credentials?.expiresAt && (
-                <p className="text-xs text-muted-foreground">
-                  Token expires: {new Date(credentials.expiresAt).toLocaleString()}
-                </p>
+              
+              {credentials?.accessToken && (
+                <div className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium flex items-center gap-1">
+                        <Key className="h-3 w-3 text-green-600" />
+                        <span>Access Token</span>
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setShowToken(!showToken)}
+                      >
+                        {showToken ? "Hide" : "Show"}
+                      </Button>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="font-mono text-xs p-2 bg-black/10 rounded overflow-hidden whitespace-nowrap overflow-ellipsis">
+                        {showToken ? credentials.accessToken : '••••••••••••••••••••••••••••••••'}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                        onClick={() => copyToken(credentials.accessToken, 'Access Token')}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    {credentials?.expiresAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Token expires: {new Date(credentials.expiresAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -493,13 +493,17 @@ export async function fortnoxApiRequest(
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
     // IMPROVED ERROR HANDLING FOR EDGE FUNCTION
-    console.log("Calling edge function for Fortnox request:", {
+    console.log("Calling edge function for Fortnox request with credentials:", {
       method,
       path,
-      hasData: !!data
+      hasData: !!data,
+      accessTokenPresent: !!credentials.accessToken,
+      accessTokenLength: credentials.accessToken ? credentials.accessToken.length : 0,
+      clientSecretPresent: !!credentials.clientSecret,
+      clientSecretLength: credentials.clientSecret ? credentials.clientSecret.length : 0
     });
     
-    // Modified to include authorization headers in the request body
+    // Modified to ensure headers are properly included in the request body
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: {
         method,
