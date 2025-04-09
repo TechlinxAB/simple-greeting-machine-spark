@@ -7,19 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { DeleteClientDialog } from "@/components/clients/DeleteClientDialog";
 import { Plus, Search, Users, Mail, Phone, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { Client } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
-  const { session, userRole } = useAuth();
-  const canDeleteClients = userRole === 'admin' || userRole === 'manager';
 
   const { data: clients = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["all-clients"],
@@ -61,12 +57,6 @@ export default function Clients() {
   const handleClientCreated = () => {
     queryClient.invalidateQueries({ queryKey: ["all-clients"] });
     queryClient.invalidateQueries({ queryKey: ["clients"] });
-  };
-
-  const handleClientDeleted = () => {
-    queryClient.invalidateQueries({ queryKey: ["all-clients"] });
-    queryClient.invalidateQueries({ queryKey: ["clients"] });
-    toast.success("Client list updated");
   };
 
   const filteredClients = clients.filter((client: Client) => 
@@ -164,7 +154,6 @@ export default function Clients() {
                     <TableHead>Client #</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Contact</TableHead>
-                    {canDeleteClients && <TableHead className="w-[50px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -195,11 +184,6 @@ export default function Clients() {
                           {!client.email && !client.telephone && "-"}
                         </div>
                       </TableCell>
-                      {canDeleteClients && (
-                        <TableCell>
-                          <DeleteClientDialog client={client} onSuccess={handleClientDeleted} />
-                        </TableCell>
-                      )}
                     </TableRow>
                   ))}
                 </TableBody>
