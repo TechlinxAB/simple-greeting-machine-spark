@@ -17,12 +17,13 @@ import {
 } from "lucide-react";
 import { NewsEditor } from "@/components/news/NewsEditor";
 import { NewsPost } from "@/components/news/NewsPost";
+import { NewsPost as NewsPostType } from "@/types/database";
 
 export default function Dashboard() {
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [creatingPost, setCreatingPost] = useState(false);
-  const [editingPost, setEditingPost] = useState<any>(null);
+  const [editingPost, setEditingPost] = useState<NewsPostType | null>(null);
   const queryClient = useQueryClient();
   
   const today = new Date();
@@ -124,7 +125,7 @@ export default function Dashboard() {
           .order("created_at", { ascending: false });
           
         if (error) throw error;
-        return data || [];
+        return data as NewsPostType[];
       } catch (error) {
         console.error("Error fetching news posts:", error);
         return [];
@@ -237,7 +238,7 @@ export default function Dashboard() {
     refetchNews();
   };
   
-  const handleStartEditing = (post: any) => {
+  const handleStartEditing = (post: NewsPostType) => {
     setEditingPost(post);
     setCreatingPost(true);
   };

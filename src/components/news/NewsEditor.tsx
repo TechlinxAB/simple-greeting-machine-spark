@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Upload, Image, X } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
+import { NewsPost } from "@/types/database";
 
 const newsFormSchema = z.object({
   title: z.string().min(1, { message: "Title is required" }),
@@ -23,12 +24,7 @@ type NewsFormValues = z.infer<typeof newsFormSchema>;
 
 interface NewsEditorProps {
   onSuccess: () => void;
-  editingPost?: {
-    id: string;
-    title: string;
-    content: string;
-    image_url?: string;
-  } | null;
+  editingPost?: NewsPost | null;
   onCancel: () => void;
 }
 
@@ -115,7 +111,7 @@ export function NewsEditor({ onSuccess, editingPost = null, onCancel }: NewsEdit
       if (editingPost) {
         // Update existing post
         const { error } = await supabase
-          .from('news_posts')
+          .from("news_posts")
           .update({
             title: values.title,
             content: values.content,
@@ -128,7 +124,7 @@ export function NewsEditor({ onSuccess, editingPost = null, onCancel }: NewsEdit
       } else {
         // Create new post
         const { error } = await supabase
-          .from('news_posts')
+          .from("news_posts")
           .insert({
             title: values.title,
             content: values.content,

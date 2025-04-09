@@ -1,6 +1,6 @@
 
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 export interface AppSettings {
@@ -11,16 +11,18 @@ export interface AppSettings {
   accentColor: string;
 }
 
-// Default color theme based on the provided screenshot
+// Default color theme using the purple/blue palette from the provided screenshot
 export const DEFAULT_THEME: AppSettings = {
   appName: "Techlinx Time Tracker",
-  primaryColor: "#7FB069", // Softer green that matches the screenshot
-  secondaryColor: "#E8F5E9", // Light green background
-  sidebarColor: "#5A9A5A", // Darker green for sidebar
-  accentColor: "#96C7A9", // Accent green
+  primaryColor: "#9b87f5", // Primary Purple
+  secondaryColor: "#E5DEFF", // Soft Purple
+  sidebarColor: "#1A1F2C", // Dark Purple
+  accentColor: "#33C3F0", // Sky Blue
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
+  
   // Fetch app settings from Supabase
   const { data: appSettings } = useQuery({
     queryKey: ["app-settings"],
@@ -59,8 +61,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (appSettings) {
       applyColorTheme(appSettings);
+      
+      // Set up a realtime subscription to update when settings change
+      const channel = supabase
+        .channel('system_settings_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'system_settings',
+            filter: 'id=eq.app_settings'
+          },
+          () => {
+            // Invalidate the app-settings query to refetch
+            queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [appSettings]);
+  }, [appSettings, queryClient]);
 
   return <>{children}</>;
 }

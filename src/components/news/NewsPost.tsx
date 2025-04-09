@@ -8,18 +8,11 @@ import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { NewsPost as NewsPostType } from "@/types/database";
 
 interface NewsPostProps {
-  post: {
-    id: string;
-    title: string;
-    content: string;
-    image_url?: string | null;
-    created_at: string;
-    updated_at?: string | null;
-    created_by: string;
-  };
-  onEdit: (post: any) => void;
+  post: NewsPostType;
+  onEdit: (post: NewsPostType) => void;
   onDelete: (id: string) => void;
 }
 

@@ -177,7 +177,8 @@ export default function Settings() {
     }
   }, [fortnoxSettings, fortnoxSettingsForm]);
 
-  const handleResetToDefault = () => {
+  const handleResetToDefault = async () => {
+    // Reset the form to default values
     appSettingsForm.reset({
       appName: DEFAULT_THEME.appName,
       primaryColor: DEFAULT_THEME.primaryColor,
@@ -186,12 +187,34 @@ export default function Settings() {
       accentColor: DEFAULT_THEME.accentColor,
     });
 
-    // Also apply the default theme immediately
+    // Apply the default theme immediately
     applyColorTheme(DEFAULT_THEME);
     
-    toast.success("Colors reset to default", {
-      description: "Click Save to persist these changes."
-    });
+    if (canManageSettings) {
+      try {
+        // Save default colors to the database directly
+        const { error } = await supabase
+          .from("system_settings")
+          .upsert({ 
+            id: "app_settings", 
+            settings: DEFAULT_THEME
+          });
+          
+        if (error) throw error;
+        
+        // Invalidate the query to refetch
+        queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+        
+        toast.success("Colors reset to default and applied to all users");
+      } catch (error) {
+        console.error("Error saving default app settings:", error);
+        toast.error("Failed to save default settings to the database");
+      }
+    } else {
+      toast.success("Colors reset to default", {
+        description: "Click Save to persist these changes."
+      });
+    }
   };
   
   const onSubmitAppSettings = async (data: AppSettingsFormValues) => {
@@ -217,7 +240,7 @@ export default function Settings() {
       // Invalidate the query to refetch
       queryClient.invalidateQueries({ queryKey: ["app-settings"] });
       
-      toast.success("Application settings saved");
+      toast.success("Application settings saved for all users");
     } catch (error) {
       console.error("Error saving app settings:", error);
       toast.error("Failed to save application settings");
@@ -499,7 +522,10 @@ export default function Settings() {
                     />
                     
                     <div className="flex justify-between pt-6">
-                      <FortnoxConnect />
+                      <FortnoxConnect 
+                        clientId={fortnoxSettingsForm.getValues("clientId")}
+                        clientSecret={fortnoxSettingsForm.getValues("clientSecret")}
+                      />
                       
                       <Button 
                         type="submit" 
@@ -520,4 +546,3 @@ export default function Settings() {
     </div>
   );
 }
-
