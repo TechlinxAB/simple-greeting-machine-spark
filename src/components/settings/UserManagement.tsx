@@ -53,7 +53,23 @@ export function UserManagement() {
     queryKey: ["users"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('get-all-users');
+        // Get the current session to ensure we have a valid token
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (!sessionData.session) {
+          throw new Error("No active session");
+        }
+        
+        console.log("Fetching users with authenticated session");
+        
+        const { data, error } = await supabase.functions.invoke(
+          'get-all-users',
+          {
+            headers: {
+              Authorization: `Bearer ${sessionData.session.access_token}`
+            }
+          }
+        );
         
         if (error) {
           console.error("Error fetching users:", error);
