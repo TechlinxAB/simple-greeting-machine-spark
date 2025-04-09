@@ -24,6 +24,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 
 const roleIcons = {
   admin: <Shield className="h-4 w-4 text-red-500" />,
@@ -40,6 +41,7 @@ const roleBadgeVariants = {
 export function UserManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const { session } = useAuth(); // Get the session from auth context
   
   type UserResponse = {
     id: string;
@@ -53,20 +55,21 @@ export function UserManagement() {
     queryKey: ["users"],
     queryFn: async () => {
       try {
-        // Get the current session to ensure we have a valid token
-        const { data: sessionData } = await supabase.auth.getSession();
-        
-        if (!sessionData.session) {
-          throw new Error("No active session");
+        // Make sure we have a valid session with an access token
+        if (!session || !session.access_token) {
+          console.error("No active session or access token");
+          toast.error("You need to be logged in to access this feature");
+          return [] as User[];
         }
         
         console.log("Fetching users with authenticated session");
         
+        // Pass the access token in the Authorization header
         const { data, error } = await supabase.functions.invoke(
           'get-all-users',
           {
             headers: {
-              Authorization: `Bearer ${sessionData.session.access_token}`
+              Authorization: `Bearer ${session.access_token}`
             }
           }
         );
@@ -98,6 +101,7 @@ export function UserManagement() {
         return [] as User[];
       }
     },
+    enabled: !!session?.access_token, // Only run the query if we have an access token
     retry: 1, // Only retry once to avoid flooding with requests
     refetchOnWindowFocus: false // Disable refetching on window focus
   });
