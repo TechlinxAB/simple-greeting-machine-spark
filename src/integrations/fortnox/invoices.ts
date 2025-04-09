@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -208,10 +209,9 @@ export async function createFortnoxInvoice(
       });
     }
     
-    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
-    const response = await fortnoxApiRequest("/invoices", "POST", {
-      Invoice: invoiceData
-    });
+    // Create invoice in Fortnox - FIXED: No longer wrapping in Invoice object
+    console.log("Sending invoice data directly to Fortnox without Invoice wrapper");
+    const response = await fortnoxApiRequest("/invoices", "POST", invoiceData);
     
     if (!response || !response.Invoice) {
       throw new Error("Failed to create invoice in Fortnox");
