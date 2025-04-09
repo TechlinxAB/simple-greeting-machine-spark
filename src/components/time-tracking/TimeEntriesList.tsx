@@ -131,10 +131,16 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   };
   
   const confirmDelete = async () => {
-    if (!selectedEntry) return;
+    if (!selectedEntry || !selectedEntry.id) {
+      toast.error("No time entry selected for deletion");
+      return;
+    }
     
     setIsDeleting(true);
+    
     try {
+      console.log("Deleting time entry with ID:", selectedEntry.id);
+      
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -145,9 +151,15 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         throw error;
       }
       
-      // Refresh queries
-      await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+      // Manually remove the entry from the local state temporarily for immediate UI update
+      const updatedEntries = timeEntries.filter(entry => entry.id !== selectedEntry.id);
+      
+      // Invalidate and refetch
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+      
+      // Force a refetch to ensure the UI is up to date
+      refetch();
       
       toast.success("Time entry deleted successfully");
     } catch (error: any) {
@@ -169,10 +181,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   // Handle edit success
   const handleEditSuccess = async () => {
     setEditDialogOpen(false);
-    // Refresh queries
-    await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+    
+    // Invalidate and refetch
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    toast.success("Time entry updated successfully");
+    await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+    
+    // Force a refetch to ensure the UI is up to date
+    refetch();
   };
 
   return (

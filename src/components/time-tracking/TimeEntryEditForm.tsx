@@ -15,10 +15,7 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { differenceInMinutes } from "date-fns";
 
-// Let's declare a variable to store products for the schema validation
-let editProducts: any[] = [];
-
-// Modified schema to make validation more flexible
+// Modified schema to make validation more flexible for editing
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -27,25 +24,13 @@ const timeEntrySchema = z.object({
   quantity: z.number().optional(),
   description: z.string().optional(),
 }).refine((data) => {
-  // Get product type to determine validation
-  const product = editProducts.find(p => p.id === data.productId);
-  
-  if (product?.type === "activity") {
-    // For activities, only validate times if both are provided or both are undefined
-    if ((data.startTime && !data.endTime) || (!data.startTime && data.endTime)) {
-      return false;
-    }
-    return true;
+  // If it's an activity type, make sure both times are present or both are absent
+  if (data.startTime && !data.endTime) {
+    return false;
   }
-  
-  // For items, only validate quantity if it's provided
-  if (product?.type === "item" && data.quantity !== undefined) {
-    return data.quantity > 0;
-  }
-  
   return true;
 }, {
-  message: "Please provide all required information",
+  message: "End time is required when start time is provided",
   path: ["endTime"]
 });
 
@@ -61,7 +46,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>(
     timeEntry.products?.type || "activity"
@@ -105,7 +89,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
         if (productsError) throw productsError;
         setProducts(productsData || []);
-        editProducts = productsData || [];
       } catch (error: any) {
         console.error("Error fetching data:", error.message);
         toast.error("Failed to load clients and products");
@@ -115,50 +98,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedProductType === "") {
-      setFilteredProducts(products);
-    } else {
-      setFilteredProducts(products.filter(product => product.type === selectedProductType));
-    }
-  }, [selectedProductType, products]);
-
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
-  };
-
-  // Apply rounding to time values (15-minute intervals)
-  const applyTimeRounding = (time: Date | undefined): Date | undefined => {
-    if (!time) return undefined;
-    
-    const hours = time.getHours();
-    const minutes = time.getMinutes();
-    
-    const remainder = minutes % 15;
-    let roundedMinutes: number;
-    
-    if (remainder === 0) {
-      roundedMinutes = minutes;
-    } else {
-      roundedMinutes = minutes + (15 - remainder);
-      if (roundedMinutes >= 60) {
-        return new Date(
-          time.getFullYear(),
-          time.getMonth(),
-          time.getDate(),
-          (hours + 1) % 24,
-          roundedMinutes - 60
-        );
-      }
-    }
-    
-    return new Date(
-      time.getFullYear(),
-      time.getMonth(),
-      time.getDate(),
-      hours,
-      roundedMinutes
-    );
   };
 
   const handleStartTimeComplete = () => {
@@ -192,23 +133,23 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       };
 
       if (product.type === "activity") {
-        // Handle start and end times, but only if both are provided
         if (values.startTime && values.endTime) {
-          const roundedStartTime = applyTimeRounding(values.startTime);
-          const roundedEndTime = applyTimeRounding(values.endTime);
+          timeEntryData.start_time = values.startTime.toISOString();
+          timeEntryData.end_time = values.endTime.toISOString();
           
-          if (roundedStartTime && roundedEndTime) {
-            timeEntryData.start_time = roundedStartTime.toISOString();
-            timeEntryData.end_time = roundedEndTime.toISOString();
-          }
-          
-          // Clear quantity field if it's an activity
+          // Clear quantity field for activities
           timeEntryData.quantity = null;
+        } else if (!values.startTime && !values.endTime) {
+          // Both times are empty, clear them
+          timeEntryData.start_time = null;
+          timeEntryData.end_time = null;
         }
-      } else if (product.type === "item" && values.quantity) {
-        timeEntryData.quantity = values.quantity;
+      } else if (product.type === "item") {
+        if (values.quantity !== undefined) {
+          timeEntryData.quantity = values.quantity;
+        }
         
-        // Clear time fields if it's an item
+        // Clear time fields for items
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;
       }
@@ -222,6 +163,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
       if (error) throw error;
 
+      toast.success("Time entry updated successfully");
       onSuccess();
     } catch (error: any) {
       console.error("Error updating time entry:", error);

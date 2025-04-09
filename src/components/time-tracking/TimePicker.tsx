@@ -52,7 +52,7 @@ export function TimePicker({
     if (filtered.length === 5 && filtered.includes(":")) {
       // If we have a complete time, trigger the onComplete
       setTimeout(() => {
-        handleTimeUpdate(filtered);
+        handleTimeUpdate(filtered, false); // Don't round on auto-complete
         if (onComplete) {
           onComplete();
         }
@@ -61,7 +61,7 @@ export function TimePicker({
   };
   
   // Parse time and create Date object
-  const handleTimeUpdate = (timeStr: string = timeInput) => {
+  const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
       return;
     }
@@ -88,6 +88,12 @@ export function TimePicker({
       0
     );
     
+    // Only apply rounding if specifically requested (not during normal input)
+    if (shouldRound && roundToMinutes > 0) {
+      const roundedMinutes = Math.round(minutes / roundToMinutes) * roundToMinutes;
+      newDate.setMinutes(roundedMinutes);
+    }
+    
     onChange(newDate);
   };
   
@@ -95,7 +101,7 @@ export function TimePicker({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate();
+        handleTimeUpdate(timeInput, false); // Don't round on key events
       }
       if (e.key === "Enter") {
         e.preventDefault();
@@ -109,7 +115,7 @@ export function TimePicker({
   // Handle blur event
   const handleBlur = () => {
     if (timeInput) {
-      handleTimeUpdate();
+      handleTimeUpdate(timeInput, roundOnBlur);
     }
   };
 
