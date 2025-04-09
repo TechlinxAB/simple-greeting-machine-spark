@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -23,11 +22,6 @@ const appSettingsSchema = z.object({
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
   sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
-});
-
-const fortnoxSettingsSchema = z.object({
-  fortnoxClientId: z.string().min(5, { message: "Fortnox Client ID is too short" }),
-  fortnoxClientSecret: z.string().min(5, { message: "Fortnox Client Secret is too short" }),
 });
 
 interface AppSettings {
@@ -166,9 +160,7 @@ export default function Settings() {
     }
   });
   
-  // Function to apply color theme to the site
   const applyColorTheme = (values: AppSettings) => {
-    // Apply the color settings to CSS variables
     const root = document.documentElement;
     const primaryColorHsl = hexToHSL(values.primaryColor);
     const secondaryColorHsl = hexToHSL(values.secondaryColor);
@@ -207,8 +199,23 @@ export default function Settings() {
         accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
       });
       
-      // Apply the color settings to the site - FIX: Cast to AppSettings to ensure all properties are required
-      applyColorTheme(systemSettings.appSettings as AppSettings);
+      if (
+        systemSettings.appSettings.appName &&
+        systemSettings.appSettings.primaryColor &&
+        systemSettings.appSettings.secondaryColor &&
+        (systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor) &&
+        (systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor)
+      ) {
+        const completeSettings: AppSettings = {
+          appName: systemSettings.appSettings.appName,
+          primaryColor: systemSettings.appSettings.primaryColor,
+          secondaryColor: systemSettings.appSettings.secondaryColor,
+          sidebarColor: systemSettings.appSettings.sidebarColor || systemSettings.appSettings.primaryColor,
+          accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
+        };
+        
+        applyColorTheme(completeSettings);
+      }
     }
     
     if (systemSettings?.fortnoxSettings) {
@@ -227,12 +234,9 @@ export default function Settings() {
     }
   }, [tabFromUrl]);
   
-  // Function to convert hex to HSL
   function hexToHSL(hex: string) {
-    // Remove the # if it exists
     hex = hex.replace(/^#/, '');
     
-    // Convert to RGB first
     let r, g, b;
     if (hex.length === 3) {
       r = parseInt(hex[0] + hex[0], 16) / 255;
@@ -244,7 +248,6 @@ export default function Settings() {
       b = parseInt(hex.substring(4, 6), 16) / 255;
     }
     
-    // Find min and max
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     let h = 0, s = 0, l = (max + min) / 2;
@@ -267,7 +270,6 @@ export default function Settings() {
   
   const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
-      // Apply the color settings to the site
       applyColorTheme(values);
       
       const { error } = await supabase
@@ -279,7 +281,6 @@ export default function Settings() {
       
       if (error) throw error;
       
-      // Invalidate the query to refresh system settings across the app
       queryClient.invalidateQueries({ queryKey: ["system-settings"] });
       
       toast.success("App settings saved successfully");
