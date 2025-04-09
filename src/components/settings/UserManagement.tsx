@@ -45,8 +45,11 @@ export function UserManagement() {
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .rpc('get_all_users');
+      // Using the generic function call to avoid TypeScript errors
+      const { data, error } = await supabase.rpc('get_all_users') as {
+        data: any[] | null;
+        error: any;
+      };
       
       if (error) throw error;
       
