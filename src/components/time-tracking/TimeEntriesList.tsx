@@ -148,7 +148,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
-      // FIX: Remove the .single() call which was causing the error
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -166,8 +165,11 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       toast.success("Time entry deleted successfully");
       
       // Force a refetch of time entries
-      await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      
+      // Also refetch the current date's entries explicitly
       await refetch();
+      
     } catch (error: any) {
       console.error("Delete time entry error:", error);
       toast.error(error.message || "Failed to delete time entry");
@@ -187,8 +189,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setEditDialogOpen(false);
     setSelectedEntry(null);
     
+    // Invalidate all time entries queries to ensure data consistency
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+    
+    // Explicit refetch for the current view
     await refetch();
+    
+    toast.success("Time entry updated successfully");
   };
 
   return (
