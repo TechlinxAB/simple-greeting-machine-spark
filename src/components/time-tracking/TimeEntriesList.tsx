@@ -58,13 +58,17 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
 
   const startDate = startOfDay(selectedDate);
   const endDate = endOfDay(selectedDate);
+  
+  // Create a unique query key for this date
+  const queryKey = ["time-entries", format(selectedDate, "yyyy-MM-dd")];
 
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
-    queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")],
+    queryKey: queryKey,
     queryFn: async () => {
       if (!user) return [];
 
       try {
+        console.log(`Fetching time entries for ${format(selectedDate, "yyyy-MM-dd")}`);
         const { data, error } = await supabase
           .from("time_entries")
           .select(`
@@ -85,8 +89,12 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
           .lte("created_at", endDate.toISOString())
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase error:", error);
+          throw error;
+        }
         
+        console.log(`Found ${data?.length || 0} time entries`);
         return data || [];
       } catch (error) {
         console.error("Error fetching time entries:", error);
@@ -126,6 +134,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   
   // Handle delete time entry
   const handleDeleteClick = (entry: any) => {
+    console.log("Delete clicked for entry:", entry);
     setSelectedEntry(entry);
     setDeleteDialogOpen(true);
   };
@@ -141,7 +150,19 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
-      // Perform the delete operation
+      // First verify the entry exists
+      const { data: checkData, error: checkError } = await supabase
+        .from("time_entries")
+        .select("id")
+        .eq("id", selectedEntry.id)
+        .single();
+        
+      if (checkError) {
+        console.error("Error checking time entry:", checkError);
+        throw new Error("Could not find the time entry in the database");
+      }
+      
+      // Now perform the delete operation
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -152,13 +173,16 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         throw error;
       }
       
-      // Invalidate and refetch queries to update the UI
+      // Update UI first
+      toast.success("Time entry deleted successfully");
+      
+      // Then invalidate queries and refetch
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
       
-      // Fetch the updated data
+      // Force immediate refetch
       await refetch();
       
-      toast.success("Time entry deleted successfully");
+      // Close the dialog
       setDeleteDialogOpen(false);
     } catch (error: any) {
       console.error("Delete time entry error:", error);
@@ -171,20 +195,24 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   
   // Handle edit time entry
   const handleEditClick = (entry: any) => {
+    console.log("Edit clicked for entry:", entry);
     setSelectedEntry(entry);
     setEditDialogOpen(true);
   };
   
   // Handle edit success
   const handleEditSuccess = async () => {
+    console.log("Edit successful, refreshing data");
     setEditDialogOpen(false);
     setSelectedEntry(null);
     
-    // Invalidate and refetch
+    // Invalidate all time entries queries
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     
-    // Force a refetch to ensure the UI is up to date
+    // Force immediate refetch of this specific date's entries
     await refetch();
+    
+    toast.success("Time entry updated successfully");
   };
 
   return (
@@ -315,7 +343,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmDelete} 
+              onClick={(e) => {
+                e.preventDefault(); // Prevent form submission
+                confirmDelete();
+              }} 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
             >

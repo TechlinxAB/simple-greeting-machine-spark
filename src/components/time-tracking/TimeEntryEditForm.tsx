@@ -15,23 +15,14 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { differenceInMinutes } from "date-fns";
 
-// Modified schema to make validation more flexible for editing
+// Simplified schema for editing - all fields are optional to allow partial updates
 const timeEntrySchema = z.object({
-  clientId: z.string({ required_error: "Client is required" }),
-  productId: z.string({ required_error: "Product or activity is required" }),
+  clientId: z.string().optional(),
+  productId: z.string().optional(),
   startTime: z.date().optional(),
   endTime: z.date().optional(),
   quantity: z.number().optional(),
   description: z.string().optional(),
-}).refine((data) => {
-  // For activity entries, ensure end time is present if start time is present
-  if (data.startTime && !data.endTime) {
-    return false;
-  }
-  return true;
-}, {
-  message: "End time is required when start time is provided",
-  path: ["endTime"]
 });
 
 type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
@@ -73,6 +64,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch clients
         const { data: clientsData, error: clientsError } = await supabase
           .from("clients")
           .select("id, name")
@@ -81,6 +73,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
         if (clientsError) throw clientsError;
         setClients(clientsData || []);
 
+        // Fetch products
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("id, name, type, price")
@@ -88,6 +81,11 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
         if (productsError) throw productsError;
         setProducts(productsData || []);
+        
+        // Set selected product type based on the timeEntry
+        if (timeEntry.products?.type) {
+          setSelectedProductType(timeEntry.products.type);
+        }
       } catch (error: any) {
         console.error("Error fetching data:", error.message);
         toast.error("Failed to load clients and products");
@@ -95,7 +93,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
     };
 
     fetchData();
-  }, []);
+  }, [timeEntry]);
 
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
@@ -112,56 +110,67 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   };
 
   const onSubmit = async (values: TimeEntryFormValues) => {
-    if (!user) {
-      toast.error("You must be logged in to update time entries");
-      return;
-    }
-
-    const product = getProductById(values.productId);
-    if (!product) {
-      toast.error("Invalid product selected");
-      return;
-    }
-
+    console.log("Starting update with values:", values);
     setIsLoading(true);
+    
     try {
+      const currentProduct = getProductById(values.productId || timeEntry.product_id);
+      const productType = currentProduct?.type || selectedProductType;
+      
+      console.log("Current product:", currentProduct);
+      console.log("Product type:", productType);
+      
+      // Prepare update data
       const timeEntryData: any = {
-        client_id: values.clientId,
-        product_id: values.productId,
-        description: values.description || null,
+        // Only include fields that are actually set in values
+        ...(values.clientId && { client_id: values.clientId }),
+        ...(values.productId && { product_id: values.productId }),
+        ...(values.description !== undefined && { description: values.description }),
       };
 
-      if (product.type === "activity") {
-        if (values.startTime && values.endTime) {
+      // Handle time fields based on product type
+      if (productType === "activity") {
+        // For activities, handle start_time and end_time
+        if (values.startTime) {
           timeEntryData.start_time = values.startTime.toISOString();
-          timeEntryData.end_time = values.endTime.toISOString();
-          
-          // Clear quantity field for activities
-          timeEntryData.quantity = null;
-        } else if (!values.startTime && !values.endTime) {
-          // Both times are empty, clear them
-          timeEntryData.start_time = null;
-          timeEntryData.end_time = null;
         }
-      } else if (product.type === "item") {
+        
+        if (values.endTime) {
+          timeEntryData.end_time = values.endTime.toISOString();
+        }
+        
+        // If we're switching from item to activity, clear quantity
+        if (timeEntry.products?.type === "item" && !timeEntryData.quantity) {
+          timeEntryData.quantity = null;
+        }
+      } else if (productType === "item") {
+        // For items, handle quantity
         if (values.quantity !== undefined) {
           timeEntryData.quantity = values.quantity;
         }
         
-        // Clear time fields for items
-        timeEntryData.start_time = null;
-        timeEntryData.end_time = null;
+        // If we're switching from activity to item, clear times
+        if (timeEntry.products?.type === "activity") {
+          timeEntryData.start_time = null;
+          timeEntryData.end_time = null;
+        }
       }
 
-      console.log("Updating time entry:", timeEntry.id, "with data:", timeEntryData);
+      console.log("Updating time entry with data:", timeEntryData);
+      console.log("Time entry ID:", timeEntry.id);
 
+      // Update the time entry in the database
       const { error } = await supabase
         .from("time_entries")
         .update(timeEntryData)
         .eq("id", timeEntry.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error from Supabase:", error);
+        throw error;
+      }
 
+      console.log("Update successful");
       toast.success("Time entry updated successfully");
       onSuccess();
     } catch (error: any) {
@@ -173,11 +182,10 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   };
 
   const renderProductSpecificFields = () => {
-    const product = getProductById(watchProductId);
+    const product = getProductById(watchProductId || timeEntry.product_id);
+    const productType = product?.type || selectedProductType;
     
-    if (!product) return null;
-    
-    if (product.type === "activity") {
+    if (productType === "activity") {
       return (
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -220,7 +228,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       );
     }
     
-    if (product.type === "item") {
+    if (productType === "item") {
       return (
         <FormField
           control={form.control}
@@ -340,7 +348,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
             </div>
           </div>
           
-          {watchProductId && renderProductSpecificFields()}
+          {renderProductSpecificFields()}
           
           {form.getValues("startTime") && form.getValues("endTime") && (
             <div className="text-sm text-muted-foreground">
