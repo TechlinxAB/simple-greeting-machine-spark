@@ -17,6 +17,7 @@ const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   price: z.coerce.number().min(0, { message: "Price must be 0 or greater" }),
   account_number: z.string().optional(),
+  article_number: z.string().optional(),
   vat_percentage: z.coerce.number().min(0).max(100).default(25),
   type: z.enum(["activity", "item"]),
 });
@@ -40,6 +41,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
       name: "",
       price: 0,
       account_number: "",
+      article_number: "",
       vat_percentage: 25,
       type: productType,
     },
@@ -59,6 +61,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
         name: values.name,
         price: values.price,
         account_number: values.account_number || null,
+        article_number: values.article_number || null,
         vat_percentage: values.vat_percentage,
         type: values.type,
       };
@@ -153,19 +156,35 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
                 />
               </div>
               
-              <FormField
-                control={form.control}
-                name="account_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Account Number (for bookkeeping)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Account number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="account_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Number (for bookkeeping)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Account number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="article_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Article Number (for Fortnox)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 1000 or SRV001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
             
             <DrawerFooter>

@@ -170,6 +170,12 @@ serve(async (req) => {
           errorDetails = { rawText: text };
         }
         
+        // Enhanced error logging for specific error codes
+        if (fortnoxRes.status === 400) {
+          console.error("💥 Fortnox Bad Request (400) details:", JSON.stringify(errorDetails, null, 2));
+          console.error("💥 Request payload that caused the error:", JSON.stringify(payload, null, 2));
+        }
+        
         return new Response(
           JSON.stringify({
             error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,

@@ -31,6 +31,7 @@ export type Product = {
   type: ProductType;
   price: number;
   account_number: string;
+  article_number?: string;
   vat_percentage: number;
   created_at: string;
   updated_at: string;

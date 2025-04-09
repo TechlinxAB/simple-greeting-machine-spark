@@ -111,10 +111,10 @@ export async function formatTimeEntriesForFortnox(
         const end = new Date(entry.end_time);
         const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         quantity = parseFloat(diffHours.toFixed(2));
-        unitCode = "h"; // Hour unit code (changed from "tim" to "h" per Fortnox spec)
+        unitCode = "h"; // Hour unit code
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
-        unitCode = "st"; // Standard unit code for items (changed from custom to "st" per Fortnox)
+        unitCode = "st"; // Standard unit code for items
       }
       
       // Format description including user information
@@ -128,14 +128,17 @@ export async function formatTimeEntriesForFortnox(
         timeInfo
       ].filter(Boolean).join(' | ');
       
+      // Use the product's article_number if available, or fall back to a safe default
+      const articleNumber = product.article_number || "1000";
+      
       return {
-        ArticleNumber: product.id.substring(0, 10), // Fortnox has limits on article number length
+        ArticleNumber: articleNumber,
         Description: description,
         DeliveredQuantity: quantity,
         Price: product.price,
         VAT: product.vat_percentage,
-        AccountNumber: product.account_number,
-        UnitCode: unitCode // Using standardized unit codes
+        AccountNumber: product.account_number || "3010", // Fallback to 3010 if not specified
+        UnitCode: unitCode
       };
     });
     
