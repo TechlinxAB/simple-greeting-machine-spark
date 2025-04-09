@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, executeWithRetry } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
 
 interface QueryResult<T> {
@@ -43,14 +42,12 @@ export function useSupabaseQuery<T>(
     } catch (err) {
       console.error('Unexpected error during Supabase query:', err);
       if (err instanceof Error) {
-        // Create a PostgrestError-like object for consistency
-        // Include the 'name' property that was missing before
         setError({
           message: err.message,
           details: '',
           hint: '',
           code: 'UNKNOWN',
-          name: 'PostgrestError' // Add the missing name property
+          name: 'PostgrestError'
         } as PostgrestError);
       }
     } finally {
@@ -58,10 +55,8 @@ export function useSupabaseQuery<T>(
     }
   };
 
-  // Alias for execute to match React Query naming conventions
   const refetch = execute;
 
-  // Auto-execute query on mount if not disabled
   useEffect(() => {
     if (options?.autoExecute !== false) {
       execute();
@@ -69,6 +64,51 @@ export function useSupabaseQuery<T>(
   }, []);
 
   return { data, error, loading, execute, refetch };
+}
+
+/**
+ * Helper function specifically for delete operations that incorporates retry logic
+ * and proper error handling.
+ * 
+ * @param table The table to delete from
+ * @param id The ID of the record to delete
+ * @returns Promise with success/error status
+ */
+export async function deleteWithRetry(
+  table: string, 
+  id: string
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`Attempting to delete ${table} with ID: ${id}`);
+    
+    const result = await executeWithRetry(() => 
+      supabase
+        .from(table)
+        .delete()
+        .eq('id', id)
+    );
+    
+    if (result.error) {
+      console.error(`Error deleting from ${table}:`, result.error);
+      
+      let errorMessage = result.error.message;
+      
+      if (result.error.code === '23503') {
+        errorMessage = `Cannot delete this ${table.slice(0, -1)} as it is referenced by other records.`;
+      } else if (result.error.code === '42501') {
+        errorMessage = `You don't have permission to delete this ${table.slice(0, -1)}.`;
+      }
+      
+      return { success: false, error: errorMessage };
+    }
+    
+    console.log(`Successfully deleted ${table} with ID: ${id}`);
+    return { success: true, error: null };
+  } catch (err) {
+    console.error(`Unexpected error during ${table} deletion:`, err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    return { success: false, error: errorMessage };
+  }
 }
 
 /**

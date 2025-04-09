@@ -45,6 +45,37 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
+// Enhanced function for Supabase database operations with retries
+export async function executeWithRetry<T>(
+  operation: () => Promise<{ data: T | null; error: any }>,
+  maxRetries: number = 3,
+  retryDelay: number = 500
+): Promise<{ data: T | null; error: any }> {
+  let retries = 0;
+  let lastResult = { data: null as T | null, error: null };
+
+  while (retries < maxRetries) {
+    lastResult = await operation();
+    
+    if (!lastResult.error) {
+      return lastResult;
+    }
+    
+    // If we get a postgres error that might benefit from retry
+    if (lastResult.error.code && 
+        ['23505', '40001', '40P01', '55P03', '55006', '57014'].includes(lastResult.error.code)) {
+      retries++;
+      console.log(`Database operation failed, retrying (${retries}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retries - 1)));
+    } else {
+      // If it's a different error that won't benefit from retry, break out
+      break;
+    }
+  }
+  
+  return lastResult;
+}
+
 // Helper functions for auth operations
 export async function signUpUser(email: string, password: string, name: string) {
   console.log(`Attempting to sign up user: ${email}`);

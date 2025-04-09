@@ -15,6 +15,7 @@ import type { Product, ProductType } from "@/types";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { deleteWithRetry } from "@/hooks/useSupabaseQuery";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,7 +25,10 @@ export default function Products() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+
+  console.log("Current user:", user);
+  console.log("Current role:", role);
 
   const canManageProducts = role === 'admin' || role === 'manager';
 
@@ -32,12 +36,18 @@ export default function Products() {
     queryKey: ["all-products"],
     queryFn: async () => {
       try {
+        console.log("Fetching products...");
         const { data, error } = await supabase
           .from("products")
           .select("*")
           .order("name");
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching products:", error);
+          throw error;
+        }
+        
+        console.log("Products fetched successfully:", data?.length || 0);
         
         // Transform the data to ensure it matches our Product type
         return (data || []).map(item => ({
@@ -55,43 +65,52 @@ export default function Products() {
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
       setIsDeleting(true);
+      console.log("Starting delete mutation for product ID:", productId);
       
       try {
         // First check if product is used in any time entries
+        console.log("Checking time entries...");
         const { count: timeEntryCount, error: timeEntryError } = await supabase
           .from("time_entries")
           .select("*", { count: 'exact', head: true })
           .eq("product_id", productId);
           
-        if (timeEntryError) throw timeEntryError;
+        if (timeEntryError) {
+          console.error("Error checking time entries:", timeEntryError);
+          throw timeEntryError;
+        }
         
+        console.log("Time entries using this product:", timeEntryCount);
         if (timeEntryCount && timeEntryCount > 0) {
           throw new Error(`Cannot delete product that is used in ${timeEntryCount} time entries`);
         }
         
         // Also check invoice items
+        console.log("Checking invoice items...");
         const { count: invoiceItemCount, error: invoiceItemError } = await supabase
           .from("invoice_items")
           .select("*", { count: 'exact', head: true })
           .eq("product_id", productId);
           
-        if (invoiceItemError) throw invoiceItemError;
+        if (invoiceItemError) {
+          console.error("Error checking invoice items:", invoiceItemError);
+          throw invoiceItemError;
+        }
         
+        console.log("Invoice items using this product:", invoiceItemCount);
         if (invoiceItemCount && invoiceItemCount > 0) {
           throw new Error(`Cannot delete product that is used in ${invoiceItemCount} invoice items`);
         }
         
-        // If not in use anywhere, proceed with deletion
-        const { error: deleteError } = await supabase
-          .from("products")
-          .delete()
-          .eq("id", productId);
-          
-        if (deleteError) {
-          console.error("Delete error:", deleteError);
-          throw new Error(`Database error: ${deleteError.message}`);
+        // Now use our robust delete function with retries
+        console.log("No dependencies found, proceeding with robust deletion...");
+        const { success, error } = await deleteWithRetry("products", productId);
+        
+        if (!success) {
+          throw new Error(error || "Failed to delete product");
         }
         
+        console.log("Product successfully deleted!");
         return productId;
       } catch (error) {
         console.error("Error in delete mutation:", error);
@@ -101,6 +120,7 @@ export default function Products() {
       }
     },
     onSuccess: (deletedId) => {
+      console.log("Delete mutation successful, invalidating queries");
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Product deleted successfully");
@@ -109,16 +129,22 @@ export default function Products() {
     onError: (error) => {
       console.error("Error deleting product:", error);
       toast.error(error instanceof Error ? error.message : "Failed to delete product");
+      setProductToDelete(null);
     },
   });
 
   const handleDeleteProduct = (product: Product) => {
+    console.log("handleDeleteProduct called with:", product);
     setProductToDelete(product);
   };
 
   const confirmDeleteProduct = () => {
+    console.log("confirmDeleteProduct called, productToDelete:", productToDelete);
     if (productToDelete) {
+      console.log("Calling deleteProductMutation.mutate with ID:", productToDelete.id);
       deleteProductMutation.mutate(productToDelete.id);
+    } else {
+      console.error("No product selected for deletion");
     }
   };
 
@@ -131,6 +157,10 @@ export default function Products() {
     setProductType(type);
     setShowProductForm(true);
   };
+
+  // Debug log role and permissions
+  console.log("Current user role:", role);
+  console.log("Can manage products:", canManageProducts);
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -236,7 +266,7 @@ export default function Products() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.map((product: Product) => (
+                  {filteredProducts.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
