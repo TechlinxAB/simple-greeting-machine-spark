@@ -33,7 +33,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -150,19 +149,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
-      // First verify the entry exists
-      const { data: checkData, error: checkError } = await supabase
-        .from("time_entries")
-        .select("id")
-        .eq("id", selectedEntry.id)
-        .single();
-        
-      if (checkError) {
-        console.error("Error checking time entry:", checkError);
-        throw new Error("Could not find the time entry in the database");
-      }
-      
-      // Now perform the delete operation
+      // Perform the delete operation directly
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -173,23 +160,19 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         throw error;
       }
       
-      // Update UI first
+      // Close the dialog first before any other operations
+      setDeleteDialogOpen(false);
+      setSelectedEntry(null);
       toast.success("Time entry deleted successfully");
       
       // Then invalidate queries and refetch
       await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-      
-      // Force immediate refetch
       await refetch();
-      
-      // Close the dialog
-      setDeleteDialogOpen(false);
     } catch (error: any) {
       console.error("Delete time entry error:", error);
       toast.error(error.message || "Failed to delete time entry");
     } finally {
       setIsDeleting(false);
-      setSelectedEntry(null);
     }
   };
   
@@ -211,8 +194,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     
     // Force immediate refetch of this specific date's entries
     await refetch();
-    
-    toast.success("Time entry updated successfully");
   };
 
   return (

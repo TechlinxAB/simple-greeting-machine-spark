@@ -120,34 +120,26 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Current product:", currentProduct);
       console.log("Product type:", productType);
       
-      // Prepare update data
+      // Prepare update data - include at minimum the required fields
       const timeEntryData: any = {
-        // Only include fields that are actually set in values
-        ...(values.clientId && { client_id: values.clientId }),
-        ...(values.productId && { product_id: values.productId }),
-        ...(values.description !== undefined && { description: values.description }),
+        client_id: values.clientId || timeEntry.client_id,
+        product_id: values.productId || timeEntry.product_id,
+        description: values.description !== undefined ? values.description : timeEntry.description,
       };
 
       // Handle time fields based on product type
       if (productType === "activity") {
         // For activities, handle start_time and end_time
-        if (values.startTime) {
-          timeEntryData.start_time = values.startTime.toISOString();
-        }
-        
-        if (values.endTime) {
-          timeEntryData.end_time = values.endTime.toISOString();
-        }
+        timeEntryData.start_time = values.startTime ? values.startTime.toISOString() : timeEntry.start_time;
+        timeEntryData.end_time = values.endTime ? values.endTime.toISOString() : timeEntry.end_time;
         
         // If we're switching from item to activity, clear quantity
-        if (timeEntry.products?.type === "item" && !timeEntryData.quantity) {
+        if (timeEntry.products?.type === "item") {
           timeEntryData.quantity = null;
         }
       } else if (productType === "item") {
         // For items, handle quantity
-        if (values.quantity !== undefined) {
-          timeEntryData.quantity = values.quantity;
-        }
+        timeEntryData.quantity = values.quantity !== undefined ? values.quantity : timeEntry.quantity;
         
         // If we're switching from activity to item, clear times
         if (timeEntry.products?.type === "activity") {
@@ -171,8 +163,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       }
 
       console.log("Update successful");
+      onSuccess(); // Call this first to close the dialog
       toast.success("Time entry updated successfully");
-      onSuccess();
     } catch (error: any) {
       console.error("Error updating time entry:", error);
       toast.error(error.message || "Failed to update time entry");
