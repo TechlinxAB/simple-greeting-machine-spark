@@ -67,7 +67,7 @@ export function UserManagement() {
         
         console.log("Users data:", data);
         
-        const transformedUsers = data.map(user => ({
+        const transformedUsers = data.map((user: UserResponse) => ({
           id: user.id,
           email: user.email,
           name: user.profile_name || user.email.split('@')[0],

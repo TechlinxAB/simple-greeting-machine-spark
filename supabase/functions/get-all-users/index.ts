@@ -5,25 +5,39 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://xojrleypudfrbmvejpow.supabase.co'
 const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // This is important for CORS support
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
-    // Create a Supabase client with the Auth context of the logged in user
+    // Create a Supabase client with the Auth context
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
     const supabaseClient = createClient(
       supabaseUrl,
       supabaseServiceRole,
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     )
@@ -32,7 +46,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      console.error("Unauthorized access attempt:", userError);
+      console.error("Unauthorized access attempt:", userError?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
