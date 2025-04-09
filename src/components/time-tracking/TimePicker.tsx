@@ -35,7 +35,7 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
   const applyTimeRounding = (date: Date): Date => {
     if (!roundToMinutes) return date;
     
-    return roundToNearestMinutes(date, { nearestTo: roundToMinutes });
+    return roundToNearestMinutes(date, { nearestTo: roundToMinutes as 1 | 5 | 10 | 15 | 20 | 30 | 60 });
   };
   
   // Update the time based on selected hours, minutes and period
