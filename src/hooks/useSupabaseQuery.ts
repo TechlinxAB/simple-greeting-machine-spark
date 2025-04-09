@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -8,6 +8,7 @@ interface QueryResult<T> {
   error: PostgrestError | null;
   loading: boolean;
   execute: () => Promise<void>;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -18,11 +19,12 @@ interface QueryResult<T> {
  * @returns QueryResult object with data, error, loading state, and execute function
  */
 export function useSupabaseQuery<T>(
-  queryFn: () => Promise<{ data: T | null; error: PostgrestError | null }>
+  queryFn: () => Promise<{ data: T | null; error: PostgrestError | null }>,
+  options?: { autoExecute?: boolean }
 ): QueryResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<PostgrestError | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(options?.autoExecute !== false);
 
   const execute = async () => {
     setLoading(true);
@@ -44,7 +46,17 @@ export function useSupabaseQuery<T>(
     }
   };
 
-  return { data, error, loading, execute };
+  // Alias for execute to match React Query naming conventions
+  const refetch = execute;
+
+  // Auto-execute query on mount if not disabled
+  useEffect(() => {
+    if (options?.autoExecute !== false) {
+      execute();
+    }
+  }, []);
+
+  return { data, error, loading, execute, refetch };
 }
 
 /**
