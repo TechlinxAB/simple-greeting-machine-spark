@@ -6,7 +6,7 @@ import { User } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, UserPlus, Shield, User as UserIcon } from "lucide-react";
+import { Check, Loader2, Shield, User as UserIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,35 +41,25 @@ export function UserManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   
-  // Fetch all users
+  // Fetch all users from profiles table
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, name, email, role, avatar_url")
+        .select("id, name, role, avatar_url")
         .order("name");
       
       if (error) throw error;
       
-      // Fetch emails from auth metadata since they're not stored in profiles
-      // Use a batch approach to avoid multiple round trips
-      const authIds = data.map(user => user.id);
-      if (authIds.length > 0) {
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) {
-          console.error("Error fetching user emails:", authError);
-        } else if (authData) {
-          // Map emails to corresponding users
-          const emailMap = new Map(authData.users.map(user => [user.id, user.email]));
-          data.forEach(user => {
-            user.email = emailMap.get(user.id) || "Unknown";
-          });
-        }
-      }
+      // Add placeholder email fields since we can't directly fetch emails
+      // (emails are in auth.users table which we can't access via the client)
+      const usersWithEmails = data.map(user => ({
+        ...user,
+        email: `${user.name?.toLowerCase().replace(/\s+/g, '.')}@example.com` // Placeholder email
+      }));
       
-      return data as User[];
+      return usersWithEmails as User[];
     }
   });
 

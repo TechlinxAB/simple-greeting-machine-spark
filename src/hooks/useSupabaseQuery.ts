@@ -36,11 +36,21 @@ export function useSupabaseQuery<T>(
       if (error) {
         setError(error);
         console.error('Supabase query error:', error);
+        setData(null);
       } else {
         setData(data);
       }
     } catch (err) {
       console.error('Unexpected error during Supabase query:', err);
+      if (err instanceof Error) {
+        // Create a PostgrestError-like object for consistency
+        setError({
+          message: err.message,
+          details: '',
+          hint: '',
+          code: 'UNKNOWN'
+        });
+      }
     } finally {
       setLoading(false);
     }
