@@ -52,32 +52,49 @@ export default function Products() {
       
       try {
         // First check if product is used in any time entries
-        const { count, error: countError } = await supabase
+        const { count: timeEntryCount, error: timeEntryError } = await supabase
           .from("time_entries")
           .select("*", { count: 'exact', head: true })
           .eq("product_id", productId);
           
-        if (countError) throw countError;
+        if (timeEntryError) throw timeEntryError;
         
-        // If product is in use, prevent deletion
-        if (count && count > 0) {
-          throw new Error(`Cannot delete product that is used in ${count} time entries`);
+        if (timeEntryCount && timeEntryCount > 0) {
+          throw new Error(`Cannot delete product that is used in ${timeEntryCount} time entries`);
         }
         
-        // If not in use, proceed with deletion
-        const { error } = await supabase
+        // Also check invoice items
+        const { count: invoiceItemCount, error: invoiceItemError } = await supabase
+          .from("invoice_items")
+          .select("*", { count: 'exact', head: true })
+          .eq("product_id", productId);
+          
+        if (invoiceItemError) throw invoiceItemError;
+        
+        if (invoiceItemCount && invoiceItemCount > 0) {
+          throw new Error(`Cannot delete product that is used in ${invoiceItemCount} invoice items`);
+        }
+        
+        // If not in use anywhere, proceed with deletion
+        const { error: deleteError } = await supabase
           .from("products")
           .delete()
           .eq("id", productId);
           
-        if (error) throw error;
+        if (deleteError) {
+          console.error("Delete error:", deleteError);
+          throw new Error(`Database error: ${deleteError.message}`);
+        }
         
         return productId;
+      } catch (error) {
+        console.error("Error in delete mutation:", error);
+        throw error; // Re-throw to trigger onError handler
       } finally {
         setIsDeleting(false);
       }
     },
-    onSuccess: () => {
+    onSuccess: (deletedId) => {
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Product deleted successfully");
