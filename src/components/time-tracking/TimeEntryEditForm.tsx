@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { differenceInMinutes } from "date-fns";
 
+// Let's declare a variable to store products for the schema validation
+let editProducts: any[] = [];
+
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -22,6 +25,20 @@ const timeEntrySchema = z.object({
   endTime: z.date().optional(),
   quantity: z.number().optional(),
   description: z.string().optional(),
+}).refine((data) => {
+  // If it's an activity, both startTime and endTime must be provided
+  const product = editProducts.find(p => p.id === data.productId);
+  if (product?.type === "activity") {
+    return data.startTime !== undefined && data.endTime !== undefined;
+  }
+  // If it's an item, quantity must be provided
+  if (product?.type === "item") {
+    return data.quantity !== undefined && data.quantity > 0;
+  }
+  return true;
+}, {
+  message: "Both start and end times are required for activities",
+  path: ["endTime"]
 });
 
 type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
@@ -41,6 +58,9 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
   const [selectedProductType, setSelectedProductType] = useState<string>(
     timeEntry.products?.type || "activity"
   );
+  
+  // Ref for focus management
+  const endTimeRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -74,6 +94,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
         if (productsError) throw productsError;
         setProducts(productsData || []);
+        editProducts = productsData || [];
       } catch (error: any) {
         console.error("Error fetching data:", error.message);
         toast.error("Failed to load clients and products");
@@ -129,6 +150,16 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
     );
   };
 
+  const handleStartTimeComplete = () => {
+    // Focus the end time field after completing the start time
+    if (endTimeRef.current) {
+      const input = endTimeRef.current.querySelector('input');
+      if (input) {
+        input.focus();
+      }
+    }
+  };
+
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error("You must be logged in to update time entries");
@@ -139,6 +170,19 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
     if (!product) {
       toast.error("Invalid product selected");
       return;
+    }
+
+    // Additional validation based on product type
+    if (product.type === "activity") {
+      if (!values.startTime || !values.endTime) {
+        toast.error("Both start and end times are required for activities");
+        return;
+      }
+    } else if (product.type === "item") {
+      if (!values.quantity || values.quantity <= 0) {
+        toast.error("Quantity must be a positive number for items");
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -167,6 +211,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;
       }
+
+      console.log("Updating time entry:", timeEntry.id, "with data:", timeEntryData);
 
       const { error } = await supabase
         .from("time_entries")
@@ -203,6 +249,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                     value={field.value || null} 
                     onChange={field.onChange}
                     roundOnBlur={false}
+                    onComplete={handleStartTimeComplete}
                   />
                 </FormControl>
                 <FormMessage />
@@ -214,7 +261,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
             control={form.control}
             name="endTime"
             render={({ field }) => (
-              <FormItem>
+              <FormItem ref={endTimeRef}>
                 <FormLabel>Time to:</FormLabel>
                 <FormControl>
                   <TimePicker 

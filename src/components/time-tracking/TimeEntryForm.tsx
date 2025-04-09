@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
 
+// Updated schema to make endTime required for activities
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -24,6 +25,20 @@ const timeEntrySchema = z.object({
   endTime: z.date().optional(),
   quantity: z.number().optional(),
   description: z.string().optional(),
+}).refine((data) => {
+  // If it's an activity, both startTime and endTime must be provided
+  const product = filteredProducts.find(p => p.id === data.productId);
+  if (product?.type === "activity") {
+    return data.startTime !== undefined && data.endTime !== undefined;
+  }
+  // If it's an item, quantity must be provided
+  if (product?.type === "item") {
+    return data.quantity !== undefined && data.quantity > 0;
+  }
+  return true;
+}, {
+  message: "Both start and end times are required for activities",
+  path: ["endTime"]
 });
 
 type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
@@ -33,11 +48,13 @@ interface TimeEntryFormProps {
   onSuccess: () => void;
 }
 
+// A global variable to store products for the schema validation
+let filteredProducts: any[] = [];
+
 export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [currentDate] = useState<Date>(new Date());
@@ -86,9 +103,9 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
 
   useEffect(() => {
     if (selectedProductType === "") {
-      setFilteredProducts(products);
+      filteredProducts = products;
     } else {
-      setFilteredProducts(products.filter(product => product.type === selectedProductType));
+      filteredProducts = products.filter(product => product.type === selectedProductType);
     }
   }, [selectedProductType, products]);
 
@@ -132,9 +149,9 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const handleStartTimeComplete = () => {
     // Focus the end time field after completing the start time
     if (endTimeRef.current) {
-      const button = endTimeRef.current.querySelector('button');
-      if (button) {
-        button.click();
+      const input = endTimeRef.current.querySelector('input');
+      if (input) {
+        input.focus();
       }
     }
   };
@@ -149,6 +166,19 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     if (!product) {
       toast.error("Invalid product selected");
       return;
+    }
+
+    // Validate based on product type
+    if (product.type === "activity") {
+      if (!values.startTime || !values.endTime) {
+        toast.error("Both start and end times are required for activities");
+        return;
+      }
+    } else if (product.type === "item") {
+      if (!values.quantity || values.quantity <= 0) {
+        toast.error("Quantity must be a positive number for items");
+        return;
+      }
     }
 
     setIsLoading(true);

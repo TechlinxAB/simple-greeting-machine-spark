@@ -54,6 +54,14 @@ export function TimePicker({
         setTimeInput(filtered);
       }
     }
+    
+    // Check if 5 characters have been entered (full time in format HH:MM)
+    if (filtered.length === 5 && filtered.includes(":")) {
+      // If we have a complete time, wait a moment and then trigger the onComplete
+      setTimeout(() => {
+        handleBlur();
+      }, 100);
+    }
   };
   
   // Validate and update time when input loses focus
@@ -115,46 +123,19 @@ export function TimePicker({
   
   return (
     <div className="relative w-full">
-      <Button
-        type="button"
-        variant="outline" 
-        className="w-full justify-start text-left font-normal"
-        onClick={() => {
-          setIsOpen(!isOpen);
-          // Focus the input after a short delay to ensure the popover is open
-          if (!isOpen) {
-            setTimeout(() => {
-              inputRef.current?.focus();
-              inputRef.current?.select();
-            }, 100);
-          }
+      <Input
+        ref={inputRef}
+        value={timeInput}
+        onChange={handleTimeInput}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className="w-full text-base"
+        placeholder="HH:mm"
+        maxLength={5}
+        onFocus={() => {
+          inputRef.current?.select();
         }}
-      >
-        <Clock className="mr-2 h-4 w-4" />
-        {value ? format(value, "HH:mm") : "HH:mm"}
-      </Button>
-      
-      {isOpen && (
-        <div className="absolute z-50 mt-1 w-full border rounded-md bg-background shadow-md">
-          <div className="p-3">
-            <div className="text-sm font-medium mb-2">Enter time (24h format)</div>
-            <Input
-              ref={inputRef}
-              value={timeInput}
-              onChange={handleTimeInput}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              className="w-full text-center text-lg"
-              placeholder="HH:mm"
-              maxLength={5}
-              autoFocus
-            />
-            <div className="text-xs text-muted-foreground text-center mt-1">
-              Format: 24-hour (e.g., 13:45)
-            </div>
-          </div>
-        </div>
-      )}
+      />
     </div>
   );
 }

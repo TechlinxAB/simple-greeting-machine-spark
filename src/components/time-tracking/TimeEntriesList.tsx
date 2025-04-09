@@ -75,6 +75,8 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             quantity, 
             created_at, 
             invoiced,
+            client_id,
+            product_id,
             products:product_id (id, name, type, price),
             clients:client_id (id, name)
           `)
@@ -140,11 +142,11 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         
       if (error) throw error;
       
+      // Refresh queries
+      await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+      await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      
       toast.success("Time entry deleted successfully");
-      // Refetch the time entries
-      refetch();
-      // Also invalidate the broader time-entries query to update any other components
-      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     } catch (error: any) {
       console.error("Error deleting time entry:", error);
       toast.error(error.message || "Failed to delete time entry");
@@ -162,9 +164,11 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   };
   
   // Handle edit success
-  const handleEditSuccess = () => {
+  const handleEditSuccess = async () => {
     setEditDialogOpen(false);
-    refetch();
+    // Refresh queries
+    await queryClient.invalidateQueries({ queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")] });
+    await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     toast.success("Time entry updated successfully");
   };
 
