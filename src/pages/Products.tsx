@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -78,7 +79,7 @@ export default function Products() {
           
         if (timeEntryError) {
           console.error("Error checking time entries:", timeEntryError);
-          throw timeEntryError;
+          throw new Error(`Error checking dependencies: ${timeEntryError.message}`);
         }
         
         console.log("Time entries using this product:", timeEntryCount);
@@ -95,7 +96,7 @@ export default function Products() {
           
         if (invoiceItemError) {
           console.error("Error checking invoice items:", invoiceItemError);
-          throw invoiceItemError;
+          throw new Error(`Error checking dependencies: ${invoiceItemError.message}`);
         }
         
         console.log("Invoice items using this product:", invoiceItemCount);
@@ -105,7 +106,7 @@ export default function Products() {
         
         console.log("No dependencies found, proceeding with deletion...");
         
-        // Use our completely rewritten deleteWithRetry function
+        // Use our enhanced deleteWithRetry function
         const deleteResult = await deleteWithRetry("products", productId);
         
         if (!deleteResult.success) {
@@ -123,12 +124,15 @@ export default function Products() {
     },
     onSuccess: (deletedId) => {
       console.log("Delete mutation successful, invalidating queries");
-      // Explicitly refresh the product list to ensure UI is up to date
+      
+      // Force immediate invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       
-      // Force an immediate refetch to update the UI
-      refetch();
+      // Force an immediate refetch
+      setTimeout(() => {
+        refetch();
+      }, 300);
       
       toast.success("Product deleted successfully");
       setProductToDelete(null);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase, deleteRecord } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -69,8 +70,7 @@ export function useSupabaseQuery<T>(
 type TableName = "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings";
 
 /**
- * Completely rewritten delete function with better error handling and verification.
- * This addresses the silent failure issue where products appear to be deleted but aren't.
+ * Completely rewritten delete function with improved error handling for RLS issues.
  * 
  * @param tableName The table to delete from (must be a valid table name in the schema)
  * @param id The ID of the record to delete
@@ -100,7 +100,7 @@ export async function deleteWithRetry(
       return { success: true, error: null }; // Consider it a success if already deleted
     }
     
-    // Attempt direct deletion first
+    // Attempt direct deletion with the enhanced deleteRecord function
     const result = await deleteRecord(tableName, id);
     
     if (!result.success) {
@@ -114,15 +114,11 @@ export async function deleteWithRetry(
         };
       }
       
-      if (result.error?.includes('permission denied')) {
-        return { 
-          success: false, 
-          error: `You don't have permission to delete this ${tableName.slice(0, -1)}.` 
-        };
-      }
-      
       return { success: false, error: result.error };
     }
+    
+    // Slight delay before verification to allow for database propagation
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Always verify the deletion actually happened
     const { data: verifyDeletion, error: verifyError } = await supabase
@@ -133,42 +129,18 @@ export async function deleteWithRetry(
       
     if (verifyError) {
       console.error(`Error verifying deletion for ${tableName}:`, verifyError);
+      // Don't return here, we still want to check if it was deleted
     }
     
+    // If the item still exists, it means the delete operation reported success but didn't actually delete
     if (verifyDeletion) {
       console.error(`Delete operation reported success but ${tableName} with ID ${id} still exists`);
       
-      // Try a second time with a forceful approach
-      console.log(`Attempting second deletion for ${tableName} with ID: ${id}`);
-      
-      // Force a second deletion attempt
-      const secondAttempt = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', id);
-        
-      if (secondAttempt.error) {
-        console.error(`Second deletion attempt failed for ${tableName}:`, secondAttempt.error);
-        return { 
-          success: false, 
-          error: `Multiple deletion attempts failed. ${secondAttempt.error.message}` 
-        };
-      }
-      
-      // Final verification
-      const { data: finalCheck } = await supabase
-        .from(tableName)
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-        
-      if (finalCheck) {
-        console.error(`${tableName} still exists after multiple deletion attempts`);
-        return { 
-          success: false, 
-          error: `Unable to delete ${tableName.slice(0, -1)} after multiple attempts. Please try again later.` 
-        };
-      }
+      // This is likely an RLS issue - throw a specific error
+      return { 
+        success: false, 
+        error: `Permission denied: You may not have the required permissions to delete this item.` 
+      };
     }
     
     console.log(`Successfully deleted ${tableName} with ID: ${id}`);
