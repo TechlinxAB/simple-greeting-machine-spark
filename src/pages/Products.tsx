@@ -38,7 +38,13 @@ export default function Products() {
           .order("name");
         
         if (error) throw error;
-        return data || [];
+        
+        // Transform the data to ensure it matches our Product type
+        return (data || []).map(item => ({
+          ...item,
+          // Make sure type is cast to ProductType
+          type: item.type as ProductType
+        })) as Product[];
       } catch (error) {
         console.error("Error fetching products:", error);
         return [];
@@ -116,7 +122,7 @@ export default function Products() {
     }
   };
 
-  const filteredProducts = products.filter((product: Product) => 
+  const filteredProducts = products.filter((product) => 
     (activeTab === "all" || product.type === activeTab) &&
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
