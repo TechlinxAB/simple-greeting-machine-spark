@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,48 +37,76 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   
   // Update date list when selected date changes
   useEffect(() => {
-    updateDateList(selectedDate);
+    updateDateList();
   }, [selectedDate]);
   
-  // Generate a list of dates centered around the selected date
-  const updateDateList = (centerDate: Date) => {
+  // Generate a list of dates - always showing 7 dates including and around the selected date
+  const updateDateList = () => {
     const today = new Date();
-    const dates = [];
+    const totalDates = 7; // Always show 7 dates
     
-    // Generate dates - 3 days before and 3 days after the center date
-    for (let i = -3; i <= 3; i++) {
-      dates.push(addDays(centerDate, i));
+    // Generate date range
+    let dates: Date[] = [];
+    
+    // Always include selected date, today, and dates around them
+    dates.push(selectedDate);
+    if (!isSameDay(today, selectedDate)) {
+      dates.push(today);
     }
     
-    // Separate upcoming and past dates
-    const upcomingDates = dates.filter(date => 
-      isAfter(date, today) || isSameDay(date, today)
-    ).sort((a, b) => isBefore(a, b) ? -1 : 1); // Sort upcoming dates in ascending order
+    // Add 3 days before and 3 days after selected date
+    for (let i = 1; i <= 3; i++) {
+      dates.push(subDays(selectedDate, i));
+      dates.push(addDays(selectedDate, i));
+    }
     
-    const pastDates = dates.filter(date => 
-      isBefore(date, today) && !isSameDay(date, today)
-    ).sort((a, b) => isBefore(a, b) ? 1 : -1); // Sort past dates in descending order
+    // Remove duplicates
+    dates = Array.from(new Set(dates.map(d => d.getTime())))
+      .map(time => new Date(time));
     
-    // Combine with today first (if present), then upcoming dates, then past dates
-    const sortedDates = [];
+    // Sort dates temporarily to pick a consistent set
+    dates.sort((a, b) => a.getTime() - b.getTime());
     
-    // Add today if it exists in the list
+    // If we have more than the desired number of dates, trim the list
+    if (dates.length > totalDates) {
+      // Calculate center index - prioritize keeping dates around selected date
+      const selectedIndex = dates.findIndex(d => isSameDay(d, selectedDate));
+      const startIndex = Math.max(0, selectedIndex - Math.floor(totalDates / 2));
+      const endIndex = Math.min(dates.length, startIndex + totalDates);
+      
+      // Adjust startIndex if we're at the end of the array
+      const adjustedStartIndex = endIndex === dates.length 
+        ? Math.max(0, dates.length - totalDates) 
+        : startIndex;
+        
+      dates = dates.slice(adjustedStartIndex, adjustedStartIndex + totalDates);
+    }
+    
+    // Now sort for display with custom order:
+    // 1. Today first (if present)
+    // 2. Future dates in ascending order
+    // 3. Past dates in descending order
+    const sortedDates: Date[] = [];
+    
+    // 1. Add today if it exists in the dates
     const todayDate = dates.find(date => isToday(date));
     if (todayDate) {
       sortedDates.push(todayDate);
     }
     
-    // Add upcoming dates (except today which is already added)
-    upcomingDates.forEach(date => {
-      if (!isToday(date)) {
-        sortedDates.push(date);
-      }
-    });
+    // 2. Add future dates in ascending order (excluding today)
+    const futureDates = dates
+      .filter(date => isAfter(date, today) && !isSameDay(date, today))
+      .sort((a, b) => a.getTime() - b.getTime());
+      
+    sortedDates.push(...futureDates);
     
-    // Add past dates
-    pastDates.forEach(date => {
-      sortedDates.push(date);
-    });
+    // 3. Add past dates in descending order (excluding today)
+    const pastDates = dates
+      .filter(date => isBefore(date, today) && !isSameDay(date, today))
+      .sort((a, b) => b.getTime() - a.getTime());
+      
+    sortedDates.push(...pastDates);
     
     setDateList(sortedDates);
   };
@@ -119,7 +146,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
                 if (date) {
                   onDateChange(date);
                   setCalendarOpen(false);
-                  updateDateList(date); // Immediately update date list when selecting from calendar
                 }
               }}
               initialFocus
@@ -152,7 +178,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           <Button
             key={index}
             variant={isSameDay(date, selectedDate) && !isToday(date) ? "default" : "ghost"}
-            className={`w-full justify-start ${isSameDay(date, selectedDate) ? "bg-gray-100 text-gray-900" : ""}`}
+            className={`w-full justify-start ${isSameDay(date, selectedDate) && !isToday(date) ? "bg-gray-100 text-gray-900" : ""}`}
             onClick={() => onDateChange(date)}
           >
             {format(date, "d MMM")}
