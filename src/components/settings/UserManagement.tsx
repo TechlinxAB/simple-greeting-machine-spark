@@ -41,38 +41,59 @@ export function UserManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   
-  // Fetch all users from profiles table
+  // Fetch all users using our custom RPC function
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, name, role, avatar_url")
-        .order("name");
+        .rpc('get_all_users');
       
       if (error) throw error;
       
-      // Add placeholder email fields since we can't directly fetch emails
-      // (emails are in auth.users table which we can't access via the client)
-      const usersWithEmails = data.map(user => ({
-        ...user,
-        email: `${user.name?.toLowerCase().replace(/\s+/g, '.')}@example.com` // Placeholder email
+      // Transform the data to match our User type
+      const transformedUsers = data.map(user => ({
+        id: user.id,
+        email: user.email,
+        name: user.profile_name || user.email.split('@')[0],
+        role: user.profile_role || 'user',
+        avatar_url: user.profile_avatar_url
       }));
       
-      return usersWithEmails as User[];
+      return transformedUsers as User[];
     }
   });
 
   // Update user role
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { data, error } = await supabase.rpc(
-        "update_user_role", 
-        { user_id: userId, new_role: role }
-      );
+      // First, ensure a profile exists for this user
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (!existingProfile) {
+        // Create a profile if it doesn't exist
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            role: role
+          });
+          
+        if (createError) throw createError;
+      } else {
+        // Update the role using our RPC function
+        const { data, error } = await supabase.rpc(
+          "update_user_role", 
+          { user_id: userId, new_role: role }
+        );
+        
+        if (error) throw error;
+      }
       
-      if (error) throw error;
-      return data;
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -134,9 +155,9 @@ export function UserManagement() {
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={user.avatar_url || ""} alt={user.name || "User"} />
-                            <AvatarFallback>{(user.name?.charAt(0) || "U").toUpperCase()}</AvatarFallback>
+                            <AvatarFallback>{(user.name?.charAt(0) || user.email.charAt(0)).toUpperCase()}</AvatarFallback>
                           </Avatar>
-                          <span>{user.name || "Unnamed User"}</span>
+                          <span>{user.name || user.email.split('@')[0]}</span>
                         </div>
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
