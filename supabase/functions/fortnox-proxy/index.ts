@@ -28,8 +28,10 @@ serve(async (req) => {
     });
   }
   
-  // Simple status endpoint to confirm function is running
+  // Parse the request URL
   const url = new URL(req.url);
+  
+  // Simple status endpoint to confirm function is running
   if (url.pathname.endsWith('/status') || url.pathname.endsWith('/test')) {
     console.log("Returning status test response");
     return new Response(
@@ -47,18 +49,6 @@ serve(async (req) => {
   }
   
   try {
-    // Test response to check if function is accessible
-    if (url.pathname.endsWith('/test')) {
-      console.log("Returning test response");
-      return new Response(
-        JSON.stringify({ ok: true, message: "Fortnox proxy is working" }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
     // Parse the request body
     let requestData;
     try {
