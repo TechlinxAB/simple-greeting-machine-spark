@@ -146,16 +146,20 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setIsDeleting(true);
     
     try {
-      console.log("Deleting time entry with ID:", selectedEntry.id);
+      const entryId = selectedEntry.id;
+      console.log("Attempting to delete time entry with ID:", entryId);
       
       // Make the DELETE request to Supabase
-      const { error } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("time_entries")
         .delete()
-        .eq("id", selectedEntry.id);
+        .eq("id", entryId);
         
+      console.log("Delete response status:", status, statusText);
+      console.log("Delete response data:", data);
+      
       if (error) {
-        console.error("Error deleting time entry:", error);
+        console.error("Supabase delete error:", error);
         toast.error(error.message || "Failed to delete time entry");
         setIsDeleting(false);
         return;
@@ -168,7 +172,24 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       
       toast.success("Time entry deleted successfully");
       
-      // First invalidate queries
+      // Manually verify if the deletion was successful
+      const { data: checkData, error: checkError } = await supabase
+        .from("time_entries")
+        .select("id")
+        .eq("id", entryId);
+      
+      if (checkError) {
+        console.error("Error checking deletion:", checkError);
+      } else {
+        console.log(`Verification check: Entry ${entryId} ${checkData?.length ? 'still exists' : 'was deleted'}`);
+      }
+      
+      // First invalidate the specific query
+      await queryClient.invalidateQueries({ 
+        queryKey: queryKey
+      });
+      
+      // Then invalidate all time entries queries
       await queryClient.invalidateQueries({ 
         queryKey: ["time-entries"]
       });
