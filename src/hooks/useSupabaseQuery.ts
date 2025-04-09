@@ -82,6 +82,23 @@ export async function deleteWithRetry(
   try {
     console.log(`Attempting to delete ${table} with ID: ${id}`);
     
+    // First check if the product exists before trying to delete it
+    const { data: existingItem, error: checkError } = await supabase
+      .from(table)
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+      
+    if (checkError) {
+      console.error(`Error checking if ${table} exists:`, checkError);
+      return { success: false, error: `Error verifying ${table}: ${checkError.message}` };
+    }
+    
+    if (!existingItem) {
+      console.warn(`${table} with ID ${id} does not exist or was already deleted`);
+      return { success: true, error: null }; // Return success since the item doesn't exist anymore
+    }
+    
     // Direct delete operation with no retries to see if there's a permission issue
     const directResult = await supabase
       .from(table)
@@ -101,8 +118,22 @@ export async function deleteWithRetry(
       // If it's not a permission error, try with the retry function
       console.log("Attempting delete with retry mechanism...");
     } else {
-      console.log(`Successfully deleted ${table} with ID: ${id} (direct method)`);
-      return { success: true, error: null };
+      // Double-check that the item was actually deleted
+      const { data: checkAfterDelete, error: checkAfterError } = await supabase
+        .from(table)
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+        
+      if (checkAfterError) {
+        console.error(`Error checking after delete for ${table}:`, checkAfterError);
+      } else if (checkAfterDelete) {
+        console.error(`Delete operation reported success but item still exists in ${table}`);
+        // Will fall through to retry mechanism
+      } else {
+        console.log(`Successfully deleted ${table} with ID: ${id} (direct method)`);
+        return { success: true, error: null };
+      }
     }
     
     // Fallback to retry mechanism if direct delete had a non-permission error
@@ -127,6 +158,20 @@ export async function deleteWithRetry(
       }
       
       return { success: false, error: errorMessage };
+    }
+    
+    // Final verification that the item was actually deleted
+    const { data: finalCheck, error: finalCheckError } = await supabase
+      .from(table)
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+      
+    if (finalCheckError) {
+      console.error(`Error in final verification for ${table}:`, finalCheckError);
+    } else if (finalCheck) {
+      console.error(`Delete operation reported success but item still exists in ${table} after retry`);
+      return { success: false, error: `Delete operation failed silently. The ${table.slice(0, -1)} could not be removed.` };
     }
     
     console.log(`Successfully deleted ${table} with ID: ${id} (retry method)`);

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +31,7 @@ export default function Products() {
 
   const canManageProducts = role === 'admin' || role === 'manager';
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading, refetch } = useQuery({
     queryKey: ["all-products"],
     queryFn: async () => {
       try {
@@ -60,6 +59,8 @@ export default function Products() {
         return [];
       }
     },
+    staleTime: 0, // Always refetch to get fresh data
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   const deleteProductMutation = useMutation({
@@ -105,11 +106,24 @@ export default function Products() {
         // Now use our robust delete function
         console.log("No dependencies found, proceeding with deletion...");
         
-        // Try direct deletion first for better error reporting
+        // Use our enhanced deleteWithRetry function
         const deleteResult = await deleteWithRetry("products", productId);
         
         if (!deleteResult.success) {
           throw new Error(deleteResult.error || "Failed to delete product");
+        }
+        
+        // Verify the product is truly gone with a direct query
+        const { data: checkProduct } = await supabase
+          .from("products")
+          .select("id")
+          .eq("id", productId)
+          .maybeSingle();
+          
+        if (checkProduct) {
+          // This should never happen with our enhanced function
+          console.error("Product still exists after deletion!", checkProduct);
+          throw new Error("Delete operation reported success but product still exists. Please try again.");
         }
         
         console.log("Product successfully deleted!");
@@ -123,8 +137,10 @@ export default function Products() {
     },
     onSuccess: (deletedId) => {
       console.log("Delete mutation successful, invalidating queries");
+      // Force-refetch the products list to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      refetch(); // Explicitly trigger a refetch
       toast.success("Product deleted successfully");
       setProductToDelete(null);
     },
@@ -322,6 +338,7 @@ export default function Products() {
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["all-products"] });
           queryClient.invalidateQueries({ queryKey: ["products"] });
+          refetch(); // Explicitly trigger a refetch
         }}
       />
 

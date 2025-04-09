@@ -58,6 +58,13 @@ export async function executeWithRetry<T>(
     lastResult = await operation();
     
     if (!lastResult.error) {
+      // Verify operation success if deleting
+      if (typeof operation === 'function' && 
+          operation.toString().includes('delete') && 
+          lastResult.data === null) {
+        // Success case for delete operations
+        console.log(`Delete operation successful on retry ${retries + 1}`);
+      }
       return lastResult;
     }
     
