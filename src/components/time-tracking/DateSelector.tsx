@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { format, addDays, isSameDay, isToday, subDays, isAfter, isBefore } from "date-fns";
+import { format, addDays, isSameDay, isToday, subDays, isBefore, isAfter } from "date-fns";
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -51,25 +51,40 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
       dates.push(addDays(centerDate, i));
     }
     
-    // Sort dates: Today first, then upcoming dates, then past dates
+    // Sort dates: Future dates first (ascending), then today, then past dates (descending)
     dates.sort((a, b) => {
-      // Today comes first
-      if (isToday(a)) return -1;
-      if (isToday(b)) return 1;
-      
-      // Then future dates (ascending)
+      // If both dates are in the future (compared to today)
       if (isAfter(a, today) && isAfter(b, today)) {
-        return isBefore(a, b) ? -1 : 1;
+        return isBefore(a, b) ? -1 : 1; // Ascending order for future dates
       }
       
-      // Then past dates (descending)
+      // If both dates are in the past (compared to today)
       if (isBefore(a, today) && isBefore(b, today)) {
-        return isBefore(a, b) ? 1 : -1;
+        return isBefore(a, b) ? 1 : -1; // Descending order for past dates
       }
       
-      // Future dates before past dates
-      return isAfter(a, today) ? -1 : 1;
+      // If one is future and one is past
+      if (isAfter(a, today) && isBefore(b, today)) {
+        return -1; // Future dates before past dates
+      }
+      
+      if (isBefore(a, today) && isAfter(b, today)) {
+        return 1; // Future dates before past dates
+      }
+      
+      // If one is today
+      if (isToday(a)) return 0;
+      if (isToday(b)) return 0;
+      
+      return 0;
     });
+
+    // Move today to the top if it exists in the list
+    const todayIndex = dates.findIndex(date => isToday(date));
+    if (todayIndex !== -1) {
+      const today = dates.splice(todayIndex, 1)[0];
+      dates.unshift(today); // Add today to the beginning
+    }
     
     setDateList(dates);
   };
@@ -109,6 +124,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
                 if (date) {
                   onDateChange(date);
                   setCalendarOpen(false);
+                  updateDateList(date); // Immediately update date list when selecting from calendar
                 }
               }}
               initialFocus
