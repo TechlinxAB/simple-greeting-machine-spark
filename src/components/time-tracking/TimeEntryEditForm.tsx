@@ -26,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 // Form schema with validation
 const formSchema = z.object({
@@ -314,7 +314,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="" disabled>Select a product</SelectItem>
+                  {/* Replacing empty string value with a placeholder message in SelectValue instead */}
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} ({product.type}) - {product.price} SEK
