@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -96,7 +95,7 @@ export async function formatTimeEntriesForFortnox(
     
     // Format invoice rows from time entries
     const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
-      const product = entry.products;
+      const product = entry.products as Product;
       // Get user profile from the map
       const userProfile = userProfileMap.get(entry.user_id);
       const userName = userProfile?.name || 'Unknown User';
