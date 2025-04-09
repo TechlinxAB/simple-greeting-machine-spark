@@ -14,9 +14,15 @@ interface TimePickerProps {
   value: Date | null;
   onChange: (date: Date | null) => void;
   roundToMinutes?: number;
+  roundOnBlur?: boolean;
 }
 
-export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerProps) {
+export function TimePicker({ 
+  value, 
+  onChange, 
+  roundToMinutes = 15, 
+  roundOnBlur = false 
+}: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [timeInput, setTimeInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,20 +40,24 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
   const applyRounding = (hours: number, minutes: number): { hours: number, minutes: number } => {
     if (!roundToMinutes) return { hours, minutes };
     
-    // Rules for 15-minute intervals:
-    // - Less than 15 minutes rounds to 15
-    // - 15-29 minutes rounds to 30
-    // - 30-44 minutes rounds to 45
-    // - 45+ minutes rounds to next hour
-    if (minutes < 15) {
-      return { hours, minutes: 15 };
-    } else if (minutes < 30) {
-      return { hours, minutes: 30 };
-    } else if (minutes < 45) {
-      return { hours, minutes: 45 };
+    const remainder = minutes % roundToMinutes;
+    let roundedMinutes: number;
+    
+    if (remainder === 0) {
+      // If already on an interval boundary, leave it
+      roundedMinutes = minutes;
     } else {
-      return { hours: (hours + 1) % 24, minutes: 0 };
+      // Round up to the next interval
+      roundedMinutes = minutes + (roundToMinutes - remainder);
+      if (roundedMinutes >= 60) {
+        return { 
+          hours: (hours + 1) % 24, 
+          minutes: roundedMinutes - 60 
+        };
+      }
     }
+    
+    return { hours, minutes: roundedMinutes };
   };
   
   // Handle direct time input
@@ -93,14 +103,16 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
     if (hours < 0 || hours > 23) hours = 0;
     if (minutes < 0 || minutes > 59) minutes = 0;
     
-    // Apply rounding
-    const roundedTime = applyRounding(hours, minutes);
+    // Apply rounding only if requested
+    const finalTime = roundOnBlur 
+      ? applyRounding(hours, minutes) 
+      : { hours, minutes };
     
     // Create a new date with the selected time
     const now = new Date();
     const newDate = set(now, {
-      hours: roundedTime.hours,
-      minutes: roundedTime.minutes,
+      hours: finalTime.hours,
+      minutes: finalTime.minutes,
       seconds: 0,
       milliseconds: 0
     });

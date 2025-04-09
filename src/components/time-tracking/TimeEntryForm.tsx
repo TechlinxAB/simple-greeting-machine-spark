@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +16,6 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
 
-// Define the schema for time tracking form
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -27,16 +25,13 @@ const timeEntrySchema = z.object({
   description: z.string().optional(),
 });
 
-// Type for the time entry form values
 type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
 
-// Define props for TimeEntryForm component
 interface TimeEntryFormProps {
   selectedDate: Date;
   onSuccess: () => void;
 }
 
-// Main TimeEntryForm component
 export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
@@ -46,7 +41,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [currentDate] = useState<Date>(new Date());
 
-  // Initialize form
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
     defaultValues: {
@@ -59,11 +53,9 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const watchProductId = form.watch("productId");
   const watchClientId = form.watch("clientId");
 
-  // Fetch clients and products on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch clients
         const { data: clientsData, error: clientsError } = await supabase
           .from("clients")
           .select("id, name")
@@ -72,7 +64,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
         if (clientsError) throw clientsError;
         setClients(clientsData || []);
 
-        // Fetch products
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("id, name, type, price")
@@ -89,7 +80,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     fetchData();
   }, []);
 
-  // Filter products based on selected product type
   useEffect(() => {
     if (selectedProductType === "") {
       setFilteredProducts(products);
@@ -98,12 +88,43 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     }
   }, [selectedProductType, products]);
 
-  // Find product details by ID
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
   };
 
-  // Submit handler for form
+  const applyTimeRounding = (time: Date | undefined): Date | undefined => {
+    if (!time) return undefined;
+    
+    const hours = time.getHours();
+    const minutes = time.getMinutes();
+    
+    const remainder = minutes % 15;
+    let roundedMinutes: number;
+    
+    if (remainder === 0) {
+      roundedMinutes = minutes;
+    } else {
+      roundedMinutes = minutes + (15 - remainder);
+      if (roundedMinutes >= 60) {
+        return new Date(
+          time.getFullYear(),
+          time.getMonth(),
+          time.getDate(),
+          (hours + 1) % 24,
+          roundedMinutes - 60
+        );
+      }
+    }
+    
+    return new Date(
+      time.getFullYear(),
+      time.getMonth(),
+      time.getDate(),
+      hours,
+      roundedMinutes
+    );
+  };
+
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error("You must be logged in to track time");
@@ -118,7 +139,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
 
     setIsLoading(true);
     try {
-      // Prepare the time entry data based on product type
       const timeEntryData: any = {
         client_id: values.clientId,
         product_id: values.productId,
@@ -127,23 +147,25 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
       };
 
       if (product.type === "activity" && values.startTime && values.endTime) {
-        // Set the times
-        timeEntryData.start_time = values.startTime.toISOString();
-        timeEntryData.end_time = values.endTime.toISOString();
+        const roundedStartTime = applyTimeRounding(values.startTime);
+        const roundedEndTime = applyTimeRounding(values.endTime);
+        
+        if (roundedStartTime && roundedEndTime) {
+          timeEntryData.start_time = roundedStartTime.toISOString();
+          timeEntryData.end_time = roundedEndTime.toISOString();
+        }
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
       }
 
-      // Insert the time entry
       const { error } = await supabase
         .from("time_entries")
         .insert(timeEntryData);
 
       if (error) throw error;
 
-      // Reset form and show success message
       form.reset({
-        clientId: values.clientId, // Keep the selected client
+        clientId: values.clientId,
         productId: "",
         description: "",
       });
@@ -165,7 +187,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     }
   };
 
-  // Show different form fields based on selected product type
   const renderProductSpecificFields = () => {
     const product = getProductById(watchProductId);
     
@@ -184,7 +205,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
                   <TimePicker 
                     value={field.value || null} 
                     onChange={field.onChange}
-                    roundToMinutes={15}
+                    roundOnBlur={false}
                   />
                 </FormControl>
                 <FormMessage />
@@ -202,7 +223,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
                   <TimePicker 
                     value={field.value || null} 
                     onChange={field.onChange}
-                    roundToMinutes={15}
+                    roundOnBlur={false}
                   />
                 </FormControl>
                 <FormMessage />
@@ -242,7 +263,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     return null;
   };
 
-  // Calculate and display duration if both start and end times are set
   const calculateDuration = () => {
     const startTime = form.getValues("startTime");
     const endTime = form.getValues("endTime");
@@ -333,7 +353,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
                           <Select 
                             onValueChange={(value) => {
                               field.onChange(value);
-                              // Reset related fields when product changes
                               form.setValue("startTime", undefined);
                               form.setValue("endTime", undefined);
                               form.setValue("quantity", undefined);

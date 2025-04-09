@@ -1,13 +1,44 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfDay, endOfDay, formatDistanceToNow } from "date-fns";
+import { format, startOfDay, endOfDay, formatDistanceToNow, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Package, CalendarClock, ClipboardList, Eye, Edit, Plus } from "lucide-react";
+import { 
+  Clock, 
+  Package, 
+  CalendarClock, 
+  ClipboardList, 
+  Eye, 
+  Edit, 
+  Plus, 
+  Trash,
+  AlertTriangle
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { TimeEntry } from "@/types";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -16,6 +47,12 @@ interface TimeEntriesListProps {
 
 export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesListProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // State for dialogs
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
 
   const startDate = startOfDay(selectedDate);
   const endDate = endOfDay(selectedDate);
@@ -82,105 +119,198 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     }
     return "-";
   };
+  
+  // Handle delete time entry
+  const handleDeleteClick = (entry: any) => {
+    setSelectedEntry(entry);
+    setDeleteDialogOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!selectedEntry) return;
+    
+    try {
+      const { error } = await supabase
+        .from("time_entries")
+        .delete()
+        .eq("id", selectedEntry.id);
+        
+      if (error) throw error;
+      
+      toast.success("Time entry deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+    } catch (error: any) {
+      console.error("Error deleting time entry:", error);
+      toast.error(error.message || "Failed to delete time entry");
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedEntry(null);
+    }
+  };
+  
+  // Handle edit time entry
+  const handleEditClick = (entry: any) => {
+    // For now, we'll just open a dialog and show a message
+    // In a full implementation, you'd create an edit form similar to the create form
+    setSelectedEntry(entry);
+    setEditDialogOpen(true);
+  };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
-        <CardTitle className="text-base font-medium">
-          Activities for <span className="text-primary">{formattedDate}</span>
-        </CardTitle>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
-            <Eye className="h-3.5 w-3.5" />
-            <span>View full list</span>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
+          <CardTitle className="text-base font-medium">
+            Activities for <span className="text-primary">{formattedDate}</span>
+          </CardTitle>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <Eye className="h-3.5 w-3.5" />
+              <span>View full list</span>
+            </Button>
           </div>
-        ) : timeEntries.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-            <p>No activities recorded for this day.</p>
-            <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client / Project</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timeEntries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-medium">
-                    {entry.clients?.name || 'Unknown client'}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {entry.description || 
-                      (entry.products?.name || 'No description')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {entry.products?.type === 'activity' ? (
-                        <Clock className="h-4 w-4 text-blue-500" />
-                      ) : (
-                        <Package className="h-4 w-4 text-primary" />
-                      )}
-                      <span className="capitalize">{entry.products?.type}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getItemAmount(entry)}</TableCell>
-                  <TableCell className="font-semibold">
-                    {getItemTotal(entry)} SEK
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={entry.invoiced ? "default" : "outline"}>
-                      {entry.invoiced ? "Invoiced" : "Pending"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <CalendarClock className="h-3 w-3" />
-                      <span>{formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}</span>
-                    </div>
-                  </TableCell>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : timeEntries.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
+              <p>No activities recorded for this day.</p>
+              <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client / Project</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-      <div className="p-2 flex justify-end border-t">
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1"
-          >
-            <Edit className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New
-          </Button>
+              </TableHeader>
+              <TableBody>
+                {timeEntries.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">
+                      {entry.clients?.name || 'Unknown client'}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {entry.description || 
+                        (entry.products?.name || 'No description')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {entry.products?.type === 'activity' ? (
+                          <Clock className="h-4 w-4 text-blue-500" />
+                        ) : (
+                          <Package className="h-4 w-4 text-primary" />
+                        )}
+                        <span className="capitalize">{entry.products?.type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getItemAmount(entry)}</TableCell>
+                    <TableCell className="font-semibold">
+                      {getItemTotal(entry)} SEK
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={entry.invoiced ? "default" : "outline"}>
+                        {entry.invoiced ? "Invoiced" : "Pending"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        <span>{formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={() => handleEditClick(entry)}
+                          disabled={entry.invoiced}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                          onClick={() => handleDeleteClick(entry)}
+                          disabled={entry.invoiced}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        <div className="p-2 flex justify-end border-t">
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New
+            </Button>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time entry? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Edit dialog (placeholder for now) */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Time Entry</DialogTitle>
+            <DialogDescription>
+              Edit functionality will be implemented in a future update.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-6">
+            <div className="text-center space-y-3">
+              <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
+              <p>This feature is not fully implemented yet.</p>
+              <p className="text-sm text-muted-foreground">Please delete and recreate the entry for now.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setEditDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
