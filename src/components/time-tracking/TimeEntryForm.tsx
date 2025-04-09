@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,6 +41,9 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [currentDate] = useState<Date>(new Date());
+  
+  // Refs for focus management
+  const endTimeRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -125,6 +129,16 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     );
   };
 
+  const handleStartTimeComplete = () => {
+    // Focus the end time field after completing the start time
+    if (endTimeRef.current) {
+      const button = endTimeRef.current.querySelector('button');
+      if (button) {
+        button.click();
+      }
+    }
+  };
+
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error("You must be logged in to track time");
@@ -206,6 +220,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
                     value={field.value || null} 
                     onChange={field.onChange}
                     roundOnBlur={false}
+                    onComplete={handleStartTimeComplete}
                   />
                 </FormControl>
                 <FormMessage />
@@ -217,7 +232,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
             control={form.control}
             name="endTime"
             render={({ field }) => (
-              <FormItem>
+              <FormItem ref={endTimeRef}>
                 <FormLabel>Time to:</FormLabel>
                 <FormControl>
                   <TimePicker 

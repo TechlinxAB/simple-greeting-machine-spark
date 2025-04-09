@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +15,7 @@ import {
   Edit, 
   Plus, 
   Trash,
-  AlertTriangle
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TimeEntryEditForm } from "./TimeEntryEditForm";
 import { toast } from "sonner";
 import { TimeEntry } from "@/types";
 
@@ -53,11 +54,12 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const startDate = startOfDay(selectedDate);
   const endDate = endOfDay(selectedDate);
 
-  const { data: timeEntries = [], isLoading } = useQuery({
+  const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: ["time-entries", format(selectedDate, "yyyy-MM-dd")],
     queryFn: async () => {
       if (!user) return [];
@@ -129,6 +131,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const confirmDelete = async () => {
     if (!selectedEntry) return;
     
+    setIsDeleting(true);
     try {
       const { error } = await supabase
         .from("time_entries")
@@ -138,11 +141,15 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       if (error) throw error;
       
       toast.success("Time entry deleted successfully");
+      // Refetch the time entries
+      refetch();
+      // Also invalidate the broader time-entries query to update any other components
       queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     } catch (error: any) {
       console.error("Error deleting time entry:", error);
       toast.error(error.message || "Failed to delete time entry");
     } finally {
+      setIsDeleting(false);
       setDeleteDialogOpen(false);
       setSelectedEntry(null);
     }
@@ -150,10 +157,15 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   
   // Handle edit time entry
   const handleEditClick = (entry: any) => {
-    // For now, we'll just open a dialog and show a message
-    // In a full implementation, you'd create an edit form similar to the create form
     setSelectedEntry(entry);
     setEditDialogOpen(true);
+  };
+  
+  // Handle edit success
+  const handleEditSuccess = () => {
+    setEditDialogOpen(false);
+    refetch();
+    toast.success("Time entry updated successfully");
   };
 
   return (
@@ -282,33 +294,42 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Edit dialog (placeholder for now) */}
+      {/* Edit dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Edit Time Entry</DialogTitle>
             <DialogDescription>
-              Edit functionality will be implemented in a future update.
+              Make changes to your time entry below.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center py-6">
-            <div className="text-center space-y-3">
-              <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
-              <p>This feature is not fully implemented yet.</p>
-              <p className="text-sm text-muted-foreground">Please delete and recreate the entry for now.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setEditDialogOpen(false)}>Close</Button>
-          </DialogFooter>
+          
+          {selectedEntry && (
+            <TimeEntryEditForm 
+              timeEntry={selectedEntry} 
+              onSuccess={handleEditSuccess} 
+              onCancel={() => setEditDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>
