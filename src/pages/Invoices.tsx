@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
+import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -41,6 +42,7 @@ export default function Invoices() {
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
@@ -174,6 +176,8 @@ export default function Invoices() {
     }
 
     setIsExportingInvoice(true);
+    setErrorMessage(null);
+    
     try {
       const timeEntryIds = unbilledEntries.map(entry => entry.id);
       
@@ -187,7 +191,9 @@ export default function Invoices() {
       refetchUnbilled();
     } catch (error) {
       console.error("Error creating invoice:", error);
-      toast.error(`Failed to create invoice: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setErrorMessage(errorMsg);
+      toast.error(`Failed to create invoice: ${errorMsg}`);
     } finally {
       setIsExportingInvoice(false);
     }
@@ -396,6 +402,16 @@ export default function Invoices() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error creating invoice</AlertTitle>
+                <AlertDescription>
+                  {errorMessage}
+                </AlertDescription>
+              </Alert>
+            )}
             
             {selectedClient && (
               <>

@@ -174,7 +174,8 @@ serve(async (req) => {
           JSON.stringify({
             error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
             details: errorDetails,
-            fortnoxStatus: fortnoxRes.status
+            fortnoxStatus: fortnoxRes.status,
+            requestPayload: payload // Include the original payload that caused the error
           }),
           {
             status: fortnoxRes.status,
