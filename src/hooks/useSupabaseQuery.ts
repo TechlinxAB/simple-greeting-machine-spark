@@ -44,12 +44,14 @@ export function useSupabaseQuery<T>(
       console.error('Unexpected error during Supabase query:', err);
       if (err instanceof Error) {
         // Create a PostgrestError-like object for consistency
+        // Include the 'name' property that was missing before
         setError({
           message: err.message,
           details: '',
           hint: '',
-          code: 'UNKNOWN'
-        });
+          code: 'UNKNOWN',
+          name: 'PostgrestError' // Add the missing name property
+        } as PostgrestError);
       }
     } finally {
       setLoading(false);
