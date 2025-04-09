@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Popover, 
   PopoverContent, 
@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Clock } from "lucide-react";
-import { addMinutes, format, set } from "date-fns";
+import { format, set } from "date-fns";
 
 interface TimePickerProps {
   value: Date | null;
@@ -18,98 +18,112 @@ interface TimePickerProps {
 
 export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [hours, setHours] = useState<string>("");
-  const [minutes, setMinutes] = useState<string>("");
-  const [period, setPeriod] = useState<"AM" | "PM">("AM");
+  const [timeInput, setTimeInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   
-  // Initialize fields from value when component mounts or value changes
+  // Update the time input when the value changes
   useEffect(() => {
     if (value) {
-      setHours(format(value, "h"));
-      setMinutes(format(value, "mm"));
-      setPeriod(format(value, "a").toUpperCase() as "AM" | "PM");
+      setTimeInput(format(value, "HH:mm"));
+    } else {
+      setTimeInput("");
     }
   }, [value]);
   
-  // Apply rounding to the selected time as per the requirements
-  const applyTimeRounding = (date: Date): Date => {
-    if (!roundToMinutes) return date;
+  // Apply rounding to the minutes based on the requirements
+  const applyRounding = (hours: number, minutes: number): { hours: number, minutes: number } => {
+    if (!roundToMinutes) return { hours, minutes };
     
-    const mins = date.getMinutes();
-    let roundedMins = 0;
-    
-    // Rules: 
+    // Rules for 15-minute intervals:
     // - Less than 15 minutes rounds to 15
     // - 15-29 minutes rounds to 30
     // - 30-44 minutes rounds to 45
     // - 45+ minutes rounds to next hour
-    if (mins < 15) {
-      roundedMins = 15;
-    } else if (mins < 30) {
-      roundedMins = 30;
-    } else if (mins < 45) {
-      roundedMins = 45;
+    if (minutes < 15) {
+      return { hours, minutes: 15 };
+    } else if (minutes < 30) {
+      return { hours, minutes: 30 };
+    } else if (minutes < 45) {
+      return { hours, minutes: 45 };
     } else {
-      roundedMins = 0;
-      date = addMinutes(date, 60 - mins); // Add remaining minutes to next hour
-    }
-    
-    const result = new Date(date);
-    result.setMinutes(roundedMins);
-    result.setSeconds(0);
-    result.setMilliseconds(0);
-    
-    return result;
-  };
-  
-  // Update the time based on selected hours, minutes and period
-  const updateTime = () => {
-    try {
-      // Validate inputs
-      const parsedHours = parseInt(hours);
-      const parsedMinutes = parseInt(minutes);
-      
-      if (isNaN(parsedHours) || parsedHours < 1 || parsedHours > 12) {
-        throw new Error("Hours must be between 1 and 12");
-      }
-      
-      if (isNaN(parsedMinutes) || parsedMinutes < 0 || parsedMinutes > 59) {
-        throw new Error("Minutes must be between 0 and 59");
-      }
-      
-      // Create a new date with the selected time
-      const now = new Date();
-      let newDate = set(now, {
-        hours: period === "PM" && parsedHours < 12 ? parsedHours + 12 : 
-               period === "AM" && parsedHours === 12 ? 0 : parsedHours,
-        minutes: parsedMinutes,
-        seconds: 0,
-        milliseconds: 0
-      });
-      
-      // Apply rounding if specified
-      newDate = applyTimeRounding(newDate);
-      
-      // Update the value
-      onChange(newDate);
-      setIsOpen(false);
-    } catch (error) {
-      console.error("Error updating time:", error);
+      return { hours: (hours + 1) % 24, minutes: 0 };
     }
   };
   
-  const timeDisplay = value 
-    ? format(value, "h:mm a") 
-    : "HH:MM";
+  // Handle direct time input
+  const handleTimeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    
+    // Only allow numbers and colon
+    const filtered = input.replace(/[^0-9:]/g, "");
+    
+    // Format as we type
+    if (filtered.length <= 5) {
+      if (filtered.length === 2 && !filtered.includes(":") && !timeInput.includes(":")) {
+        // Automatically add colon after hours
+        setTimeInput(`${filtered}:`);
+      } else {
+        setTimeInput(filtered);
+      }
+    }
+  };
+  
+  // Validate and update time when input loses focus
+  const handleBlur = () => {
+    if (!timeInput) {
+      onChange(null);
+      return;
+    }
+    
+    let hours = 0;
+    let minutes = 0;
+    
+    if (timeInput.includes(":")) {
+      const [hoursStr, minutesStr] = timeInput.split(":");
+      hours = parseInt(hoursStr) || 0;
+      minutes = parseInt(minutesStr) || 0;
+    } else if (timeInput.length <= 2) {
+      hours = parseInt(timeInput) || 0;
+    } else if (timeInput.length <= 4) {
+      hours = parseInt(timeInput.substring(0, 2)) || 0;
+      minutes = parseInt(timeInput.substring(2)) || 0;
+    }
+    
+    // Validate hours and minutes
+    if (hours < 0 || hours > 23) hours = 0;
+    if (minutes < 0 || minutes > 59) minutes = 0;
+    
+    // Apply rounding
+    const roundedTime = applyRounding(hours, minutes);
+    
+    // Create a new date with the selected time
+    const now = new Date();
+    const newDate = set(now, {
+      hours: roundedTime.hours,
+      minutes: roundedTime.minutes,
+      seconds: 0,
+      milliseconds: 0
+    });
+    
+    onChange(newDate);
+    setTimeInput(format(newDate, "HH:mm"));
+  };
+  
+  // Handle when the user presses Enter
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleBlur();
+      inputRef.current?.blur();
+    }
+  };
   
   // Generate time preset buttons (hourly intervals)
   const generateTimePresets = () => {
     const presets = [];
     const now = new Date();
-    const baseTime = set(now, { hours: 8, minutes: 0, seconds: 0, milliseconds: 0 });
     
-    for (let i = 0; i < 12; i++) {
-      const time = addMinutes(baseTime, i * 60);
+    for (let i = 0; i < 24; i += 2) {
+      const time = set(now, { hours: i, minutes: 0, seconds: 0, milliseconds: 0 });
       presets.push(
         <Button
           key={i}
@@ -117,12 +131,13 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
           size="sm"
           className="text-xs"
           onClick={() => {
-            const roundedTime = applyTimeRounding(time);
-            onChange(roundedTime);
+            const newDate = set(now, { hours: i, minutes: 0, seconds: 0, milliseconds: 0 });
+            onChange(newDate);
+            setTimeInput(format(newDate, "HH:mm"));
             setIsOpen(false);
           }}
         >
-          {format(time, "h:mm a")}
+          {format(time, "HH:mm")}
         </Button>
       );
     }
@@ -136,71 +151,41 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
         <Button
           variant="outline" 
           className="w-full justify-start text-left font-normal"
+          onClick={() => {
+            setIsOpen(true);
+            // Focus the input after a short delay to ensure the popover is open
+            setTimeout(() => {
+              inputRef.current?.focus();
+              inputRef.current?.select();
+            }, 100);
+          }}
         >
           <Clock className="mr-2 h-4 w-4" />
-          {timeDisplay}
+          {value ? format(value, "HH:mm") : "HH:mm"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72" align="start">
+      <PopoverContent className="w-64" align="start">
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">
-                Hour
-              </div>
-              <Input
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                className="w-full"
-                placeholder="12"
-                maxLength={2}
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">
-                Minute
-              </div>
-              <Input
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                className="w-full"
-                placeholder="00"
-                maxLength={2}
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">
-                Period
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                <Button
-                  variant={period === "AM" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPeriod("AM")}
-                  className="w-full"
-                >
-                  AM
-                </Button>
-                <Button
-                  variant={period === "PM" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPeriod("PM")}
-                  className="w-full"
-                >
-                  PM
-                </Button>
-              </div>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Enter time (24h format)</div>
+            <Input
+              ref={inputRef}
+              value={timeInput}
+              onChange={handleTimeInput}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              className="w-full text-center text-lg"
+              placeholder="HH:mm"
+              maxLength={5}
+              autoFocus
+            />
+            <div className="text-xs text-muted-foreground text-center">
+              Format: 24-hour (e.g., 13:45)
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-1">
+          <div className="grid grid-cols-4 gap-1">
             {generateTimePresets()}
-          </div>
-          
-          <div className="flex justify-end">
-            <Button size="sm" onClick={updateTime}>
-              Select
-            </Button>
           </div>
         </div>
       </PopoverContent>

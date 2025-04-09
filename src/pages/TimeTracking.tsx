@@ -57,15 +57,15 @@ export default function TimeTracking() {
         </Button>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-[250px,1fr]">
-        <div>
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-3">
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
           />
         </div>
         
-        <div className="space-y-6">
+        <div className="col-span-9 space-y-6">
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}

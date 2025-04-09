@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { format, addDays, isSameDay, isToday, subDays } from "date-fns";
+import { format, addDays, isSameDay, isToday, subDays, isAfter, isBefore } from "date-fns";
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -43,17 +43,33 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   
   // Generate a list of dates centered around the selected date
   const updateDateList = (centerDate: Date) => {
+    const today = new Date();
     const dates = [];
     
-    // Add days before the selected date
-    for (let i = 4; i >= 0; i--) {
-      dates.push(subDays(centerDate, i));
-    }
-    
-    // Add days after the selected date
-    for (let i = 1; i <= 2; i++) {
+    // Add days before and after the selected date
+    for (let i = -3; i <= 3; i++) {
       dates.push(addDays(centerDate, i));
     }
+    
+    // Sort dates: Today first, then upcoming dates, then past dates
+    dates.sort((a, b) => {
+      // Today comes first
+      if (isToday(a)) return -1;
+      if (isToday(b)) return 1;
+      
+      // Then future dates (ascending)
+      if (isAfter(a, today) && isAfter(b, today)) {
+        return isBefore(a, b) ? -1 : 1;
+      }
+      
+      // Then past dates (descending)
+      if (isBefore(a, today) && isBefore(b, today)) {
+        return isBefore(a, b) ? 1 : -1;
+      }
+      
+      // Future dates before past dates
+      return isAfter(a, today) ? -1 : 1;
+    });
     
     setDateList(dates);
   };
@@ -132,30 +148,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           </Button>
         ))}
       </div>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className="w-full justify-center"
-          >
-            Choose a specific date
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => {
-              if (date) {
-                onDateChange(date);
-              }
-            }}
-            initialFocus
-            className="pointer-events-auto"
-          />
-        </PopoverContent>
-      </Popover>
     </div>
   );
 }
