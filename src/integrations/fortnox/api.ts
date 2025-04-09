@@ -486,32 +486,25 @@ export async function fortnoxApiRequest(
       credentials.accessToken = refreshed.accessToken;
     }
     
-    // Updated headers to match the requirements you provided
-    const response = await fetch(`${FORTNOX_API_BASE}${endpoint}`, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${credentials.accessToken}`,
-        'Client-Secret': credentials.clientSecret, // Added as per documentation
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: data ? JSON.stringify(data) : undefined,
+    // Instead of directly calling Fortnox API, use our proxy edge function
+    const response = await supabase.functions.invoke('fortnox-proxy', {
+      body: JSON.stringify({
+        method,
+        endpoint,
+        headers: {
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'Client-Secret': credentials.clientSecret
+        },
+        body: data
+      })
     });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: "unknown", error_description: errorText };
-      }
-      
-      console.error("Fortnox API request failed:", response.status, errorData);
-      throw new Error(`Fortnox API Error: ${response.status} - ${errorData.error_description || errorData.message || errorText || response.statusText}`);
+    if (response.error) {
+      console.error("Error from fortnox-proxy edge function:", response.error);
+      throw new Error(`Fortnox API Error: ${response.error.message}`);
     }
     
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error('Error in Fortnox API request:', error);
     throw error;
