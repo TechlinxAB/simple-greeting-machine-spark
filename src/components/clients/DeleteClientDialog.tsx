@@ -6,13 +6,14 @@ import { Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Client } from "@/types";
 
 interface DeleteClientDialogProps {
-  clientId: string;
-  clientName: string;
+  client: Client;
+  onSuccess?: () => void;
 }
 
-export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogProps) {
+export function DeleteClientDialog({ client, onSuccess }: DeleteClientDialogProps) {
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
@@ -26,7 +27,7 @@ export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogP
       const { data: timeEntries, error: timeEntriesError } = await supabase
         .from('time_entries')
         .select('id')
-        .eq('client_id', clientId)
+        .eq('client_id', client.id)
         .limit(1);
         
       if (timeEntriesError) {
@@ -48,7 +49,7 @@ export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogP
       const { data: invoices, error: invoicesError } = await supabase
         .from('invoices')
         .select('id')
-        .eq('client_id', clientId)
+        .eq('client_id', client.id)
         .limit(1);
         
       if (invoicesError) {
@@ -70,17 +71,23 @@ export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogP
       const { error } = await supabase
         .from('clients')
         .delete()
-        .eq('id', clientId);
+        .eq('id', client.id);
         
       if (error) throw error;
       
       toast({
         title: "Client deleted",
-        description: `${clientName} has been removed successfully.`
+        description: `${client.name} has been removed successfully.`
       });
       
       // Invalidate queries to refresh client list
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['all-clients'] });
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
       
     } catch (error) {
       console.error('Error deleting client:', error);
@@ -112,7 +119,7 @@ export function DeleteClientDialog({ clientId, clientName }: DeleteClientDialogP
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Client</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{clientName}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{client.name}</strong>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
