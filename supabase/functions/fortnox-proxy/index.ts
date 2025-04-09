@@ -13,12 +13,13 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Log request details for debugging
-  console.log("Received Fortnox proxy request");
+  // Log all requests immediately for debugging
+  console.log("===== FORTNOX PROXY REQUEST =====");
   console.log("Request method:", req.method);
+  console.log("Request URL:", req.url);
   console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
   
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests - must be at top level
   if (req.method === 'OPTIONS') {
     console.log("Handling OPTIONS preflight request");
     return new Response(null, {
@@ -27,9 +28,26 @@ serve(async (req) => {
     });
   }
   
+  // Simple status endpoint to confirm function is running
+  const url = new URL(req.url);
+  if (url.pathname.endsWith('/status') || url.pathname.endsWith('/test')) {
+    console.log("Returning status test response");
+    return new Response(
+      JSON.stringify({ 
+        ok: true, 
+        message: "Fortnox proxy is working", 
+        timestamp: new Date().toISOString(),
+        path: url.pathname
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  }
+  
   try {
-    // Simple test response to check if function is accessible
-    const url = new URL(req.url);
+    // Test response to check if function is accessible
     if (url.pathname.endsWith('/test')) {
       console.log("Returning test response");
       return new Response(
