@@ -14,6 +14,26 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createFortnoxInvoice } from "@/integrations/fortnox/invoices";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+type TimeEntryWithProfile = {
+  id: string;
+  user_id: string;
+  start_time?: string;
+  end_time?: string;
+  quantity?: number;
+  description?: string;
+  products?: {
+    id: string;
+    name: string;
+    type: string;
+    price: number;
+    vat_percentage: number;
+  };
+  user_profile?: {
+    id?: string;
+    name?: string;
+  };
+};
+
 export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
@@ -56,7 +76,7 @@ export default function Invoices() {
     },
   });
 
-  const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery({
+  const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
     queryKey: ["unbilled-entries", selectedClient],
     queryFn: async () => {
       if (!selectedClient) return [];

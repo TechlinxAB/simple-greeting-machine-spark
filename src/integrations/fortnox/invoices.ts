@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -75,7 +74,7 @@ export async function formatTimeEntriesForFortnox(
     const userIds = timeEntries.map(entry => entry.user_id);
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, name, email")
+      .select("id, name")
       .in("id", userIds);
       
     if (profilesError) throw profilesError;
