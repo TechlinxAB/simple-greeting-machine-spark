@@ -3,7 +3,7 @@
 // This file serves as the main entry point for the Fortnox integration
 
 // Types
-export { FortnoxCredentials, SystemSettings } from './types';
+export type { FortnoxCredentials, SystemSettings } from './types';
 
 // Authentication
 export { 

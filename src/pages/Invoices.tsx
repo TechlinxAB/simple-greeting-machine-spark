@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -8,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { isFortnoxConnected } from "@/integrations/fortnox/api";
+import { isFortnoxConnected } from "@/integrations/fortnox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { createFortnoxInvoice } from "@/integrations/fortnox/invoices";
+import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type TimeEntryWithProfile = {

@@ -1,12 +1,12 @@
-
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   exchangeCodeForTokens, 
   saveFortnoxCredentials,
-  getFortnoxCredentials
-} from "@/integrations/fortnox/api";
+  getFortnoxCredentials,
+  type FortnoxCredentials
+} from "@/integrations/fortnox";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +34,10 @@ export function FortnoxCallbackHandler({
   // Fetch stored credentials from database
   const { data: storedCredentials, isLoading: isLoadingCredentials } = useQuery({
     queryKey: ["fortnox-credentials"],
-    queryFn: getFortnoxCredentials,
+    queryFn: async () => {
+      const credentials = await getFortnoxCredentials();
+      return credentials as FortnoxCredentials;
+    },
     retry: 2,
     staleTime: 10000,
   });
