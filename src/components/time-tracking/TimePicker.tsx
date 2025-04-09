@@ -31,11 +31,18 @@ export function TimePicker({ value, onChange, roundToMinutes = 15 }: TimePickerP
     }
   }, [value]);
   
-  // Apply 15-minute rounding to the selected time
+  // Apply rounding to the selected time
   const applyTimeRounding = (date: Date): Date => {
     if (!roundToMinutes) return date;
     
-    return roundToNearestMinutes(date, { nearestTo: roundToMinutes as 1 | 5 | 10 | 15 | 20 | 30 | 60 });
+    // Ensure roundToMinutes is a valid value for the roundToNearestMinutes function
+    // Valid values are 1, 5, 10, 15, 20, 30
+    const validNearestValues = [1, 5, 10, 15, 20, 30];
+    const nearestTo = validNearestValues.includes(roundToMinutes) ? 
+      roundToMinutes as 1 | 5 | 10 | 15 | 20 | 30 : 
+      15; // Default to 15 if not a valid value
+      
+    return roundToNearestMinutes(date, { nearestTo });
   };
   
   // Update the time based on selected hours, minutes and period
