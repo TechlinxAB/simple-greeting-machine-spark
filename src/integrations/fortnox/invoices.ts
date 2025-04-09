@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { fortnoxApiRequest } from "./api";
+import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
 
 // Interface for Fortnox invoice creation

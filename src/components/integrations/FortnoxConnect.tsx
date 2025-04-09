@@ -8,7 +8,7 @@ import {
   disconnectFortnox,
   getFortnoxCredentials,
   saveFortnoxCredentials
-} from "@/integrations/fortnox/api";
+} from "@/integrations/fortnox"; // Updated import path
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
