@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
@@ -521,7 +522,9 @@ export async function fortnoxApiRequest(
         endpoint,
         headers: {
           'Authorization': `Bearer ${credentials.accessToken}`,
-          'Client-Secret': credentials.clientSecret
+          'Client-Secret': credentials.clientSecret,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: data
       }
@@ -529,7 +532,37 @@ export async function fortnoxApiRequest(
     
     if (error) {
       console.error("Error from fortnox-proxy edge function:", error);
-      throw new Error(`Fortnox API Error: ${error.message}`);
+      
+      // Try to extract more detailed error information
+      let errorMessage = "Fortnox API Error";
+      let errorDetails = null;
+      
+      if (typeof error === 'object' && error !== null) {
+        // If the error contains a message that has JSON in it, parse it
+        if (error.message && typeof error.message === 'string') {
+          try {
+            if (error.message.includes('{') && error.message.includes('}')) {
+              const jsonStart = error.message.indexOf('{');
+              const jsonEnd = error.message.lastIndexOf('}') + 1;
+              
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                errorDetails = JSON.parse(error.message.substring(jsonStart, jsonEnd));
+                if (errorDetails?.error) {
+                  errorMessage = `Fortnox API Error: ${errorDetails.error}`;
+                }
+                if (errorDetails?.details) {
+                  errorDetails = errorDetails.details;
+                }
+              }
+            }
+          } catch (parseError) {
+            console.error("Error parsing error message JSON:", parseError);
+          }
+        }
+      }
+      
+      // Throw a nicely formatted error
+      throw new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`);
     }
     
     if (!responseData) {
