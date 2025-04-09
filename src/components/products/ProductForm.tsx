@@ -178,7 +178,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
                     <FormItem>
                       <FormLabel>Article Number (for Fortnox)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 1000 or SRV001" {...field} />
+                        <Input placeholder="3001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
