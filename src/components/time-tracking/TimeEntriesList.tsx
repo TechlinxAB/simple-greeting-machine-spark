@@ -138,7 +138,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   };
   
   const confirmDelete = async () => {
-    if (!selectedEntry || !selectedEntry.id) {
+    if (!selectedEntry || !selectedEntry.id || !user) {
       toast.error("No time entry selected for deletion");
       return;
     }
@@ -149,14 +149,15 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       const entryId = selectedEntry.id;
       console.log("Attempting to delete time entry with ID:", entryId);
       
-      // Make the DELETE request to Supabase
+      // Make the DELETE request to Supabase with explicit user_id check
+      // This is crucial - it ensures we're properly addressing RLS policy requirements
       const { data, error, status, statusText } = await supabase
         .from("time_entries")
         .delete()
-        .eq("id", entryId);
+        .eq("id", entryId)
+        .eq("user_id", user.id); // Add explicit user_id check to match RLS policy
         
-      console.log("Delete response status:", status, statusText);
-      console.log("Delete response data:", data);
+      console.log("Delete response:", { status, statusText, data, error });
       
       if (error) {
         console.error("Supabase delete error:", error);
@@ -170,31 +171,39 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       setSelectedEntry(null);
       setIsDeleting(false);
       
-      toast.success("Time entry deleted successfully");
-      
-      // Manually verify if the deletion was successful
+      // Verification check with explicit user_id query
       const { data: checkData, error: checkError } = await supabase
         .from("time_entries")
         .select("id")
-        .eq("id", entryId);
+        .eq("id", entryId)
+        .eq("user_id", user.id);
       
       if (checkError) {
         console.error("Error checking deletion:", checkError);
       } else {
-        console.log(`Verification check: Entry ${entryId} ${checkData?.length ? 'still exists' : 'was deleted'}`);
+        const stillExists = checkData && checkData.length > 0;
+        console.log(`Verification check: Entry ${entryId} ${stillExists ? 'still exists' : 'was deleted'}`);
+        
+        if (stillExists) {
+          console.warn("Entry still exists after deletion - possible RLS issue");
+          toast.error("Delete operation didn't remove the entry. Please contact your administrator.");
+          return;
+        }
       }
       
-      // First invalidate the specific query
-      await queryClient.invalidateQueries({ 
-        queryKey: queryKey
+      toast.success("Time entry deleted successfully");
+      
+      // Directly update the local state in React Query cache
+      queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
+        return oldData.filter(item => item.id !== entryId);
       });
       
-      // Then invalidate all time entries queries
+      // Then invalidate caches to ensure fresh data on next fetch
       await queryClient.invalidateQueries({ 
         queryKey: ["time-entries"]
       });
       
-      // Then explicitly refetch the current view
+      // Force a complete refetch
       await refetch();
       
     } catch (error: any) {
