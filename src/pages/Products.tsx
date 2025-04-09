@@ -22,6 +22,7 @@ export default function Products() {
   const [showProductForm, setShowProductForm] = useState(false);
   const [productType, setProductType] = useState<ProductType>("activity");
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
   const { role } = useAuth();
 
@@ -47,13 +48,34 @@ export default function Products() {
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", productId);
+      setIsDeleting(true);
+      
+      try {
+        // First check if product is used in any time entries
+        const { count, error: countError } = await supabase
+          .from("time_entries")
+          .select("*", { count: 'exact', head: true })
+          .eq("product_id", productId);
+          
+        if (countError) throw countError;
         
-      if (error) throw error;
-      return productId;
+        // If product is in use, prevent deletion
+        if (count && count > 0) {
+          throw new Error(`Cannot delete product that is used in ${count} time entries`);
+        }
+        
+        // If not in use, proceed with deletion
+        const { error } = await supabase
+          .from("products")
+          .delete()
+          .eq("id", productId);
+          
+        if (error) throw error;
+        
+        return productId;
+      } finally {
+        setIsDeleting(false);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-products"] });
@@ -63,7 +85,7 @@ export default function Products() {
     },
     onError: (error) => {
       console.error("Error deleting product:", error);
-      toast.error("Failed to delete product. It may be in use by time entries.");
+      toast.error(error instanceof Error ? error.message : "Failed to delete product");
     },
   });
 
@@ -265,8 +287,14 @@ export default function Products() {
             <AlertDialogAction 
               onClick={confirmDeleteProduct}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                  Deleting...
+                </>
+              ) : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
