@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // API base URL for Fortnox
 const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
@@ -20,9 +21,11 @@ serve(async (req) => {
     });
   }
   
+  console.log("Received Fortnox proxy request");
+  console.log("Request method:", req.method);
+  console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+  
   try {
-    console.log("Received Fortnox proxy request");
-    
     // Parse the request body
     let requestData;
     try {
@@ -110,6 +113,18 @@ serve(async (req) => {
     delete headers['Authorization'];
     delete headers['Client-Secret'];
     
+    // Log the request (with sensitive data masked)
+    console.log("Fortnox request details:", {
+      url,
+      method: requestData.method,
+      headers: {
+        ...headers,
+        'Authorization': headers['Authorization'] ? 'Bearer ***masked***' : undefined,
+        'Client-Secret': headers['Client-Secret'] ? '***masked***' : undefined,
+      },
+      body: requestData.body ? '***present but not logged***' : null,
+    });
+    
     // Make the request to Fortnox
     const response = await fetch(url, {
       method: requestData.method,
@@ -121,6 +136,14 @@ serve(async (req) => {
     
     // Get the response body
     const responseText = await response.text();
+    
+    // Log the response (but don't log large responses fully)
+    if (responseText.length > 500) {
+      console.log(`Fortnox API response (truncated): ${responseText.substring(0, 500)}...`);
+    } else {
+      console.log(`Fortnox API response: ${responseText}`);
+    }
+    
     let responseData;
     
     try {

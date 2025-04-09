@@ -486,8 +486,10 @@ export async function fortnoxApiRequest(
       credentials.accessToken = refreshed.accessToken;
     }
     
-    // Instead of directly calling Fortnox API, use our proxy edge function
-    const response = await supabase.functions.invoke('fortnox-proxy', {
+    console.log(`Making ${method} request to Fortnox endpoint: ${endpoint}`);
+    
+    // Call our Edge Function proxy instead of directly calling Fortnox API
+    const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: JSON.stringify({
         method,
         endpoint,
@@ -499,12 +501,16 @@ export async function fortnoxApiRequest(
       })
     });
     
-    if (response.error) {
-      console.error("Error from fortnox-proxy edge function:", response.error);
-      throw new Error(`Fortnox API Error: ${response.error.message}`);
+    if (error) {
+      console.error("Error from fortnox-proxy edge function:", error);
+      throw new Error(`Fortnox API Error: ${error.message}`);
     }
     
-    return response.data;
+    if (!responseData) {
+      throw new Error('Empty response from Fortnox API');
+    }
+    
+    return responseData;
   } catch (error) {
     console.error('Error in Fortnox API request:', error);
     throw error;
