@@ -49,7 +49,7 @@ export function UserManagement() {
     profile_avatar_url: string | null;
   };
   
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, error: usersError } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       try {
@@ -81,7 +81,9 @@ export function UserManagement() {
         toast.error("Failed to load users");
         return [] as User[];
       }
-    }
+    },
+    retry: 1, // Only retry once to avoid flooding with requests
+    refetchOnWindowFocus: false // Disable refetching on window focus
   });
 
   const updateRoleMutation = useMutation({
@@ -151,6 +153,19 @@ export function UserManagement() {
         {isLoading ? (
           <div className="flex justify-center items-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : usersError ? (
+          <div className="bg-destructive/10 text-destructive p-4 rounded-md my-4">
+            <p className="font-medium">Error loading users:</p>
+            <p className="text-sm mt-1">Please try again later or contact support if the issue persists.</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
+            >
+              Retry
+            </Button>
           </div>
         ) : (
           <div className="rounded-md border">
