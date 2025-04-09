@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -22,6 +23,12 @@ const appSettingsSchema = z.object({
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
   sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: "Invalid color format" }),
+});
+
+// Add the Fortnox settings schema that was missing
+const fortnoxSettingsSchema = z.object({
+  fortnoxClientId: z.string().min(5, { message: "Fortnox Client ID is too short" }),
+  fortnoxClientSecret: z.string().min(5, { message: "Fortnox Client Secret is too short" }),
 });
 
 interface AppSettings {
@@ -270,7 +277,16 @@ export default function Settings() {
   
   const onAppSettingsSubmit = async (values: z.infer<typeof appSettingsSchema>) => {
     try {
-      applyColorTheme(values);
+      // Create a complete AppSettings object to ensure all required properties are present
+      const completeSettings: AppSettings = {
+        appName: values.appName,
+        primaryColor: values.primaryColor,
+        secondaryColor: values.secondaryColor,
+        sidebarColor: values.sidebarColor,
+        accentColor: values.accentColor
+      };
+      
+      applyColorTheme(completeSettings);
       
       const { error } = await supabase
         .from('system_settings')
