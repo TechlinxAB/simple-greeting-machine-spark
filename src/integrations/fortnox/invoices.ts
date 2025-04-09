@@ -5,17 +5,7 @@ import type { Client, Product, TimeEntry, Invoice } from "@/types";
 
 // Interface for Fortnox invoice creation
 interface FortnoxInvoiceData {
-  Customer: {
-    CustomerNumber: string;
-    Name?: string;
-    OrganisationNumber?: string;
-    Address1?: string;
-    ZipCode?: string;
-    City?: string;
-    CountryCode?: string;
-    Email?: string;
-    Phone1?: string;
-  };
+  CustomerNumber: string;
   InvoiceRows: FortnoxInvoiceRow[];
   InvoiceDate?: string;
   DueDate?: string;
@@ -88,7 +78,7 @@ export async function formatTimeEntriesForFortnox(
       });
     }
     
-    // Format invoice data for Fortnox with complete client information
+    // Format invoice rows from time entries
     const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
       const product = entry.products;
       // Get user profile from the map
@@ -132,20 +122,9 @@ export async function formatTimeEntriesForFortnox(
       };
     });
     
-    // Prepare complete customer information for Fortnox
-    // Make sure the schema exactly matches what Fortnox expects
+    // FIXED: Prepare the invoice data with only CustomerNumber, not full Customer object
     const invoiceData: FortnoxInvoiceData = {
-      Customer: {
-        CustomerNumber: client.client_number || client.id.substring(0, 10),
-        Name: client.name,
-        OrganisationNumber: client.organization_number,
-        Address1: client.address,
-        ZipCode: client.postal_code,
-        City: client.city,
-        CountryCode: "SE", // Default to Sweden
-        Email: client.email,
-        Phone1: client.telephone
-      },
+      CustomerNumber: client.client_number || client.id.substring(0, 10),
       InvoiceRows: invoiceRows,
       InvoiceDate: new Date().toISOString().split('T')[0],
       DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
@@ -185,28 +164,25 @@ export async function createFortnoxInvoice(
     // Check if client exists in Fortnox
     let customerExists = false;
     try {
-      customerExists = await checkFortnoxCustomer(invoiceData.Customer.CustomerNumber);
+      customerExists = await checkFortnoxCustomer(invoiceData.CustomerNumber);
     } catch (error) {
       console.log("Customer check failed, will attempt to create:", error);
     }
     
     // Create client in Fortnox if not exists
     if (!customerExists) {
-      console.log("Creating customer in Fortnox:", invoiceData.Customer.Name);
-      await createFortnoxCustomer({
-        id: clientId,
-        client_number: invoiceData.Customer.CustomerNumber,
-        name: invoiceData.Customer.Name || '',
-        organization_number: invoiceData.Customer.OrganisationNumber || '',
-        address: invoiceData.Customer.Address1 || '',
-        postal_code: invoiceData.Customer.ZipCode || '',
-        city: invoiceData.Customer.City || '',
-        email: invoiceData.Customer.Email || '',
-        telephone: invoiceData.Customer.Phone1 || '',
-        county: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      console.log("Creating customer in Fortnox:", invoiceData.CustomerNumber);
+      // Get full client data for customer creation
+      const { data: client, error: clientError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", clientId)
+        .single();
+        
+      if (clientError) throw clientError;
+      if (!client) throw new Error("Client not found");
+      
+      await createFortnoxCustomer(client);
     }
     
     // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
