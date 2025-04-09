@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase, deleteRecord } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -67,6 +66,8 @@ export function useSupabaseQuery<T>(
   return { data, error, loading, execute, refetch };
 }
 
+type TableName = "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings";
+
 /**
  * Completely rewritten delete function with better error handling and verification.
  * This addresses the silent failure issue where products appear to be deleted but aren't.
@@ -76,7 +77,7 @@ export function useSupabaseQuery<T>(
  * @returns Promise with success/error status
  */
 export async function deleteWithRetry(
-  tableName: "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings", 
+  tableName: TableName, 
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {

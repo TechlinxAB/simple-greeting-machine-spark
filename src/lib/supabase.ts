@@ -45,13 +45,16 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
+// Define a type for valid table names to be used with deleteRecord
+type TableName = "clients" | "invoice_items" | "invoices" | "products" | "time_entries" | "news_posts" | "profiles" | "system_settings";
+
 // Direct delete operation without verification or retries
 export async function deleteRecord(
-  table: string,
+  table: TableName,
   id: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log(`Direct delete operation on ${table} with ID: ${id}`);
+    console.log(`Attempting to delete ${table} with ID: ${id}`);
     
     const { error } = await supabase
       .from(table)
