@@ -207,8 +207,8 @@ export default function Settings() {
         accentColor: systemSettings.appSettings.accentColor || systemSettings.appSettings.secondaryColor,
       });
       
-      // Apply the color settings to the site
-      applyColorTheme(systemSettings.appSettings);
+      // Apply the color settings to the site - FIX: Cast to AppSettings to ensure all properties are required
+      applyColorTheme(systemSettings.appSettings as AppSettings);
     }
     
     if (systemSettings?.fortnoxSettings) {
