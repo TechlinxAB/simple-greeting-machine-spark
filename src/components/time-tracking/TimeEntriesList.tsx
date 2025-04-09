@@ -148,11 +148,11 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     try {
       console.log("Deleting time entry with ID:", selectedEntry.id);
       
+      // FIX: Remove the .single() call which was causing the error
       const { error } = await supabase
         .from("time_entries")
         .delete()
-        .eq("id", selectedEntry.id)
-        .single();
+        .eq("id", selectedEntry.id);
         
       if (error) {
         console.error("Error deleting time entry:", error);

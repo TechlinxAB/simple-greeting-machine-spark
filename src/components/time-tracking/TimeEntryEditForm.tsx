@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -162,12 +161,11 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Updating time entry with data:", timeEntryData);
       console.log("Time entry ID:", timeEntry.id);
 
-      // Update the time entry in the database
+      // Fix: Remove .select() call which was causing issues
       const { error } = await supabase
         .from("time_entries")
         .update(timeEntryData)
-        .eq("id", timeEntry.id)
-        .select();
+        .eq("id", timeEntry.id);
 
       if (error) {
         console.error("Error from Supabase:", error);
@@ -177,8 +175,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
       console.log("Update successful");
       
       // Call onSuccess to close the dialog and refresh the list
-      onSuccess(); 
       toast.success("Time entry updated successfully");
+      onSuccess(); 
     } catch (error: any) {
       console.error("Error updating time entry:", error);
       toast.error(error.message || "Failed to update time entry");
