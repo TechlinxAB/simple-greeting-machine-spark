@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { format, subDays, addDays, isSameDay, isAfter, startOfToday } from "date-fns";
+import { format, subDays, addDays, isSameDay, startOfToday } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,17 +19,25 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   );
 
   const handlePreviousDates = () => {
-    const firstDate = visibleDates[0];
-    setVisibleDates(
-      Array.from({ length: 6 }, (_, i) => subDays(firstDate, i + 1))
-    );
+    // Move backward by 1 day
+    const lastDate = visibleDates[visibleDates.length - 1];
+    const prevDate = subDays(lastDate, 1);
+    
+    // Create a new array with the previous date added at the end
+    // and remove the first (newest) date from the beginning
+    const newDates = [...visibleDates.slice(1), prevDate];
+    setVisibleDates(newDates);
   };
 
   const handleNextDates = () => {
+    // Move forward by 1 day
     const firstDate = visibleDates[0];
-    // Calculate the next set of dates - move forward by 6 days
-    const nextDates = Array.from({ length: 6 }, (_, i) => addDays(firstDate, 6 - i));
-    setVisibleDates(nextDates.reverse());
+    const nextDate = addDays(firstDate, 1);
+    
+    // Create a new array with the next date added at the beginning
+    // and remove the last (oldest) date from the end
+    const newDates = [nextDate, ...visibleDates.slice(0, -1)];
+    setVisibleDates(newDates);
   };
 
   const goToToday = () => {
@@ -81,7 +89,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               className="rounded-full"
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Previous dates</span>
+              <span className="sr-only">Previous date</span>
             </Button>
             
             <Popover>
@@ -111,7 +119,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
               className="rounded-full"
             >
               <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Next dates</span>
+              <span className="sr-only">Next date</span>
             </Button>
           </div>
         </div>

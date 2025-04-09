@@ -49,10 +49,10 @@ export function AppSidebar() {
       allowedRoles: ["admin", "manager"],
     },
     {
-      title: "Reports",
-      path: "/reports",
+      title: "Dashboard",
+      path: "/dashboard",
       icon: BarChart3,
-      allowedRoles: ["admin", "manager"],
+      allowedRoles: ["admin", "manager", "user"],
     },
   ];
 

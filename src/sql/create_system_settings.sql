@@ -79,3 +79,26 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.system_settings (id, settings)
 VALUES ('company_news', 'Welcome to Techlinx Time Tracker company news! This is where important company announcements will be posted by administrators and managers.')
 ON CONFLICT (id) DO NOTHING;
+
+-- Add a function to apply color theme
+CREATE OR REPLACE FUNCTION public.apply_theme_to_css_variables()
+RETURNS TRIGGER AS $$
+DECLARE
+  theme_settings JSONB;
+BEGIN
+  -- Get the app settings
+  SELECT settings INTO theme_settings 
+  FROM public.system_settings 
+  WHERE id = 'app_settings';
+  
+  -- We're just updating the trigger, the actual CSS changes are handled client-side
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add trigger to update css when theme changes
+CREATE TRIGGER update_theme_css
+AFTER UPDATE ON public.system_settings
+FOR EACH ROW
+WHEN (NEW.id = 'app_settings')
+EXECUTE FUNCTION public.apply_theme_to_css_variables();
