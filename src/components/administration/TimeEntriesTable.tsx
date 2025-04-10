@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
@@ -43,6 +43,13 @@ export function TimeEntriesTable({
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Reset deleting state when dialog closes
+  useEffect(() => {
+    if (!deleteDialogOpen) {
+      setIsDeleting(false);
+    }
+  }, [deleteDialogOpen]);
+
   const handleDeleteClick = (entry: TimeEntry) => {
     if (entry.invoiced) {
       toast.error("Cannot delete an invoiced time entry");
@@ -51,6 +58,8 @@ export function TimeEntriesTable({
     
     setSelectedEntry(entry);
     setDeleteDialogOpen(true);
+    // Reset the deleting state when opening the dialog
+    setIsDeleting(false);
   };
 
   const handleEditClick = (entry: TimeEntry) => {
@@ -77,15 +86,16 @@ export function TimeEntriesTable({
       if (error) {
         console.error("Error deleting time entry:", error);
         toast.error("Failed to delete time entry");
+        setIsDeleting(false);
         return;
       }
       
       setDeleteDialogOpen(false);
+      setSelectedEntry(null);
       onEntryDeleted();
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");
-    } finally {
       setIsDeleting(false);
     }
   };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -102,6 +103,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     enabled: !!user,
   });
 
+  // Reset deleting state when dialog closes
+  useEffect(() => {
+    if (!deleteDialogOpen) {
+      setIsDeleting(false);
+    }
+  }, [deleteDialogOpen]);
+
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -134,6 +142,8 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     console.log("Delete clicked for entry:", entry);
     setSelectedEntry(entry);
     setDeleteDialogOpen(true);
+    // Reset the deleting state when opening the dialog
+    setIsDeleting(false);
   };
   
   const confirmDelete = async () => {
