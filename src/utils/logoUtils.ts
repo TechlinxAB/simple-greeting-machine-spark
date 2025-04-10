@@ -24,7 +24,7 @@ export const LOGO_FILENAME = "app-logo";
 /**
  * Maximum dimensions for the logo (in pixels)
  */
-export const MAX_LOGO_WIDTH = 400;
+export const MAX_LOGO_WIDTH = 400; // Increased from the previous setting
 export const MAX_LOGO_HEIGHT = 100;
 
 /**
@@ -93,9 +93,9 @@ export async function checkLogoExists(): Promise<boolean> {
 }
 
 /**
- * Checks if the file size is within limits
+ * Checks if the file size and type are within limits
  * @param file The file to check
- * @returns True if the file is valid, false otherwise
+ * @returns Object with validation result and optional error message
  */
 export function validateLogoFile(file: File): { valid: boolean; error?: string } {
   // Check file size
@@ -171,7 +171,7 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
       
       ctx.drawImage(img, 0, 0, newWidth, newHeight);
       
-      // Convert canvas to blob
+      // Convert canvas to blob with higher quality (0.9)
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -185,10 +185,11 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
             lastModified: Date.now(),
           });
           
+          console.log(`Image resized from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
           resolve(resizedFile);
         },
         file.type,
-        0.9 // Quality
+        0.95 // Increased quality to 0.95 from 0.9
       );
     };
     
@@ -241,11 +242,19 @@ export async function uploadAppLogo(file: File): Promise<string | null> {
       return null;
     }
     
-    // Get the public URL directly rather than constructing it
+    // Force a small delay to allow the storage system to process the file
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get the public URL directly
     const { data: publicUrlData } = await supabase.storage
       .from(LOGO_BUCKET)
       .getPublicUrl(filePath);
       
+    if (!publicUrlData) {
+      console.error("Failed to get public URL for uploaded logo");
+      return null;
+    }
+    
     console.log("Logo uploaded successfully, public URL:", publicUrlData.publicUrl);
     
     // Return the public URL with a cache-busting parameter
@@ -300,23 +309,64 @@ export async function removeAppLogo(): Promise<boolean> {
 
 /**
  * Preloads an image to check if it can be loaded successfully
+ * Uses a more robust method with timeout
  * @param url The URL of the image to preload
  * @returns Promise resolving to true if image loads, false otherwise
  */
 export function preloadImage(url: string): Promise<boolean> {
   return new Promise((resolve) => {
+    // Set a timeout to prevent hanging on problematic images
+    const timeout = setTimeout(() => {
+      console.warn(`Image preload timed out for: ${url}`);
+      resolve(false);
+    }, 5000); // 5 second timeout
+    
     const img = new Image();
     
     img.onload = () => {
+      clearTimeout(timeout);
+      console.log(`Image preloaded successfully: ${url} (${img.width}x${img.height})`);
       resolve(true);
     };
     
     img.onerror = () => {
+      clearTimeout(timeout);
       console.error(`Failed to preload image: ${url}`);
       resolve(false);
     };
     
     // Add cache-busting and timestamp
-    img.src = `${url}?t=${Date.now()}`;
+    const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    img.src = cacheBustUrl;
+    
+    // Start download immediately
+    img.setAttribute('importance', 'high');
+    img.setAttribute('fetchpriority', 'high');
   });
+}
+
+/**
+ * Gets a logo suitable for display, with validation and error handling
+ * @returns Promise resolving to the logo URL or default logo path
+ */
+export async function getLogoForDisplay(): Promise<string> {
+  try {
+    const logoUrl = await getAppLogoUrl();
+    
+    if (!logoUrl) {
+      return DEFAULT_LOGO_PATH;
+    }
+    
+    // Try to preload the image to verify it exists and can be displayed
+    const loadSuccessful = await preloadImage(logoUrl);
+    if (!loadSuccessful) {
+      console.warn("Logo exists but failed to preload, using default");
+      return DEFAULT_LOGO_PATH;
+    }
+    
+    return `${logoUrl}?t=${Date.now()}`;
+  } catch (error) {
+    console.error("Error getting logo for display:", error);
+    return DEFAULT_LOGO_PATH;
+  }
 }

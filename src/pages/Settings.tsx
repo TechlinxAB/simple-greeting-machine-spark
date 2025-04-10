@@ -20,6 +20,7 @@ import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbac
 import { useNavigate, useLocation } from "react-router-dom";
 import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   checkLogoExists, 
   uploadAppLogo, 
@@ -28,7 +29,10 @@ import {
   DEFAULT_LOGO_PATH,
   MAX_LOGO_WIDTH,
   MAX_LOGO_HEIGHT,
-  MAX_LOGO_SIZE
+  MAX_LOGO_SIZE,
+  preloadImage,
+  validateLogoFile,
+  getLogoForDisplay
 } from "@/utils/logoUtils";
 
 const appSettingsSchema = z.object({
@@ -62,6 +66,7 @@ export default function Settings() {
   const [hasExistingLogo, setHasExistingLogo] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [logoValidationError, setLogoValidationError] = useState<string | null>(null);
+  const [loadingLogo, setLoadingLogo] = useState(true);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
@@ -72,32 +77,33 @@ export default function Settings() {
     return <FortnoxCallbackHandler />;
   }
   
-  const { data: appLogo, refetch: refetchLogo } = useQuery({
+  const { data: appLogo, refetch: refetchLogo, isLoading: isLogoLoading } = useQuery({
     queryKey: ["app-logo"],
     queryFn: async () => {
+      setLoadingLogo(true);
       try {
         const logoExists = await checkLogoExists();
         setHasExistingLogo(logoExists);
         
         if (!logoExists) {
+          setLoadingLogo(false);
           return null;
         }
         
-        const logoUrl = await getAppLogoUrl();
+        const displayLogo = await getLogoForDisplay();
         
-        if (logoUrl) {
-          const loadSuccessful = await preloadImage(logoUrl);
-          if (!loadSuccessful) {
-            console.warn("Logo preload failed, returning null");
-            return null;
-          }
-          return `${logoUrl}`;
+        if (displayLogo === DEFAULT_LOGO_PATH) {
+          setHasExistingLogo(false);
+          setLoadingLogo(false);
+          return null;
         }
         
-        return null;
+        setLoadingLogo(false);
+        return displayLogo;
       } catch (error) {
         console.error("Error in app logo query:", error);
         setHasExistingLogo(false);
+        setLoadingLogo(false);
         return null;
       }
     },
@@ -209,6 +215,7 @@ export default function Settings() {
   useEffect(() => {
     if (appLogo) {
       setLogoPreview(appLogo);
+      setLogoError(false);
     }
   }, [appLogo]);
   
@@ -334,6 +341,7 @@ export default function Settings() {
     
     try {
       setUploadingLogo(true);
+      setLogoError(false);
       
       const publicUrl = await uploadAppLogo(file);
       
@@ -341,9 +349,16 @@ export default function Settings() {
         throw new Error("Failed to upload logo or get public URL");
       }
       
-      toast.success("Logo uploaded successfully");
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
+      const loadSuccessful = await preloadImage(publicUrl);
+      if (!loadSuccessful) {
+        throw new Error("Logo uploaded but cannot be displayed correctly");
+      }
+      
+      toast.success("Logo uploaded successfully");
       queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+      queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
       
       return publicUrl;
     } catch (error) {
@@ -364,6 +379,7 @@ export default function Settings() {
     if (!file) return;
     
     setLogoValidationError(null);
+    setLogoError(false);
     
     const validation = validateLogoFile(file);
     if (!validation.valid) {
@@ -379,26 +395,15 @@ export default function Settings() {
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
-      const logoUrl = await uploadAppLogo(file);
+      const logoUrl = await handleLogoUpload(file);
       
       if (!logoUrl) {
-        toast.error("Failed to upload logo");
         setLogoPreview(null);
         setLogoFile(null);
       } else {
-        const loadSuccessful = await preloadImage(logoUrl);
-        if (!loadSuccessful) {
-          toast.error("Logo uploaded but cannot be displayed correctly");
-          await removeAppLogo();
-          setLogoPreview(null);
-          setLogoFile(null);
-          setHasExistingLogo(false);
-        } else {
-          setLogoPreview(logoUrl);
-          setHasExistingLogo(true);
-          toast.success("Logo uploaded successfully");
-          refetchLogo();
-        }
+        setLogoPreview(logoUrl);
+        setHasExistingLogo(true);
+        refetchLogo();
       }
       
       URL.revokeObjectURL(objectUrl);
@@ -425,8 +430,10 @@ export default function Settings() {
         setLogoPreview(null);
         setLogoFile(null);
         setHasExistingLogo(false);
+        setLogoError(false);
         
         queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
         
         toast.success("Logo removed successfully");
       } else {
@@ -502,15 +509,22 @@ export default function Settings() {
                     <div>
                       <Label>Application Logo</Label>
                       <FormDescription className="mt-1 mb-3">
-                        Upload a logo to display in the application header. Recommended size: 200×60px.
+                        Upload a logo to display in the application header. Recommended size: up to {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px.
                       </FormDescription>
                     </div>
                     
-                    {(logoPreview || appLogo) && !logoError ? (
+                    {loadingLogo && (
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-12 w-32" />
+                        <span className="text-sm text-muted-foreground">Loading logo...</span>
+                      </div>
+                    )}
+                    
+                    {!loadingLogo && (logoPreview || appLogo) && !logoError ? (
                       <div className="flex items-center space-x-4">
                         <div className="bg-white p-2 rounded border inline-block">
                           <img 
-                            src={logoPreview || appLogo || DEFAULT_LOGO_PATH}
+                            src={`${logoPreview || appLogo}?t=${Date.now()}`}
                             alt="App Logo" 
                             className="h-12 w-auto max-w-[200px] object-contain" 
                             onError={handleLogoError}
@@ -527,7 +541,7 @@ export default function Settings() {
                           Remove Logo
                         </Button>
                       </div>
-                    ) : (
+                    ) : !loadingLogo && (
                       <div className="flex flex-col gap-2">
                         <Input
                           type="file"
@@ -542,7 +556,8 @@ export default function Settings() {
                           </p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          Upload a logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). Recommended format: PNG or SVG.
+                          Upload a logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). 
+                          Recommended format: PNG or SVG. Images will be automatically resized if needed.
                         </p>
                       </div>
                     )}
@@ -786,28 +801,4 @@ export default function Settings() {
       />
     </div>
   );
-}
-
-function preloadImage(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = url;
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-  });
-}
-
-function validateLogoFile(file: File): { valid: boolean, error: string | null } {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-  const maxSize = MAX_LOGO_SIZE;
-  
-  if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: "Invalid file type. Allowed types: JPEG, PNG, GIF, SVG." };
-  }
-  
-  if (file.size > maxSize) {
-    return { valid: false, error: `File size exceeds the limit of ${MAX_LOGO_SIZE / 1024 / 1024}MB.` };
-  }
-  
-  return { valid: true, error: null };
 }

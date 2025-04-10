@@ -22,15 +22,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { 
-  getAppLogoUrl, 
   DEFAULT_LOGO_PATH,
-  preloadImage
+  getLogoForDisplay
 } from "@/utils/logoUtils";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { user, signOut, role } = useAuth();
   const [logoError, setLogoError] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO_PATH);
 
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
@@ -84,32 +84,29 @@ export function AppSidebar() {
     enabled: !!user?.id
   });
 
-  const { data: appLogo } = useQuery({
+  const { data: appLogo, isLoading: logoLoading } = useQuery({
     queryKey: ["app-logo-sidebar"],
     queryFn: async () => {
       try {
-        const logoUrl = await getAppLogoUrl();
-        console.log("Sidebar: Logo URL from storage:", logoUrl);
-        
-        if (logoUrl) {
-          // Preload the image to verify it loads correctly
-          const loadSuccessful = await preloadImage(logoUrl);
-          if (!loadSuccessful) {
-            console.log("Logo failed to load, using fallback");
-            return null;
-          }
-          return logoUrl;
-        }
-        
-        return null;
+        const displayLogo = await getLogoForDisplay();
+        return displayLogo;
       } catch (error) {
         console.error("Sidebar: Error fetching app logo:", error);
-        return null;
+        return DEFAULT_LOGO_PATH;
       }
     },
     staleTime: 60000,
     refetchOnWindowFocus: false
   });
+
+  useEffect(() => {
+    if (appLogo) {
+      setLogoUrl(appLogo);
+      setLogoError(false);
+    } else {
+      setLogoUrl(DEFAULT_LOGO_PATH);
+    }
+  }, [appLogo]);
 
   const links = [
     {
@@ -194,27 +191,24 @@ export function AppSidebar() {
   const handleLogoError = () => {
     console.log("Logo failed to load in sidebar, using fallback");
     setLogoError(true);
+    setLogoUrl(DEFAULT_LOGO_PATH);
   };
-  
-  useEffect(() => {
-    setLogoError(false);
-  }, [appLogo]);
-
-  const logoUrl = !logoError && appLogo 
-    ? `${appLogo}?t=${Date.now()}`
-    : DEFAULT_LOGO_PATH;
 
   return (
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <div className="h-6 w-auto bg-white flex items-center justify-center rounded overflow-hidden">
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
-              className="h-full w-auto max-w-[100px] object-contain" 
-              onError={handleLogoError}
-            />
+            {logoLoading ? (
+              <div className="h-6 w-16 animate-pulse bg-gray-200 rounded"></div>
+            ) : (
+              <img 
+                src={`${logoUrl}?t=${Date.now()}`}
+                alt="Logo" 
+                className="h-full w-auto max-w-[100px] object-contain" 
+                onError={handleLogoError}
+              />
+            )}
           </div>
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis">
             {appSettings?.appName || "Time Tracker"}
