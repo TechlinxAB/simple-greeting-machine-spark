@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -69,26 +68,22 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     const filePath = `${LOGO_FOLDER_PATH}/${fileName}`;
     
     console.log(`Preparing to upload ${fileName} to ${filePath}`);
-    console.log(`Content-Type: ${file.type}`);
     
-    // Convert to array buffer to ensure binary upload
+    // IMPORTANT: Use fetch to read the file as raw binary data
     const arrayBuffer = await file.arrayBuffer();
-    const fileBlob = new Blob([arrayBuffer], { type: 'image/png' });
     
-    console.log("Created blob with type:", fileBlob.type);
-    
-    // Upload the file with explicit content type
-    const { data, error } = await supabase
+    // Upload the file directly as binary without any transformations
+    const { error: uploadError, data } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
-      .upload(filePath, fileBlob, {
+      .upload(filePath, arrayBuffer, {
+        contentType: 'image/png',
         cacheControl: '3600',
-        upsert: true,
-        contentType: 'image/png'
+        upsert: true
       });
       
-    if (error) {
-      console.error("Error uploading logo:", error);
+    if (uploadError) {
+      console.error("Error uploading logo:", uploadError);
       
       // Try local storage as fallback
       const fileDataUrl = await fileToDataUrl(file);
@@ -101,7 +96,6 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     }
     
     console.log("Logo upload successful, path:", data?.path);
-    console.log("Getting public URL");
     
     // Get the public URL
     const { data: publicUrl } = supabase

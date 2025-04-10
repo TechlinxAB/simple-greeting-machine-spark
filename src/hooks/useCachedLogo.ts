@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   LOGO_DATA_URL_KEY, 
@@ -16,25 +15,41 @@ import { supabase } from '@/lib/supabase';
  */
 export function useCachedLogo() {
   const queryClient = useQueryClient();
-  const [cachedLogo, setCachedLogo] = useState<string | null>(
-    localStorage.getItem(LOGO_DATA_URL_KEY)
-  );
-
-  // Add a timestamp to force refetch when needed
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+
+  // Cache the initial local storage value
+  const initialCachedLogo = typeof window !== 'undefined' 
+    ? localStorage.getItem(LOGO_DATA_URL_KEY) 
+    : null;
+  
+  const [cachedLogo, setCachedLogo] = useState<string | null>(initialCachedLogo);
+
+  // Force refresh function (exposed in the hook return value)
+  const refreshLogo = useCallback(() => {
+    console.log("Manually refreshing logo");
+    setRefreshTimestamp(Date.now());
+    queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+  }, [queryClient]);
 
   // Query for logo data
   const { data: logoDataUrl, isLoading } = useQuery({
     queryKey: ['app-logo-data', refreshTimestamp],
     queryFn: async () => {
+      console.log("Fetching logo data, timestamp:", refreshTimestamp);
+      
       // First try to get from localStorage
       const cached = localStorage.getItem(LOGO_DATA_URL_KEY);
-      if (cached) return cached;
+      if (cached) {
+        console.log("Using cached logo from localStorage");
+        return cached;
+      }
       
       // Otherwise fetch from server
       try {
+        console.log("Fetching logo from server");
         const dataUrl = await getSystemLogoDataUrl();
         if (dataUrl) {
+          console.log("Server logo fetched successfully");
           localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
           return dataUrl;
         }
@@ -42,6 +57,7 @@ export function useCachedLogo() {
         console.error('Failed to fetch logo:', error);
       }
       
+      console.log("Using default logo path");
       return DEFAULT_LOGO_PATH;
     },
     staleTime: 60000
@@ -52,6 +68,7 @@ export function useCachedLogo() {
     // Listen for storage events to update across tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === LOGO_DATA_URL_KEY) {
+        console.log("Storage event detected for logo");
         setCachedLogo(e.newValue);
         setRefreshTimestamp(Date.now());
       }
@@ -68,7 +85,8 @@ export function useCachedLogo() {
           table: 'system_settings',
           filter: 'id=eq.app_settings'
         },
-        () => {
+        (payload) => {
+          console.log("System settings changed, refreshing logo");
           setRefreshTimestamp(Date.now());
         }
       )
@@ -85,7 +103,8 @@ export function useCachedLogo() {
           table: 'objects',
           filter: `bucket_id=eq.${LOGO_BUCKET_NAME}`
         },
-        () => {
+        (payload) => {
+          console.log("Storage changed for logo bucket:", payload);
           setRefreshTimestamp(Date.now());
         }
       )
@@ -103,6 +122,7 @@ export function useCachedLogo() {
   // Update from query result
   useEffect(() => {
     if (logoDataUrl && logoDataUrl !== cachedLogo) {
+      console.log("Updating cached logo from query result");
       setCachedLogo(logoDataUrl);
     }
   }, [logoDataUrl, cachedLogo]);
@@ -110,11 +130,6 @@ export function useCachedLogo() {
   return {
     logoUrl: logoDataUrl || DEFAULT_LOGO_PATH,
     isLoading,
-    refreshLogo: () => {
-      // Force refetch by updating timestamp
-      setRefreshTimestamp(Date.now());
-      // Also invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
-    }
+    refreshLogo
   };
 }

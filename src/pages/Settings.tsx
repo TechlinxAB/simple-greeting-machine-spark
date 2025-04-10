@@ -398,7 +398,7 @@ export default function Settings() {
     setLogoValidationError(null);
     setLogoError(false);
     
-    // Verify the file is actually a PNG
+    // Strict validation for PNG 
     if (file.type !== 'image/png') {
       setLogoValidationError('Invalid file type. Only PNG files are allowed.');
       e.target.value = '';
@@ -415,14 +415,14 @@ export default function Settings() {
     setUploadingLogo(true);
     
     try {
-      // Show temporary preview immediately
+      // Show temporary preview immediately for better UX
       const objectUrl = URL.createObjectURL(file);
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
       console.log("Uploading logo file:", file.name, "Type:", file.type, "Size:", file.size);
       
-      // Process the actual upload
+      // Upload the file directly without any preprocessing
       const { dataUrl, success } = await uploadAppLogo(file);
       
       if (dataUrl) {
