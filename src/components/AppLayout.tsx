@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, RefreshCw, LogOut } from "lucide-react";
 import { useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleForceReload = () => {
     window.location.reload();
@@ -110,7 +112,7 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <AppSidebar />
+        {!isMobile && <AppSidebar />}
         <div className="flex-1 flex flex-col">
           <Header />
           <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">

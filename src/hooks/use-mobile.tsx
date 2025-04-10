@@ -15,12 +15,16 @@ export function useIsMobile() {
     // Run immediately
     checkMobile();
     
-    // Set up media query listener
+    // Set up media query listener for better performance
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     
     // Modern event listener (for newer browsers)
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+    };
+    
     if (mql.addEventListener) {
-      mql.addEventListener("change", checkMobile);
+      mql.addEventListener("change", handleChange);
     } else {
       // Fallback for older browsers
       window.addEventListener("resize", checkMobile);
@@ -28,7 +32,7 @@ export function useIsMobile() {
     
     return () => {
       if (mql.removeEventListener) {
-        mql.removeEventListener("change", checkMobile);
+        mql.removeEventListener("change", handleChange);
       } else {
         window.removeEventListener("resize", checkMobile);
       }

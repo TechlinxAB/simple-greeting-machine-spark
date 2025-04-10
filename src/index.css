@@ -176,6 +176,33 @@
     @apply overflow-x-auto overscroll-x-contain scrollbar-hidden;
     -webkit-overflow-scrolling: touch;
   }
+  
+  /* Mobile sidebar animation */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slideOutRight {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  
+  .mobile-sidebar-enter {
+    animation: slideInRight 0.3s ease-out forwards;
+  }
+  
+  .mobile-sidebar-exit {
+    animation: slideOutRight 0.3s ease-out forwards;
+  }
 }
 
 /* Safe area insets for notched devices */
