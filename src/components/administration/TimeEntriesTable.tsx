@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { format } from "date-fns";
-import { Trash2, Info, Clock, AlertCircle, User } from "lucide-react";
+import { Trash2, Info, Clock, AlertCircle, User, Loader2 } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -58,15 +59,14 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
       const success = await deleteTimeEntry(selectedEntry.id);
       
       if (success) {
-        onEntryDeleted();
         setDeleteDialogOpen(false);
+        onEntryDeleted();
         toast.success("Time entry deleted successfully");
-      } else {
-        setIsDeleting(false);
       }
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -214,7 +214,12 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
