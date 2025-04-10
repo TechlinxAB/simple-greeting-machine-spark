@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InvoicesTable } from "@/components/administration/InvoicesTable";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -236,6 +236,10 @@ export default function Invoices() {
     !/^\d+$/.test(entry.products.article_number)
   );
 
+  const handleInvoiceDeleted = () => {
+    refetch();
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -277,103 +281,11 @@ export default function Invoices() {
           </Button>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-            </div>
-          ) : filteredInvoices.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>{searchTerm ? "No invoices match your search" : "No invoices found. Create your first invoice to get started!"}</p>
-              {!searchTerm && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => setIsCreatingInvoice(true)}
-                  disabled={!fortnoxConnected}
-                >
-                  <FilePlus2 className="mr-2 h-4 w-4" />
-                  Create Invoice
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Issue Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Fortnox</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                      <TableCell>{invoice.clients?.name || 'Unknown Client'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{format(new Date(invoice.issue_date), 'yyyy-MM-dd')}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{format(new Date(invoice.due_date), 'yyyy-MM-dd')}</TableCell>
-                      <TableCell className="font-medium">{invoice.total_amount.toFixed(2)} SEK</TableCell>
-                      <TableCell>
-                        <Badge variant={getBadgeVariant(invoice.status)}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {invoice.exported_to_fortnox ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            Exported
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            Not Exported
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={!fortnoxConnected || invoice.exported_to_fortnox || exportingInvoiceId === invoice.id}
-                                onClick={() => handleExportToFortnox(invoice.id)}
-                              >
-                                {exportingInvoiceId === invoice.id ? (
-                                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                                ) : (
-                                  <Upload className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {!fortnoxConnected
-                                ? "Fortnox not connected. Configure in Settings."
-                                : invoice.exported_to_fortnox
-                                  ? "Already exported to Fortnox"
-                                  : "Export to Fortnox"}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <InvoicesTable
+            invoices={filteredInvoices}
+            isLoading={isLoading}
+            onInvoiceDeleted={handleInvoiceDeleted}
+          />
 
           {!fortnoxConnected && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -430,94 +342,92 @@ export default function Invoices() {
             )}
             
             {selectedClient && (
-              <>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => refetchUnbilled()}
-                      className="h-8"
-                    >
-                      <RefreshCcw className="h-3 w-3 mr-1" />
-                      Refresh
-                    </Button>
-                  </div>
-                  
-                  {unbilledEntries.length === 0 ? (
-                    <div className="text-center py-4 border rounded-md bg-muted/20">
-                      <p className="text-sm text-muted-foreground">No unbilled time entries for this client.</p>
-                    </div>
-                  ) : (
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead>User</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Art. Number</TableHead>
-                            <TableHead className="text-right">Amount (SEK)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {unbilledEntries.map((entry) => {
-                            let quantity = 1;
-                            
-                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-                              const start = new Date(entry.start_time);
-                              const end = new Date(entry.end_time);
-                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              quantity = parseFloat(diffHours.toFixed(2));
-                            } else if (entry.products?.type === 'item' && entry.quantity) {
-                              quantity = entry.quantity;
-                            }
-                            
-                            const amount = entry.products ? entry.products.price * quantity : 0;
-                            
-                            const hasValidArticleNumber = 
-                              entry.products?.article_number && 
-                              /^\d+$/.test(entry.products.article_number);
-                            
-                            const unit = entry.products?.type === 'activity' ? 't' : 'st';
-                            
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
-                                <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
-                                <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
-                                <TableCell>
-                                  {quantity} {unit}
-                                </TableCell>
-                                <TableCell>
-                                  {entry.products?.article_number ? (
-                                    hasValidArticleNumber ? (
-                                      entry.products.article_number
-                                    ) : (
-                                      <span className="text-yellow-600" title="Non-numeric article number will be fixed">
-                                        {entry.products.article_number}*
-                                      </span>
-                                    )
-                                  ) : (
-                                    <span className="text-muted-foreground italic">Will be generated</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                          <TableRow>
-                            <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
-                            <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => refetchUnbilled()}
+                    className="h-8"
+                  >
+                    <RefreshCcw className="h-3 w-3 mr-1" />
+                    Refresh
+                  </Button>
                 </div>
-              </>
+                
+                {unbilledEntries.length === 0 ? (
+                  <div className="text-center py-4 border rounded-md bg-muted/20">
+                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client.</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-md overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead>User</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Art. Number</TableHead>
+                          <TableHead className="text-right">Amount (SEK)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {unbilledEntries.map((entry) => {
+                          let quantity = 1;
+                          
+                          if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+                            const start = new Date(entry.start_time);
+                            const end = new Date(entry.end_time);
+                            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                            quantity = parseFloat(diffHours.toFixed(2));
+                          } else if (entry.products?.type === 'item' && entry.quantity) {
+                            quantity = entry.quantity;
+                          }
+                          
+                          const amount = entry.products ? entry.products.price * quantity : 0;
+                          
+                          const hasValidArticleNumber = 
+                            entry.products?.article_number && 
+                            /^\d+$/.test(entry.products.article_number);
+                          
+                          const unit = entry.products?.type === 'activity' ? 't' : 'st';
+                          
+                          return (
+                            <TableRow key={entry.id}>
+                              <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
+                              <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
+                              <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
+                              <TableCell>
+                                {quantity} {unit}
+                              </TableCell>
+                              <TableCell>
+                                {entry.products?.article_number ? (
+                                  hasValidArticleNumber ? (
+                                    entry.products.article_number
+                                  ) : (
+                                    <span className="text-yellow-600" title="Non-numeric article number will be fixed">
+                                      {entry.products.article_number}*
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-muted-foreground italic">Will be generated</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow>
+                          <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
+                          <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           

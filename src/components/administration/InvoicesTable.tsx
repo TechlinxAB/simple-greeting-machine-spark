@@ -100,6 +100,7 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
       }
       
       onInvoiceDeleted();
+      toast.success("Invoice deleted successfully");
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error("Error in delete operation:", error);
