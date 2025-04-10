@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,8 +8,8 @@ import { type Invoice } from "@/types";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { deleteRecord } from "@/lib/supabase";
-import { Trash2, Edit, ArrowUpDown, AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Trash2, Edit, ArrowUpDown, AlertCircle, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export interface InvoicesTableProps {

@@ -1,5 +1,5 @@
 
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, AlertCircle, FileText } from "lucide-react";
 
 // This file serves as a centralized place to export icons or icon sets
 // Create icon configurations used throughout the application
@@ -21,4 +21,6 @@ export const Icons = {
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   ),
+  alertCircle: AlertCircle,
+  fileText: FileText,
 };
