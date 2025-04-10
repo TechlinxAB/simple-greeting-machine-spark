@@ -216,6 +216,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                 />
               </div>
               
+              {/* Fix the layout for account_number and article_number to be on the same line */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
