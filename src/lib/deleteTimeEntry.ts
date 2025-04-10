@@ -5,6 +5,7 @@ import { toast } from "sonner";
 /**
  * Utility function to delete a time entry by ID,
  * bypassing any dependencies like products that may have been deleted
+ * and allowing admins/managers to delete any time entry
  */
 export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
   try {
@@ -29,7 +30,8 @@ export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
       return false;
     }
     
-    // Perform the deletion directly by ID
+    // Perform the deletion directly by ID without checking user_id
+    // This allows admins and managers to delete any time entry
     const { error: deleteError } = await supabase
       .from("time_entries")
       .delete()

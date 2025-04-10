@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -31,7 +30,6 @@ export default function Administration() {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  // Check if user has permission to access this page
   if (role !== 'admin' && role !== 'manager') {
     return (
       <div className="container mx-auto py-12 flex items-center justify-center">
@@ -47,7 +45,6 @@ export default function Administration() {
     );
   }
 
-  // Fetch clients
   const { data: clients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -66,11 +63,9 @@ export default function Administration() {
     },
   });
 
-  // Calculate date range for the selected month
   const startDate = startOfMonth(selectedMonth);
   const endDate = endOfMonth(selectedMonth);
 
-  // Fetch time entries based on filters
   const { 
     data: timeEntries = [], 
     isLoading: isLoadingTimeEntries,
@@ -84,7 +79,8 @@ export default function Administration() {
         .select(`
           *,
           clients(name),
-          products(name, type, price)
+          products(name, type, price),
+          profiles:user_id(name)
         `)
         .gte("start_time", startDate.toISOString())
         .lte("start_time", endDate.toISOString());
@@ -105,7 +101,6 @@ export default function Administration() {
     },
   });
 
-  // Fetch invoices based on filters
   const { 
     data: invoices = [], 
     isLoading: isLoadingInvoices,

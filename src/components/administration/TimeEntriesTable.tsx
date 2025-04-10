@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Trash2, Info, Clock, AlertCircle } from "lucide-react";
+import { Trash2, Info, Clock, AlertCircle, User } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +102,7 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
               <TableHead>Product/Activity</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead className="w-[100px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -159,6 +160,12 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
                 </TableCell>
                 <TableCell className="max-w-[200px] truncate">
                   {entry.description || "—"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>{entry.profiles?.name || "Unknown user"}</span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end">
