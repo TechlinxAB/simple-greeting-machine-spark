@@ -14,13 +14,18 @@ import {
   Cell
 } from 'recharts';
 
-// Custom XAxis with explicit default props
-export const XAxis: React.FC<any> = (props) => {
-  return <RechartsXAxis {...props} />;
+// Define default props directly using modern JavaScript default parameters
+export const XAxis = ({ 
+  dataKey = "name", 
+  xAxisId = "xAxis",
+  ...props 
+}: any) => {
+  return <RechartsXAxis dataKey={dataKey} xAxisId={xAxisId} {...props} />;
 };
 
-// Custom YAxis with explicit default props
-export const YAxis: React.FC<any> = (props) => {
+export const YAxis = ({ 
+  ...props 
+}: any) => {
   return <RechartsYAxis {...props} />;
 };
 
@@ -40,29 +45,34 @@ interface BarChartProps {
 
 export const BarChart: React.FC<BarChartProps> = ({
   data,
-  className,
+  className = "w-full h-full",
   height = 300,
   barKey,
   barName,
   barFill = "#4CAF50",
   tooltip
 }) => {
-  // Generate a consistent ID for xAxis
+  // Use a consistent xAxisId
   const xAxisId = "xAxis";
   
   return (
-    <div className={className || "w-full h-full"}>
+    <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <RechartsXAxis dataKey="name" xAxisId={xAxisId} />
-          <RechartsYAxis />
+          <XAxis dataKey="name" xAxisId={xAxisId} />
+          <YAxis />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
           />
           <Legend />
-          <RechartsBar dataKey={barKey} fill={barFill} name={barName} xAxisId={xAxisId} />
+          <RechartsBar 
+            dataKey={barKey} 
+            fill={barFill} 
+            name={barName} 
+            xAxisId={xAxisId}
+          />
         </RechartsBarChart>
       </ResponsiveContainer>
     </div>
@@ -84,7 +94,7 @@ interface PieChartProps {
 
 export const PieChart: React.FC<PieChartProps> = ({
   data,
-  className,
+  className = "w-full h-full",
   height = 300,
   dataKey,
   colors = ['#8BC34A', '#4CAF50', '#009688', '#2196F3', '#3F51B5', '#673AB7', '#9C27B0'],
@@ -97,7 +107,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   const finalLabel = label === true ? defaultLabel : label;
 
   return (
-    <div className={className || "w-full h-full"}>
+    <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsPieChart>
           <RechartsPie
