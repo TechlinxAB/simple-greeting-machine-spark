@@ -24,7 +24,8 @@ import { useEffect, useState } from "react";
 import { 
   DEFAULT_LOGO_PATH,
   getLogoForDisplay,
-  ensureLogoBucketExists
+  ensureLogoBucketExists,
+  getStoredLogoAsDataUrl
 } from "@/utils/logoUtils";
 
 export function AppSidebar() {
@@ -89,19 +90,23 @@ export function AppSidebar() {
     queryKey: ["app-logo-sidebar"],
     queryFn: async () => {
       try {
-        // Make sure bucket exists
         await ensureLogoBucketExists();
         
-        const displayLogo = await getLogoForDisplay();
-        return displayLogo;
+        const dataUrl = await getStoredLogoAsDataUrl();
+        
+        if (!dataUrl) {
+          return DEFAULT_LOGO_PATH;
+        }
+        
+        return dataUrl;
       } catch (error) {
-        console.error("Sidebar: Error fetching app logo:", error);
+        console.error("Error fetching app logo for sidebar:", error);
         return DEFAULT_LOGO_PATH;
       }
     },
     staleTime: 60000,
     refetchOnWindowFocus: false,
-    retry: 2
+    retry: 1
   });
 
   useEffect(() => {

@@ -35,7 +35,8 @@ import {
   getLogoForDisplay,
   ensureLogoBucketExists,
   fileToDataUrl,
-  testImageLoad
+  testImageLoad,
+  getStoredLogoAsDataUrl
 } from "@/utils/logoUtils";
 
 const appSettingsSchema = z.object({
@@ -95,16 +96,15 @@ export default function Settings() {
           return null;
         }
         
-        const displayLogo = await getLogoForDisplay();
+        const dataUrl = await getStoredLogoAsDataUrl();
+        setLoadingLogo(false);
         
-        if (displayLogo === DEFAULT_LOGO_PATH) {
+        if (!dataUrl) {
           setHasExistingLogo(false);
-          setLoadingLogo(false);
           return null;
         }
         
-        setLoadingLogo(false);
-        return displayLogo;
+        return dataUrl;
       } catch (error) {
         console.error("Error in app logo query:", error);
         setHasExistingLogo(false);
@@ -113,7 +113,7 @@ export default function Settings() {
       }
     },
     staleTime: 10000,
-    retry: 2
+    retry: 1
   });
   
   const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
@@ -351,39 +351,26 @@ export default function Settings() {
       
       await ensureLogoBucketExists();
       
-      const dataUrl = await fileToDataUrl(file);
+      const { dataUrl, success } = await uploadAppLogo(file);
+      
       if (dataUrl) {
         setLogoPreview(dataUrl);
       }
       
-      const publicUrl = await uploadAppLogo(file);
-      
-      if (!publicUrl) {
-        throw new Error("Failed to upload logo or get public URL");
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const canBeLoaded = await testImageLoad(publicUrl);
-      if (!canBeLoaded) {
-        if (dataUrl) {
-          toast.warning("Logo uploaded successfully but may not display correctly in all browsers");
-          setLogoPreview(dataUrl);
-        } else {
-          throw new Error("Logo uploaded but cannot be displayed correctly");
-        }
+      if (!success) {
+        toast.warning("Logo was saved locally but may not be available for other users");
       } else {
         toast.success("Logo uploaded successfully");
+        setHasExistingLogo(true);
+        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
       }
       
-      queryClient.invalidateQueries({ queryKey: ["app-logo"] });
-      queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
-      
-      return publicUrl;
+      return dataUrl;
     } catch (error) {
       let errorMsg = "Failed to upload logo";
       if (error instanceof Error) {
-        errorMsg = `${errorMsg}: ${error.message}`;
+        errorMsg = error.message;
       }
       console.error("Error uploading logo:", error);
       toast.error(errorMsg);
