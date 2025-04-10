@@ -52,7 +52,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
-  const [currentDate] = useState<Date>(new Date());
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
   
   const endTimeRef = useRef<HTMLDivElement>(null);
@@ -189,9 +188,23 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
         description: values.description || null,
       };
 
+      const selectedYear = selectedDate.getFullYear();
+      const selectedMonth = selectedDate.getMonth();
+      const selectedDay = selectedDate.getDate();
+
       if (product.type === "activity" && values.startTime && values.endTime) {
-        const roundedStartTime = applyTimeRounding(values.startTime);
-        const roundedEndTime = applyTimeRounding(values.endTime);
+        const adjustedStartTime = new Date(values.startTime);
+        adjustedStartTime.setFullYear(selectedYear, selectedMonth, selectedDay);
+        
+        const adjustedEndTime = new Date(values.endTime);
+        adjustedEndTime.setFullYear(selectedYear, selectedMonth, selectedDay);
+        
+        if (adjustedEndTime < adjustedStartTime) {
+          adjustedEndTime.setDate(adjustedEndTime.getDate() + 1);
+        }
+        
+        const roundedStartTime = applyTimeRounding(adjustedStartTime);
+        const roundedEndTime = applyTimeRounding(adjustedEndTime);
         
         if (roundedStartTime && roundedEndTime) {
           timeEntryData.start_time = roundedStartTime.toISOString();
@@ -200,6 +213,9 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
       }
+
+      const createdAtDate = new Date(selectedYear, selectedMonth, selectedDay);
+      timeEntryData.created_at = createdAtDate.toISOString();
 
       const { error } = await supabase
         .from("time_entries")

@@ -1,9 +1,8 @@
 
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { forwardRef, ElementRef, ComponentPropsWithoutRef } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,103 +11,101 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useNavigate } from "react-router-dom";
-import { Settings, User, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
+import { LogOut, Settings, UserCircle } from "lucide-react";
 
-export function Header() {
+const Header = forwardRef<
+  ElementRef<"header">,
+  ComponentPropsWithoutRef<"header">
+>(({ className, ...props }, ref) => {
   const { user, signOut } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [title, setTitle] = useState("");
 
-  useEffect(() => {
-    // Set page title based on route
-    switch (location.pathname) {
-      case "/":
-        setTitle("Time Tracking");
-        break;
-      case "/clients":
-        setTitle("Clients");
-        break;
-      case "/products":
-        setTitle("Products");
-        break;
-      case "/invoices":
-        setTitle("Invoices");
-        break;
-      case "/settings":
-        setTitle("Settings");
-        break;
-      case "/profile":
-        setTitle("Profile");
-        break;
-      default:
-        if (location.pathname.startsWith("/clients/")) {
-          setTitle("Client Details");
-        } else if (location.pathname.startsWith("/invoices/")) {
-          setTitle("Invoice Details");
-        } else {
-          setTitle("");
-        }
+  const getInitials = (name?: string, email?: string) => {
+    if (name) {
+      return name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase();
     }
-  }, [location.pathname]);
+    if (email) {
+      return email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  };
-
   return (
-    <header className="border-b p-4 sticky top-0 bg-background z-10">
-      <div className="flex items-center justify-between">
-        <h1 className="font-semibold text-xl">{title}</h1>
-        <div className="flex items-center gap-4">
+    <header
+      ref={ref}
+      className={cn(
+        "sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6",
+        className
+      )}
+      {...props}
+    >
+      <div className="flex flex-1 items-center justify-end gap-4">
+        {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.name || user?.email} />
-                  <AvatarFallback>{getInitials(user?.user_metadata?.name || user?.email || "")}</AvatarFallback>
+              <Button
+                variant="ghost"
+                className="relative h-8 w-8 rounded-full"
+                aria-label="User menu"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage 
+                    src={user.user_metadata?.avatar_url || ""} 
+                    alt={user.user_metadata?.name || user.email || "User"} 
+                  />
+                  <AvatarFallback>
+                    {getInitials(user.user_metadata?.name, user.email)}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                </div>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                {user.user_metadata?.name || user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="cursor-pointer">
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        ) : (
+          <Button size="sm" asChild>
+            <Link to="/login">Login</Link>
+          </Button>
+        )}
       </div>
     </header>
   );
-}
+});
+
+Header.displayName = "Header";
+
+export { Header };

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, User } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
@@ -17,11 +18,46 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setName(user.user_metadata?.name || "");
-      setAvatarUrl(user.user_metadata?.avatar_url || "");
-      setDob(user.user_metadata?.date_of_birth || "");
-    }
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      try {
+        // First check if we have data in user metadata
+        if (user.user_metadata) {
+          setName(user.user_metadata.name || "");
+          setAvatarUrl(user.user_metadata.avatar_url || "");
+          
+          // Only set DOB from metadata if it exists there
+          if (user.user_metadata.date_of_birth) {
+            setDob(user.user_metadata.date_of_birth);
+          }
+        }
+        
+        // Then fetch from profiles table which is the source of truth
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, avatar_url, date_of_birth")
+          .eq("id", user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching profile:", error);
+          return;
+        }
+        
+        if (data) {
+          setName(data.name || "");
+          setAvatarUrl(data.avatar_url || "");
+          if (data.date_of_birth) {
+            setDob(data.date_of_birth);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      }
+    };
+
+    fetchProfileData();
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,13 +65,20 @@ const Profile = () => {
     setIsLoading(true);
 
     try {
-      await updateProfile({
+      // Prepare data object with all profile fields
+      const profileData = {
         name,
         avatar_url: avatarUrl,
-      });
+        date_of_birth: dob || null,
+      };
+      
+      // Update the profile in the database
+      await updateProfile(profileData);
+      
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     } finally {
       setIsLoading(false);
     }

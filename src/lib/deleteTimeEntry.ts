@@ -2,63 +2,47 @@
 import { supabase } from "./supabase";
 import { toast } from "sonner";
 
-/**
- * Utility function to delete a time entry by ID.
- * Relies on RLS policies to manage permissions.
- */
-export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
+export async function deleteTimeEntry(entryId: string): Promise<boolean> {
   try {
-    console.log(`Attempting to delete time entry with ID: ${timeEntryId}`);
-    
-    // First check if the entry is invoiced
-    const { data: entryData, error: checkError } = await supabase
+    // First check if entry exists and is not invoiced
+    const { data: entry, error: checkError } = await supabase
       .from("time_entries")
-      .select("invoiced, invoice_id")
-      .eq("id", timeEntryId)
-      .maybeSingle();
+      .select("id, invoiced")
+      .eq("id", entryId)
+      .single();
     
     if (checkError) {
-      console.error("Error checking time entry status:", checkError);
-      toast.error("Failed to check time entry status");
+      console.error("Error checking time entry:", checkError);
+      toast.error("Error checking time entry status");
       return false;
     }
     
-    // If the entry is invoiced, prevent deletion
-    if (entryData?.invoiced || entryData?.invoice_id) {
-      toast.error("Cannot delete a time entry that has been invoiced");
+    if (!entry) {
+      toast.error("Time entry not found");
       return false;
     }
     
-    // Attempt to delete the entry - RLS policies will handle permissions
+    if (entry.invoiced) {
+      toast.error("Cannot delete an invoiced time entry");
+      return false;
+    }
+    
+    // Delete the entry
     const { error: deleteError } = await supabase
       .from("time_entries")
       .delete()
-      .eq("id", timeEntryId);
-      
+      .eq("id", entryId);
+    
     if (deleteError) {
       console.error("Error deleting time entry:", deleteError);
-      toast.error("Failed to delete time entry: " + deleteError.message);
+      toast.error("Failed to delete time entry");
       return false;
     }
     
-    // Verify the deletion was successful
-    const { data: verifyData } = await supabase
-      .from("time_entries")
-      .select("id")
-      .eq("id", timeEntryId)
-      .maybeSingle();
-      
-    if (verifyData) {
-      console.error("Delete verification failed - entry still exists");
-      toast.error("Failed to delete time entry - please try again");
-      return false;
-    }
-    
-    console.log(`Successfully deleted time entry with ID: ${timeEntryId}`);
     return true;
   } catch (error) {
-    console.error("Unexpected error during time entry deletion:", error);
-    toast.error("An unexpected error occurred while deleting the time entry");
+    console.error("Unexpected error deleting time entry:", error);
+    toast.error("An unexpected error occurred");
     return false;
   }
 }
