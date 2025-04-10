@@ -36,7 +36,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           .eq("id", "app_settings")
           .single();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching app settings:", error);
+          return DEFAULT_THEME;
+        }
         
         // Ensure we have a complete settings object with all required properties
         if (data?.settings) {
@@ -47,6 +50,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             secondaryColor: settings.secondaryColor || DEFAULT_THEME.secondaryColor,
             sidebarColor: settings.sidebarColor || DEFAULT_THEME.sidebarColor,
             accentColor: settings.accentColor || DEFAULT_THEME.accentColor,
+            logoUrl: settings.logoUrl || DEFAULT_THEME.logoUrl,
           } as AppSettings;
         }
         
@@ -76,6 +80,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             filter: 'id=eq.app_settings'
           },
           () => {
+            console.log("System settings updated, refreshing theme");
             // Invalidate the app-settings query to refetch
             queryClient.invalidateQueries({ queryKey: ["app-settings"] });
           }
@@ -122,6 +127,7 @@ export function applyColorTheme(settings: AppSettings) {
   
   // Store the name in localStorage for persistence
   localStorage.setItem("appName", settings.appName);
+  localStorage.setItem("logoUrl", settings.logoUrl || "");
   
   // Update document title
   document.title = settings.appName;

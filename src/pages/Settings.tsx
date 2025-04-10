@@ -47,6 +47,7 @@ export default function Settings() {
   const [isDefaultSystemSettings, setIsDefaultSystemSettings] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
@@ -158,6 +159,10 @@ export default function Settings() {
         accentColor: appSettings.accentColor,
         logoUrl: appSettings.logoUrl || "",
       });
+      
+      if (appSettings.logoUrl) {
+        setLogoPreview(appSettings.logoUrl);
+      }
     }
   }, [appSettings, appSettingsForm]);
   
@@ -180,7 +185,8 @@ export default function Settings() {
       accentColor: DEFAULT_THEME.accentColor,
       logoUrl: DEFAULT_THEME.logoUrl || "",
     });
-
+    
+    setLogoPreview(null);
     applyColorTheme(DEFAULT_THEME);
     
     if (canManageSettings) {
@@ -272,24 +278,61 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
+      const { data: buckets, error: bucketError } = await supabase.storage
+        .getBuckets();
+        
+      if (bucketError) {
+        throw new Error(`Error checking buckets: ${bucketError.message}`);
+      }
+      
+      const appAssetsBucketExists = buckets?.find(b => b.name === 'app-assets');
+      
+      if (!appAssetsBucketExists) {
+        toast.error("Storage bucket 'app-assets' not found. Please contact your administrator.");
+        return null;
+      }
+      
       const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
+      const timestamp = Date.now();
+      const fileName = `logo-${timestamp}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('app-assets')
-        .upload(`logos/${fileName}`, file, {
+        .upload(filePath, file, {
           upsert: true,
+          contentType: file.type,
         });
         
-      if (error) throw error;
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error(`Error uploading logo: ${uploadError.message}`);
+      }
+      
+      if (!uploadData?.path) {
+        throw new Error("Upload successful but no file path was returned");
+      }
       
       const { data: publicUrlData } = supabase.storage
         .from('app-assets')
-        .getPublicUrl(`logos/${fileName}`);
+        .getPublicUrl(filePath);
         
+      if (!publicUrlData?.publicUrl) {
+        throw new Error("Could not get public URL for the logo");
+      }
+      
+      toast.success("Logo uploaded successfully");
+      
+      setLogoPreview(publicUrlData.publicUrl);
+      
       return publicUrlData.publicUrl;
     } catch (error) {
+      let errorMsg = "Failed to upload logo";
+      if (error instanceof Error) {
+        errorMsg = `${errorMsg}: ${error.message}`;
+      }
       console.error("Error uploading logo:", error);
-      toast.error("Failed to upload logo");
+      toast.error(errorMsg);
       return null;
     } finally {
       setUploadingLogo(false);
@@ -300,11 +343,29 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    const objectUrl = URL.createObjectURL(file);
+    setLogoPreview(objectUrl);
+    
     setLogoFile(file);
     const logoUrl = await handleLogoUpload(file);
+    
     if (logoUrl) {
       appSettingsForm.setValue('logoUrl', logoUrl, { shouldDirty: true });
+      
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+    } else {
+      setLogoPreview(appSettings?.logoUrl || null);
     }
+    
+    return () => URL.revokeObjectURL(objectUrl);
+  };
+  
+  const handleRemoveLogo = () => {
+    appSettingsForm.setValue('logoUrl', '', { shouldDirty: true });
+    setLogoPreview(null);
+    setLogoFile(null);
+    
+    toast.info("Logo removed. Click Save to apply changes.");
   };
   
   if (!user) {
@@ -367,17 +428,19 @@ export default function Settings() {
                       <FormItem>
                         <FormLabel>Application Logo</FormLabel>
                         <div className="space-y-4">
-                          {field.value && (
+                          {logoPreview && (
                             <div className="flex items-center space-x-4">
-                              <img 
-                                src={field.value} 
-                                alt="App Logo" 
-                                className="h-12 w-auto object-contain border rounded p-1" 
-                              />
+                              <div className="bg-white p-2 rounded border inline-block">
+                                <img 
+                                  src={`${logoPreview}?t=${Date.now()}`}
+                                  alt="App Logo" 
+                                  className="h-12 w-auto object-contain" 
+                                />
+                              </div>
                               <Button 
                                 type="button" 
                                 variant="outline" 
-                                onClick={() => appSettingsForm.setValue('logoUrl', '', { shouldDirty: true })}
+                                onClick={handleRemoveLogo}
                               >
                                 Remove
                               </Button>
@@ -401,6 +464,11 @@ export default function Settings() {
                             Upload a logo to display in the application header. Recommended size: 200×60px.
                           </FormDescription>
                           <FormMessage />
+                          <div className="text-sm text-amber-600">
+                            {field.value && !logoPreview && (
+                              <p>Logo is saved but not displaying. Please try uploading again.</p>
+                            )}
+                          </div>
                         </div>
                       </FormItem>
                     )}
