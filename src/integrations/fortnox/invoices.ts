@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -101,20 +102,10 @@ export async function formatTimeEntriesForFortnox(
     const invoiceRows: FortnoxInvoiceRow[] = await Promise.all(timeEntries.map(async (entry) => {
       const product = entry.products as Product;
       
-      // Check if article exists in Fortnox or create it with the original article number
+      // Include article number if available - will be auto-created if not found in Fortnox
       let articleNumber: string | undefined = undefined;
       if (product.article_number) {
-        // Check if this article exists in Fortnox
-        const exists = await checkFortnoxArticle(product.article_number);
-        if (exists) {
-          articleNumber = product.article_number;
-        } else {
-          // Create new article with the original article number
-          const newArticleNumber = await ensureFortnoxArticle(product);
-          if (newArticleNumber) {
-            articleNumber = newArticleNumber;
-          }
-        }
+        articleNumber = product.article_number;
       }
       
       // Get user profile from the map
@@ -345,6 +336,45 @@ export async function generateNumericArticleNumber(): Promise<string> {
   const baseNumber = `1${timestamp}`;
   
   return baseNumber;
+}
+
+/**
+ * Create an article in Fortnox from article details returned by proxy
+ */
+export async function createArticleFromDetails(articleDetails: any): Promise<string | null> {
+  try {
+    if (!articleDetails || !articleDetails.articleNumber) {
+      throw new Error("Invalid article details provided");
+    }
+    
+    // Prepare article data for creation
+    const articleData: FortnoxArticleData = {
+      Description: articleDetails.description || "Product item",
+      ArticleNumber: articleDetails.articleNumber,
+      Type: "SERVICE", // Default to SERVICE type
+      SalesAccount: articleDetails.accountNumber || "3001", // Use provided account or default
+      VAT: articleDetails.vat || 25, // Use provided VAT or default
+      StockGoods: false // Set to false for service products
+    };
+    
+    console.log("Creating new article in Fortnox with details:", articleData);
+    
+    const response = await fortnoxApiRequest("/articles", "POST", {
+      Article: articleData
+    });
+    
+    if (!response || !response.Article) {
+      throw new Error("Failed to create article in Fortnox");
+    }
+    
+    const newArticleNumber = response.Article.ArticleNumber;
+    console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
+    
+    return newArticleNumber;
+  } catch (error) {
+    console.error("Error creating article from details:", error);
+    return null;
+  }
 }
 
 /**
@@ -579,14 +609,69 @@ export async function createFortnoxInvoice(
         invoiceId: invoice.id
       };
     } catch (error: any) {
-      // Check if this is an article not found error from our Fortnox proxy
+      // Check if this is an article not found error with article details for auto-creation
+      if (error.response && error.response.error === "Article not found in Fortnox" && error.response.articleDetails) {
+        console.log("Article not found in Fortnox, attempting to create it automatically:", error.response.articleDetails);
+        
+        // Create the article using the details provided
+        const createdArticleNumber = await createArticleFromDetails(error.response.articleDetails);
+        
+        if (createdArticleNumber) {
+          console.log(`Successfully created article: ${createdArticleNumber}, retrying invoice creation...`);
+          
+          // Retry the invoice creation now that the article has been created
+          const response = await fortnoxApiRequest("/invoices", "POST", {
+            Invoice: invoiceData
+          });
+          
+          if (!response || !response.Invoice) {
+            throw new Error("Failed to create invoice in Fortnox after creating missing article");
+          }
+          
+          const fortnoxInvoice = response.Invoice;
+          
+          // Create local invoice record
+          const { data: invoice, error: invoiceError } = await supabase
+            .from("invoices")
+            .insert({
+              client_id: clientId,
+              invoice_number: fortnoxInvoice.DocumentNumber,
+              status: "sent",
+              issue_date: fortnoxInvoice.InvoiceDate,
+              due_date: fortnoxInvoice.DueDate,
+              total_amount: fortnoxInvoice.Total,
+              exported_to_fortnox: true,
+              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+            })
+            .select()
+            .single();
+            
+          if (invoiceError) throw invoiceError;
+          
+          // Update time entries to mark as invoiced
+          const { error: updateError } = await supabase
+            .from("time_entries")
+            .update({
+              invoiced: true,
+              invoice_id: invoice.id
+            })
+            .in("id", timeEntryIds);
+            
+          if (updateError) throw updateError;
+          
+          return {
+            invoiceNumber: fortnoxInvoice.DocumentNumber,
+            invoiceId: invoice.id
+          };
+        }
+      }
+      
+      // If it's a regular article not found error, provide a helpful message
       if (error.message && typeof error.message === 'string') {
-        // Check for the specific error message we added in the fortnox-proxy
         if (error.message.includes("Article not found in Fortnox") || 
             (error.details && error.details.message && error.details.message.includes("Article"))) {
-          // Re-throw with a user-friendly message
           console.error("Article not found error:", error);
-          throw new Error("Article number doesn't exist in Fortnox. Please create the article in Fortnox before proceeding.");
+          throw new Error("Article number doesn't exist in Fortnox. The system attempted to create it but failed.");
         }
       }
       

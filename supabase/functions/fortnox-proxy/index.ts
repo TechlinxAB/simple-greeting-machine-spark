@@ -305,17 +305,44 @@ serve(async (req) => {
           
           // Get the article number from the request
           let articleNumber = "";
+          let articleDescription = "";
           
           if (path.includes('/articles/') && method === 'GET') {
             articleNumber = path.split('/articles/')[1]?.split('/')[0] || "";
           } else if (payload?.Invoice?.InvoiceRows) {
             // For invoice creation, check which article number caused the issue
-            const articleNumbers = payload.Invoice.InvoiceRows
+            // Also gather descriptions for better error context
+            const problematicRows = payload.Invoice.InvoiceRows
               .filter((row: any) => row.ArticleNumber)
-              .map((row: any) => row.ArticleNumber);
+              .map((row: any) => ({
+                articleNumber: row.ArticleNumber,
+                description: row.Description,
+                price: row.Price,
+                vat: row.VAT,
+                accountNumber: row.AccountNumber
+              }));
             
-            if (articleNumbers.length > 0) {
-              articleNumber = articleNumbers.join(', ');
+            if (problematicRows.length > 0) {
+              articleNumber = problematicRows[0].articleNumber;
+              articleDescription = problematicRows[0].description;
+              
+              // Return specific details about the missing article to use for automatic creation
+              return new Response(
+                JSON.stringify({
+                  error: "Article not found in Fortnox",
+                  articleDetails: problematicRows[0],
+                  message: `Article number "${articleNumber}" doesn't exist in Fortnox.`,
+                  fortnoxStatus: fortnoxRes.status,
+                  errorCode: errorCode
+                }),
+                {
+                  status: 404, // Return 404 for "not found" errors
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...corsHeaders
+                  }
+                }
+              );
             }
           }
           
