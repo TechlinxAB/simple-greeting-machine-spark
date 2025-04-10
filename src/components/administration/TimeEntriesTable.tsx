@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { format } from "date-fns";
 import { Trash2, Info, Clock, AlertCircle, User } from "lucide-react";
@@ -31,7 +30,6 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Format duration from start/end times
   const formatDuration = (entry: TimeEntry) => {
     if (!entry.start_time || !entry.end_time) {
       return "N/A";
@@ -63,11 +61,12 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
         onEntryDeleted();
         setDeleteDialogOpen(false);
         toast.success("Time entry deleted successfully");
+      } else {
+        setIsDeleting(false);
       }
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");
-    } finally {
       setIsDeleting(false);
     }
   };

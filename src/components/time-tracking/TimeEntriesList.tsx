@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -160,13 +159,14 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         });
         
         await refetch();
+        toast.success("Time entry deleted successfully");
+      } else {
+        setIsDeleting(false);
       }
     } catch (error: any) {
       setIsDeleting(false);
       console.error("Delete time entry error:", error);
       toast.error(error.message || "Failed to delete time entry");
-    } finally {
-      setIsDeleting(false);
     }
   };
   
