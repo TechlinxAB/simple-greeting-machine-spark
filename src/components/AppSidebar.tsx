@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,8 +19,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
-import { supabase, getStorageFileUrl } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
+import { 
+  getAppLogoUrl, 
+  DEFAULT_LOGO_PATH 
+} from "@/utils/logoUtils";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -80,32 +83,20 @@ export function AppSidebar() {
     enabled: !!user?.id
   });
 
-  // Use a separate query to fetch the app logo from the storage bucket
   const { data: appLogo } = useQuery({
-    queryKey: ["app-logo"],
+    queryKey: ["app-logo-sidebar"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.storage
-          .from('app-logo')
-          .list();
-          
-        if (error) {
-          console.error("Error fetching app logo list:", error);
-          return null;
-        }
-        
-        if (!data || data.length === 0) {
-          return null;
-        }
-        
-        // Get the first (and should be only) logo file
-        const logoFile = data[0];
-        return getStorageFileUrl('app-logo', logoFile.name);
+        const logoUrl = await getAppLogoUrl();
+        console.log("Sidebar: Logo URL from storage:", logoUrl);
+        return logoUrl;
       } catch (error) {
-        console.error("Error fetching app logo:", error);
+        console.error("Sidebar: Error fetching app logo:", error);
         return null;
       }
-    }
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: false
   });
 
   const links = [
@@ -189,7 +180,7 @@ export function AppSidebar() {
   const avatarUrl = getUserAvatar();
   
   const handleLogoError = () => {
-    console.log("Logo failed to load, using fallback");
+    console.log("Logo failed to load in sidebar, using fallback");
     setLogoError(true);
   };
   
@@ -197,13 +188,9 @@ export function AppSidebar() {
     setLogoError(false);
   }, [appLogo]);
 
-  // Default logo path that we know exists in the project
-  const defaultLogoPath = "/src/logo.png"; 
-  
-  // Use the app logo from storage if available and not errored, otherwise use default
   const logoUrl = !logoError && appLogo 
-    ? `${appLogo}?t=${Date.now()}` // Add cache-busting parameter
-    : defaultLogoPath;
+    ? `${appLogo}?t=${Date.now()}`
+    : DEFAULT_LOGO_PATH;
 
   return (
     <Sidebar className="border-r">

@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { 
-  supabase, 
-  checkLogoExists, 
-  uploadAppLogo, 
-  removeAppLogo 
-} from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -25,6 +20,13 @@ import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbac
 import { useNavigate, useLocation } from "react-router-dom";
 import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { 
+  checkLogoExists, 
+  uploadAppLogo, 
+  removeAppLogo, 
+  getAppLogoUrl,
+  DEFAULT_LOGO_PATH
+} from "@/utils/logoUtils";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
@@ -55,6 +57,7 @@ export default function Settings() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [showRemoveLogoConfirm, setShowRemoveLogoConfirm] = useState(false);
   const [hasExistingLogo, setHasExistingLogo] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
@@ -69,29 +72,23 @@ export default function Settings() {
     queryKey: ["app-logo"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.storage
-          .from('app-logo')
-          .list();
-          
-        if (error) {
-          console.error("Error fetching app logo list:", error);
+        const logoExists = await checkLogoExists();
+        setHasExistingLogo(logoExists);
+        
+        if (!logoExists) {
           return null;
         }
         
-        if (!data || data.length === 0) {
-          setHasExistingLogo(false);
-          return null;
-        }
-        
-        const logoFile = data[0];
-        setHasExistingLogo(true);
-        return `https://xojrleypudfrbmvejpow.supabase.co/storage/v1/object/public/app-logo/${logoFile.name}`;
+        const logoUrl = await getAppLogoUrl();
+        return logoUrl ? `${logoUrl}?t=${Date.now()}` : null;
       } catch (error) {
-        console.error("Error fetching app logo:", error);
+        console.error("Error in app logo query:", error);
         setHasExistingLogo(false);
         return null;
       }
-    }
+    },
+    staleTime: 10000,
+    retry: 1
   });
   
   const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
@@ -324,11 +321,6 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      if (hasExistingLogo) {
-        toast.error("Please remove the existing logo before uploading a new one");
-        return null;
-      }
-      
       const publicUrl = await uploadAppLogo(file);
       
       if (!publicUrl) {
@@ -357,12 +349,6 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (hasExistingLogo) {
-      toast.error("Please remove the existing logo before uploading a new one");
-      e.target.value = '';
-      return;
-    }
-    
     const objectUrl = URL.createObjectURL(file);
     setLogoPreview(objectUrl);
     setLogoFile(file);
@@ -372,6 +358,9 @@ export default function Settings() {
     if (!logoUrl) {
       setLogoPreview(null);
       setLogoFile(null);
+    } else {
+      setLogoPreview(logoUrl);
+      setHasExistingLogo(true);
     }
     
     URL.revokeObjectURL(objectUrl);
@@ -405,6 +394,11 @@ export default function Settings() {
     } finally {
       setShowRemoveLogoConfirm(false);
     }
+  };
+  
+  const handleLogoError = () => {
+    console.log("Logo failed to load in settings, using fallback");
+    setLogoError(true);
   };
   
   if (!user) {
@@ -468,19 +462,20 @@ export default function Settings() {
                       </FormDescription>
                     </div>
                     
-                    {logoPreview || appLogo ? (
+                    {(logoPreview || appLogo) && !logoError ? (
                       <div className="flex items-center space-x-4">
                         <div className="bg-white p-2 rounded border inline-block">
                           <img 
-                            src={`${logoPreview || appLogo}?t=${Date.now()}`}
+                            src={logoPreview || appLogo || DEFAULT_LOGO_PATH}
                             alt="App Logo" 
                             className="h-12 w-auto object-contain" 
+                            onError={handleLogoError}
                           />
                         </div>
                         <Button 
                           type="button" 
                           variant="destructive" 
-                          disabled={!canManageSettings}
+                          disabled={!canManageSettings || !hasExistingLogo}
                           onClick={() => setShowRemoveLogoConfirm(true)}
                           className="flex items-center gap-2"
                         >
