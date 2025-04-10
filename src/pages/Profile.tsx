@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
 
 const Profile = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, role } = useAuth();
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [dob, setDob] = useState("");
@@ -174,7 +174,7 @@ const Profile = () => {
                 <div className="flex items-center text-sm">
                   <User className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span>Role: </span>
-                  <span className="ml-1 font-medium capitalize">{user?.user_metadata?.role || "User"}</span>
+                  <span className="ml-1 font-medium capitalize">{role || "User"}</span>
                 </div>
                 {dob && (
                   <div className="flex items-center text-sm">
