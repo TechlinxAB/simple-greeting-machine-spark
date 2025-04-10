@@ -23,7 +23,8 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { 
   DEFAULT_LOGO_PATH,
-  getLogoForDisplay
+  getLogoForDisplay,
+  ensureLogoBucketExists
 } from "@/utils/logoUtils";
 
 export function AppSidebar() {
@@ -88,6 +89,9 @@ export function AppSidebar() {
     queryKey: ["app-logo-sidebar"],
     queryFn: async () => {
       try {
+        // Make sure bucket exists
+        await ensureLogoBucketExists();
+        
         const displayLogo = await getLogoForDisplay();
         return displayLogo;
       } catch (error) {
@@ -96,7 +100,8 @@ export function AppSidebar() {
       }
     },
     staleTime: 60000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    retry: 2
   });
 
   useEffect(() => {

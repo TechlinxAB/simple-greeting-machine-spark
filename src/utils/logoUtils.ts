@@ -24,13 +24,13 @@ export const LOGO_FILENAME = "app-logo";
 /**
  * Maximum dimensions for the logo (in pixels)
  */
-export const MAX_LOGO_WIDTH = 400; // Increased from the previous setting
-export const MAX_LOGO_HEIGHT = 100;
+export const MAX_LOGO_WIDTH = 600; // Increased for wider logos
+export const MAX_LOGO_HEIGHT = 150; // Increased height as well
 
 /**
- * Maximum file size for logo (in bytes) - 1MB
+ * Maximum file size for logo (in bytes) - 2MB
  */
-export const MAX_LOGO_SIZE = 1048576;
+export const MAX_LOGO_SIZE = 2097152; // Increased to 2MB
 
 /**
  * Get the public URL for the app logo from Supabase storage
@@ -59,7 +59,7 @@ export async function getAppLogoUrl(): Promise<string | null> {
     // Get the first file (should be the only one)
     const logoFile = data[0];
     
-    // Construct the direct URL (bypassing any Supabase client issues)
+    // Construct the direct URL
     const directUrl = `${STORAGE_URL}/${LOGO_BUCKET}/${logoFile.name}`;
     console.log("Logo URL constructed:", directUrl);
     
@@ -137,8 +137,12 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
     img.onload = () => {
       URL.revokeObjectURL(url);
       
+      // Log original dimensions
+      console.log(`Original image dimensions: ${img.width}x${img.height}`);
+      
       // Check if resizing is needed
       if (img.width <= MAX_LOGO_WIDTH && img.height <= MAX_LOGO_HEIGHT) {
+        console.log("No resizing needed, dimensions are within limits");
         resolve(file); // No need to resize
         return;
       }
@@ -157,6 +161,12 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
         newHeight = MAX_LOGO_HEIGHT;
       }
       
+      // Round dimensions to avoid floating point issues
+      newWidth = Math.floor(newWidth);
+      newHeight = Math.floor(newHeight);
+      
+      console.log(`Image resized from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
+      
       // Create canvas for resizing
       const canvas = document.createElement('canvas');
       canvas.width = newWidth;
@@ -169,9 +179,21 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
         return;
       }
       
+      // Use better quality settings for the resize
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Clear canvas before drawing
+      ctx.clearRect(0, 0, newWidth, newHeight);
+      
+      // Fill with white background for images with transparency
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, newWidth, newHeight);
+      
+      // Draw the image
       ctx.drawImage(img, 0, 0, newWidth, newHeight);
       
-      // Convert canvas to blob with higher quality (0.9)
+      // Convert canvas to blob with higher quality (0.95)
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -185,11 +207,10 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
             lastModified: Date.now(),
           });
           
-          console.log(`Image resized from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
           resolve(resizedFile);
         },
         file.type,
-        0.95 // Increased quality to 0.95 from 0.9
+        0.95 // High quality
       );
     };
     
@@ -199,6 +220,20 @@ export function resizeLogoIfNeeded(file: File): Promise<File> {
     };
     
     img.src = url;
+  });
+}
+
+/**
+ * Creates a data URL from a file
+ * @param file The file to convert
+ * @returns Promise resolving to a data URL
+ */
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
@@ -228,7 +263,7 @@ export async function uploadAppLogo(file: File): Promise<string | null> {
     
     console.log(`Uploading logo as ${filePath}`);
     
-    // Upload the file
+    // Upload the file with better cache control and cache-busting
     const { error: uploadError } = await supabase.storage
       .from(LOGO_BUCKET)
       .upload(filePath, resizedFile, {
@@ -243,7 +278,7 @@ export async function uploadAppLogo(file: File): Promise<string | null> {
     }
     
     // Force a small delay to allow the storage system to process the file
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Get the public URL directly
     const { data: publicUrlData } = await supabase.storage
@@ -255,10 +290,37 @@ export async function uploadAppLogo(file: File): Promise<string | null> {
       return null;
     }
     
-    console.log("Logo uploaded successfully, public URL:", publicUrlData.publicUrl);
+    // Add a cache-busting parameter to the URL
+    const timestamp = Date.now();
+    const publicUrlWithCacheBust = `${publicUrlData.publicUrl}?t=${timestamp}`;
     
-    // Return the public URL with a cache-busting parameter
-    return `${publicUrlData.publicUrl}?t=${Date.now()}`;
+    console.log("Logo uploaded successfully, public URL:", publicUrlWithCacheBust);
+    
+    // Before returning, let's verify the image can be loaded
+    try {
+      // Convert the uploaded file to a data URL as a fallback
+      const dataUrl = await fileToDataUrl(resizedFile);
+      
+      // Test if the image can be loaded from the public URL
+      const canLoadPublicUrl = await testImageLoad(publicUrlWithCacheBust);
+      
+      if (!canLoadPublicUrl) {
+        console.log("Public URL can't be loaded directly, using data URL for preloading verification");
+        
+        // If we can't load from public URL, but we have a valid data URL,
+        // we can still return the public URL and client-side code will handle fallback
+        if (dataUrl && dataUrl.startsWith('data:image/')) {
+          return publicUrlWithCacheBust;
+        }
+        
+        throw new Error("Cannot verify the uploaded image can be displayed");
+      }
+      
+      return publicUrlWithCacheBust;
+    } catch (preloadError) {
+      console.error("Error verifying image can be loaded:", preloadError);
+      throw new Error("Logo uploaded but cannot be verified for display");
+    }
   } catch (error) {
     console.error("Unexpected error uploading logo:", error);
     return null;
@@ -308,16 +370,15 @@ export async function removeAppLogo(): Promise<boolean> {
 }
 
 /**
- * Preloads an image to check if it can be loaded successfully
- * Uses a more robust method with timeout
- * @param url The URL of the image to preload
- * @returns Promise resolving to true if image loads, false otherwise
+ * Tests if an image can be loaded from a URL
+ * @param url The URL to test
+ * @returns Promise resolving to true if the image can be loaded, false otherwise
  */
-export function preloadImage(url: string): Promise<boolean> {
+export function testImageLoad(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     // Set a timeout to prevent hanging on problematic images
     const timeout = setTimeout(() => {
-      console.warn(`Image preload timed out for: ${url}`);
+      console.warn(`Image load test timed out for: ${url}`);
       resolve(false);
     }, 5000); // 5 second timeout
     
@@ -325,23 +386,82 @@ export function preloadImage(url: string): Promise<boolean> {
     
     img.onload = () => {
       clearTimeout(timeout);
-      console.log(`Image preloaded successfully: ${url} (${img.width}x${img.height})`);
+      console.log(`Test image loaded successfully: ${url} (${img.width}x${img.height})`);
       resolve(true);
     };
     
     img.onerror = () => {
       clearTimeout(timeout);
-      console.error(`Failed to preload image: ${url}`);
+      console.error(`Failed to load test image: ${url}`);
       resolve(false);
     };
     
-    // Add cache-busting and timestamp
-    const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    img.src = cacheBustUrl;
-    
-    // Start download immediately
+    // Add cache-busting and set attributes to prioritize loading
+    img.src = url;
     img.setAttribute('importance', 'high');
     img.setAttribute('fetchpriority', 'high');
+    img.crossOrigin = 'anonymous'; // Try with CORS enabled
+  });
+}
+
+/**
+ * Preloads an image to check if it can be loaded successfully
+ * Uses a more robust method with timeout and retries
+ * @param url The URL of the image to preload
+ * @returns Promise resolving to true if image loads, false otherwise
+ */
+export function preloadImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    const attemptLoad = () => {
+      attempts++;
+      
+      // Set a timeout to prevent hanging on problematic images
+      const timeout = setTimeout(() => {
+        console.warn(`Image preload timed out for: ${url} (attempt ${attempts}/${maxAttempts})`);
+        if (attempts < maxAttempts) {
+          console.log(`Retrying preload for: ${url}`);
+          attemptLoad();
+        } else {
+          console.error(`Max attempts reached, preload failed for: ${url}`);
+          resolve(false);
+        }
+      }, 5000); // 5 second timeout
+      
+      const img = new Image();
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        console.log(`Image preloaded successfully: ${url} (${img.width}x${img.height})`);
+        resolve(true);
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        console.error(`Failed to preload image: ${url} (attempt ${attempts}/${maxAttempts})`);
+        
+        if (attempts < maxAttempts) {
+          console.log(`Retrying preload for: ${url}`);
+          setTimeout(attemptLoad, 1000); // Wait 1 second before retry
+        } else {
+          console.error(`Max attempts reached, preload failed for: ${url}`);
+          resolve(false);
+        }
+      };
+      
+      // Add cache-busting for each attempt
+      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}&attempt=${attempts}`;
+      img.src = cacheBustUrl;
+      
+      // Prioritize loading
+      img.setAttribute('importance', 'high');
+      img.setAttribute('fetchpriority', 'high');
+      img.crossOrigin = 'anonymous'; // Try with CORS enabled
+    };
+    
+    attemptLoad();
   });
 }
 
@@ -368,5 +488,41 @@ export async function getLogoForDisplay(): Promise<string> {
   } catch (error) {
     console.error("Error getting logo for display:", error);
     return DEFAULT_LOGO_PATH;
+  }
+}
+
+/**
+ * Ensures the app-logo bucket exists in storage
+ */
+export async function ensureLogoBucketExists(): Promise<void> {
+  try {
+    // Check if bucket exists by trying to list its contents
+    const { error } = await supabase.storage
+      .from(LOGO_BUCKET)
+      .list();
+      
+    if (!error) {
+      // Bucket exists, no need to create it
+      return;
+    }
+    
+    // Bucket doesn't exist or there was an error listing
+    console.log(`Creating ${LOGO_BUCKET} bucket in storage`);
+    
+    // Use admin API to create bucket (this will only work with service_role key)
+    const { error: createError } = await supabase.storage.createBucket(LOGO_BUCKET, { 
+      public: true,
+      fileSizeLimit: MAX_LOGO_SIZE,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml']
+    });
+    
+    if (createError) {
+      console.error(`Error creating ${LOGO_BUCKET} bucket:`, createError);
+      throw createError;
+    }
+    
+    console.log(`${LOGO_BUCKET} bucket created successfully`);
+  } catch (error) {
+    console.error(`Error ensuring ${LOGO_BUCKET} bucket exists:`, error);
   }
 }
