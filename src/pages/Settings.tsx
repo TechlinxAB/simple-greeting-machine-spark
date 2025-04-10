@@ -71,7 +71,8 @@ export default function Settings() {
   const [logoError, setLogoError] = useState(false);
   const [logoValidationError, setLogoValidationError] = useState<string | null>(null);
   const [loadingLogo, setLoadingLogo] = useState(true);
-  
+  const [logoDataUrlKey, setLogoDataUrlKey] = useState<string | null>(null);
+
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
   
@@ -87,6 +88,14 @@ export default function Settings() {
       setLoadingLogo(true);
       try {
         await ensureLogoBucketExists();
+        
+        // Check localStorage first for cached logo
+        const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
+        if (cachedLogo) {
+          setHasExistingLogo(true);
+          setLoadingLogo(false);
+          return cachedLogo;
+        }
         
         const logoExists = await checkLogoExists();
         setHasExistingLogo(logoExists);
@@ -115,7 +124,7 @@ export default function Settings() {
     staleTime: 10000,
     retry: 1
   });
-  
+
   const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
     queryKey: ["app-settings"],
     queryFn: async () => {
@@ -353,17 +362,25 @@ export default function Settings() {
       
       const { dataUrl, success } = await uploadAppLogo(file);
       
-      if (dataUrl) {
-        setLogoPreview(dataUrl);
-      }
+      // Always use the dataUrl for immediate display regardless of success
+      setLogoPreview(dataUrl);
+      setHasExistingLogo(true);
+      
+      // Store the dataUrl in localStorage for persistence
+      localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+      
+      // Also update the system settings directly with the dataUrl
+      await updateLogoInSystemSettings(dataUrl);
+      
+      // Refresh queryClient to update all components using the logo
+      queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
       
       if (!success) {
-        toast.warning("Logo was saved locally but may not be available for other users");
+        toast.warning("Logo saved locally but may not be available for other users");
       } else {
         toast.success("Logo uploaded successfully");
-        setHasExistingLogo(true);
-        queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
-        queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
       }
       
       return dataUrl;
@@ -397,21 +414,28 @@ export default function Settings() {
     setUploadingLogo(true);
     
     try {
+      // Show temporary preview immediately
       const objectUrl = URL.createObjectURL(file);
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
+      // Process the actual upload
       const logoDataUrl = await handleLogoUpload(file);
       
       if (logoDataUrl) {
+        // Update preview with the final data URL
         setLogoPreview(logoDataUrl);
         setHasExistingLogo(true);
+        
+        // Refresh all logo-related queries
         refetchLogo();
+        queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
+        
+        // Release the temporary object URL
+        URL.revokeObjectURL(objectUrl);
       } else {
         toast.warning("Using local preview. The logo upload process encountered issues.");
       }
-      
-      URL.revokeObjectURL(objectUrl);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to process logo");
       setLogoPreview(null);
@@ -437,8 +461,13 @@ export default function Settings() {
         setHasExistingLogo(false);
         setLogoError(false);
         
+        // Clear from localStorage
+        localStorage.removeItem(LOGO_DATA_URL_KEY);
+        
+        // Refresh all components using the logo
         queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
         queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
+        queryClient.invalidateQueries({ queryKey: ["app-settings"] });
         
         toast.success("Logo removed successfully");
       } else {
@@ -456,6 +485,15 @@ export default function Settings() {
     console.log("Logo failed to load in settings, using fallback");
     setLogoError(true);
     
+    // If the logo is in localStorage, use that
+    const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
+    if (cachedLogo) {
+      setLogoPreview(cachedLogo);
+      setLogoError(false);
+      return;
+    }
+    
+    // Otherwise try to convert from file if available
     if (logoFile) {
       fileToDataUrl(logoFile).then(dataUrl => {
         if (dataUrl) {
@@ -465,9 +503,11 @@ export default function Settings() {
       }).catch(() => {
         setLogoPreview(null);
       });
+    } else {
+      setLogoPreview(DEFAULT_LOGO_PATH);
     }
   };
-  
+
   if (!user) {
     return null;
   }

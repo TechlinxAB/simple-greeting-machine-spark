@@ -28,6 +28,11 @@ export const MAX_LOGO_HEIGHT = 100;
 export const MAX_LOGO_SIZE = 1048576;
 
 /**
+ * Key used for storing logo data URL in localStorage
+ */
+export const LOGO_DATA_URL_KEY = "app-logo-data-url";
+
+/**
  * Test if an image can be loaded
  */
 export function testImageLoad(url: string): Promise<boolean> {
@@ -80,7 +85,13 @@ export function getAppLogoUrl(): string | null {
  */
 export async function getLogoForDisplay(): Promise<string> {
   try {
-    // Fetch the list of logos
+    // First, check local storage for cached data URL
+    const cachedDataUrl = localStorage.getItem(LOGO_DATA_URL_KEY);
+    if (cachedDataUrl) {
+      return cachedDataUrl;
+    }
+    
+    // If no cached data, fetch from storage
     console.log("Fetching logo list from storage");
     const { data, error } = await supabase.storage
       .from(LOGO_BUCKET)
@@ -106,7 +117,15 @@ export async function getLogoForDisplay(): Promise<string> {
       return DEFAULT_LOGO_PATH;
     }
     
-    return logoUrl;
+    // If we found a logo and it loads, download it and create a data URL
+    const dataUrl = await getStoredLogoAsDataUrl();
+    if (dataUrl) {
+      // Cache the data URL in localStorage for better performance
+      localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+      return dataUrl;
+    }
+    
+    return DEFAULT_LOGO_PATH;
   } catch (error) {
     console.error("Error in getLogoForDisplay:", error);
     return DEFAULT_LOGO_PATH;
@@ -301,6 +320,23 @@ export async function removeAppLogo(): Promise<boolean> {
       return false;
     }
     
+    // Also clear the cached data URL
+    localStorage.removeItem(LOGO_DATA_URL_KEY);
+    
+    // Update the system_settings table to remove the logo
+    const { error: settingsError } = await supabase
+      .from("system_settings")
+      .update({
+        settings: supabase.postgres.json({
+          logoUrl: null
+        })
+      })
+      .eq("id", "app_settings");
+      
+    if (settingsError) {
+      console.error("Error updating system settings after logo removal:", settingsError);
+    }
+    
     console.log("Logo(s) removed successfully");
     return true;
   } catch (error) {
@@ -352,7 +388,30 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
       return { dataUrl, success: false };
     }
     
-    // We'll return the dataUrl as the success path too - this is key to fix the issues
+    // Cache the dataUrl in localStorage
+    localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+    
+    // Also update the system_settings table
+    const logoUrl = supabase.storage
+      .from(LOGO_BUCKET)
+      .getPublicUrl(filePath).data.publicUrl;
+    
+    const { error: settingsError } = await supabase
+      .from("system_settings")
+      .update({
+        settings: supabase.postgres.json({
+          logoUrl: dataUrl
+        })
+      })
+      .eq("id", "app_settings");
+      
+    if (settingsError) {
+      console.error("Error updating system settings with logo:", settingsError);
+    } else {
+      console.log("Logo uploaded successfully, public URL:", logoUrl);
+    }
+    
+    // We'll return the dataUrl as the success path - this is key to fix the issues
     return { dataUrl, success: true };
   } catch (error) {
     console.error("Error in uploadAppLogo:", error);
@@ -365,7 +424,28 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
  */
 export async function getStoredLogoAsDataUrl(): Promise<string | null> {
   try {
-    // List files in the bucket
+    // First check localStorage for cached version
+    const cachedDataUrl = localStorage.getItem(LOGO_DATA_URL_KEY);
+    if (cachedDataUrl) {
+      return cachedDataUrl;
+    }
+    
+    // Try to get from database settings first
+    const { data: settingsData, error: settingsError } = await supabase
+      .from("system_settings")
+      .select("settings")
+      .eq("id", "app_settings")
+      .single();
+      
+    // If we have settings data with a logoUrl (which is a dataUrl), use that
+    if (!settingsError && settingsData?.settings?.logoUrl) {
+      const dataUrl = settingsData.settings.logoUrl;
+      // Cache it
+      localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+      return dataUrl;
+    }
+    
+    // If no value in settings, try to download from storage
     const { data, error } = await supabase.storage
       .from(LOGO_BUCKET)
       .list();
@@ -385,7 +465,12 @@ export async function getStoredLogoAsDataUrl(): Promise<string | null> {
     }
     
     // Convert to data URL
-    return await fileToDataUrl(fileData);
+    const dataUrl = await fileToDataUrl(fileData);
+    
+    // Cache it for future use
+    localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+    
+    return dataUrl;
   } catch (error) {
     console.error("Error getting stored logo:", error);
     return null;
@@ -397,6 +482,23 @@ export async function getStoredLogoAsDataUrl(): Promise<string | null> {
  */
 export async function checkLogoExists(): Promise<boolean> {
   try {
+    // Check local storage first
+    if (localStorage.getItem(LOGO_DATA_URL_KEY)) {
+      return true;
+    }
+    
+    // Next, check system settings
+    const { data: settingsData, error: settingsError } = await supabase
+      .from("system_settings")
+      .select("settings")
+      .eq("id", "app_settings")
+      .single();
+      
+    if (!settingsError && settingsData?.settings?.logoUrl) {
+      return true;
+    }
+    
+    // Finally, check storage bucket
     const { data, error } = await supabase.storage
       .from(LOGO_BUCKET)
       .list();
@@ -404,5 +506,42 @@ export async function checkLogoExists(): Promise<boolean> {
     return !error && data && data.length > 0;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Updates logo in the system settings
+ */
+export async function updateLogoInSystemSettings(dataUrl: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("system_settings")
+      .update({
+        settings: supabase.postgres.json({ logoUrl: dataUrl })
+      })
+      .eq("id", "app_settings");
+      
+    if (error) {
+      console.error("Error updating logo in system settings:", error);
+      return false;
+    }
+    
+    // Cache in localStorage too
+    localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+    return true;
+  } catch (error) {
+    console.error("Error in updateLogoInSystemSettings:", error);
+    return false;
+  }
+}
+
+/**
+ * Refreshes the logo in localStorage and across the application
+ */
+export function refreshLogoDataUrl(dataUrl: string | null): void {
+  if (dataUrl) {
+    localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+  } else {
+    localStorage.removeItem(LOGO_DATA_URL_KEY);
   }
 }

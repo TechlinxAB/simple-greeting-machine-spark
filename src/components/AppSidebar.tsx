@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +24,8 @@ import { useEffect, useState } from "react";
 import { 
   DEFAULT_LOGO_PATH,
   ensureLogoBucketExists,
-  getStoredLogoAsDataUrl
+  getStoredLogoAsDataUrl,
+  LOGO_DATA_URL_KEY
 } from "@/utils/logoUtils";
 
 export function AppSidebar() {
@@ -86,11 +86,17 @@ export function AppSidebar() {
     enabled: !!user?.id
   });
 
-  // Modified to use data URL approach
+  // Use the improved logo data URL approach with localStorage fallback
   const { data: logoDataUrl, isLoading: logoLoading } = useQuery({
     queryKey: ["app-logo-dataurl"],
     queryFn: async () => {
       try {
+        // First check localStorage for cached logo
+        const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
+        if (cachedLogo) {
+          return cachedLogo;
+        }
+        
         await ensureLogoBucketExists();
         
         const dataUrl = await getStoredLogoAsDataUrl();
