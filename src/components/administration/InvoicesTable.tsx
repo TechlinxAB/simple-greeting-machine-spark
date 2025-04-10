@@ -9,8 +9,9 @@ import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Trash2, Edit, ArrowUpDown, AlertCircle, FileText } from "lucide-react";
+import { Trash2, Edit, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Icons } from "@/components/icons";
 
 export interface InvoicesTableProps {
   invoices: Invoice[];
@@ -136,7 +137,7 @@ export function InvoicesTable({
   if (invoices.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center p-4">
-        <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+        <Icons.fileText className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium">No invoices found</h3>
         <p className="text-muted-foreground mt-1">
           No invoices match your current filters.
@@ -221,7 +222,7 @@ export function InvoicesTable({
             <AlertDialogDescription>
               {selectedInvoice?.exported_to_fortnox ? (
                 <div className="flex items-start gap-2 mb-2 text-amber-500">
-                  <AlertCircle className="h-5 w-5 mt-0.5" />
+                  <Icons.alertCircle className="h-5 w-5 mt-0.5" />
                   <div>
                     <p className="font-medium">Warning: This invoice has been exported to Fortnox</p>
                     <p>Deleting this invoice will only remove it from your database. It will <strong>not</strong> be deleted from Fortnox. This may cause data inconsistency.</p>
@@ -231,7 +232,7 @@ export function InvoicesTable({
               
               {hasTimeEntries ? (
                 <div className="flex items-start gap-2 mb-2 mt-2">
-                  <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+                  <Icons.alertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
                   <div>
                     <p className="font-medium text-amber-500">This invoice has time entries attached</p>
                     <p>Deleting this invoice will remove the invoice association from these time entries, 

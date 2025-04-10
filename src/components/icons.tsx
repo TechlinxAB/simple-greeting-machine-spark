@@ -1,5 +1,5 @@
 
-import { LucideIcon, AlertCircle, FileText } from "lucide-react";
+import { LucideIcon, AlertCircle, FileText, Users, Clock, FilterIcon, Trash, Check, ArrowUpDown } from "lucide-react";
 
 // This file serves as a centralized place to export icons or icon sets
 // Create icon configurations used throughout the application
@@ -23,4 +23,10 @@ export const Icons = {
   ),
   alertCircle: AlertCircle,
   fileText: FileText,
+  users: Users,
+  clock: Clock,
+  filterIcon: FilterIcon,
+  trash: Trash,
+  check: Check,
+  arrowUpDown: ArrowUpDown
 };
