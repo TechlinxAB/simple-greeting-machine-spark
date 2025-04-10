@@ -4,7 +4,13 @@ import * as React from "react";
 export const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+  const [isMobile, setIsMobile] = React.useState<boolean>(() => {
+    // Initialize with a value based on window width if available
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < MOBILE_BREAKPOINT;
+    }
+    return false; // Default for SSR
+  });
 
   React.useEffect(() => {
     // Set the initial value based on window width
@@ -39,6 +45,5 @@ export function useIsMobile() {
     };
   }, []);
 
-  // Return false as default while waiting for the effect
-  return isMobile === undefined ? false : isMobile;
+  return isMobile;
 }

@@ -124,7 +124,8 @@ export function AppLayout() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden fixed top-4 left-4 z-40"
+              className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+              aria-label="Open navigation menu"
             >
               <Menu />
               <span className="sr-only">Open menu</span>
@@ -146,7 +147,8 @@ export function AppLayout() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden fixed top-4 left-4 z-40"
+            className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+            aria-label="Open navigation menu"
           >
             <Menu />
             <span className="sr-only">Open menu</span>
@@ -168,13 +170,16 @@ export function AppLayout() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         {!isMobile && <AppSidebar />}
-        {isMobile && <MobileSidebarTrigger />}
+        
         <div className="flex-1 flex flex-col">
           <Header />
           <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>
+        
+        {/* Always render the mobile trigger outside the flow for better visibility */}
+        <MobileSidebarTrigger />
       </div>
     </SidebarProvider>
   );

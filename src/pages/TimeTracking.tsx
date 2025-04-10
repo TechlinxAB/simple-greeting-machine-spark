@@ -7,19 +7,15 @@ import { TimeEntriesList } from "@/components/time-tracking/TimeEntriesList";
 import { DateSelector } from "@/components/time-tracking/DateSelector";
 import { TimerWidget } from "@/components/time-tracking/TimerWidget";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { Users, Menu } from "lucide-react";
+import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { AppSidebar } from "@/components/AppSidebar";
 import { useSidebar } from "@/components/ui/sidebar";
 
 export default function TimeTracking() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showClientForm, setShowClientForm] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { toggleSidebar } = useSidebar();
@@ -48,61 +44,8 @@ export default function TimeTracking() {
     ? "today" 
     : format(selectedDate, "d MMMM yyyy");
 
-  const MobileSidebarTrigger = () => {
-    if (!isMobile) return null;
-    
-    // Use Drawer component for iOS
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-      return (
-        <Drawer open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <DrawerTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden fixed top-4 left-4 z-40"
-            >
-              <Menu />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DrawerTrigger>
-          <DrawerContent className="h-[85vh] bg-sidebar-background text-sidebar-foreground p-0">
-            <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
-            <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
-            <AppSidebar />
-          </DrawerContent>
-        </Drawer>
-      );
-    }
-    
-    // Use Sheet component for other mobile devices
-    return (
-      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden fixed top-4 left-4 z-40"
-          >
-            <Menu />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent 
-          side="left" 
-          className="p-0 w-[80vw] sm:w-[300px] z-50 bg-sidebar-background text-sidebar-foreground"
-        >
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
-          <AppSidebar />
-        </SheetContent>
-      </Sheet>
-    );
-  };
-
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <MobileSidebarTrigger />
-
       <div className="flex justify-end mb-4">
         <Button 
           variant="outline" 

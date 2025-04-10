@@ -35,6 +35,7 @@ export const DialogWrapper: React.FC<DialogWrapperProps> = ({
   hideDescription = false,
   footer,
 }) => {
+  // Always include DialogTitle, but optionally hide it visually
   const TitleComponent = hideTitle ? (
     <VisuallyHidden>
       <DialogTitle>{title}</DialogTitle>
@@ -43,6 +44,7 @@ export const DialogWrapper: React.FC<DialogWrapperProps> = ({
     <DialogTitle>{title}</DialogTitle>
   );
 
+  // Always include DialogDescription (even if empty), but optionally hide it visually
   const DescriptionComponent = description ? (
     hideDescription ? (
       <VisuallyHidden>
@@ -58,7 +60,7 @@ export const DialogWrapper: React.FC<DialogWrapperProps> = ({
   );
 
   const dialogContent = (
-    <DialogContent>
+    <DialogContent className="sm:max-w-md">
       <DialogHeader>
         {TitleComponent}
         {DescriptionComponent}
