@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -141,16 +140,14 @@ export async function formatTimeEntriesForFortnox(
         quantity = entry.quantity;
       }
       
-      // Format description including user information
-      const baseDescription = entry.description || product.name;
+      // Format description in a Fortnox-compatible way (avoid pipe symbols)
+      // Sanitize description by removing special characters and formatting properly
+      const baseDescription = entry.description || product.name || "Service";
       const timeInfo = product.type === 'activity' && entry.start_time && entry.end_time ? 
-        `${new Date(entry.start_time).toLocaleString()} - ${new Date(entry.end_time).toLocaleString()}` : '';
+        formatDateRange(entry.start_time, entry.end_time) : '';
       
-      const description = [
-        baseDescription,
-        `Utförd av: ${userName}`,
-        timeInfo
-      ].filter(Boolean).join(' | ');
+      // Format description without pipe symbols and with proper spacing
+      const description = sanitizeFortnoxDescription(`${baseDescription} - ${userName}${timeInfo ? ' - ' + timeInfo : ''}`);
       
       // Ensure VAT is one of the allowed values (25, 12, 6)
       const validVatRates = [25, 12, 6];
@@ -202,6 +199,47 @@ export async function formatTimeEntriesForFortnox(
     console.error("Error formatting time entries for Fortnox:", error);
     throw error;
   }
+}
+
+/**
+ * Helper function to sanitize description for Fortnox API
+ * Removes pipe symbols and other special characters that cause validation errors
+ */
+function sanitizeFortnoxDescription(description: string): string {
+  // Replace pipe symbols with hyphens
+  let sanitized = description.replace(/\|/g, '-');
+  
+  // Replace multiple spaces/hyphens with single ones
+  sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
+  
+  // Replace other potentially problematic characters
+  sanitized = sanitized.replace(/[^\w\s\-,.()]/g, '');
+  
+  // Trim the description to avoid having spaces or hyphens at start/end
+  sanitized = sanitized.trim();
+  
+  // Limit the length to avoid potential issues (Fortnox might have limits)
+  const maxLength = 100;
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength - 3) + '...';
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Helper function to format date range in a more compact, Fortnox-friendly way
+ */
+function formatDateRange(startTime: string, endTime: string): string {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  
+  // Format date as YYYY-MM-DD HH:MM
+  const formatDate = (date: Date) => {
+    return `${date.toISOString().split('T')[0]} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+  
+  return `${formatDate(start)} to ${formatDate(end)}`;
 }
 
 /**
@@ -441,7 +479,7 @@ export async function createFortnoxInvoice(
     // Update invoice data with the correct CustomerNumber
     invoiceData.CustomerNumber = customerNumber;
     
-    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API
+    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API spec
     console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
     const response = await fortnoxApiRequest("/invoices", "POST", {
       Invoice: invoiceData

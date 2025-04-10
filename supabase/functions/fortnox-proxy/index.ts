@@ -169,6 +169,7 @@ serve(async (req) => {
           // Validate InvoiceRows
           if (payload.Invoice.InvoiceRows && Array.isArray(payload.Invoice.InvoiceRows)) {
             payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
+              // Create a new sanitized row
               const validRow: any = {
                 Description: row.Description,
                 DeliveredQuantity: row.DeliveredQuantity,
@@ -187,6 +188,16 @@ serve(async (req) => {
               
               return validRow;
             });
+            
+            // Additional sanitization - make sure descriptions don't have problematic characters
+            for (const row of payload.Invoice.InvoiceRows) {
+              if (row.Description) {
+                // Remove pipe symbols and other potentially problematic characters
+                row.Description = row.Description.replace(/\|/g, '-');
+                row.Description = row.Description.replace(/[^\w\s\-,.()]/g, '');
+                row.Description = row.Description.trim();
+              }
+            }
           }
         }
       }
