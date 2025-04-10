@@ -12,35 +12,12 @@ export const LOGO_BUCKET_NAME = "application-logo";
 export const LOGO_FOLDER_PATH = "logos";
 
 /**
- * Ensure the logo bucket exists before any operations
+ * Ensure the logo bucket exists before any operations - we now assume it exists
+ * since we've created it via SQL migration
  */
 export async function ensureLogoBucketExists(): Promise<boolean> {
-  try {
-    console.log("Checking if application-logo bucket exists");
-    
-    // First check if the bucket already exists
-    const { data: buckets, error: bucketError } = await supabase
-      .storage
-      .listBuckets();
-      
-    if (bucketError) {
-      console.error("Error checking buckets:", bucketError);
-      return false;
-    }
-    
-    const bucketExists = buckets.some(bucket => bucket.name === LOGO_BUCKET_NAME);
-    
-    if (bucketExists) {
-      console.log("Logo bucket exists, proceeding");
-      return true;
-    }
-    
-    console.warn("Logo bucket doesn't exist but should have been created via migrations");
-    return false;
-  } catch (error) {
-    console.error("Error ensuring logo bucket exists:", error);
-    return false;
-  }
+  // We've created the bucket via SQL migration, so we can assume it exists
+  return true;
 }
 
 /**
@@ -49,13 +26,6 @@ export async function ensureLogoBucketExists(): Promise<boolean> {
  */
 export async function checkLogoExists(): Promise<boolean> {
   try {
-    // Make sure the bucket exists first
-    const bucketExists = await ensureLogoBucketExists();
-    if (!bucketExists) {
-      console.error("Logo bucket doesn't exist");
-      return false;
-    }
-    
     const { data, error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
@@ -82,21 +52,6 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
   try {
     console.log("Starting logo upload process");
     
-    // Make sure the bucket exists first
-    const bucketExists = await ensureLogoBucketExists();
-    if (!bucketExists) {
-      console.error("Logo bucket doesn't exist and couldn't be created");
-      
-      // Try local storage as fallback
-      const fileDataUrl = await fileToDataUrl(file);
-      if (fileDataUrl) {
-        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
-        return { dataUrl: fileDataUrl, success: false };
-      }
-      
-      return { dataUrl: '', success: false };
-    }
-    
     // Delete any existing logos first to avoid accumulation
     await removeAppLogo();
     
@@ -112,7 +67,7 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
       .from(LOGO_BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true // Changed to true to handle potential conflicts
+        upsert: true
       });
       
     if (error) {
@@ -183,14 +138,6 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
  */
 export async function removeAppLogo(): Promise<boolean> {
   try {
-    // Make sure the bucket exists first
-    const bucketExists = await ensureLogoBucketExists();
-    if (!bucketExists) {
-      console.log("No logo bucket to remove files from");
-      localStorage.removeItem(LOGO_DATA_URL_KEY);
-      return true;
-    }
-    
     // Check if there are any logo files to remove
     const { data: listData, error: listError } = await supabase
       .storage
@@ -304,10 +251,14 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
       return storedDataUrl;
     }
     
-    // Make sure the bucket exists
-    const bucketExists = await ensureLogoBucketExists();
-    if (!bucketExists) {
-      console.warn("Logo bucket doesn't exist, checking system settings instead");
+    // Check for logos in the storage bucket
+    const { data: files, error: listError } = await supabase
+      .storage
+      .from(LOGO_BUCKET_NAME)
+      .list(LOGO_FOLDER_PATH);
+    
+    if (listError || !files || files.length === 0) {
+      console.log("No logo files found in storage, checking system settings");
       
       // Try system settings as fallback
       const { data: settingsData, error: settingsError } = await supabase
@@ -327,17 +278,6 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
         }
       }
       
-      return null;
-    }
-    
-    // Check for logos in the storage bucket
-    const { data: files, error: listError } = await supabase
-      .storage
-      .from(LOGO_BUCKET_NAME)
-      .list(LOGO_FOLDER_PATH);
-    
-    if (listError || !files || files.length === 0) {
-      console.log("No logo files found in storage");
       return null;
     }
     
