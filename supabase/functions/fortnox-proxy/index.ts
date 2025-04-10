@@ -151,9 +151,15 @@ serve(async (req) => {
           delete payload.Invoice.EmailInformation;
         }
         
+        // Remove Comments if present
+        if (payload.Invoice.Comments) {
+          console.log("⚠️ Removing Comments from Invoice payload - not needed");
+          delete payload.Invoice.Comments;
+        }
+        
         // Ensure correct format for Invoice
         if (payload.Invoice) {
-          // Make sure PricesIncludeVAT is correctly formatted
+          // Make sure PricesIncludeVAT is correctly formatted as VATIncluded
           if (payload.Invoice.hasOwnProperty('PricesIncludeVAT')) {
             payload.Invoice.VATIncluded = payload.Invoice.PricesIncludeVAT; 
             delete payload.Invoice.PricesIncludeVAT;
@@ -176,10 +182,8 @@ serve(async (req) => {
                 validRow.ArticleNumber = row.ArticleNumber;
               }
               
-              // Only include UnitCode if present
-              if (row.UnitCode) {
-                validRow.UnitCode = row.UnitCode;
-              }
+              // UnitCode is not supported by Fortnox API for invoice rows
+              // Do not include UnitCode in the payload
               
               return validRow;
             });

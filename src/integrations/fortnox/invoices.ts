@@ -9,7 +9,6 @@ interface FortnoxInvoiceData {
   InvoiceRows: FortnoxInvoiceRow[];
   InvoiceDate?: string;
   DueDate?: string;
-  Comments?: string;
   VATIncluded?: boolean;
   Currency?: string;
   Language?: string;
@@ -23,7 +22,6 @@ interface FortnoxInvoiceRow {
   Price: number;
   VAT: number;
   AccountNumber?: string;
-  UnitCode?: string;
 }
 
 // Interface for Fortnox customer creation - WITHOUT CustomerNumber
@@ -43,10 +41,8 @@ interface FortnoxArticleData {
   Description: string;
   ArticleNumber?: string;
   Type: string;
-  PurchasePrice?: number;
-  SalesPrice: number;
+  SalesPrice?: number;
   SalesAccount: string;
-  Unit?: string;
   VAT: number;
   StockGoods: boolean;
 }
@@ -134,7 +130,6 @@ export async function formatTimeEntriesForFortnox(
       
       // Calculate quantity
       let quantity = 1;
-      let unitCode: string | undefined = undefined;
       
       if (product.type === 'activity' && entry.start_time && entry.end_time) {
         // Calculate hours from start_time to end_time
@@ -142,10 +137,8 @@ export async function formatTimeEntriesForFortnox(
         const end = new Date(entry.end_time);
         const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         quantity = parseFloat(diffHours.toFixed(2));
-        unitCode = "h"; // Hour unit code
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
-        unitCode = "st"; // Standard unit code for items
       }
       
       // Format description including user information
@@ -186,11 +179,6 @@ export async function formatTimeEntriesForFortnox(
         row.ArticleNumber = articleNumber;
       }
       
-      // Only add UnitCode if valid
-      if (unitCode) {
-        row.UnitCode = unitCode;
-      }
-      
       return row;
     }));
     
@@ -200,7 +188,6 @@ export async function formatTimeEntriesForFortnox(
       InvoiceRows: invoiceRows,
       InvoiceDate: new Date().toISOString().split('T')[0],
       DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-      Comments: `Invoice generated from Techlinx Time Tracker`,
       VATIncluded: false, // Changed from PricesIncludeVAT to VATIncluded
       Currency: "SEK", // Swedish Krona
       Language: "SV", // Swedish
@@ -345,9 +332,7 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       Description: product.name || "Service",
       ArticleNumber: articleNumber,
       Type: "SERVICE", // Default to SERVICE type for all products
-      SalesPrice: product.price,
       SalesAccount: product.account_number || "3001",
-      Unit: product.type === 'activity' ? "h" : "st", 
       VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
       StockGoods: false // Set to false for service products
     };
