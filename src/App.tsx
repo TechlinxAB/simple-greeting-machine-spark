@@ -15,6 +15,7 @@ import Invoices from "./pages/Invoices";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
+import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/administration" element={<Administration />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/profile" element={<Profile />} />
                 

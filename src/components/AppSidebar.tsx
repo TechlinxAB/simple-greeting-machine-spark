@@ -14,7 +14,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Clock, Users, Package, FileText, Settings, LogOut, BarChart3, UserCircle } from "lucide-react";
+import { Clock, Users, Package, FileText, Settings, LogOut, BarChart3, UserCircle, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 
@@ -53,6 +53,12 @@ export function AppSidebar() {
       path: "/dashboard",
       icon: BarChart3,
       allowedRoles: ["admin", "manager", "user"],
+    },
+    {
+      title: "Administration",
+      path: "/administration",
+      icon: Shield,
+      allowedRoles: ["admin", "manager"],
     },
   ];
 
