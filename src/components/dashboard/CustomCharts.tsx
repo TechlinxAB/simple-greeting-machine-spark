@@ -24,9 +24,10 @@ export const XAxis = ({
 };
 
 export const YAxis = ({ 
+  yAxisId = "yAxis",
   ...props 
 }: any) => {
-  return <RechartsYAxis {...props} />;
+  return <RechartsYAxis yAxisId={yAxisId} {...props} />;
 };
 
 // Custom BarChart component
@@ -52,8 +53,9 @@ export const BarChart: React.FC<BarChartProps> = ({
   barFill = "#4CAF50",
   tooltip
 }) => {
-  // Use a consistent xAxisId
+  // Use consistent IDs for both axes
   const xAxisId = "xAxis";
+  const yAxisId = "yAxis";
   
   return (
     <div className={className}>
@@ -61,7 +63,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         <RechartsBarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" xAxisId={xAxisId} />
-          <YAxis />
+          <YAxis yAxisId={yAxisId} />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
@@ -72,6 +74,7 @@ export const BarChart: React.FC<BarChartProps> = ({
             fill={barFill} 
             name={barName} 
             xAxisId={xAxisId}
+            yAxisId={yAxisId}
           />
         </RechartsBarChart>
       </ResponsiveContainer>
