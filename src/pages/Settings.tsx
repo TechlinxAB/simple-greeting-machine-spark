@@ -611,10 +611,10 @@ export default function Settings() {
                             {logoValidationError}
                           </p>
                         )}
-                        <p className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                           Upload a logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). 
                           Recommended format: PNG or SVG. Images will be automatically resized if needed.
-                        </p>
+                        </div>
                       </div>
                     )}
                     

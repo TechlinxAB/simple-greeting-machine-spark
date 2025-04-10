@@ -19,10 +19,15 @@ export const LOGO_FOLDER_PATH = "logos";
 export async function ensureLogoBucketExists(): Promise<boolean> {
   try {
     // Check if bucket exists
-    const { data: existingBuckets } = await supabase
+    const { data: existingBuckets, error } = await supabase
       .storage
       .listBuckets();
       
+    if (error) {
+      console.error("Failed to list buckets:", error);
+      return false;
+    }
+    
     const bucketExists = existingBuckets?.some(bucket => bucket.name === LOGO_BUCKET_NAME);
     
     if (bucketExists) {
