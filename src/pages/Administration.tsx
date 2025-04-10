@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -97,7 +98,8 @@ export default function Administration() {
         return [];
       }
       
-      return data as TimeEntry[];
+      // Convert data to match our TimeEntry type
+      return (data as unknown) as TimeEntry[];
     },
   });
 

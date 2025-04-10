@@ -42,6 +42,9 @@ export interface TimeEntry {
   // Join fields
   clients?: Client;
   products?: Product;
+  profiles?: {
+    name?: string;
+  };
 }
 
 export interface Invoice {
