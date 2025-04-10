@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -15,12 +14,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link, Users } from "lucide-react";
+import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link } from "lucide-react";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 import { useNavigate, useLocation } from "react-router-dom";
 import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
-import { UserManagement } from "@/components/settings/UserManagement";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
@@ -53,7 +51,6 @@ export default function Settings() {
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
   
-  // Check if this is a Fortnox callback
   const isFortnoxCallback = location.pathname.includes('/settings/fortnox-callback');
   
   if (isFortnoxCallback) {
@@ -159,7 +156,7 @@ export default function Settings() {
         secondaryColor: appSettings.secondaryColor,
         sidebarColor: appSettings.sidebarColor,
         accentColor: appSettings.accentColor,
-        logoUrl: appSettings.logoUrl,
+        logoUrl: appSettings.logoUrl || "",
       });
     }
   }, [appSettings, appSettingsForm]);
@@ -181,7 +178,7 @@ export default function Settings() {
       secondaryColor: DEFAULT_THEME.secondaryColor,
       sidebarColor: DEFAULT_THEME.sidebarColor,
       accentColor: DEFAULT_THEME.accentColor,
-      logoUrl: DEFAULT_THEME.logoUrl,
+      logoUrl: DEFAULT_THEME.logoUrl || "",
     });
 
     applyColorTheme(DEFAULT_THEME);
@@ -275,15 +272,6 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      const { data: buckets } = await supabase.storage.listBuckets();
-      if (!buckets?.find(bucket => bucket.name === 'app-assets')) {
-        await supabase.storage.createBucket('app-assets', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'],
-          fileSizeLimit: 1024 * 1024,
-        });
-      }
-      
       const fileExt = file.name.split('.').pop();
       const fileName = `logo-${Date.now()}.${fileExt}`;
       const { data, error } = await supabase.storage
@@ -339,16 +327,10 @@ export default function Settings() {
             <span>Appearance</span>
           </TabsTrigger>
           {isAdmin && (
-            <>
-              <TabsTrigger value="integrations" className="flex items-center gap-2">
-                <Link className="h-4 w-4" />
-                <span>Integrations</span>
-              </TabsTrigger>
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Users</span>
-              </TabsTrigger>
-            </>
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <Link className="h-4 w-4" />
+              <span>Integrations</span>
+            </TabsTrigger>
           )}
         </TabsList>
         
@@ -551,102 +533,96 @@ export default function Settings() {
         </TabsContent>
         
         {isAdmin && (
-          <>
-            <TabsContent value="integrations">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Fortnox Integration</CardTitle>
-                  <CardDescription>Configure integration with Fortnox accounting software</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...fortnoxSettingsForm}>
-                    <form onSubmit={fortnoxSettingsForm.handleSubmit(onSubmitFortnoxSettings)} className="space-y-6">
-                      <FormField
-                        control={fortnoxSettingsForm.control}
-                        name="clientId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client ID</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Fortnox Client ID" {...field} />
-                            </FormControl>
+          <TabsContent value="integrations">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fortnox Integration</CardTitle>
+                <CardDescription>Configure integration with Fortnox accounting software</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...fortnoxSettingsForm}>
+                  <form onSubmit={fortnoxSettingsForm.handleSubmit(onSubmitFortnoxSettings)} className="space-y-6">
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="clientId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client ID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Fortnox Client ID" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            The client ID from your Fortnox developer account.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="clientSecret"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client Secret</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Fortnox Client Secret" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            The client secret from your Fortnox developer account.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={fortnoxSettingsForm.control}
+                      name="enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                            <FormLabel>Enable Fortnox Integration</FormLabel>
                             <FormDescription>
-                              The client ID from your Fortnox developer account.
+                              Allow integration with Fortnox for invoicing and customer sync.
                             </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="flex justify-between pt-6">
+                      {fortnoxSettings && (
+                        <FortnoxConnect 
+                          clientId={fortnoxSettings.clientId}
+                          clientSecret={fortnoxSettings.clientSecret}
+                        />
+                      )}
                       
-                      <FormField
-                        control={fortnoxSettingsForm.control}
-                        name="clientSecret"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client Secret</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Fortnox Client Secret" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              The client secret from your Fortnox developer account.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={fortnoxSettingsForm.control}
-                        name="enabled"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                              <FormLabel>Enable Fortnox Integration</FormLabel>
-                              <FormDescription>
-                                Allow integration with Fortnox for invoicing and customer sync.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="flex justify-between pt-6">
-                        {fortnoxSettings && (
-                          <FortnoxConnect 
-                            clientId={fortnoxSettings.clientId}
-                            clientSecret={fortnoxSettings.clientSecret}
-                          />
-                        )}
-                        
-                        <Button 
-                          type="submit" 
-                          disabled={!isAdmin || !fortnoxSettingsForm.formState.isDirty}
-                          className="flex items-center gap-2"
-                        >
-                          <Save className="h-4 w-4" />
-                          <span>Save Settings</span>
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="users">
-              <UserManagement />
-            </TabsContent>
-          </>
+                      <Button 
+                        type="submit" 
+                        disabled={!isAdmin || !fortnoxSettingsForm.formState.isDirty}
+                        className="flex items-center gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>Save Settings</span>
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
         )}
       </Tabs>
     </div>

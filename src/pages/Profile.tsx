@@ -85,6 +85,8 @@ const Profile = () => {
   };
 
   const getInitials = (name: string) => {
+    if (!name || name.trim() === "") return "";
+    
     return name
       .split(" ")
       .map((part) => part[0])
@@ -157,9 +159,11 @@ const Profile = () => {
               <CardTitle>Profile Overview</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
-              <Avatar className="h-24 w-24 mb-4">
+              <Avatar className="h-24 w-24 mb-4 bg-primary/10">
                 <AvatarImage src={avatarUrl} alt={name} />
-                <AvatarFallback className="text-xl">{getInitials(name || user?.email || "")}</AvatarFallback>
+                <AvatarFallback className="text-xl bg-primary/10 text-primary-foreground">
+                  {getInitials(name || "")}
+                </AvatarFallback>
               </Avatar>
               <h3 className="text-xl font-medium">{name || "User"}</h3>
               <p className="text-sm text-muted-foreground mb-4">{user?.email}</p>

@@ -18,7 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
-import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, NewsIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
+import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -83,11 +83,6 @@ export function AppSidebar() {
       managerOnly: true,
     },
     {
-      title: "Profile",
-      href: "/profile",
-      icon: ProfileIcon,
-    },
-    {
       title: "Administration",
       href: "/administration",
       icon: AdminIcon,
@@ -97,9 +92,9 @@ export function AppSidebar() {
 
   const secondaryLinks = [
     {
-      title: "News",
-      href: "/news",
-      icon: NewsIcon,
+      title: "Profile",
+      href: "/profile",
+      icon: ProfileIcon,
     },
     {
       title: "Settings",
@@ -195,7 +190,7 @@ export function AppSidebar() {
         {user && (
           <Link to="/profile" className="flex items-center justify-between hover:bg-sidebar-accent rounded-md p-2 transition-colors">
             <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8 bg-primary/10">
+              <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
                 <AvatarImage 
                   src={user.user_metadata?.avatar_url || ""} 
                   alt={user.user_metadata?.name || user.email || "User"} 
@@ -206,7 +201,7 @@ export function AppSidebar() {
               </Avatar>
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-sidebar-foreground overflow-hidden text-ellipsis max-w-[120px]">
-                  {user.user_metadata?.name || "User"}
+                  {user.user_metadata?.name || user.email?.split('@')[0] || "User"}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 capitalize">{role || "User"}</p>
               </div>
