@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface CompletedTimer extends TimerType {
   _calculatedDuration?: number;
+  _roundedDuration?: number;
 }
 
 export function TimerWidget() {
@@ -82,7 +82,11 @@ export function TimerWidget() {
 
   const handleConvertToTimeEntry = async () => {
     if (!completedTimer) return;
-    const success = await convertTimerToTimeEntry(completedTimer.id, completedTimer._calculatedDuration);
+    const success = await convertTimerToTimeEntry(
+      completedTimer.id, 
+      completedTimer._calculatedDuration,
+      completedTimer._roundedDuration
+    );
     if (success) {
       setCompletedTimer(null);
       setConfirmDialogOpen(false);
@@ -293,9 +297,19 @@ export function TimerWidget() {
                     </div>
                     <div>
                       <span className="font-medium">Duration:</span>{' '}
-                      {completedTimer?._calculatedDuration !== undefined ? 
-                        formatElapsedTime(completedTimer._calculatedDuration) : 
-                        formatElapsedTime(elapsedSeconds)}
+                      {completedTimer?._roundedDuration !== undefined ? 
+                        formatElapsedTime(completedTimer._roundedDuration) : 
+                        (completedTimer?._calculatedDuration !== undefined ?
+                          formatElapsedTime(completedTimer._calculatedDuration) :
+                          formatElapsedTime(elapsedSeconds))
+                      }
+                      {completedTimer?._calculatedDuration !== undefined && 
+                       completedTimer?._roundedDuration !== undefined && 
+                       completedTimer._calculatedDuration !== completedTimer._roundedDuration && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          (rounded up from {formatElapsedTime(completedTimer._calculatedDuration)})
+                        </span>
+                      )}
                     </div>
                     {completedTimer?.description && (
                       <div className="col-span-2">

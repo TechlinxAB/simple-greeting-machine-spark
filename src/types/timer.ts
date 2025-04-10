@@ -10,6 +10,8 @@ export interface Timer {
   status: TimerStatus;
   created_at?: string;
   updated_at?: string;
+  _calculatedDuration?: number; // Added for component use
+  _roundedDuration?: number; // Added for component use with rounded time
 }
 
 export type TimerStatus = 'running' | 'paused' | 'completed';

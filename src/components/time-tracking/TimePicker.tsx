@@ -15,7 +15,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   value, 
   onChange, 
   roundToMinutes = 15, 
-  roundOnBlur = false,
+  roundOnBlur = true, // Changed to true by default for consistent 15-minute rounding
   onComplete,
   disabled = false
 }, ref) => {
@@ -54,7 +54,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     if (filtered.length === 5 && filtered.includes(":")) {
       // If we have a complete time, create the Date object immediately
       setTimeout(() => {
-        handleTimeUpdate(filtered, false); // Don't round on auto-complete
+        handleTimeUpdate(filtered, true); // Apply rounding when input is complete
         if (onComplete) {
           onComplete();
         }
@@ -62,7 +62,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
   };
   
-  // Parse time and create Date object
+  // Parse time and create Date object with ceiling (round up) to nearest interval
   const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
       onChange(null);
@@ -91,16 +91,33 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       0
     );
     
-    // Never apply rounding unless explicitly required
+    // Apply rounding if required - using ceiling instead of round to always round up
     if (shouldRound && roundToMinutes > 0) {
-      const roundedMinutes = Math.round(minutes / roundToMinutes) * roundToMinutes;
-      if (roundedMinutes !== minutes) {
-        newDate.setMinutes(roundedMinutes);
-        // Update the input field to show the rounded time
-        const roundedHours = newDate.getHours().toString().padStart(2, '0');
-        const roundedMins = newDate.getMinutes().toString().padStart(2, '0');
-        setTimeInput(`${roundedHours}:${roundedMins}`);
+      // Round up to the nearest interval
+      const roundedMinutes = Math.ceil(minutes / roundToMinutes) * roundToMinutes;
+      
+      // If rounding exceeds 59 minutes, increment hour
+      let roundedHours = hours;
+      let finalMinutes = roundedMinutes;
+      
+      if (roundedMinutes >= 60) {
+        roundedHours = hours + Math.floor(roundedMinutes / 60);
+        finalMinutes = roundedMinutes % 60;
+        
+        // Handle hour overflow
+        if (roundedHours >= 24) {
+          roundedHours = roundedHours % 24;
+        }
       }
+      
+      // Set the rounded time
+      newDate.setHours(roundedHours);
+      newDate.setMinutes(finalMinutes);
+      
+      // Update the input field to show the rounded time
+      const formattedHours = roundedHours.toString().padStart(2, '0');
+      const formattedMins = finalMinutes.toString().padStart(2, '0');
+      setTimeInput(`${formattedHours}:${formattedMins}`);
     }
     
     onChange(newDate);
@@ -110,7 +127,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate(timeInput, false); // Don't round on key events
+        handleTimeUpdate(timeInput, true); // Apply rounding on Enter/Tab
       }
       if (e.key === "Enter") {
         e.preventDefault();
