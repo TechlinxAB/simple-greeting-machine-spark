@@ -1,4 +1,3 @@
-
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
@@ -131,10 +130,10 @@ export function AppLayout() {
               <span className="sr-only">Open menu</span>
             </Button>
           </DrawerTrigger>
-          <DrawerContent className="h-[85vh] bg-sidebar-background">
+          <DrawerContent className="h-[85vh]">
             <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
             <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
-            <div className="h-full overflow-y-auto p-0">
+            <div className="h-full flex flex-col overflow-auto">
               <AppSidebar />
             </div>
           </DrawerContent>
@@ -158,13 +157,11 @@ export function AppLayout() {
         </SheetTrigger>
         <SheetContent 
           side="left" 
-          className="p-0 w-[80vw] sm:w-[300px] z-50 overflow-y-auto"
+          className="p-0 w-[80vw] sm:w-[300px] z-50"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
-          <div className="h-full w-full">
-            <AppSidebar />
-          </div>
+          <AppSidebar />
         </SheetContent>
       </Sheet>
     );

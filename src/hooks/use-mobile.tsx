@@ -24,16 +24,20 @@ export function useIsMobile() {
     // Run immediately to set initial state
     checkMobile();
     
+    console.log("Setting up mobile detection, current state:", isMobile);
+    
     // Set up media query listener for better performance
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     
     // Handle media query changes
     const handleChange = (e: MediaQueryListEvent) => {
+      console.log("Media query changed:", e.matches);
       setIsMobile(e.matches);
     };
     
     // Always use resize events as a backup
     const handleResize = () => {
+      console.log("Window resized:", window.innerWidth);
       checkMobile();
     };
     
