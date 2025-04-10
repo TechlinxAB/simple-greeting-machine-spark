@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LOGO_DATA_URL_KEY, DEFAULT_LOGO_PATH, getStoredLogoAsDataUrl } from '@/utils/logoUtils';
+import { 
+  LOGO_DATA_URL_KEY, 
+  DEFAULT_LOGO_PATH, 
+  getStoredLogoAsDataUrl,
+  getSystemLogoDataUrl 
+} from '@/utils/logoUtils';
+import { supabase } from '@/lib/supabase';
 
 /**
  * A hook that provides access to the cached logo data URL
@@ -22,7 +28,7 @@ export function useCachedLogo() {
       
       // Otherwise fetch from server
       try {
-        const dataUrl = await getStoredLogoAsDataUrl();
+        const dataUrl = await getSystemLogoDataUrl();
         if (dataUrl) {
           localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
           return dataUrl;
@@ -36,19 +42,39 @@ export function useCachedLogo() {
     staleTime: 60000
   });
 
-  // Listen for storage events to update across tabs
+  // Set up real-time subscription for logo changes in system_settings
   useEffect(() => {
+    // Listen for storage events to update across tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === LOGO_DATA_URL_KEY) {
         setCachedLogo(e.newValue);
         queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
-        queryClient.invalidateQueries({ queryKey: ['app-logo-dataurl'] });
-        queryClient.invalidateQueries({ queryKey: ['app-logo-settings'] });
       }
     };
 
+    // Set up Supabase real-time subscription for system_settings changes
+    const channel = supabase
+      .channel('system_settings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'system_settings',
+          filter: 'id=eq.app_settings'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+        }
+      )
+      .subscribe();
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      supabase.removeChannel(channel);
+    };
   }, [queryClient]);
 
   // Update from query result
@@ -63,8 +89,6 @@ export function useCachedLogo() {
     isLoading,
     refreshLogo: () => {
       queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
-      queryClient.invalidateQueries({ queryKey: ['app-logo-dataurl'] });
-      queryClient.invalidateQueries({ queryKey: ['app-logo-settings'] });
     }
   };
 }

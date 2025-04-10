@@ -74,6 +74,15 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     const bucketExists = await ensureLogoBucketExists();
     if (!bucketExists) {
       console.error("Logo bucket doesn't exist and couldn't be created");
+      
+      // Even if bucket doesn't exist, let's try to proceed with local storage
+      const fileDataUrl = await fileToDataUrl(file);
+      if (fileDataUrl) {
+        // Store in localStorage at least, so it works for the current user
+        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
+        return { dataUrl: fileDataUrl, success: false };
+      }
+      
       return { dataUrl: '', success: false };
     }
     
@@ -93,6 +102,14 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
       
     if (error) {
       console.error("Error uploading logo:", error);
+      
+      // Try local storage as fallback
+      const fileDataUrl = await fileToDataUrl(file);
+      if (fileDataUrl) {
+        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
+        return { dataUrl: fileDataUrl, success: false };
+      }
+      
       return { dataUrl: '', success: false };
     }
     
@@ -103,14 +120,37 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
       
     if (!publicUrl?.publicUrl) {
       console.error("Error getting public logo URL");
+      
+      // Try local storage as fallback
+      const fileDataUrl = await fileToDataUrl(file);
+      if (fileDataUrl) {
+        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
+        return { dataUrl: fileDataUrl, success: false };
+      }
+      
       return { dataUrl: '', success: false };
     }
     
     const dataUrl = publicUrl.publicUrl;
     
+    // Store in localStorage for quick access
+    localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+    
     return { dataUrl, success: true };
   } catch (error) {
     console.error("Error uploading logo:", error);
+    
+    // Try local storage as fallback
+    try {
+      const fileDataUrl = await fileToDataUrl(file);
+      if (fileDataUrl) {
+        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
+        return { dataUrl: fileDataUrl, success: false };
+      }
+    } catch (e) {
+      console.error("Failed to convert file to data URL:", e);
+    }
+    
     return { dataUrl: '', success: false };
   }
 }
@@ -150,6 +190,9 @@ export async function removeAppLogo(): Promise<boolean> {
       console.error("Error removing logo:", error);
       return false;
     }
+    
+    // Always clear from localStorage too
+    localStorage.removeItem(LOGO_DATA_URL_KEY);
     
     return true;
   } catch (error) {
@@ -212,6 +255,13 @@ export function getStoredLogoAsDataUrl(): string | null {
  */
 export async function getSystemLogoDataUrl(): Promise<string | null> {
   try {
+    // First try localStorage for performance
+    const storedDataUrl = getStoredLogoAsDataUrl();
+    if (storedDataUrl) {
+      return storedDataUrl;
+    }
+    
+    // Then check database
     const { data: settingsData, error: settingsError } = await supabase
       .from("system_settings")
       .select("settings")
@@ -229,12 +279,7 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
       }
     }
     
-    // If not, try to get it from local storage
-    const storedDataUrl = getStoredLogoAsDataUrl();
-    if (storedDataUrl) {
-      return storedDataUrl;
-    }
-    
+    // If both checks fail, return null
     return null;
   } catch (error) {
     console.error("Error getting logo data URL:", error);
