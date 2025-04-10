@@ -131,10 +131,10 @@ export function AppLayout() {
               <span className="sr-only">Open menu</span>
             </Button>
           </DrawerTrigger>
-          <DrawerContent className="h-[85vh] bg-sidebar-background text-sidebar-foreground p-0">
+          <DrawerContent className="h-[85vh] bg-sidebar-background">
             <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
             <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-y-auto p-0">
               <AppSidebar />
             </div>
           </DrawerContent>
@@ -158,11 +158,11 @@ export function AppLayout() {
         </SheetTrigger>
         <SheetContent 
           side="left" 
-          className="p-0 w-[80vw] sm:w-[300px] z-50 bg-sidebar-background text-sidebar-foreground overflow-auto"
+          className="p-0 w-[80vw] sm:w-[300px] z-50 overflow-y-auto"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
-          <div className="h-full overflow-auto">
+          <div className="h-full w-full">
             <AppSidebar />
           </div>
         </SheetContent>

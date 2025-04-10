@@ -32,26 +32,25 @@ export function useIsMobile() {
       setIsMobile(e.matches);
     };
     
-    // Fallback for resize events (used when matchMedia listener isn't available)
+    // Always use resize events as a backup
     const handleResize = () => {
       checkMobile();
     };
     
-    // Use the appropriate event listener based on browser support
+    // Use both event listeners for maximum compatibility
     if (mql.addEventListener) {
       mql.addEventListener("change", handleChange);
-    } else {
-      // Fallback for older browsers
-      window.addEventListener("resize", handleResize);
     }
+    
+    // Always add resize listener as a fallback
+    window.addEventListener("resize", handleResize);
     
     // Clean up event listeners
     return () => {
       if (mql.removeEventListener) {
         mql.removeEventListener("change", handleChange);
-      } else {
-        window.removeEventListener("resize", handleResize);
       }
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
