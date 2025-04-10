@@ -176,12 +176,14 @@ export function AppSidebar() {
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <img 
-            src={logoUrl} 
-            alt="Logo" 
-            className="h-6 w-auto" 
-            onError={handleLogoError}
-          />
+          <div className="h-6 w-auto bg-white flex items-center justify-center rounded overflow-hidden">
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="h-full w-auto object-contain" 
+              onError={handleLogoError}
+            />
+          </div>
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis">
             {appSettings?.appName || "Time Tracker"}
           </h2>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -279,18 +278,13 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      // Fixed method name from getBuckets to getBucket
-      const { data: bucketData, error: bucketError } = await supabase.storage
-        .getBucket('app-assets');
+      const { error: bucketError } = await supabase.storage
+        .from('app-assets')
+        .getPublicUrl('test-bucket-exists');
         
       if (bucketError) {
-        throw new Error(`Error checking bucket: ${bucketError.message}`);
-      }
-      
-      const appAssetsBucketExists = bucketData?.name === 'app-assets';
-      
-      if (!appAssetsBucketExists) {
-        toast.error("Storage bucket 'app-assets' not found. Please contact your administrator.");
+        console.error("Error accessing storage bucket:", bucketError);
+        toast.error("Could not access the storage bucket. Please contact your administrator.");
         return null;
       }
       
