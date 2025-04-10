@@ -296,8 +296,10 @@ serve(async (req) => {
         if (
           (errorMessage && errorMessage.includes("Article not found")) || 
           (errorMessage && errorMessage.includes("artikel finns inte")) ||
+          (errorMessage && errorMessage.includes("Kan inte hitta artikeln")) ||
           errorCode === 2000328 || // Article not found by article number
-          errorCode === 2000329    // Article not active
+          errorCode === 2000329 || // Article not active
+          errorCode === 2000428    // Cannot find the article
         ) {
           console.error("💥 Article doesn't exist in Fortnox error detected");
           
