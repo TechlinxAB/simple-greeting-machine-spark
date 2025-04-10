@@ -14,7 +14,7 @@ import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } 
 import { cn } from "@/lib/utils";
 
 export function AppLayout() {
-  const { user, isLoading, loadingTimeout, signOut, resetLoadingState } = useAuth();
+  const { user, isLoading, loadingTimeout, signOut, resetLoadingState, role } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -113,33 +113,39 @@ export function AppLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  const isAdmin = role === "admin";
+  const isManagerOrAdmin = role === "manager" || role === "admin";
+
   // Create simple direct menu for mobile view
   const MobileMenu = () => {
     const links = [
       { title: "Time Tracking", href: "/" },
       { title: "Dashboard", href: "/dashboard" },
       { title: "Clients", href: "/clients" },
-      { title: "Products", href: "/products" },
-      { title: "Invoices", href: "/invoices" },
+      { title: "Products", href: "/products", showIf: isManagerOrAdmin },
+      { title: "Invoices", href: "/invoices", showIf: isManagerOrAdmin },
+      { title: "Administration", href: "/administration", showIf: isAdmin },
       { title: "Settings", href: "/settings" },
       { title: "Profile", href: "/profile" },
     ];
     
     return (
       <div className="flex flex-col p-4 space-y-2">
-        {links.map((link) => (
-          <Button 
-            key={link.title}
-            variant="ghost" 
-            className="justify-start text-left w-full py-6 text-base"
-            onClick={() => {
-              navigate(link.href);
-              setMobileSidebarOpen(false);
-            }}
-          >
-            {link.title}
-          </Button>
-        ))}
+        {links
+          .filter(link => link.showIf !== false)
+          .map((link) => (
+            <Button 
+              key={link.title}
+              variant="ghost" 
+              className="justify-start text-left w-full py-6 text-base"
+              onClick={() => {
+                navigate(link.href);
+                setMobileSidebarOpen(false);
+              }}
+            >
+              {link.title}
+            </Button>
+          ))}
         <div className="pt-4 border-t mt-4">
           <Button 
             variant="destructive" 
