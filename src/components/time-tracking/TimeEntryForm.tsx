@@ -103,11 +103,8 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   }, []);
 
   useEffect(() => {
-    if (selectedProductType === "") {
-      filteredProducts = products;
-    } else {
-      filteredProducts = products.filter(product => product.type === selectedProductType);
-    }
+    // This is the fix: correctly filter products based on selectedProductType
+    filteredProducts = products.filter(product => product.type === selectedProductType);
   }, [selectedProductType, products]);
 
   const getProductById = (id: string) => {
