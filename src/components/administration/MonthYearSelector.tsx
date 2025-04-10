@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
@@ -28,22 +27,6 @@ export function MonthYearSelector({
   const years = Array.from({
     length: 9
   }, (_, i) => currentYear - 5 + i);
-
-  const handlePreviousMonth = () => {
-    if (selectedMonth === 0) {
-      onMonthYearChange(11, selectedYear - 1);
-    } else {
-      onMonthYearChange(selectedMonth - 1, selectedYear);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (selectedMonth === 11) {
-      onMonthYearChange(0, selectedYear + 1);
-    } else {
-      onMonthYearChange(selectedMonth + 1, selectedYear);
-    }
-  };
 
   const handleCurrentMonth = () => {
     const now = new Date();
@@ -74,7 +57,9 @@ export function MonthYearSelector({
             }}
           >
             <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Month" />
+              <SelectValue placeholder="Month">
+                {months[selectedMonth]}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {months.map((month, index) => (
@@ -94,7 +79,9 @@ export function MonthYearSelector({
             }}
           >
             <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Year" />
+              <SelectValue placeholder="Year">
+                {selectedYear}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {years.map(year => (
