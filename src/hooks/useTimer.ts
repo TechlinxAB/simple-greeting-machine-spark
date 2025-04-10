@@ -19,9 +19,9 @@ export function useTimer() {
       if (!user) return null;
       
       try {
-        // Using the generic any type to avoid type errors with the new table
+        // Using any to work around TypeScript limitations with the new table
         const { data, error } = await supabase
-          .from('user_timers')
+          .from('user_timers' as any)
           .select('*')
           .eq('user_id', user.id)
           .in('status', ['running', 'paused'])
@@ -85,7 +85,7 @@ export function useTimer() {
     try {
       // Create a new timer
       const { data, error } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .insert({
           user_id: user.id,
           client_id: clientId,
@@ -119,7 +119,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .update({
           status: 'paused',
           end_time: new Date().toISOString(),
@@ -146,7 +146,7 @@ export function useTimer() {
     try {
       // Update the timer status and remove end_time
       const { error } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .update({
           status: 'running',
           end_time: null,
@@ -172,7 +172,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .update({
           status: 'completed',
           end_time: new Date().toISOString(),
@@ -202,7 +202,7 @@ export function useTimer() {
     try {
       // First get the timer data - using any to avoid type errors
       const { data: timer, error: fetchError } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .select('*')
         .eq('id', timerId)
         .single();
@@ -233,7 +233,7 @@ export function useTimer() {
       
       // Delete the timer
       const { error: deleteError } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .delete()
         .eq('id', timerId);
 
@@ -257,7 +257,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers')
+        .from('user_timers' as any)
         .delete()
         .eq('id', timerId);
 

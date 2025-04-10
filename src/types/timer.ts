@@ -7,7 +7,7 @@ export interface Timer {
   description?: string | null;
   start_time: string;
   end_time?: string | null;
-  status: 'running' | 'paused' | 'completed';
+  status: TimerStatus;
   created_at?: string;
   updated_at?: string;
 }

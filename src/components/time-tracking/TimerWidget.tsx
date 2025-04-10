@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +34,6 @@ export function TimerWidget() {
     deleteTimer
   } = useTimer();
 
-  // Fetch clients and products
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
@@ -96,7 +94,6 @@ export function TimerWidget() {
     }
   };
 
-  // Reset form after timer is started
   const resetForm = () => {
     setClientId('');
     setProductId('');
