@@ -19,9 +19,8 @@ export function useTimer() {
       if (!user) return null;
       
       try {
-        // Using any to work around TypeScript limitations with the new table
         const { data, error } = await supabase
-          .from('user_timers' as any)
+          .from('user_timers')
           .select('*')
           .eq('user_id', user.id)
           .in('status', ['running', 'paused'])
@@ -85,7 +84,7 @@ export function useTimer() {
     try {
       // Create a new timer
       const { data, error } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .insert({
           user_id: user.id,
           client_id: clientId,
@@ -119,7 +118,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .update({
           status: 'paused',
           end_time: new Date().toISOString(),
@@ -146,7 +145,7 @@ export function useTimer() {
     try {
       // Update the timer status and remove end_time
       const { error } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .update({
           status: 'running',
           end_time: null,
@@ -172,7 +171,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .update({
           status: 'completed',
           end_time: new Date().toISOString(),
@@ -200,19 +199,16 @@ export function useTimer() {
     if (!user) return false;
 
     try {
-      // First get the timer data - using any to avoid type errors
+      // First get the timer data
       const { data: timer, error: fetchError } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .select('*')
         .eq('id', timerId)
         .single();
 
       if (fetchError) throw fetchError;
       
-      // Safely cast the timer to the correct type
-      const timerData = timer as unknown as Timer;
-      
-      if (!timerData.end_time || !timerData.client_id || !timerData.product_id) {
+      if (!timer || !timer.end_time || !timer.client_id || !timer.product_id) {
         toast.error('Timer data is incomplete');
         return false;
       }
@@ -222,18 +218,18 @@ export function useTimer() {
         .from('time_entries')
         .insert({
           user_id: user.id,
-          client_id: timerData.client_id,
-          product_id: timerData.product_id,
-          start_time: timerData.start_time,
-          end_time: timerData.end_time,
-          description: timerData.description,
+          client_id: timer.client_id,
+          product_id: timer.product_id,
+          start_time: timer.start_time,
+          end_time: timer.end_time,
+          description: timer.description,
         });
 
       if (insertError) throw insertError;
       
       // Delete the timer
       const { error: deleteError } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .delete()
         .eq('id', timerId);
 
@@ -257,7 +253,7 @@ export function useTimer() {
 
     try {
       const { error } = await supabase
-        .from('user_timers' as any)
+        .from('user_timers')
         .delete()
         .eq('id', timerId);
 

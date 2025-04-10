@@ -339,6 +339,60 @@ export type Database = {
           },
         ]
       }
+      user_timers: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          id: string
+          product_id: string | null
+          start_time: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          product_id?: string | null
+          start_time?: string
+          status: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          product_id?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_timers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_timers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
