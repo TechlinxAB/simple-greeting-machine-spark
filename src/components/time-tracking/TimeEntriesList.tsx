@@ -286,12 +286,18 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {entry.products?.type === 'activity' ? (
-                          <Clock className="h-4 w-4 text-blue-500" />
+                        {entry.products ? (
+                          entry.products.type === 'activity' ? (
+                            <Clock className="h-4 w-4 text-blue-500" />
+                          ) : (
+                            <Package className="h-4 w-4 text-primary" />
+                          )
                         ) : (
-                          <Package className="h-4 w-4 text-primary" />
+                          <Package className="h-4 w-4 text-amber-600" />
                         )}
-                        <span className="capitalize">{entry.products?.type}</span>
+                        <span className="capitalize">
+                          {entry.products?.type || 'Deleted product'}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>{getItemAmount(entry)}</TableCell>

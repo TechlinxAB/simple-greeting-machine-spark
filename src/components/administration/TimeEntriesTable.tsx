@@ -137,7 +137,9 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
-                    {entry.products?.name || "Unknown product"}
+                    {entry.products?.name || (
+                      <span className="text-amber-600 font-medium">Deleted product</span>
+                    )}
                     {entry.invoiced && (
                       <TooltipProvider>
                         <Tooltip>
@@ -154,11 +156,17 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {entry.products?.type === "activity" ? "Activity" : "Item"}
-                    {entry.products?.price && ` - ${new Intl.NumberFormat('en-US', { 
-                      style: 'currency', 
-                      currency: 'USD'
-                    }).format(entry.products.price)}`}
+                    {entry.products ? (
+                      <>
+                        {entry.products.type === "activity" ? "Activity" : "Item"}
+                        {entry.products.price && ` - ${new Intl.NumberFormat('en-US', { 
+                          style: 'currency', 
+                          currency: 'USD'
+                        }).format(entry.products.price)}`}
+                      </>
+                    ) : (
+                      "Unknown type"
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
