@@ -66,17 +66,17 @@ export const BarChart: React.FC<BarChartProps> = ({
   barFill = "#4CAF50",
   tooltip
 }) => {
-  // Use consistent IDs for both axes
+  // Use the same ID for all components
   const xAxisId = "xAxis";
   const yAxisId = "yAxis";
   
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
-        <RechartsBarChart data={data}>
+        <RechartsBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <RechartsXAxis dataKey="name" xAxisId={xAxisId} />
-          <RechartsYAxis yAxisId={yAxisId} />
+          <XAxis dataKey="name" xAxisId={xAxisId} />
+          <YAxis yAxisId={yAxisId} />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
