@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Timer } from '@/types/timer';
+import { Timer, UserTimerRecord } from '@/types/timer';
 import { toast } from 'sonner';
 
 export function useTimer() {
@@ -19,6 +19,8 @@ export function useTimer() {
       if (!user) return null;
       
       try {
+        // The TypeScript error is happening because TypeScript doesn't know about the user_timers table
+        // We'll use a type assertion to work around this
         const { data, error } = await supabase
           .from('user_timers')
           .select('*')
@@ -29,7 +31,9 @@ export function useTimer() {
           .maybeSingle();
           
         if (error) throw error;
-        return data as Timer | null;
+        
+        // Type assertion to make TypeScript happy
+        return data as UserTimerRecord | null;
       } catch (error) {
         console.error('Error fetching timer:', error);
         return null;
@@ -82,7 +86,7 @@ export function useTimer() {
     }
 
     try {
-      // Create a new timer
+      // Using a type assertion for the insert operation
       const { data, error } = await supabase
         .from('user_timers')
         .insert({
@@ -186,7 +190,12 @@ export function useTimer() {
       queryClient.invalidateQueries({ queryKey: ['active-timer', user.id] });
       toast.success('Timer stopped');
       
-      return { ...activeTimer, status: 'completed', end_time: new Date().toISOString() } as Timer;
+      // Create a new Timer object with the updated status
+      return { 
+        ...activeTimer, 
+        status: 'completed', 
+        end_time: new Date().toISOString() 
+      } as Timer;
     } catch (error) {
       console.error('Error stopping timer:', error);
       toast.error('Failed to stop timer');
@@ -199,7 +208,7 @@ export function useTimer() {
     if (!user) return false;
 
     try {
-      // First get the timer data
+      // First get the timer data with a type assertion
       const { data: timer, error: fetchError } = await supabase
         .from('user_timers')
         .select('*')
@@ -208,7 +217,10 @@ export function useTimer() {
 
       if (fetchError) throw fetchError;
       
-      if (!timer || !timer.end_time || !timer.client_id || !timer.product_id) {
+      // Cast to our expected type
+      const timerRecord = timer as UserTimerRecord;
+      
+      if (!timerRecord || !timerRecord.end_time || !timerRecord.client_id || !timerRecord.product_id) {
         toast.error('Timer data is incomplete');
         return false;
       }
@@ -218,11 +230,11 @@ export function useTimer() {
         .from('time_entries')
         .insert({
           user_id: user.id,
-          client_id: timer.client_id,
-          product_id: timer.product_id,
-          start_time: timer.start_time,
-          end_time: timer.end_time,
-          description: timer.description,
+          client_id: timerRecord.client_id,
+          product_id: timerRecord.product_id,
+          start_time: timerRecord.start_time,
+          end_time: timerRecord.end_time,
+          description: timerRecord.description,
         });
 
       if (insertError) throw insertError;
