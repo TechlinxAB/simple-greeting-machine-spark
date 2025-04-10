@@ -94,9 +94,6 @@ const ProfileImageUpload = ({
 
     setIsUploading(true);
     try {
-      // Extract the file path from the URL correctly
-      // The URL format is usually: https://[project-ref].supabase.co/storage/v1/object/public/[bucket]/[path]
-      
       // Parse the URL correctly to get just the file path
       const urlParts = avatarUrl.split('/');
       // Find 'public' in the URL and take everything after it
@@ -106,12 +103,10 @@ const ProfileImageUpload = ({
         throw new Error('Unable to parse storage URL correctly');
       }
       
-      // Get the bucket name and file path
-      const bucket = urlParts[publicIndex + 1];
       // Join the remaining parts to get the file path
       const filePath = urlParts.slice(publicIndex + 2).join('/');
       
-      console.log('Deleting file from bucket:', bucket);
+      console.log('Deleting file from bucket: app-assets');
       console.log('File path for deletion:', filePath);
       
       // Delete from storage

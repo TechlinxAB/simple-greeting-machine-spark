@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const Profile = () => {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [dob, setDob] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -55,6 +57,9 @@ const Profile = () => {
           // Only update avatar_url if it exists in the database
           if (data.avatar_url) {
             setAvatarUrl(data.avatar_url);
+          } else if (data.avatar_url === null || data.avatar_url === '') {
+            // Clear avatar URL if it's explicitly null or empty in database
+            setAvatarUrl('');
           }
           
           if (data.date_of_birth) {
@@ -67,7 +72,7 @@ const Profile = () => {
     };
 
     fetchProfileData();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +89,9 @@ const Profile = () => {
       // Update the profile in the database
       await updateProfile(profileData);
       
+      // Force refresh of profile data
+      setRefreshKey(prev => prev + 1);
+      
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -96,6 +104,27 @@ const Profile = () => {
   const handleImageUploaded = (url: string) => {
     console.log("Image URL updated:", url);
     setAvatarUrl(url);
+    
+    // Automatically save the profile when the image is uploaded or removed
+    const saveProfile = async () => {
+      try {
+        await updateProfile({
+          name,
+          avatar_url: url,
+          date_of_birth: dob || null,
+        });
+        
+        // Force refresh of profile data
+        setRefreshKey(prev => prev + 1);
+        
+        // Toast is already shown in the upload/delete handlers
+      } catch (error) {
+        console.error("Error updating profile with new image:", error);
+        toast.error("Failed to update profile with new image");
+      }
+    };
+    
+    saveProfile();
   };
 
   const getInitials = (name: string) => {
