@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
+import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 
 interface TimeEntriesTableProps {
   timeEntries: TimeEntry[];
@@ -364,26 +365,21 @@ export function TimeEntriesTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>Edit Time Entry</DialogTitle>
-            <DialogDescription>
-              <div>
-                Make changes to your time entry below.
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedEntry && (
-            <TimeEntryEditForm 
-              timeEntry={selectedEntry} 
-              onSuccess={handleEditSuccess} 
-              onCancel={() => setEditDialogOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Use the new DialogWrapper component to ensure proper accessibility */}
+      <DialogWrapper 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen}
+        title="Edit Time Entry"
+        description="Make changes to your time entry below."
+      >
+        {selectedEntry && (
+          <TimeEntryEditForm 
+            timeEntry={selectedEntry} 
+            onSuccess={handleEditSuccess} 
+            onCancel={() => setEditDialogOpen(false)}
+          />
+        )}
+      </DialogWrapper>
     </>
   );
 }

@@ -11,8 +11,8 @@ import { Users, Menu } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useSidebar } from "@/components/ui/sidebar";
 
@@ -66,6 +66,8 @@ export default function TimeTracking() {
             </Button>
           </DrawerTrigger>
           <DrawerContent className="h-[85vh] bg-sidebar-background text-sidebar-foreground p-0">
+            <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
+            <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
             <AppSidebar />
           </DrawerContent>
         </Drawer>
@@ -89,6 +91,8 @@ export default function TimeTracking() {
           side="left" 
           className="p-0 w-[80vw] sm:w-[300px] z-50 bg-sidebar-background text-sidebar-foreground"
         >
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
           <AppSidebar />
         </SheetContent>
       </Sheet>

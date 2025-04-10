@@ -6,14 +6,17 @@ import { Header } from "./Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, RefreshCw, LogOut } from "lucide-react";
-import { useEffect } from "react";
+import { AlertTriangle, RefreshCw, LogOut, Menu } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleForceReload = () => {
     window.location.reload();
@@ -109,10 +112,63 @@ export function AppLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  // Mobile sidebar component
+  const MobileSidebarTrigger = () => {
+    if (!isMobile) return null;
+    
+    // Use Drawer component for iOS
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      return (
+        <Drawer open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <DrawerTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden fixed top-4 left-4 z-40"
+            >
+              <Menu />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent className="h-[85vh] bg-sidebar-background text-sidebar-foreground p-0">
+            <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
+            <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
+            <AppSidebar />
+          </DrawerContent>
+        </Drawer>
+      );
+    }
+    
+    // Use Sheet component for other mobile devices
+    return (
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden fixed top-4 left-4 z-40"
+          >
+            <Menu />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent 
+          side="left" 
+          className="p-0 w-[80vw] sm:w-[300px] z-50 bg-sidebar-background text-sidebar-foreground"
+        >
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
+          <AppSidebar />
+        </SheetContent>
+      </Sheet>
+    );
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         {!isMobile && <AppSidebar />}
+        {isMobile && <MobileSidebarTrigger />}
         <div className="flex-1 flex flex-col">
           <Header />
           <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
