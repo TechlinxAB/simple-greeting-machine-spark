@@ -339,7 +339,7 @@ export async function generateNumericArticleNumber(): Promise<string> {
 }
 
 /**
- * Create an article in Fortnox from article details returned by proxy
+ * Create an article in Fortnox with details from missing article error
  */
 export async function createArticleFromDetails(articleDetails: any): Promise<string | null> {
   try {
@@ -552,6 +552,33 @@ export async function createFortnoxInvoice(
       console.log(`Updated local client record with new Fortnox CustomerNumber: ${customerNumber}`);
     }
     
+    // Get all products used in the time entries to ensure they exist in Fortnox
+    const { data: timeEntries, error: timeEntriesError } = await supabase
+      .from("time_entries")
+      .select(`
+        id, product_id,
+        products:product_id (*)
+      `)
+      .in("id", timeEntryIds);
+      
+    if (timeEntriesError) throw timeEntriesError;
+    
+    // Ensure all products have valid article numbers in Fortnox
+    if (timeEntries && timeEntries.length > 0) {
+      // Create a unique list of products
+      const uniqueProducts = new Map();
+      timeEntries.forEach(entry => {
+        if (entry.products && !uniqueProducts.has(entry.product_id)) {
+          uniqueProducts.set(entry.product_id, entry.products);
+        }
+      });
+      
+      // Ensure each product exists in Fortnox
+      for (const product of uniqueProducts.values()) {
+        await ensureFortnoxArticle(product as Product);
+      }
+    }
+    
     // Format time entries for Fortnox
     const invoiceData = await formatTimeEntriesForFortnox(clientId, timeEntryIds);
     
@@ -609,76 +636,29 @@ export async function createFortnoxInvoice(
         invoiceId: invoice.id
       };
     } catch (error: any) {
-      // Check if this is an article not found error with article details for auto-creation
-      if (error.response && error.response.error === "Article not found in Fortnox" && error.response.articleDetails) {
-        console.log("Article not found in Fortnox, attempting to create it automatically:", error.response.articleDetails);
+      // Check if this is an article not found error from our proxy
+      if (error.message && error.message.includes("Edge Function")) {
+        // Try to extract response from error
+        const errorResponse = error.response;
         
-        // Create the article using the details provided
-        const createdArticleNumber = await createArticleFromDetails(error.response.articleDetails);
-        
-        if (createdArticleNumber) {
-          console.log(`Successfully created article: ${createdArticleNumber}, retrying invoice creation...`);
+        if (errorResponse && errorResponse.error === "article_not_found" && errorResponse.articleDetails) {
+          console.log("Article not found in Fortnox, automatically creating it:", errorResponse.articleDetails);
           
-          // Retry the invoice creation now that the article has been created
-          const response = await fortnoxApiRequest("/invoices", "POST", {
-            Invoice: invoiceData
-          });
+          // Create the article using the details provided
+          const createdArticleNumber = await createArticleFromDetails(errorResponse.articleDetails);
           
-          if (!response || !response.Invoice) {
-            throw new Error("Failed to create invoice in Fortnox after creating missing article");
+          if (createdArticleNumber) {
+            console.log(`Successfully created article: ${createdArticleNumber}, retrying invoice creation...`);
+            
+            // Retry the invoice creation now that the article has been created
+            return await createFortnoxInvoice(clientId, timeEntryIds);
           }
-          
-          const fortnoxInvoice = response.Invoice;
-          
-          // Create local invoice record
-          const { data: invoice, error: invoiceError } = await supabase
-            .from("invoices")
-            .insert({
-              client_id: clientId,
-              invoice_number: fortnoxInvoice.DocumentNumber,
-              status: "sent",
-              issue_date: fortnoxInvoice.InvoiceDate,
-              due_date: fortnoxInvoice.DueDate,
-              total_amount: fortnoxInvoice.Total,
-              exported_to_fortnox: true,
-              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
-            })
-            .select()
-            .single();
-            
-          if (invoiceError) throw invoiceError;
-          
-          // Update time entries to mark as invoiced
-          const { error: updateError } = await supabase
-            .from("time_entries")
-            .update({
-              invoiced: true,
-              invoice_id: invoice.id
-            })
-            .in("id", timeEntryIds);
-            
-          if (updateError) throw updateError;
-          
-          return {
-            invoiceNumber: fortnoxInvoice.DocumentNumber,
-            invoiceId: invoice.id
-          };
         }
       }
       
-      // If it's a regular article not found error, provide a helpful message
-      if (error.message && typeof error.message === 'string') {
-        if (error.message.includes("Article not found in Fortnox") || 
-            (error.details && error.details.message && error.details.message.includes("Article"))) {
-          console.error("Article not found error:", error);
-          throw new Error("Article number doesn't exist in Fortnox. The system attempted to create it but failed.");
-        }
-      }
-      
-      // Re-throw the original error
+      console.error("Error creating invoice in Fortnox:", error);
       throw error;
     }
-    
   } catch (error) {
     console.error("Error creating Fortnox invoice:", error);
     throw error;

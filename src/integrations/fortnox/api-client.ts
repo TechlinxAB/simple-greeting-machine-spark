@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
@@ -163,10 +164,16 @@ export async function fortnoxApiRequest(
         }
       }
       
-      // No more retry logic needed as we preserve original article numbers
+      // Add article details to the error so we can automatically create it
+      if (errorDetails && errorDetails.articleDetails) {
+        const articleDetails = errorDetails.articleDetails;
+        console.log("Found article details in error, can be used to auto-create:", articleDetails);
+      }
       
-      // Throw a nicely formatted error
-      throw new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`);
+      // Throw a nicely formatted error with all the details we have
+      const formattedError = new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`);
+      formattedError.response = errorDetails;
+      throw formattedError;
     }
     
     // Handle case where data contains an error object from Fortnox

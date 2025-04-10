@@ -47,6 +47,7 @@ export default function Invoices() {
   const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
@@ -189,13 +190,19 @@ export default function Invoices() {
 
     setIsExportingInvoice(true);
     setErrorMessage(null);
+    setProcessingStatus("Creating invoice...");
     
     try {
       const timeEntryIds = unbilledEntries.map(entry => entry.id);
       
+      // Some products might not have article numbers or might not exist in Fortnox
+      // The system will now automatically create them as needed
+      setProcessingStatus("Checking and creating products in Fortnox...");
       const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
       
-      toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`);
+      toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`, {
+        description: "Any missing products were automatically created"
+      });
       
       setIsCreatingInvoice(false);
       setSelectedClient("");
@@ -205,18 +212,18 @@ export default function Invoices() {
       console.error("Error creating invoice:", error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       
-      // Check for specific article not found error
-      if (errorMsg.includes("Article number doesn't exist in Fortnox")) {
-        setErrorMessage("One or more article numbers don't exist in Fortnox. Please create these articles in Fortnox before proceeding.");
-        toast.error("Article not found in Fortnox", {
-          description: "Please create the article in Fortnox first."
-        });
+      if (errorMsg.includes("Edge Function")) {
+        setErrorMessage("Error connecting to Fortnox API. Please check your Fortnox connection in Settings.");
       } else {
         setErrorMessage(errorMsg);
-        toast.error(`Failed to create invoice: ${errorMsg}`);
       }
+      
+      toast.error(`Failed to create invoice`, {
+        description: "Please check the error details in the dialog."
+      });
     } finally {
       setIsExportingInvoice(false);
+      setProcessingStatus("");
     }
   };
 
@@ -254,6 +261,10 @@ export default function Invoices() {
   const hasInvalidArticleNumbers = unbilledEntries.some(entry => 
     entry.products?.article_number && 
     !/^\d+$/.test(entry.products.article_number)
+  );
+
+  const missingArticleNumbers = unbilledEntries.some(entry => 
+    !entry.products?.article_number
   );
 
   const handleInvoiceDeleted = () => {
@@ -341,12 +352,16 @@ export default function Invoices() {
               </Select>
             </div>
             
-            {hasInvalidArticleNumbers && (
-              <Alert variant="warning" className="bg-yellow-50 border-yellow-200">
-                <AlertCircle className="h-4 w-4 text-yellow-800" />
-                <AlertTitle className="text-yellow-800">Non-numeric Article Numbers detected</AlertTitle>
-                <AlertDescription className="text-yellow-700">
-                  Some products have non-numeric article numbers. These will be automatically corrected when creating the invoice.
+            {(hasInvalidArticleNumbers || missingArticleNumbers) && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-800" />
+                <AlertTitle className="text-blue-800">Automatic product creation</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  {hasInvalidArticleNumbers && 
+                    "Some products have non-numeric article numbers. "}
+                  {missingArticleNumbers && 
+                    "Some products don't have article numbers. "}
+                  The system will automatically create these products in Fortnox during invoice creation.
                 </AlertDescription>
               </Alert>
             )}
@@ -357,6 +372,16 @@ export default function Invoices() {
                 <AlertTitle>Error creating invoice</AlertTitle>
                 <AlertDescription>
                   {errorMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {processingStatus && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <div className="animate-spin h-4 w-4 mr-2 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <AlertTitle className="text-blue-800">{processingStatus}</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  This may take a moment if products need to be created in Fortnox.
                 </AlertDescription>
               </Alert>
             )}
@@ -427,12 +452,32 @@ export default function Invoices() {
                                   hasValidArticleNumber ? (
                                     entry.products.article_number
                                   ) : (
-                                    <span className="text-yellow-600" title="Non-numeric article number will be fixed">
-                                      {entry.products.article_number}*
-                                    </span>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-blue-600 font-medium cursor-help">
+                                            {entry.products.article_number}*
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>This article number will be created in Fortnox</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   )
                                 ) : (
-                                  <span className="text-muted-foreground italic">Will be generated</span>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-blue-600 italic cursor-help">
+                                          Auto-generate
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>A new article number will be generated and created in Fortnox</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
                               </TableCell>
                               <TableCell className="text-right">{amount.toFixed(2)}</TableCell>

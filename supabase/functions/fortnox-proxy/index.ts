@@ -194,9 +194,9 @@ serve(async (req) => {
           
           // Validate InvoiceRows and ensure account numbers are valid
           if (payload.Invoice.InvoiceRows && Array.isArray(payload.Invoice.InvoiceRows)) {
-            payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
+            payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row) => {
               // Create a new sanitized row
-              const validRow: any = {
+              const validRow = {
                 Description: row.Description,
                 DeliveredQuantity: row.DeliveredQuantity,
                 Price: row.Price,
@@ -291,81 +291,75 @@ serve(async (req) => {
           errorMessage = errorDetails.ErrorInformation.Message;
         }
         
-        // Check specifically for article not found errors
-        // Fortnox has specific error codes related to invalid article numbers
-        if (
-          (errorMessage && errorMessage.includes("Article not found")) || 
-          (errorMessage && errorMessage.includes("artikel finns inte")) ||
-          (errorMessage && errorMessage.includes("Kan inte hitta artikeln")) ||
-          errorCode === 2000328 || // Article not found by article number
-          errorCode === 2000329 || // Article not active
-          errorCode === 2000428    // Cannot find the article
-        ) {
-          console.error("💥 Article doesn't exist in Fortnox error detected");
-          
-          // Get the article number from the request
-          let articleNumber = "";
-          let articleDescription = "";
-          
-          if (path.includes('/articles/') && method === 'GET') {
-            articleNumber = path.split('/articles/')[1]?.split('/')[0] || "";
-          } else if (payload?.Invoice?.InvoiceRows) {
-            // For invoice creation, check which article number caused the issue
-            // Also gather descriptions for better error context
-            const problematicRows = payload.Invoice.InvoiceRows
-              .filter((row: any) => row.ArticleNumber)
-              .map((row: any) => ({
-                articleNumber: row.ArticleNumber,
-                description: row.Description,
-                price: row.Price,
-                vat: row.VAT,
-                accountNumber: row.AccountNumber
-              }));
+        // Detailed detection of article not found errors for auto-creation feature
+        if (method === 'POST' && path.includes('/invoices') && payload && payload.Invoice) {
+          // Get both specific error codes and check message content
+          if (
+            errorCode === 2001302 || // Specific code for article not found
+            (errorMessage && (
+              errorMessage.includes("Kunde inte hitta artikel") ||
+              errorMessage.includes("Article not found")
+            ))
+          ) {
+            console.log("📝 Detected article not found error, extracting article details for auto-creation");
             
-            if (problematicRows.length > 0) {
-              articleNumber = problematicRows[0].articleNumber;
-              articleDescription = problematicRows[0].description;
+            // Extract the article number from the error message
+            const articleNumberRegex = /\((\d+)\)/;
+            const articleNumberMatch = errorMessage.match(articleNumberRegex);
+            const missingArticleNumber = articleNumberMatch ? articleNumberMatch[1] : null;
+            
+            if (missingArticleNumber) {
+              console.log(`📝 Extracted missing article number: ${missingArticleNumber}`);
               
-              // Return specific details about the missing article to use for automatic creation
-              return new Response(
-                JSON.stringify({
-                  error: "Article not found in Fortnox",
-                  articleDetails: problematicRows[0],
-                  message: `Article number "${articleNumber}" doesn't exist in Fortnox.`,
-                  fortnoxStatus: fortnoxRes.status,
-                  errorCode: errorCode
-                }),
-                {
-                  status: 404, // Return 404 for "not found" errors
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...corsHeaders
-                  }
-                }
+              // Find the invoice row with this article number
+              const problematicRow = payload.Invoice.InvoiceRows.find(
+                row => row.ArticleNumber === missingArticleNumber
               );
-            }
-          }
-          
-          // Create a user-friendly error message
-          const userMessage = articleNumber
-            ? `Article number "${articleNumber}" doesn't exist in Fortnox. Please create this article in Fortnox before proceeding.`
-            : `Article number doesn't exist in Fortnox. Please create the article in Fortnox before proceeding.`;
-          
-          return new Response(
-            JSON.stringify({
-              error: "Article not found in Fortnox",
-              message: userMessage,
-              fortnoxStatus: fortnoxRes.status,
-              errorCode: errorCode
-            }),
-            {
-              status: 404, // Return 404 for "not found" errors
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders
+              
+              if (problematicRow) {
+                console.log(`📝 Found invoice row for missing article: ${JSON.stringify(problematicRow, null, 2)}`);
+                
+                // Return the article details for auto-creation
+                return new Response(
+                  JSON.stringify({
+                    error: "article_not_found",
+                    message: `Article number ${missingArticleNumber} not found in Fortnox`,
+                    articleDetails: {
+                      articleNumber: missingArticleNumber,
+                      description: problematicRow.Description,
+                      price: problematicRow.Price,
+                      vat: problematicRow.VAT,
+                      accountNumber: problematicRow.AccountNumber,
+                      unit: problematicRow.Unit || 'st'
+                    }
+                  }),
+                  {
+                    status: 404,
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...corsHeaders
+                    }
+                  }
+                );
               }
             }
-          );
+            
+            // Generic article not found error if specific article couldn't be identified
+            return new Response(
+              JSON.stringify({
+                error: "article_not_found",
+                message: "Article not found in Fortnox",
+                errorDetails: errorDetails
+              }),
+              {
+                status: 404,
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
+              }
+            );
+          }
         }
         
         // Add helpful context for specific error codes
