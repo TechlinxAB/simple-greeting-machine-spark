@@ -8,8 +8,12 @@ export const MAX_LOGO_WIDTH = 512;
 export const MAX_LOGO_HEIGHT = 512;
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
 
+// The bucket name we're using for logos
+export const LOGO_BUCKET_NAME = "app-assets";
+export const LOGO_FOLDER_PATH = "logos";
+
 /**
- * Ensures the app-logos bucket exists
+ * Ensures the app-assets bucket exists
  * @returns Promise with boolean indicating success
  */
 export async function ensureLogoBucketExists(): Promise<boolean> {
@@ -19,12 +23,12 @@ export async function ensureLogoBucketExists(): Promise<boolean> {
       .storage
       .listBuckets();
       
-    const bucketExists = existingBuckets?.some(bucket => bucket.name === 'app-logos');
+    const bucketExists = existingBuckets?.some(bucket => bucket.name === LOGO_BUCKET_NAME);
     
     if (bucketExists) {
       return true;
     } else {
-      console.error("No app-logos bucket exists. The bucket needs to be created in Supabase.");
+      console.error(`No ${LOGO_BUCKET_NAME} bucket exists. The bucket needs to be created in Supabase.`);
       return false;
     }
   } catch (error) {
@@ -41,8 +45,8 @@ export async function checkLogoExists(): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .storage
-      .from('app-logos')
-      .list('', {
+      .from(LOGO_BUCKET_NAME)
+      .list(LOGO_FOLDER_PATH, {
         search: 'logo',
         limit: 1,
       });
@@ -77,11 +81,11 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     await removeAppLogo();
     
     const fileExt = file.name.split('.').pop();
-    const filePath = `logo-${uuidv4()}.${fileExt}`;
+    const filePath = `${LOGO_FOLDER_PATH}/logo-${uuidv4()}.${fileExt}`;
     
     const { data, error } = await supabase
       .storage
-      .from('app-logos')
+      .from(LOGO_BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
@@ -94,7 +98,7 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     
     const { data: publicUrl } = supabase
       .storage
-      .from('app-logos')
+      .from(LOGO_BUCKET_NAME)
       .getPublicUrl(filePath);
       
     if (!publicUrl?.publicUrl) {
@@ -119,8 +123,8 @@ export async function removeAppLogo(): Promise<boolean> {
   try {
     const { data: listData, error: listError } = await supabase
       .storage
-      .from('app-logos')
-      .list('', {
+      .from(LOGO_BUCKET_NAME)
+      .list(LOGO_FOLDER_PATH, {
         search: 'logo',
         limit: 10, // Increased to catch multiple potential logo files
       });
@@ -135,11 +139,11 @@ export async function removeAppLogo(): Promise<boolean> {
       return true;
     }
     
-    const filesToRemove = listData.map(file => file.name);
+    const filesToRemove = listData.map(file => `${LOGO_FOLDER_PATH}/${file.name}`);
     
     const { error } = await supabase
       .storage
-      .from('app-logos')
+      .from(LOGO_BUCKET_NAME)
       .remove(filesToRemove);
       
     if (error) {
