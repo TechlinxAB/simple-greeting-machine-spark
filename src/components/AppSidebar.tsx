@@ -3,7 +3,18 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Sidebar } from "@/components/ui/sidebar";
+import { 
+  Sidebar, 
+  SidebarHeader, 
+  SidebarContent, 
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent
+} from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
@@ -85,62 +96,73 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r">
-      <Sidebar.Header className="border-b p-4">
+      <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <img src="/src/logo.png" alt="Logo" className="h-6 w-auto" />
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis">
             Time Tracker
           </h2>
         </div>
-      </Sidebar.Header>
-      <Sidebar.Content>
+      </SidebarHeader>
+      <SidebarContent>
         <ScrollArea className="h-[calc(100vh-12rem)]">
           <div className="px-2 py-2">
-            <div className="mb-4">
-              <h3 className="mb-1 px-4 text-xs font-medium text-sidebar-foreground/60">Main</h3>
-              <nav className="grid gap-1">
-                {links.map((link) => {
-                  if (link.adminOnly && !isAdmin) return null;
-                  if (link.managerOnly && !isManagerOrAdmin) return null;
+            <SidebarGroup>
+              <SidebarGroupLabel className="mb-1 px-4 text-xs font-medium text-sidebar-foreground/60">Main</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="grid gap-1">
+                  {links.map((link) => {
+                    if (link.adminOnly && !isAdmin) return null;
+                    if (link.managerOnly && !isManagerOrAdmin) return null;
 
-                  return (
-                    <Link
-                      key={link.title}
-                      to={link.href}
-                      className={cn(
-                        "group flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        pathname === link.href && "bg-sidebar-primary text-sidebar-primary-foreground",
-                      )}
-                    >
-                      <link.icon className="h-4 w-4" />
-                      {link.title}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-            <div className="mb-4">
-              <h3 className="mb-1 px-4 text-xs font-medium text-sidebar-foreground/60">Other</h3>
-              <nav className="grid gap-1">
-                {secondaryLinks.map((link) => (
-                  <Link
-                    key={link.title}
-                    to={link.href}
-                    className={cn(
-                      "group flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                      pathname === link.href && "bg-sidebar-primary text-sidebar-primary-foreground",
-                    )}
-                  >
-                    <link.icon className="h-4 w-4" />
-                    {link.title}
-                  </Link>
-                ))}
-              </nav>
-            </div>
+                    return (
+                      <SidebarMenuItem key={link.title}>
+                        <SidebarMenuButton asChild>
+                          <Link
+                            to={link.href}
+                            className={cn(
+                              "group flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                              pathname === link.href && "bg-sidebar-primary text-sidebar-primary-foreground",
+                            )}
+                          >
+                            <link.icon className="h-4 w-4" />
+                            <span>{link.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            
+            <SidebarGroup className="mt-4">
+              <SidebarGroupLabel className="mb-1 px-4 text-xs font-medium text-sidebar-foreground/60">Other</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="grid gap-1">
+                  {secondaryLinks.map((link) => (
+                    <SidebarMenuItem key={link.title}>
+                      <SidebarMenuButton asChild>
+                        <Link
+                          to={link.href}
+                          className={cn(
+                            "group flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                            pathname === link.href && "bg-sidebar-primary text-sidebar-primary-foreground",
+                          )}
+                        >
+                          <link.icon className="h-4 w-4" />
+                          <span>{link.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </div>
         </ScrollArea>
-      </Sidebar.Content>
-      <Sidebar.Footer className="border-t p-4">
+      </SidebarContent>
+      <SidebarFooter className="border-t p-4">
         {user && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -171,7 +193,7 @@ export function AppSidebar() {
             </Button>
           </div>
         )}
-      </Sidebar.Footer>
+      </SidebarFooter>
     </Sidebar>
   );
 }
