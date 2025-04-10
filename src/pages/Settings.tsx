@@ -70,8 +70,19 @@ export default function Settings() {
   const [loadingLogo, setLoadingLogo] = useState(true);
 
   const isAdmin = role === 'admin';
-  const canManageSettings = isAdmin || role === 'manager';
+  const isManagerOrAdmin = isAdmin || role === 'manager';
   
+  useEffect(() => {
+    if (user && role && role === 'user') {
+      toast.error("You don't have permission to access the settings page");
+      navigate('/');
+    }
+  }, [user, role, navigate]);
+  
+  if (role === 'user') {
+    return null;
+  }
+
   const isFortnoxCallback = location.pathname.includes('/settings/fortnox-callback');
   
   if (isFortnoxCallback) {
@@ -83,7 +94,6 @@ export default function Settings() {
     queryFn: async () => {
       setLoadingLogo(true);
       try {
-        // Check localStorage first for cached logo
         const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
         if (cachedLogo) {
           setHasExistingLogo(true);
@@ -185,7 +195,7 @@ export default function Settings() {
         return { clientId: "", clientSecret: "", enabled: false };
       }
     },
-    enabled: canManageSettings,
+    enabled: isManagerOrAdmin,
   });
   
   const appSettingsForm = useForm<AppSettingsFormValues>({
@@ -249,7 +259,7 @@ export default function Settings() {
     setLogoPreview(null);
     applyColorTheme(DEFAULT_THEME);
     
-    if (canManageSettings) {
+    if (isManagerOrAdmin) {
       try {
         const { error } = await supabase
           .from("system_settings")
@@ -286,7 +296,7 @@ export default function Settings() {
   };
   
   const onSubmitAppSettings = async (data: AppSettingsFormValues) => {
-    if (!canManageSettings) {
+    if (!isManagerOrAdmin) {
       toast.error("You don't have permission to change application settings");
       return;
     }
@@ -342,7 +352,7 @@ export default function Settings() {
   };
   
   const handleLogoUpload = async (file: File) => {
-    if (!canManageSettings) {
+    if (!isManagerOrAdmin) {
       toast.error("You don't have permission to change application settings");
       return null;
     }
@@ -354,18 +364,14 @@ export default function Settings() {
       
       const { dataUrl, success } = await uploadAppLogo(file);
       
-      // Always use the dataUrl for immediate display regardless of success
       if (dataUrl) {
         setLogoPreview(dataUrl);
         setHasExistingLogo(true);
         
-        // Store the dataUrl in localStorage for persistence
         localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
         
-        // Also update the system settings directly with the dataUrl
         await updateLogoInSystemSettings(dataUrl);
         
-        // Refresh queryClient to update all components using the logo
         queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
         queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
         queryClient.invalidateQueries({ queryKey: ["app-settings"] });
@@ -398,14 +404,12 @@ export default function Settings() {
     setLogoValidationError(null);
     setLogoError(false);
     
-    // Strict validation for PNG 
     if (file.type !== 'image/png') {
       setLogoValidationError('Invalid file type. Only PNG files are allowed.');
       e.target.value = '';
       return;
     }
     
-    // Check file size
     if (file.size > MAX_LOGO_SIZE) {
       setLogoValidationError(`File size exceeds the maximum allowed size of ${MAX_LOGO_SIZE / 1024 / 1024}MB`);
       e.target.value = '';
@@ -415,26 +419,21 @@ export default function Settings() {
     setUploadingLogo(true);
     
     try {
-      // Show temporary preview immediately for better UX
       const objectUrl = URL.createObjectURL(file);
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
       console.log("Uploading logo file:", file.name, "Type:", file.type, "Size:", file.size);
       
-      // Upload the file directly without any preprocessing
       const { dataUrl, success } = await uploadAppLogo(file);
       
       if (dataUrl) {
-        // Update preview with the final data URL
         setLogoPreview(dataUrl);
         setHasExistingLogo(true);
         
-        // Refresh all logo-related queries
         refetchLogo();
         queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
         
-        // Release the temporary object URL
         URL.revokeObjectURL(objectUrl);
         
         if (success) {
@@ -458,7 +457,7 @@ export default function Settings() {
   };
   
   const handleRemoveLogo = async () => {
-    if (!canManageSettings) {
+    if (!isManagerOrAdmin) {
       toast.error("You don't have permission to change application settings");
       return;
     }
@@ -472,10 +471,8 @@ export default function Settings() {
         setHasExistingLogo(false);
         setLogoError(false);
         
-        // Clear from localStorage
         localStorage.removeItem(LOGO_DATA_URL_KEY);
         
-        // Refresh all components using the logo
         queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
         queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
         queryClient.invalidateQueries({ queryKey: ["app-settings"] });
@@ -496,7 +493,6 @@ export default function Settings() {
     console.log("Logo failed to load in settings, using fallback");
     setLogoError(true);
     
-    // If the logo is in localStorage, use that
     const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
     if (cachedLogo) {
       setLogoPreview(cachedLogo);
@@ -504,7 +500,6 @@ export default function Settings() {
       return;
     }
     
-    // Otherwise try to convert from file if available
     if (logoFile) {
       fileToDataUrl(logoFile).then(dataUrl => {
         if (dataUrl) {
@@ -600,7 +595,7 @@ export default function Settings() {
                         <Button 
                           type="button" 
                           variant="destructive" 
-                          disabled={!canManageSettings || !hasExistingLogo}
+                          disabled={!isManagerOrAdmin || !hasExistingLogo}
                           onClick={() => setShowRemoveLogoConfirm(true)}
                           className="flex items-center gap-2"
                         >
@@ -614,7 +609,7 @@ export default function Settings() {
                           type="file"
                           accept="image/png"
                           onChange={onLogoChange}
-                          disabled={uploadingLogo || !canManageSettings}
+                          disabled={uploadingLogo || !isManagerOrAdmin}
                           className="w-full max-w-sm"
                         />
                         {logoValidationError && (
@@ -750,7 +745,7 @@ export default function Settings() {
                     
                     <Button 
                       type="submit" 
-                      disabled={!canManageSettings || !appSettingsForm.formState.isDirty}
+                      disabled={!isManagerOrAdmin || !appSettingsForm.formState.isDirty}
                       className="flex items-center gap-2"
                     >
                       <Save className="h-4 w-4" />

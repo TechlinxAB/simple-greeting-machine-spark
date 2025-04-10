@@ -17,6 +17,7 @@ import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +40,14 @@ const App = () => (
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
                 <Route path="/administration" element={<Administration />} />
-                <Route path="/settings" element={<Settings />} />
+                
+                {/* Protected route requiring admin or manager role */}
+                <Route path="/settings" element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
+                
                 <Route path="/profile" element={<Profile />} />
                 
                 {/* Redirect old paths */}

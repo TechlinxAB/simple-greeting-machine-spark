@@ -1,4 +1,3 @@
-
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
@@ -125,7 +124,7 @@ export function AppLayout() {
       { title: "Products", href: "/products", showIf: isManagerOrAdmin },
       { title: "Invoices", href: "/invoices", showIf: isManagerOrAdmin },
       { title: "Administration", href: "/administration", showIf: isAdmin },
-      { title: "Settings", href: "/settings" },
+      { title: "Settings", href: "/settings", showIf: isManagerOrAdmin },
       { title: "Profile", href: "/profile" },
     ];
     
