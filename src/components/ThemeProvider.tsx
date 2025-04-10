@@ -11,13 +11,13 @@ export interface AppSettings {
   accentColor: string;
 }
 
-// Default color theme using the purple/blue palette from the provided screenshot
+// Default color theme using the green palette from the provided screenshot
 export const DEFAULT_THEME: AppSettings = {
   appName: "Techlinx Time Tracker",
-  primaryColor: "#9b87f5", // Primary Purple
-  secondaryColor: "#E5DEFF", // Soft Purple
-  sidebarColor: "#1A1F2C", // Dark Purple
-  accentColor: "#33C3F0", // Sky Blue
+  primaryColor: "#4ba64b", // Green primary
+  secondaryColor: "#e8f5e9", // Light green
+  sidebarColor: "#326c32", // Dark green for sidebar
+  accentColor: "#4caf50", // Accent green
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

@@ -64,16 +64,23 @@ BEFORE UPDATE ON public.system_settings
 FOR EACH ROW
 EXECUTE FUNCTION update_system_settings_updated_at();
 
--- Insert default settings
+-- Insert default settings - Updated to match the green theme
 INSERT INTO public.system_settings (id, settings)
 VALUES ('app_settings', '{
   "appName": "Techlinx Time Tracker", 
-  "primaryColor": "#2e7d32", 
+  "primaryColor": "#4ba64b", 
   "secondaryColor": "#e8f5e9",
-  "sidebarColor": "#2e7d32",
+  "sidebarColor": "#326c32",
   "accentColor": "#4caf50"
 }')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET settings = '{
+  "appName": "Techlinx Time Tracker", 
+  "primaryColor": "#4ba64b", 
+  "secondaryColor": "#e8f5e9",
+  "sidebarColor": "#326c32",
+  "accentColor": "#4caf50"
+}';
 
 -- Insert default company news
 INSERT INTO public.system_settings (id, settings)
