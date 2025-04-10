@@ -188,7 +188,7 @@ export default function Administration() {
     enabled: activeTab === "invoices",
     queryFn: async () => {
       try {
-        // Here we use the explicit table name as a literal string instead of a variable
+        // Using literal string "invoices" instead of a variable
         let query = supabase
           .from("invoices")
           .select(`
@@ -321,8 +321,7 @@ export default function Administration() {
     setIsDeleting(true);
     
     try {
-      let table = activeTab === "time-entries" ? "time_entries" : "invoices";
-      
+      // Using literal table name strings instead of variables
       if (activeTab === "time-entries") {
         await supabase
           .from("time_entries")
@@ -332,6 +331,19 @@ export default function Administration() {
           })
           .in("id", selectedItems)
           .filter("invoiced", "eq", true);
+          
+        const { error } = await supabase
+          .from("time_entries")
+          .delete()
+          .in("id", selectedItems);
+          
+        if (error) {
+          console.error("Error deleting time entries:", error);
+          toast.error("Failed to delete time entries");
+          return;
+        }
+        
+        refetchTimeEntries();
       } else {
         const timeEntries = await supabase
           .from("time_entries")
@@ -347,22 +359,18 @@ export default function Administration() {
             })
             .in("invoice_id", selectedItems);
         }
-      }
-      
-      const { error } = await supabase
-        .from(table)
-        .delete()
-        .in("id", selectedItems);
-      
-      if (error) {
-        console.error(`Error deleting ${activeTab}:`, error);
-        toast.error(`Failed to delete ${activeTab}`);
-        return;
-      }
-      
-      if (activeTab === "time-entries") {
-        refetchTimeEntries();
-      } else {
+        
+        const { error } = await supabase
+          .from("invoices")
+          .delete()
+          .in("id", selectedItems);
+          
+        if (error) {
+          console.error("Error deleting invoices:", error);
+          toast.error("Failed to delete invoices");
+          return;
+        }
+        
         refetchInvoices();
       }
       
