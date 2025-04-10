@@ -7,6 +7,13 @@ import { refreshAccessToken } from "./auth";
 const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
 
 /**
+ * Custom error interface for Fortnox API errors
+ */
+interface FortnoxApiError extends Error {
+  response?: any;
+}
+
+/**
  * Make an authenticated request to the Fortnox API
  */
 export async function fortnoxApiRequest(
@@ -171,7 +178,7 @@ export async function fortnoxApiRequest(
       }
       
       // Throw a nicely formatted error with all the details we have
-      const formattedError = new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`);
+      const formattedError = new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`) as FortnoxApiError;
       formattedError.response = errorDetails;
       throw formattedError;
     }
