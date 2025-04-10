@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -186,5 +187,47 @@ export function setupActivityTracking() {
  * @returns The public URL for the file
  */
 export function getStorageFileUrl(bucket: string, path: string): string {
+  // Using direct URL construction to avoid potential issues with the Supabase getPublicUrl method
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+/**
+ * Helper function to upload a file to storage and return its public URL
+ * @param bucket The bucket name
+ * @param path The file path
+ * @param file The file to upload
+ * @returns The public URL of the uploaded file or null if upload failed
+ */
+export async function uploadFileToStorage(bucket: string, path: string, file: File): Promise<string | null> {
+  try {
+    // First check if we can access the bucket
+    const { data: listData, error: listError } = await supabase.storage
+      .from(bucket)
+      .list(path.split('/')[0]);
+      
+    if (listError) {
+      console.error(`Error accessing storage bucket ${bucket}:`, listError);
+      return null;
+    }
+    
+    // Upload the file
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+      
+    if (uploadError) {
+      console.error(`Error uploading file to ${bucket}/${path}:`, uploadError);
+      return null;
+    }
+    
+    // Return the public URL
+    return getStorageFileUrl(bucket, path);
+    
+  } catch (error) {
+    console.error(`Unexpected error uploading file to ${bucket}/${path}:`, error);
+    return null;
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase, getStorageFileUrl } from "@/lib/supabase";
+import { supabase, getStorageFileUrl, uploadFileToStorage } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -278,46 +278,16 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      // First, check if we can access the app-assets bucket by trying to list files
-      try {
-        const { data: listData, error: listError } = await supabase.storage
-          .from('app-assets')
-          .list('logos');
-          
-        if (listError) {
-          console.error("Error accessing storage bucket:", listError);
-          toast.error("Could not access the storage bucket. Please contact your administrator.");
-          return null;
-        }
-      } catch (err) {
-        console.error("Error checking bucket access:", err);
-        toast.error("Could not access the app-assets bucket. Please contact your administrator.");
-        return null;
-      }
-      
-      const fileExt = file.name.split('.').pop();
       const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
       const fileName = `logo-${timestamp}.${fileExt}`;
       const filePath = `logos/${fileName}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('app-assets')
-        .upload(filePath, file, {
-          upsert: true,
-          contentType: file.type,
-        });
-        
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error(`Error uploading logo: ${uploadError.message}`);
-      }
+      const publicUrl = await uploadFileToStorage('app-assets', filePath, file);
       
-      if (!uploadData?.path) {
-        throw new Error("Upload successful but no file path was returned");
+      if (!publicUrl) {
+        throw new Error("Failed to upload logo or get public URL");
       }
-      
-      // Get the direct URL to the file (without checking for error since it doesn't have one)
-      const publicUrl = getStorageFileUrl('app-assets', filePath);
       
       toast.success("Logo uploaded successfully");
       return publicUrl;
@@ -354,7 +324,7 @@ export default function Settings() {
     }
     
     // Clean up the object URL to prevent memory leaks
-    return () => URL.revokeObjectURL(objectUrl);
+    URL.revokeObjectURL(objectUrl);
   };
   
   const handleRemoveLogo = () => {

@@ -168,9 +168,13 @@ export function AppSidebar() {
     setLogoError(false);
   }, [appSettings?.logoUrl]);
 
+  // Use a fallback logo that we know exists
+  const defaultLogoPath = "/src/logo.png"; 
+  
+  // When logo fails to load, use the default logo path
   const logoUrl = !logoError && appSettings?.logoUrl 
     ? `${appSettings.logoUrl}?t=${Date.now()}` 
-    : "/src/logo.png";
+    : defaultLogoPath;
 
   return (
     <Sidebar className="border-r">
