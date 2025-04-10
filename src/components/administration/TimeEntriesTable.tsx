@@ -62,6 +62,7 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
       if (success) {
         onEntryDeleted();
         setDeleteDialogOpen(false);
+        toast.success("Time entry deleted successfully");
       }
     } catch (error) {
       console.error("Error in delete operation:", error);

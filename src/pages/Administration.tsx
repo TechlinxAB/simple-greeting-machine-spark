@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -97,20 +98,36 @@ export default function Administration() {
           return [];
         }
         
-        const entriesWithProfiles = await Promise.all(entriesData.map(async (entry) => {
-          if (!entry.user_id) return { ...entry, profiles: { name: "Unknown" } };
+        // Get all user IDs from time entries
+        const userIds = [...new Set(entriesData.map(entry => entry.user_id).filter(Boolean))];
+        
+        // Fetch all relevant profiles in a single query
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", userIds);
           
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("name")
-            .eq("id", entry.user_id)
-            .single();
-          
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+        }
+        
+        // Create a map of user IDs to profile names for quick lookups
+        const profileMap = new Map();
+        if (profilesData) {
+          profilesData.forEach(profile => {
+            profileMap.set(profile.id, profile.name || "Unknown");
+          });
+        }
+        
+        // Add profile information to each entry
+        const entriesWithProfiles = entriesData.map(entry => {
           return {
             ...entry,
-            profiles: profileData || { name: "Unknown" }
+            profiles: { 
+              name: profileMap.get(entry.user_id) || "Unknown" 
+            }
           };
-        }));
+        });
         
         return entriesWithProfiles as TimeEntry[];
       } catch (error) {

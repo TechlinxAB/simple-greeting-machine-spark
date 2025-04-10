@@ -30,8 +30,7 @@ export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
       return false;
     }
     
-    // Perform the deletion directly by ID without checking user_id
-    // This allows admins and managers to delete any time entry
+    // Direct deletion approach that bypasses RLS for admins/managers
     const { error: deleteError } = await supabase
       .from("time_entries")
       .delete()
@@ -39,12 +38,11 @@ export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
     
     if (deleteError) {
       console.error("Error deleting time entry:", deleteError);
-      toast.error("Failed to delete time entry");
+      toast.error("Failed to delete time entry: " + deleteError.message);
       return false;
     }
     
     console.log(`Successfully deleted time entry with ID: ${timeEntryId}`);
-    toast.success("Time entry deleted successfully");
     return true;
   } catch (error) {
     console.error("Unexpected error during time entry deletion:", error);
