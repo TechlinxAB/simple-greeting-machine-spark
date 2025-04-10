@@ -14,36 +14,9 @@ import {
   Cell
 } from 'recharts';
 
-// Define interfaces for the axis components
-interface XAxisProps {
-  dataKey?: string;
-  xAxisId?: string;
-  [key: string]: any;
-}
+// Use direct components with default parameters instead of wrappers
+// This avoids the "Support for defaultProps will be removed" warnings
 
-interface YAxisProps {
-  yAxisId?: string;
-  [key: string]: any;
-}
-
-// Updated XAxis with proper TypeScript typing for props
-export const XAxis: React.FC<XAxisProps> = ({ 
-  dataKey = "name", 
-  xAxisId = "xAxis",
-  ...props 
-}) => {
-  return <RechartsXAxis dataKey={dataKey} xAxisId={xAxisId} {...props} />;
-};
-
-// Updated YAxis with proper TypeScript typing for props
-export const YAxis: React.FC<YAxisProps> = ({ 
-  yAxisId = "yAxis",
-  ...props 
-}) => {
-  return <RechartsYAxis yAxisId={yAxisId} {...props} />;
-};
-
-// Custom BarChart component
 interface BarChartProps {
   data: any[];
   className?: string;
@@ -66,17 +39,16 @@ export const BarChart: React.FC<BarChartProps> = ({
   barFill = "#4CAF50",
   tooltip
 }) => {
-  // Use the same ID for all components
-  const xAxisId = "xAxis";
-  const yAxisId = "yAxis";
-  
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" xAxisId={xAxisId} />
-          <YAxis yAxisId={yAxisId} />
+          <RechartsXAxis 
+            dataKey="name" 
+            // Using React default parameters instead of defaultProps
+          />
+          <RechartsYAxis />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
@@ -85,9 +57,7 @@ export const BarChart: React.FC<BarChartProps> = ({
           <RechartsBar 
             dataKey={barKey} 
             fill={barFill} 
-            name={barName} 
-            xAxisId={xAxisId}
-            yAxisId={yAxisId}
+            name={barName}
           />
         </RechartsBarChart>
       </ResponsiveContainer>
