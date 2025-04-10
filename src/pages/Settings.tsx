@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +52,9 @@ export default function Settings() {
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
+  
+  // Check if this is a Fortnox callback
+  const isFortnoxCallback = location.pathname.includes('/settings/fortnox-callback');
   
   if (isFortnoxCallback) {
     return <FortnoxCallbackHandler />;

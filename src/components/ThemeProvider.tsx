@@ -9,6 +9,7 @@ export interface AppSettings {
   secondaryColor: string;
   sidebarColor: string;
   accentColor: string;
+  logoUrl?: string;
 }
 
 // Default color theme using the green palette from the provided screenshot
@@ -18,6 +19,7 @@ export const DEFAULT_THEME: AppSettings = {
   secondaryColor: "#e8f5e9", // Light green
   sidebarColor: "#326c32", // Dark green for sidebar
   accentColor: "#4caf50", // Accent green
+  logoUrl: undefined,
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
