@@ -120,10 +120,10 @@ export function NewsPost({ post, onEdit, onDelete }: NewsPostProps) {
             <AlertDialogTitle>Delete News Post</AlertDialogTitle>
             <AlertDialogDescription>
               <div className="flex items-start gap-2 text-amber-500 mb-4">
-                <AlertCircle className="h-5 w-5 mt-0.5" />
-                <p>This action cannot be undone. The post will be permanently deleted.</p>
+                <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <span>This action cannot be undone. The post will be permanently deleted.</span>
               </div>
-              <p>Are you sure you want to delete the post "{post.title}"?</p>
+              <div>Are you sure you want to delete the post "{post.title}"?</div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

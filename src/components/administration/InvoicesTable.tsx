@@ -219,27 +219,35 @@ export function InvoicesTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
             <AlertDialogDescription>
-              {selectedInvoice?.exported_to_fortnox ? (
-                <div className="flex items-start gap-2 mb-2 text-amber-500">
-                  <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                  <div>
-                    <p className="font-medium">Warning: This invoice has been exported to Fortnox</p>
-                    <p>Deleting this invoice will only remove it from your database. It will <strong>not</strong> be deleted from Fortnox. This may cause data inconsistency.</p>
+              {selectedInvoice?.exported_to_fortnox && (
+                <div className="text-amber-500 mb-2">
+                  <div className="flex items-start gap-2">
+                    <Icons.alertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <span className="font-medium">Warning: This invoice has been exported to Fortnox</span>
+                      <br />
+                      Deleting this invoice will only remove it from your database. It will <strong>not</strong> be deleted from Fortnox. This may cause data inconsistency.
+                    </span>
                   </div>
                 </div>
-              ) : null}
+              )}
               
               {hasTimeEntries ? (
-                <div className="flex items-start gap-2 mb-2 mt-2">
-                  <Icons.alertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-500">This invoice has time entries attached</p>
-                    <p>Deleting this invoice will remove the invoice association from these time entries, 
-                    making them available for invoicing again.</p>
+                <div className="mt-2">
+                  <div className="flex items-start gap-2">
+                    <Icons.alertCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <span className="font-medium text-amber-500">This invoice has time entries attached</span>
+                      <br />
+                      Deleting this invoice will remove the invoice association from these time entries, 
+                      making them available for invoicing again.
+                    </span>
                   </div>
                 </div>
               ) : (
-                <p className="mt-2">Are you sure you want to delete this invoice? This action is irreversible.</p>
+                <div className="mt-2">
+                  Are you sure you want to delete this invoice? This action is irreversible.
+                </div>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
