@@ -168,7 +168,12 @@ export function AppSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           {appSettings?.logoUrl ? (
-            <img src={appSettings.logoUrl} alt="Logo" className="h-6 w-auto" />
+            <img 
+              src={appSettings.logoUrl + `?t=${Date.now()}`} 
+              alt="Logo" 
+              className="h-6 w-auto" 
+              onError={(e) => console.error("Logo load error:", e)}
+            />
           ) : (
             <img src="/src/logo.png" alt="Logo" className="h-6 w-auto" />
           )}

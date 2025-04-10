@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -449,16 +448,10 @@ export default function Administration() {
                   <TabsTrigger value="time-entries" className="flex items-center gap-2">
                     <Icons.clock className="h-4 w-4" />
                     <span>Time Entries</span>
-                    {timeEntries.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">{timeEntries.length}</Badge>
-                    )}
                   </TabsTrigger>
                   <TabsTrigger value="invoices" className="flex items-center gap-2">
                     <Icons.fileText className="h-4 w-4" />
                     <span>Invoices</span>
-                    {invoices.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">{invoices.length}</Badge>
-                    )}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -548,39 +541,6 @@ export default function Administration() {
                 </div>
               </div>
               
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {((page - 1) * ITEMS_PER_PAGE) + 1}-
-                    {Math.min(page * ITEMS_PER_PAGE, 
-                      activeTab === "time-entries" ? timeEntriesCount : invoicesCount)} of {
-                      activeTab === "time-entries" ? timeEntriesCount : invoicesCount
-                    }
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                      disabled={page === 1}
-                    >
-                      Previous
-                    </Button>
-                    <div className="text-sm">
-                      Page {page} of {totalPages}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={page === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
               <TabsContent value="time-entries" className="mt-4">
                 <TimeEntriesTable 
                   timeEntries={timeEntries} 
@@ -594,6 +554,16 @@ export default function Administration() {
                   sortField={sortField}
                   sortDirection={sortDirection}
                 />
+                
+                {!isLoadingTimeEntries && (
+                  <div className="mt-4 text-sm text-muted-foreground text-center">
+                    {totalPages > 0 ? (
+                      <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, timeEntriesCount)} of {timeEntriesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
+                    ) : (
+                      <p>No time entries found matching the current filters.</p>
+                    )}
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="invoices" className="mt-4">
@@ -609,6 +579,16 @@ export default function Administration() {
                   sortField={sortField}
                   sortDirection={sortDirection}
                 />
+                
+                {!isLoadingInvoices && (
+                  <div className="mt-4 text-sm text-muted-foreground text-center">
+                    {totalPages > 0 ? (
+                      <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
+                    ) : (
+                      <p>No invoices found matching the current filters.</p>
+                    )}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

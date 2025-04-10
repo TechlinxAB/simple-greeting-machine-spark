@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +12,6 @@ import {
   ClipboardList, 
   Eye, 
   Edit, 
-  Plus, 
   Trash,
   Loader2
 } from "lucide-react";
@@ -309,18 +307,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             </Table>
           )}
         </CardContent>
-        <div className="p-2 flex justify-end border-t">
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New
-            </Button>
-          </div>
-        </div>
       </Card>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
