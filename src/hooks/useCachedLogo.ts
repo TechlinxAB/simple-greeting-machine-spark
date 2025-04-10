@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -60,7 +61,7 @@ export function useCachedLogo() {
       console.log("Using default logo path");
       return DEFAULT_LOGO_PATH;
     },
-    staleTime: 60000
+    staleTime: 30000 // Reduce stale time to 30 seconds for more frequent refreshes
   });
 
   // Set up real-time subscription for logo changes in system_settings
@@ -87,7 +88,7 @@ export function useCachedLogo() {
         },
         (payload) => {
           console.log("System settings changed, refreshing logo");
-          setRefreshTimestamp(Date.now());
+          refreshLogo();
         }
       )
       .subscribe();
@@ -105,7 +106,7 @@ export function useCachedLogo() {
         },
         (payload) => {
           console.log("Storage changed for logo bucket:", payload);
-          setRefreshTimestamp(Date.now());
+          refreshLogo();
         }
       )
       .subscribe();
@@ -117,7 +118,7 @@ export function useCachedLogo() {
       supabase.removeChannel(settingsChannel);
       supabase.removeChannel(storageChannel);
     };
-  }, [queryClient]);
+  }, [refreshLogo]);
 
   // Update from query result
   useEffect(() => {

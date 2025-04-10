@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -177,9 +178,9 @@ export function AppSidebar() {
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-auto bg-white flex items-center justify-center rounded overflow-hidden">
+          <div className="h-8 w-auto flex items-center justify-center rounded overflow-hidden">
             {logoLoading ? (
-              <div className="h-6 w-16 animate-pulse bg-gray-200 rounded"></div>
+              <div className="h-8 w-20 animate-pulse bg-gray-200 rounded"></div>
             ) : logoError ? (
               <img 
                 src={DEFAULT_LOGO_PATH}
