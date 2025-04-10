@@ -626,10 +626,10 @@ export default function Administration() {
               {activeTab === "invoices" && (
                 <div className="mt-2 text-amber-500 flex items-start gap-2">
                   <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                  <div>
+                  <span>
                     <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
                     <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
-                  </div>
+                  </span>
                 </div>
               )}
             </AlertDialogDescription>
