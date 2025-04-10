@@ -56,7 +56,7 @@ export async function checkLogoExists(): Promise<boolean> {
       return false;
     }
     
-    return data.length > 0;
+    return data && data.length > 0;
   } catch (error) {
     console.error("Error checking logo exists:", error);
     return false;
@@ -134,7 +134,7 @@ export async function removeAppLogo(): Promise<boolean> {
       return false;
     }
     
-    if (listData.length === 0) {
+    if (!listData || listData.length === 0) {
       console.log("No logo found to remove");
       return true;
     }
@@ -259,7 +259,7 @@ export async function updateLogoInSystemSettings(dataUrl: string): Promise<boole
       return false;
     }
     
-    // Prepare the settings object - Fix for spread operator error
+    // Prepare the settings object
     const currentSettings = data?.settings || {};
     const updatedSettings: Record<string, any> = {};
     

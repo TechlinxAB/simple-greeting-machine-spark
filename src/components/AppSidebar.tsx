@@ -30,6 +30,12 @@ export function AppSidebar() {
   const [logoError, setLogoError] = useState(false);
   const { logoUrl, isLoading: logoLoading } = useCachedLogo();
 
+  useEffect(() => {
+    if (logoUrl) {
+      setLogoError(false);
+    }
+  }, [logoUrl]);
+
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
 
@@ -174,6 +180,12 @@ export function AppSidebar() {
           <div className="h-6 w-auto bg-white flex items-center justify-center rounded overflow-hidden">
             {logoLoading ? (
               <div className="h-6 w-16 animate-pulse bg-gray-200 rounded"></div>
+            ) : logoError ? (
+              <img 
+                src={DEFAULT_LOGO_PATH}
+                alt="Logo" 
+                className="h-full w-auto max-w-[100px] object-contain"
+              />
             ) : (
               <img 
                 src={logoUrl}
