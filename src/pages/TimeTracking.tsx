@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
 import { TimeEntriesList } from "@/components/time-tracking/TimeEntriesList";
 import { DateSelector } from "@/components/time-tracking/DateSelector";
+import { TimerWidget } from "@/components/time-tracking/TimerWidget";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
@@ -58,11 +59,13 @@ export default function TimeTracking() {
       </div>
       
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-3">
+        <div className="col-span-3 space-y-6">
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
           />
+          
+          <TimerWidget />
         </div>
         
         <div className="col-span-9 space-y-6">

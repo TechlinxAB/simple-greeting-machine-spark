@@ -1,14 +1,10 @@
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { format, addDays, isSameDay, isToday, subDays } from "date-fns";
+import { useState } from 'react';
+import { format, addMonths, subMonths, isSameDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -16,115 +12,52 @@ interface DateSelectorProps {
 }
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [dateList, setDateList] = useState<Date[]>([]);
-  
-  // Navigate to previous day
-  const goToPreviousDay = () => {
-    const newDate = subDays(selectedDate, 1);
-    onDateChange(newDate);
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
-  
-  // Navigate to next day
-  const goToNextDay = () => {
-    const newDate = addDays(selectedDate, 1);
-    onDateChange(newDate);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
   };
-  
-  // Navigate to today
-  const goToToday = () => {
-    onDateChange(new Date());
-  };
-  
-  // Update date list when selected date changes
-  useEffect(() => {
-    const dates: Date[] = [];
-    
-    // Add the selected date as the first date in the list
-    dates.push(selectedDate);
-    
-    // Add the previous 6 days
-    for (let i = 1; i <= 6; i++) {
-      dates.push(subDays(selectedDate, i));
-    }
-    
-    setDateList(dates);
-  }, [selectedDate]);
-  
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={goToPreviousDay}
-          title="Previous Day"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          <span className="sr-only">Previous Day</span>
-        </Button>
-        
-        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full justify-center items-center gap-2 px-3"
-            >
-              <CalendarIcon className="h-4 w-4" />
-              <span>
-                {isToday(selectedDate) 
-                  ? "Today" 
-                  : format(selectedDate, "d MMM yyyy")}
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => {
-                if (date) {
-                  onDateChange(date);
-                  setCalendarOpen(false);
-                }
-              }}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-        
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={goToNextDay}
-          title="Next Day"
-        >
-          <ChevronRight className="h-4 w-4" />
-          <span className="sr-only">Next Day</span>
-        </Button>
-      </div>
-      
-      <div className="space-y-1">
-        <Button
-          variant={isToday(selectedDate) ? "default" : "ghost"}
-          className="w-full justify-start bg-green-500 hover:bg-green-600 text-white"
-          onClick={goToToday}
-        >
-          Today
-        </Button>
-        
-        {dateList.map((date, index) => (
-          <Button
-            key={index}
-            variant={isSameDay(date, selectedDate) && !isToday(date) ? "default" : "ghost"}
-            className={`w-full justify-start ${isSameDay(date, selectedDate) && !isToday(date) ? "bg-gray-100 text-gray-900" : ""}`}
-            onClick={() => onDateChange(date)}
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-md">Select Date</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-between items-center mb-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handlePrevMonth}
           >
-            {format(date, "d MMM")}
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-        ))}
-      </div>
-    </div>
+          <div className="text-md font-medium">
+            {format(currentMonth, 'MMMM yyyy')}
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleNextMonth}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="border rounded-md">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => date && onDateChange(date)}
+            month={currentMonth}
+            className="rounded-md"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

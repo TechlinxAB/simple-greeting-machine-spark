@@ -39,28 +39,11 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       // Create a unique file name to avoid collisions
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `news_images/${fileName}`;
+      const filePath = `${fileName}`;
 
-      // First, check if the bucket exists
-      const { data: bucketData, error: bucketError } = await supabase
-        .storage
-        .getBucket('news_images');
-
-      // If the bucket doesn't exist, create it
-      if (bucketError) {
-        const { error: createError } = await supabase
-          .storage
-          .createBucket('news_images', {
-            public: true
-          });
-
-        if (createError) {
-          throw new Error(`Failed to create storage bucket: ${createError.message}`);
-        }
-      }
-
-      // Upload the image
-      const { error: uploadError } = await supabase
+      // Upload the image - no need to check bucket existence or create bucket
+      // as we've already confirmed the bucket exists through our SQL operation
+      const { error: uploadError, data } = await supabase
         .storage
         .from('news_images')
         .upload(filePath, file);
@@ -70,12 +53,12 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       }
 
       // Get the public URL
-      const { data } = supabase
+      const { data: urlData } = supabase
         .storage
         .from('news_images')
         .getPublicUrl(filePath);
 
-      const publicUrl = data.publicUrl;
+      const publicUrl = urlData.publicUrl;
       setImageUrl(publicUrl);
       onImageUploaded(publicUrl);
       toast.success("Image uploaded successfully");
