@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,15 +20,16 @@ import { LogOut } from "lucide-react";
 import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { user, signOut, role } = useAuth();
+  const [logoError, setLogoError] = useState(false);
 
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
 
-  // Get app settings for logo
   const { data: appSettings } = useQuery({
     queryKey: ["app-settings"],
     queryFn: async () => {
@@ -53,7 +53,6 @@ export function AppSidebar() {
     }
   });
 
-  // Get profile data for current user
   const { data: profileData } = useQuery({
     queryKey: ["user-profile", user?.id],
     queryFn: async () => {
@@ -131,14 +130,12 @@ export function AppSidebar() {
   ];
 
   const getUserName = () => {
-    // Priority: profile name > user metadata name > email (fallback)
     if (profileData?.name) return profileData.name;
     if (user?.user_metadata?.name) return user.user_metadata.name;
     return user?.email?.split('@')[0] || "User";
   };
 
   const getUserAvatar = () => {
-    // Priority: profile avatar > user metadata avatar
     if (profileData?.avatar_url) return profileData.avatar_url;
     if (user?.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
     return "";
@@ -146,7 +143,6 @@ export function AppSidebar() {
 
   const getInitials = (name?: string) => {
     if (!name || name.trim() === "") {
-      // Fallback to email if no name
       if (user?.email) {
         return user.email.charAt(0).toUpperCase();
       }
@@ -162,21 +158,30 @@ export function AppSidebar() {
 
   const displayName = getUserName();
   const avatarUrl = getUserAvatar();
+  
+  const handleLogoError = () => {
+    console.log("Logo failed to load, using fallback");
+    setLogoError(true);
+  };
+  
+  useEffect(() => {
+    setLogoError(false);
+  }, [appSettings?.logoUrl]);
+
+  const logoUrl = !logoError && appSettings?.logoUrl 
+    ? `${appSettings.logoUrl}?t=${Date.now()}` 
+    : "/src/logo.png";
 
   return (
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          {appSettings?.logoUrl ? (
-            <img 
-              src={appSettings.logoUrl + `?t=${Date.now()}`} 
-              alt="Logo" 
-              className="h-6 w-auto" 
-              onError={(e) => console.error("Logo load error:", e)}
-            />
-          ) : (
-            <img src="/src/logo.png" alt="Logo" className="h-6 w-auto" />
-          )}
+          <img 
+            src={logoUrl} 
+            alt="Logo" 
+            className="h-6 w-auto" 
+            onError={handleLogoError}
+          />
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis">
             {appSettings?.appName || "Time Tracker"}
           </h2>
