@@ -1,35 +1,46 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
 import { 
-  CalendarIcon, 
   Users, 
   Clock, 
   FileText,
   FilterIcon,
-  TrashIcon
+  Trash,
+  Check,
+  ArrowUpDown
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { type Client, type TimeEntry, type Invoice } from "@/types";
 
 export default function Administration() {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("time-entries");
-  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [noDateFilter, setNoDateFilter] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 100;
   
   if (role !== 'admin' && role !== 'manager') {
     return (
@@ -64,15 +75,40 @@ export default function Administration() {
     },
   });
 
-  const startDate = startOfMonth(selectedMonth);
-  const endDate = endOfMonth(selectedMonth);
+  // Month and year derived from the selected date
+  const selectedMonth = selectedDate.getMonth();
+  const selectedYear = selectedDate.getFullYear();
+  
+  // Handle month and year changes
+  const handleMonthYearChange = (month: number, year: number) => {
+    const newDate = new Date(selectedDate);
+    setMonth(newDate, month);
+    setYear(newDate, year);
+    setSelectedDate(newDate);
+    setNoDateFilter(false);
+  };
 
+  // Start and end dates for filtering
+  const getDateRange = () => {
+    if (noDateFilter) {
+      return { startDate: null, endDate: null };
+    }
+    return {
+      startDate: startOfMonth(selectedDate),
+      endDate: endOfMonth(selectedDate)
+    };
+  };
+
+  const { startDate, endDate } = getDateRange();
+
+  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
+  
   const { 
     data: timeEntries = [], 
     isLoading: isLoadingTimeEntries,
     refetch: refetchTimeEntries 
   } = useQuery({
-    queryKey: ["admin-time-entries", format(startDate, "yyyy-MM"), selectedClient],
+    queryKey: timeEntriesQueryKey,
     enabled: activeTab === "time-entries",
     queryFn: async () => {
       try {
@@ -82,15 +118,33 @@ export default function Administration() {
             *,
             clients(name),
             products(name, type, price)
-          `)
-          .gte("start_time", startDate.toISOString())
-          .lte("start_time", endDate.toISOString());
+          `);
         
+        // Apply date filter if not showing all time
+        if (!noDateFilter) {
+          query = query
+            .gte("start_time", startDate!.toISOString())
+            .lte("start_time", endDate!.toISOString());
+        }
+        
+        // Apply client filter if selected
         if (selectedClient) {
           query = query.eq("client_id", selectedClient);
         }
         
-        const { data: entriesData, error: entriesError } = await query.order("start_time", { ascending: false });
+        // Apply sorting
+        if (sortField) {
+          query = query.order(sortField, { ascending: sortDirection === 'asc' });
+        } else {
+          query = query.order("start_time", { ascending: false });
+        }
+        
+        // Apply pagination
+        const from = (page - 1) * ITEMS_PER_PAGE;
+        const to = from + ITEMS_PER_PAGE - 1;
+        query = query.range(from, to);
+        
+        const { data: entriesData, error: entriesError } = await query;
         
         if (entriesError) {
           console.error("Error fetching time entries:", entriesError);
@@ -138,37 +192,136 @@ export default function Administration() {
     },
   });
 
+  const invoicesQueryKey = ["admin-invoices", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
+
   const { 
     data: invoices = [], 
     isLoading: isLoadingInvoices,
     refetch: refetchInvoices 
   } = useQuery({
-    queryKey: ["admin-invoices", format(startDate, "yyyy-MM"), selectedClient],
+    queryKey: invoicesQueryKey,
     enabled: activeTab === "invoices",
     queryFn: async () => {
-      let query = supabase
-        .from("invoices")
-        .select(`
-          *,
-          clients(name)
-        `)
-        .gte("issue_date", startDate.toISOString().split('T')[0])
-        .lte("issue_date", endDate.toISOString().split('T')[0]);
-      
-      if (selectedClient) {
-        query = query.eq("client_id", selectedClient);
-      }
-      
-      const { data, error } = await query.order("issue_date", { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching invoices:", error);
+      try {
+        let query = supabase
+          .from("invoices")
+          .select(`
+            *,
+            clients(name)
+          `);
+        
+        // Apply date filter if not showing all time
+        if (!noDateFilter) {
+          query = query
+            .gte("issue_date", startDate!.toISOString().split('T')[0])
+            .lte("issue_date", endDate!.toISOString().split('T')[0]);
+        }
+        
+        // Apply client filter if selected
+        if (selectedClient) {
+          query = query.eq("client_id", selectedClient);
+        }
+        
+        // Apply sorting
+        if (sortField) {
+          query = query.order(sortField, { ascending: sortDirection === 'asc' });
+        } else {
+          query = query.order("issue_date", { ascending: false });
+        }
+        
+        // Apply pagination
+        const from = (page - 1) * ITEMS_PER_PAGE;
+        const to = from + ITEMS_PER_PAGE - 1;
+        query = query.range(from, to);
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching invoices:", error);
+          toast.error("Failed to load invoices");
+          return [];
+        }
+        
+        return data as Invoice[];
+      } catch (error) {
+        console.error("Error in invoices query:", error);
         toast.error("Failed to load invoices");
         return [];
       }
-      
-      return data as Invoice[];
     },
+  });
+
+  // Count queries for pagination
+  const {
+    data: timeEntriesCount = 0
+  } = useQuery({
+    queryKey: ["admin-time-entries-count", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient],
+    enabled: activeTab === "time-entries",
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from("time_entries")
+          .select("id", { count: 'exact', head: true });
+        
+        if (!noDateFilter) {
+          query = query
+            .gte("start_time", startDate!.toISOString())
+            .lte("start_time", endDate!.toISOString());
+        }
+        
+        if (selectedClient) {
+          query = query.eq("client_id", selectedClient);
+        }
+        
+        const { count, error } = await query;
+        
+        if (error) {
+          console.error("Error counting time entries:", error);
+          return 0;
+        }
+        
+        return count || 0;
+      } catch (error) {
+        console.error("Error in time entries count query:", error);
+        return 0;
+      }
+    }
+  });
+
+  const {
+    data: invoicesCount = 0
+  } = useQuery({
+    queryKey: ["admin-invoices-count", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient],
+    enabled: activeTab === "invoices",
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from("invoices")
+          .select("id", { count: 'exact', head: true });
+        
+        if (!noDateFilter) {
+          query = query
+            .gte("issue_date", startDate!.toISOString().split('T')[0])
+            .lte("issue_date", endDate!.toISOString().split('T')[0]);
+        }
+        
+        if (selectedClient) {
+          query = query.eq("client_id", selectedClient);
+        }
+        
+        const { count, error } = await query;
+        
+        if (error) {
+          console.error("Error counting invoices:", error);
+          return 0;
+        }
+        
+        return count || 0;
+      } catch (error) {
+        console.error("Error in invoices count query:", error);
+        return 0;
+      }
+    }
   });
 
   const handleEntryDeleted = () => {
@@ -180,17 +333,114 @@ export default function Administration() {
     refetchInvoices();
     toast.success("Invoice deleted successfully");
   };
-
-  const handlePreviousMonth = () => {
-    setSelectedMonth(subMonths(selectedMonth, 1));
+  
+  const handleBulkDelete = async () => {
+    if (selectedItems.length === 0) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      let table = activeTab === "time-entries" ? "time_entries" : "invoices";
+      
+      if (activeTab === "time-entries") {
+        // For time entries associated with invoices, update the time entries first
+        await supabase
+          .from("time_entries")
+          .update({ 
+            invoice_id: null,
+            invoiced: false 
+          })
+          .in("id", selectedItems)
+          .filter("invoiced", "eq", true);
+      } else {
+        // For invoices with time entries, update the time entries first
+        const timeEntries = await supabase
+          .from("time_entries")
+          .select("id")
+          .in("invoice_id", selectedItems);
+          
+        if (timeEntries.data && timeEntries.data.length > 0) {
+          await supabase
+            .from("time_entries")
+            .update({ 
+              invoice_id: null,
+              invoiced: false 
+            })
+            .in("invoice_id", selectedItems);
+        }
+      }
+      
+      // Delete the selected items
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .in("id", selectedItems);
+      
+      if (error) {
+        console.error(`Error deleting ${activeTab}:`, error);
+        toast.error(`Failed to delete ${activeTab}`);
+        return;
+      }
+      
+      if (activeTab === "time-entries") {
+        refetchTimeEntries();
+      } else {
+        refetchInvoices();
+      }
+      
+      toast.success(`${selectedItems.length} items deleted successfully`);
+      setSelectedItems([]);
+      setBulkDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error("Error in bulk delete operation:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
   };
-
-  const handleNextMonth = () => {
-    setSelectedMonth(subMonths(selectedMonth, -1));
+  
+  const toggleItemSelection = (id: string) => {
+    setSelectedItems(prev => 
+      prev.includes(id)
+        ? prev.filter(item => item !== id)
+        : [...prev, id]
+    );
   };
-
-  const handleCurrentMonth = () => {
-    setSelectedMonth(new Date());
+  
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const items = activeTab === "time-entries" 
+        ? timeEntries.map(entry => entry.id)
+        : invoices.map(invoice => invoice.id);
+      setSelectedItems(items);
+    } else {
+      setSelectedItems([]);
+    }
+  };
+  
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedClient, noDateFilter, activeTab]);
+  
+  // Reset selected items when tab changes
+  useEffect(() => {
+    setSelectedItems([]);
+  }, [activeTab]);
+  
+  const totalPages = Math.ceil(
+    activeTab === "time-entries" 
+      ? timeEntriesCount / ITEMS_PER_PAGE 
+      : invoicesCount / ITEMS_PER_PAGE
+  );
+  
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
   return (
@@ -226,44 +476,10 @@ export default function Administration() {
                     )}
                   </TabsTrigger>
                 </TabsList>
-                
-                <div className="flex flex-wrap items-center gap-2">
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="justify-start text-left font-normal w-[180px]"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(selectedMonth, "MMMM yyyy")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        defaultMonth={selectedMonth}
-                        onSelect={(date) => {
-                          if (date) {
-                            setSelectedMonth(date);
-                            setIsCalendarOpen(false);
-                          }
-                        }}
-                        initialFocus
-                      />
-                      <div className="flex justify-between p-2 border-t">
-                        <Button variant="ghost" size="sm" onClick={handlePreviousMonth}>
-                          Previous
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={handleCurrentMonth}>
-                          Current
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={handleNextMonth}>
-                          Next
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  
+              </div>
+              
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <Select
                     value={selectedClient || "all"}
                     onValueChange={(value) => setSelectedClient(value === "all" ? null : value)}
@@ -298,14 +514,101 @@ export default function Administration() {
                       <FilterIcon className="h-4 w-4" />
                     </Button>
                   )}
+                  
+                  <MonthYearSelector
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onMonthYearChange={handleMonthYearChange}
+                    includeAllOption={true}
+                    onAllSelected={() => setNoDateFilter(prev => !prev)}
+                    isAllSelected={noDateFilter}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {selectedItems.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setBulkDeleteConfirmOpen(true)}
+                      className="flex items-center gap-1"
+                    >
+                      <Trash className="h-4 w-4" />
+                      <span>Delete Selected ({selectedItems.length})</span>
+                    </Button>
+                  )}
+                  
+                  {bulkDeleteOpen ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBulkDeleteOpen(false);
+                        setSelectedItems([]);
+                      }}
+                    >
+                      Cancel Selection
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkDeleteOpen(true)}
+                      className="flex items-center gap-1"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Select Multiple</span>
+                    </Button>
+                  )}
                 </div>
               </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((page - 1) * ITEMS_PER_PAGE) + 1}-
+                    {Math.min(page * ITEMS_PER_PAGE, 
+                      activeTab === "time-entries" ? timeEntriesCount : invoicesCount)} of {
+                      activeTab === "time-entries" ? timeEntriesCount : invoicesCount
+                    }
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="text-sm">
+                      Page {page} of {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={page === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
               
               <TabsContent value="time-entries" className="mt-4">
                 <TimeEntriesTable 
                   timeEntries={timeEntries} 
                   isLoading={isLoadingTimeEntries}
                   onEntryDeleted={handleEntryDeleted}
+                  bulkDeleteMode={bulkDeleteOpen}
+                  selectedItems={selectedItems}
+                  onItemSelect={toggleItemSelection}
+                  onSelectAll={handleSelectAll}
+                  onSort={handleSort}
+                  sortField={sortField}
+                  sortDirection={sortDirection}
                 />
               </TabsContent>
               
@@ -314,12 +617,56 @@ export default function Administration() {
                   invoices={invoices} 
                   isLoading={isLoadingInvoices}
                   onInvoiceDeleted={handleInvoiceDeleted}
+                  bulkDeleteMode={bulkDeleteOpen}
+                  selectedItems={selectedItems}
+                  onItemSelect={toggleItemSelection}
+                  onSelectAll={handleSelectAll}
+                  onSort={handleSort}
+                  sortField={sortField}
+                  sortDirection={sortDirection}
                 />
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
       </div>
+      
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk Delete Confirmation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedItems.length} selected {
+                activeTab === "time-entries" ? "time entries" : "invoices"
+              }? This action cannot be undone.
+              
+              {activeTab === "invoices" && (
+                <div className="mt-2 text-amber-500 flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
+                    <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Selected"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

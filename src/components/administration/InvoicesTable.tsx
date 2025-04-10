@@ -175,9 +175,9 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
                   {invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "N/A"}
                 </TableCell>
                 <TableCell>
-                  {new Intl.NumberFormat('en-US', { 
+                  {new Intl.NumberFormat('sv-SE', { 
                     style: 'currency', 
-                    currency: 'USD'
+                    currency: 'SEK'
                   }).format(invoice.total_amount || 0)}
                 </TableCell>
                 <TableCell>

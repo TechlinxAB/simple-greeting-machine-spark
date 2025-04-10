@@ -39,6 +39,7 @@ import { TimeEntryEditForm } from "./TimeEntryEditForm";
 import { toast } from "sonner";
 import { TimeEntry } from "@/types";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -112,9 +113,9 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const getItemAmount = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
-      return `${hours} hours × ${entry.products.price} SEK`;
+      return `${hours} hours × ${formatCurrency(entry.products.price)}`;
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return `${entry.quantity} × ${entry.products.price} SEK`;
+      return `${entry.quantity} × ${formatCurrency(entry.products.price)}`;
     }
     return "-";
   };
@@ -122,9 +123,9 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
-      return (hours * entry.products.price).toFixed(2);
+      return formatCurrency(hours * entry.products.price);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return (entry.quantity * entry.products.price).toFixed(2);
+      return formatCurrency(entry.quantity * entry.products.price);
     }
     return "-";
   };
@@ -257,7 +258,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                     </TableCell>
                     <TableCell>{getItemAmount(entry)}</TableCell>
                     <TableCell className="font-semibold">
-                      {getItemTotal(entry)} SEK
+                      {getItemTotal(entry)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={entry.invoiced ? "default" : "outline"}>

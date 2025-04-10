@@ -1,10 +1,11 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Edit, Trash2, AlertCircle, CalendarClock, UserCircle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -13,126 +14,130 @@ import { NewsPost as NewsPostType } from "@/types/database";
 interface NewsPostProps {
   post: NewsPostType;
   onEdit: (post: NewsPostType) => void;
-  onDelete: (id: string) => void;
+  onDelete: () => void;
 }
 
 export function NewsPost({ post, onEdit, onDelete }: NewsPostProps) {
   const { role } = useAuth();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  const canManagePosts = role === 'admin' || role === 'manager';
-  const createdDate = new Date(post.created_at);
-  const updatedDate = post.updated_at ? new Date(post.updated_at) : null;
+  const canEdit = role === 'admin' || role === 'manager';
   
   const handleDelete = async () => {
+    if (!canEdit) return;
+    
     setIsDeleting(true);
+    
     try {
-      // Check if there's an image to delete
-      if (post.image_url) {
-        // Extract the file name from the URL
-        const fileName = post.image_url.split('/').pop();
-        
-        if (fileName) {
-          // Delete the image from storage
-          await supabase.storage
-            .from('news_images')
-            .remove([fileName]);
-        }
-      }
-      
-      // Delete the post
       const { error } = await supabase
-        .from('news_posts')
+        .from("news_posts")
         .delete()
-        .eq('id', post.id);
-        
+        .eq("id", post.id);
+      
       if (error) throw error;
       
       toast.success("News post deleted successfully");
-      onDelete(post.id);
-      setShowDeleteDialog(false);
+      onDelete();
+      setDeleteDialogOpen(false);
     } catch (error: any) {
+      console.error("Error deleting news post:", error);
       toast.error(error.message || "Failed to delete news post");
     } finally {
       setIsDeleting(false);
     }
   };
   
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, "MMMM d, yyyy");
+  };
+  
   return (
     <>
-      <Card className="mb-6 overflow-hidden">
+      <Card className="overflow-hidden">
         {post.image_url && (
-          <div className="w-full h-64 overflow-hidden bg-secondary">
+          <div className="w-full h-[250px] relative">
             <img 
               src={post.image_url} 
               alt={post.title} 
               className="w-full h-full object-cover" 
+              onError={(e) => {
+                // If image fails to load, hide it
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           </div>
         )}
-        
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-start">
-              <h3 className="text-xl font-bold">{post.title}</h3>
-              {canManagePosts && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(post)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="sr-only">Edit</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </div>
-              )}
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-xl font-bold">{post.title}</CardTitle>
+            {canEdit && (
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(post)}
+                  title="Edit post"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  title="Delete post"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center text-sm text-muted-foreground gap-4">
+            <div className="flex items-center">
+              <CalendarClock className="mr-1 h-3 w-3" />
+              <span>{formatDate(post.created_at)}</span>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Posted on {format(createdDate, 'MMMM d, yyyy')}
-              {updatedDate && updatedDate.getTime() !== createdDate.getTime() && (
-                <> · Updated on {format(updatedDate, 'MMMM d, yyyy')}</>
-              )}
+            <div className="flex items-center">
+              <UserCircle className="mr-1 h-3 w-3" />
+              <span>Admin</span>
             </div>
-            <div className="mt-4 whitespace-pre-wrap">{post.content}</div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="prose prose-sm sm:prose max-w-none">
+            {post.content.split('\n').map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
           </div>
         </CardContent>
       </Card>
       
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete News Post</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this news post. This action cannot be undone.
+              <div className="flex items-start gap-2 text-amber-500 mb-4">
+                <AlertCircle className="h-5 w-5 mt-0.5" />
+                <p>This action cannot be undone. The post will be permanently deleted.</p>
+              </div>
+              <p>Are you sure you want to delete the post "{post.title}"?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteDialog(false)}
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
               disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? "Deleting..." : "Delete"}
-            </Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

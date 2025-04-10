@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -153,7 +153,7 @@ export default function Dashboard() {
   };
   
   const calculateTodayRevenue = () => {
-    return todayEntries.reduce((total, entry) => {
+    return formatCurrency(todayEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -163,11 +163,11 @@ export default function Dashboard() {
         return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0));
   };
   
   const calculateMonthRevenue = () => {
-    return monthEntries.reduce((total, entry) => {
+    return formatCurrency(monthEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -177,7 +177,7 @@ export default function Dashboard() {
         return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0));
   };
   
   const prepareWeeklyActivityData = () => {
@@ -290,7 +290,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateTodayRevenue()} SEK</p>
+                      <p className="text-2xl font-bold">{calculateTodayRevenue()}</p>
                     </div>
                   </div>
                 </div>
@@ -320,7 +320,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateMonthRevenue()} SEK</p>
+                      <p className="text-2xl font-bold">{calculateMonthRevenue()}</p>
                     </div>
                   </div>
                 </div>
@@ -428,7 +428,7 @@ export default function Dashboard() {
                       <div>
                         <p className="text-sm text-muted-foreground">Total Revenue</p>
                         <p className="text-2xl font-bold">
-                          {companyEntries.reduce((total, entry) => {
+                          {formatCurrency(companyEntries.reduce((total, entry) => {
                             if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
                               const start = new Date(entry.start_time);
                               const end = new Date(entry.end_time);
@@ -438,7 +438,7 @@ export default function Dashboard() {
                               return total + (entry.quantity * (entry.products.price || 0));
                             }
                             return total;
-                          }, 0).toFixed(2)} SEK
+                          }, 0))}
                         </p>
                       </div>
                     </div>
