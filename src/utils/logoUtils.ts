@@ -55,19 +55,26 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     // Delete any existing logos first to avoid accumulation
     await removeAppLogo();
     
-    const fileExt = file.name.split('.').pop();
-    const fileName = `logo-${uuidv4()}.${fileExt}`;
+    // Ensure we're only uploading PNG files
+    if (file.type !== 'image/png') {
+      console.error("Only PNG files are supported for logo uploads");
+      return { dataUrl: '', success: false };
+    }
+    
+    // Always use .png extension for consistency
+    const fileName = `logo-${uuidv4()}.png`;
     const filePath = `${LOGO_FOLDER_PATH}/${fileName}`;
     
-    console.log(`Uploading file to ${filePath}`);
+    console.log(`Uploading file to ${filePath}`, `Content-Type: ${file.type}`);
     
-    // Try uploading the file
+    // Try uploading the file with explicit content type
     const { data, error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        contentType: 'image/png' // Explicitly set content type
       });
       
     if (error) {
@@ -201,9 +208,9 @@ export function validateLogoFile(file: File): { valid: boolean; error?: string }
     return { valid: false, error: `File size exceeds the maximum allowed size of ${MAX_LOGO_SIZE / 1024 / 1024}MB` };
   }
   
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-  if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'Invalid file type. Only JPEG, PNG, GIF, and SVG are allowed.' };
+  // Only allow PNG files
+  if (file.type !== 'image/png') {
+    return { valid: false, error: 'Invalid file type. Only PNG files are allowed.' };
   }
   
   return { valid: true };

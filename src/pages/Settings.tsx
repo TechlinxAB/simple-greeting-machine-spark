@@ -601,7 +601,7 @@ export default function Settings() {
                       <div className="flex flex-col gap-2">
                         <Input
                           type="file"
-                          accept="image/jpeg,image/png,image/gif,image/svg+xml"
+                          accept="image/png"
                           onChange={onLogoChange}
                           disabled={uploadingLogo || !canManageSettings}
                           className="w-full max-w-sm"
@@ -612,8 +612,8 @@ export default function Settings() {
                           </p>
                         )}
                         <div className="text-sm text-muted-foreground">
-                          Upload a logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). 
-                          Recommended format: PNG or SVG. Images will be automatically resized if needed.
+                          Upload a PNG logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). 
+                          Only PNG format is supported for best compatibility.
                         </div>
                       </div>
                     )}
