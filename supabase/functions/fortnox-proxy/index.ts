@@ -11,6 +11,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
+// Valid account ranges for Fortnox in Sweden
+const VALID_ACCOUNTS = {
+  // Revenue accounts
+  revenue: {
+    min: 3000,
+    max: 3999,
+    default: "3001" // Default revenue account
+  }
+};
+
 serve(async (req) => {
   // Log all requests immediately for debugging
   console.log("===== FORTNOX PROXY REQUEST =====");
@@ -137,7 +147,7 @@ serve(async (req) => {
     console.log(`Making ${method} request to Fortnox: ${fortnoxUrl}`);
     console.log(`Using headers: Authorization=Bearer ${accessToken.substring(0, 5)}..., Client-Secret=${clientSecret.substring(0, 5)}...`);
     
-    // Log the complete payload for debugging
+    // Process payload for special cases
     if (method !== 'GET' && payload) {
       console.log("Request payload to Fortnox:", JSON.stringify(payload, null, 2));
       
@@ -148,6 +158,12 @@ serve(async (req) => {
         // Make sure we don't remove or modify the ArticleNumber that was passed in
         if (payload.Article.ArticleNumber) {
           console.log("✅ Using provided ArticleNumber for article creation:", payload.Article.ArticleNumber);
+        }
+        
+        // IMPORTANT: Remove SalesPrice from Article creation as it's read-only
+        if (payload.Article.SalesPrice !== undefined) {
+          console.log("⚠️ Removing SalesPrice from Article payload - it's read-only in Fortnox");
+          delete payload.Article.SalesPrice;
         }
       }
       
@@ -176,7 +192,7 @@ serve(async (req) => {
             console.log("⚠️ Replaced PricesIncludeVAT with VATIncluded as per Fortnox API");
           }
           
-          // Validate InvoiceRows but preserve ArticleNumber
+          // Validate InvoiceRows and ensure account numbers are valid
           if (payload.Invoice.InvoiceRows && Array.isArray(payload.Invoice.InvoiceRows)) {
             payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
               // Create a new sanitized row
@@ -185,8 +201,17 @@ serve(async (req) => {
                 DeliveredQuantity: row.DeliveredQuantity,
                 Price: row.Price,
                 VAT: [25, 12, 6].includes(row.VAT) ? row.VAT : 25,
-                AccountNumber: row.AccountNumber || "3001"
               };
+              
+              // Ensure AccountNumber is valid - use the default revenue account if not
+              // This fixes the "Kunde inte hitta konto 3050" error
+              const accountNum = parseInt(row.AccountNumber || "0");
+              if (isNaN(accountNum) || accountNum < VALID_ACCOUNTS.revenue.min || accountNum > VALID_ACCOUNTS.revenue.max) {
+                console.log(`⚠️ Invalid account number ${row.AccountNumber}, using default: ${VALID_ACCOUNTS.revenue.default}`);
+                validRow.AccountNumber = VALID_ACCOUNTS.revenue.default;
+              } else {
+                validRow.AccountNumber = row.AccountNumber;
+              }
               
               // Add Unit if provided
               if (row.Unit) {
@@ -250,14 +275,25 @@ serve(async (req) => {
           console.error("💥 Request payload that caused the error:", JSON.stringify(payload, null, 2));
         }
         
-        // No need for special handling for article number errors anymore as we preserve original article numbers
-        
         // Extract error code for better diagnosis
         let errorCode = null;
+        let errorMessage = "Unknown error";
+        
         if (errorDetails?.ErrorInformation?.Code) {
           errorCode = errorDetails.ErrorInformation.Code;
-        } else if (errorDetails?.ErrorInformation?.error?.code) {
-          errorCode = errorDetails.ErrorInformation.error.code;
+        } else if (errorDetails?.ErrorInformation?.code) {
+          errorCode = errorDetails.ErrorInformation.code;
+        }
+        
+        if (errorDetails?.ErrorInformation?.message) {
+          errorMessage = errorDetails.ErrorInformation.message;
+        } else if (errorDetails?.ErrorInformation?.Message) {
+          errorMessage = errorDetails.ErrorInformation.Message;
+        }
+        
+        // Add helpful context for specific error codes
+        if (errorCode === 2001303) {
+          errorMessage = `Account not found: ${errorMessage}. Please use an account between ${VALID_ACCOUNTS.revenue.min}-${VALID_ACCOUNTS.revenue.max}.`;
         }
         
         return new Response(
@@ -266,7 +302,8 @@ serve(async (req) => {
             details: errorDetails,
             fortnoxStatus: fortnoxRes.status,
             requestPayload: payload,
-            errorCode: errorCode
+            errorCode: errorCode,
+            message: errorMessage
           }),
           {
             status: fortnoxRes.status,

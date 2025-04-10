@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -41,7 +42,6 @@ interface FortnoxArticleData {
   Description: string;
   ArticleNumber?: string;
   Type: string;
-  SalesPrice?: number;
   SalesAccount: string;
   VAT: number;
   StockGoods: boolean;
@@ -153,6 +153,8 @@ export async function formatTimeEntriesForFortnox(
         const accountNum = parseInt(product.account_number);
         if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
           accountNumber = product.account_number;
+        } else {
+          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
         }
       }
       
@@ -348,7 +350,7 @@ export async function generateNumericArticleNumber(): Promise<string> {
 
 /**
  * Create or update an article in Fortnox if needed
- * Modified to preserve original article numbers
+ * Modified to preserve original article numbers and handle account validation
  */
 export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
   try {
@@ -364,18 +366,29 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // Article doesn't exist, create it with the original article number
       console.log(`Creating new article with original article number: ${product.article_number}`);
       
+      // Ensure account number is valid (3000-3999)
+      let accountNumber = "3001"; // Default fallback
+      if (product.account_number) {
+        const accountNum = parseInt(product.account_number);
+        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
+          accountNumber = product.account_number;
+        } else {
+          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
+        }
+      }
+      
       // Format the article data with the original article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: product.article_number, // Use the original article number
         Type: "SERVICE", // Default to SERVICE type for all products
-        SalesAccount: product.account_number || "3001",
-        SalesPrice: product.price,
+        SalesAccount: accountNumber, // Use valid account number
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false // Set to false for service products
       };
       
       // Create the article in Fortnox with the original article number
+      // Important: Don't include SalesPrice as it's read-only in Fortnox API
       console.log("Creating new article in Fortnox with original number:", articleData);
       const response = await fortnoxApiRequest("/articles", "POST", {
         Article: articleData
@@ -394,13 +407,23 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // No article number provided, generate one
       const generatedArticleNumber = await generateNumericArticleNumber();
       
+      // Ensure account number is valid (3000-3999)
+      let accountNumber = "3001"; // Default fallback
+      if (product.account_number) {
+        const accountNum = parseInt(product.account_number);
+        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
+          accountNumber = product.account_number;
+        } else {
+          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
+        }
+      }
+      
       // Format the article data with the generated article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: generatedArticleNumber,
         Type: "SERVICE",
-        SalesAccount: product.account_number || "3001",
-        SalesPrice: product.price,
+        SalesAccount: accountNumber, // Use valid account number
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false
       };
