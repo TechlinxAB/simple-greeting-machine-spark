@@ -105,7 +105,7 @@ export default function Invoices() {
           end_time, 
           quantity, 
           description,
-          products:product_id (id, name, type, price, vat_percentage)
+          products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
         `)
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
@@ -469,61 +469,3 @@ export default function Invoices() {
     </div>
   );
 }
-
-// These variables are assumed to be declared elsewhere or in a part of the file we've kept
-// Make sure they are properly defined
-const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
-    queryKey: ["unbilled-entries", selectedClient],
-    queryFn: async () => {
-      if (!selectedClient) return [];
-      
-      const { data: entriesData, error: entriesError } = await supabase
-        .from("time_entries")
-        .select(`
-          id, 
-          user_id,
-          start_time, 
-          end_time, 
-          quantity, 
-          description,
-          products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
-        `)
-        .eq("client_id", selectedClient)
-        .eq("invoiced", false);
-      
-      if (entriesError) throw entriesError;
-      
-      if (entriesData && entriesData.length > 0) {
-        const userIds = entriesData.map(entry => entry.user_id);
-        
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .in("id", userIds);
-        
-        if (profilesError) throw profilesError;
-        
-        const userProfileMap = new Map();
-        if (profiles) {
-          profiles.forEach(profile => {
-            userProfileMap.set(profile.id, profile);
-          });
-        }
-        
-        return entriesData.map(entry => ({
-          ...entry,
-          user_profile: userProfileMap.get(entry.user_id) || { name: 'Unknown User' }
-        }));
-      }
-      
-      return entriesData || [];
-    },
-    enabled: !!selectedClient,
-  });
-
-  const { data: fortnoxConnected = false } = useQuery({
-    queryKey: ["fortnox-connected"],
-    queryFn: async () => {
-      return await isFortnoxConnected();
-    },
-  });
