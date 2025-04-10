@@ -53,11 +53,14 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
 
       console.log("Uploading to news_images bucket:", filePath);
 
-      // Upload the image to the news_images bucket
+      // Upload the image to the news_images bucket with explicit content type
       const { error: uploadError, data } = await supabase
         .storage
         .from('news_images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          contentType: file.type, // Explicitly set the content type based on the file
+          cacheControl: '3600'
+        });
 
       if (uploadError) {
         console.error("Upload error details:", uploadError);
