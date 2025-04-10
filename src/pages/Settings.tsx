@@ -21,16 +21,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
 import { UserManagement } from "@/components/settings/UserManagement";
 
-// Define schema for app settings
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
   primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
+  logoUrl: z.string().optional(),
 });
 
-// Define Fortnox schema
 const fortnoxSettingsSchema = z.object({
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
@@ -47,18 +46,16 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("appearance");
   const [isDefaultSystemSettings, setIsDefaultSystemSettings] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
-  
-  // Handle OAuth callback
-  const isFortnoxCallback = location.search.includes('code=') && location.search.includes('state=');
   
   if (isFortnoxCallback) {
     return <FortnoxCallbackHandler />;
   }
   
-  // Get app settings
   const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
     queryKey: ["app-settings"],
     queryFn: async () => {
@@ -71,14 +68,12 @@ export default function Settings() {
           
         if (error) {
           if (error.code === 'PGRST116') {
-            // Record not found, use defaults
             setIsDefaultSystemSettings(true);
             return DEFAULT_THEME;
           }
           throw error;
         }
         
-        // Ensure we have a complete settings object
         if (data?.settings) {
           const settings = data.settings as Record<string, any>;
           return {
@@ -87,6 +82,7 @@ export default function Settings() {
             secondaryColor: settings.secondaryColor || DEFAULT_THEME.secondaryColor,
             sidebarColor: settings.sidebarColor || DEFAULT_THEME.sidebarColor,
             accentColor: settings.accentColor || DEFAULT_THEME.accentColor,
+            logoUrl: settings.logoUrl || DEFAULT_THEME.logoUrl,
           } as AppSettings;
         }
         
@@ -98,7 +94,6 @@ export default function Settings() {
     },
   });
   
-  // Get Fortnox settings
   const { data: fortnoxSettings, isLoading: isLoadingFortnoxSettings } = useQuery({
     queryKey: ["fortnox-settings"],
     queryFn: async () => {
@@ -111,7 +106,6 @@ export default function Settings() {
           
         if (error) {
           if (error.code === 'PGRST116') {
-            // Record not found
             return { clientId: "", clientSecret: "", enabled: false };
           }
           throw error;
@@ -129,10 +123,9 @@ export default function Settings() {
         return { clientId: "", clientSecret: "", enabled: false };
       }
     },
-    enabled: canManageSettings, // Only fetch if user can manage settings
+    enabled: canManageSettings,
   });
   
-  // Form for app settings
   const appSettingsForm = useForm<AppSettingsFormValues>({
     resolver: zodResolver(appSettingsSchema),
     defaultValues: {
@@ -140,11 +133,11 @@ export default function Settings() {
       primaryColor: DEFAULT_THEME.primaryColor,
       secondaryColor: DEFAULT_THEME.secondaryColor,
       sidebarColor: DEFAULT_THEME.sidebarColor,
-      accentColor: DEFAULT_THEME.accentColor
+      accentColor: DEFAULT_THEME.accentColor,
+      logoUrl: DEFAULT_THEME.logoUrl || "",
     },
   });
   
-  // Form for Fortnox settings
   const fortnoxSettingsForm = useForm<FortnoxSettingsFormValues>({
     resolver: zodResolver(fortnoxSettingsSchema),
     defaultValues: {
@@ -154,7 +147,6 @@ export default function Settings() {
     },
   });
   
-  // Update form values when data is loaded
   useEffect(() => {
     if (appSettings) {
       appSettingsForm.reset({
@@ -163,6 +155,7 @@ export default function Settings() {
         secondaryColor: appSettings.secondaryColor,
         sidebarColor: appSettings.sidebarColor,
         accentColor: appSettings.accentColor,
+        logoUrl: appSettings.logoUrl,
       });
     }
   }, [appSettings, appSettingsForm]);
@@ -178,21 +171,19 @@ export default function Settings() {
   }, [fortnoxSettings, fortnoxSettingsForm]);
 
   const handleResetToDefault = async () => {
-    // Reset the form to default values
     appSettingsForm.reset({
       appName: DEFAULT_THEME.appName,
       primaryColor: DEFAULT_THEME.primaryColor,
       secondaryColor: DEFAULT_THEME.secondaryColor,
       sidebarColor: DEFAULT_THEME.sidebarColor,
       accentColor: DEFAULT_THEME.accentColor,
+      logoUrl: DEFAULT_THEME.logoUrl,
     });
 
-    // Apply the default theme immediately
     applyColorTheme(DEFAULT_THEME);
     
     if (canManageSettings) {
       try {
-        // Save default colors to the database directly
         const { error } = await supabase
           .from("system_settings")
           .upsert({ 
@@ -202,7 +193,6 @@ export default function Settings() {
           
         if (error) throw error;
         
-        // Invalidate the query to refetch
         queryClient.invalidateQueries({ queryKey: ["app-settings"] });
         
         toast.success("Colors reset to default and applied to all users");
@@ -224,10 +214,11 @@ export default function Settings() {
     }
     
     try {
-      // Apply the theme immediately
-      applyColorTheme(data as AppSettings);
+      applyColorTheme({
+        ...data,
+        logoUrl: data.logoUrl || undefined
+      } as AppSettings);
       
-      // Save to database
       const { error } = await supabase
         .from("system_settings")
         .upsert({ 
@@ -237,7 +228,6 @@ export default function Settings() {
         
       if (error) throw error;
       
-      // Invalidate the query to refetch
       queryClient.invalidateQueries({ queryKey: ["app-settings"] });
       
       toast.success("Application settings saved for all users");
@@ -263,13 +253,65 @@ export default function Settings() {
         
       if (error) throw error;
       
-      // Invalidate the query to refetch
       queryClient.invalidateQueries({ queryKey: ["fortnox-settings"] });
       
       toast.success("Fortnox settings saved");
     } catch (error) {
       console.error("Error saving Fortnox settings:", error);
       toast.error("Failed to save Fortnox settings");
+    }
+  };
+  
+  const handleLogoUpload = async (file: File) => {
+    if (!canManageSettings) {
+      toast.error("You don't have permission to change application settings");
+      return null;
+    }
+    
+    try {
+      setUploadingLogo(true);
+      
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.find(bucket => bucket.name === 'app-assets')) {
+        await supabase.storage.createBucket('app-assets', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'],
+          fileSizeLimit: 1024 * 1024,
+        });
+      }
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('app-assets')
+        .upload(`logos/${fileName}`, file, {
+          upsert: true,
+        });
+        
+      if (error) throw error;
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('app-assets')
+        .getPublicUrl(`logos/${fileName}`);
+        
+      return publicUrlData.publicUrl;
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast.error("Failed to upload logo");
+      return null;
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+  
+  const onLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setLogoFile(file);
+    const logoUrl = await handleLogoUpload(file);
+    if (logoUrl) {
+      appSettingsForm.setValue('logoUrl', logoUrl, { shouldDirty: true });
     }
   };
   
@@ -328,6 +370,52 @@ export default function Settings() {
                           This will be displayed in the browser tab and application header.
                         </FormDescription>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={appSettingsForm.control}
+                    name="logoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Application Logo</FormLabel>
+                        <div className="space-y-4">
+                          {field.value && (
+                            <div className="flex items-center space-x-4">
+                              <img 
+                                src={field.value} 
+                                alt="App Logo" 
+                                className="h-12 w-auto object-contain border rounded p-1" 
+                              />
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => appSettingsForm.setValue('logoUrl', '', { shouldDirty: true })}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                          <FormControl>
+                            <div className="flex items-center">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={onLogoChange}
+                                disabled={uploadingLogo}
+                                className="w-full max-w-sm"
+                              />
+                              {uploadingLogo && (
+                                <div className="ml-2 animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormDescription>
+                            Upload a logo to display in the application header. Recommended size: 200×60px.
+                          </FormDescription>
+                          <FormMessage />
+                        </div>
                       </FormItem>
                     )}
                   />

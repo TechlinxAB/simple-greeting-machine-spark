@@ -18,7 +18,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
-import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, ReportsIcon, AdminIcon, NewsIcon, SettingsIcon } from "@/components/icons";
+import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, NewsIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -27,16 +29,40 @@ export function AppSidebar() {
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
 
+  // Get app settings for logo
+  const { data: appSettings } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("settings")
+          .eq("id", "app_settings")
+          .single();
+          
+        if (error) {
+          console.error("Error fetching app settings:", error);
+          return null;
+        }
+        
+        return data?.settings as Record<string, any> || null;
+      } catch (error) {
+        console.error("Error in query:", error);
+        return null;
+      }
+    }
+  });
+
   const links = [
     {
-      title: "Dashboard",
+      title: "Time Tracking",
       href: "/",
-      icon: DashboardIcon,
+      icon: TimeIcon,
     },
     {
-      title: "Time Tracking",
-      href: "/time-tracking",
-      icon: TimeIcon,
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: DashboardIcon,
     },
     {
       title: "Clients",
@@ -57,10 +83,9 @@ export function AppSidebar() {
       managerOnly: true,
     },
     {
-      title: "Reports",
-      href: "/reports",
-      icon: ReportsIcon,
-      managerOnly: true,
+      title: "Profile",
+      href: "/profile",
+      icon: ProfileIcon,
     },
     {
       title: "Administration",
@@ -98,9 +123,13 @@ export function AppSidebar() {
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <img src="/src/logo.png" alt="Logo" className="h-6 w-auto" />
+          {appSettings?.logoUrl ? (
+            <img src={appSettings.logoUrl} alt="Logo" className="h-6 w-auto" />
+          ) : (
+            <img src="/src/logo.png" alt="Logo" className="h-6 w-auto" />
+          )}
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis">
-            Time Tracker
+            {appSettings?.appName || "Time Tracker"}
           </h2>
         </div>
       </SidebarHeader>
@@ -164,20 +193,20 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
         {user && (
-          <div className="flex items-center justify-between">
+          <Link to="/profile" className="flex items-center justify-between hover:bg-sidebar-accent rounded-md p-2 transition-colors">
             <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 bg-primary/10">
                 <AvatarImage 
                   src={user.user_metadata?.avatar_url || ""} 
                   alt={user.user_metadata?.name || user.email || "User"} 
                 />
-                <AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary-foreground">
                   {getInitials(user.user_metadata?.name, user.email)}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-sidebar-foreground overflow-hidden text-ellipsis max-w-[120px]">
-                  {user.user_metadata?.name || user.email || "User"}
+                  {user.user_metadata?.name || "User"}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 capitalize">{role || "User"}</p>
               </div>
@@ -185,13 +214,17 @@ export function AppSidebar() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => signOut()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                signOut();
+              }}
               className="h-8 w-8 bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/80"
             >
               <LogOut className="h-4 w-4" />
               <span className="sr-only">Log out</span>
             </Button>
-          </div>
+          </Link>
         )}
       </SidebarFooter>
     </Sidebar>

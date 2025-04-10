@@ -34,15 +34,15 @@ const App = () => (
               {/* Protected routes wrapped in AppLayout */}
               <Route element={<AppLayout />}>
                 <Route path="/" element={<TimeTracking />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
-                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/administration" element={<Administration />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/profile" element={<Profile />} />
                 
-                {/* Redirect old /reports path to /dashboard */}
+                {/* Redirect old paths */}
                 <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
               </Route>
               

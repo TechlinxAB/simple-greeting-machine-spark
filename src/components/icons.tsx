@@ -1,5 +1,5 @@
 
-import { LucideIcon, AlertCircle, FileText, Users, Clock, FilterIcon, Trash, Check, ArrowUpDown, LayoutDashboard, Package, BarChart3, Settings, Newspaper } from "lucide-react";
+import { LucideIcon, AlertCircle, FileText, Users, Clock, FilterIcon, Trash, Check, ArrowUpDown, LayoutDashboard, Package, BarChart3, Settings, Newspaper, UserCircle } from "lucide-react";
 
 // This file serves as a centralized place to export icons or icon sets
 // Create icon configurations used throughout the application
@@ -31,7 +31,7 @@ export const Icons = {
   arrowUpDown: ArrowUpDown
 };
 
-// Add exports for sidebar icons
+// Export icons for sidebar and other components
 export const DashboardIcon = LayoutDashboard;
 export const ClientsIcon = Users;
 export const ProductsIcon = Package;
@@ -41,3 +41,4 @@ export const ReportsIcon = BarChart3;
 export const AdminIcon = Settings;
 export const NewsIcon = Newspaper;
 export const SettingsIcon = Settings;
+export const ProfileIcon = UserCircle;
