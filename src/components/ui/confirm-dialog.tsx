@@ -15,38 +15,36 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description: string;
   actionLabel: string;
-  cancelLabel?: string;
   onAction: () => void;
   variant?: "default" | "destructive";
 }
 
-export function ConfirmDialog({
+export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   onOpenChange,
   title,
   description,
   actionLabel,
-  cancelLabel = "Cancel",
   onAction,
   variant = "default",
-}: ConfirmDialogProps) {
+}) => {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
+          {/* Fix: Wrap content in a div instead of incorrectly nesting inside p tag */}
+          <AlertDialogDescription asChild>
+            <div>{description}</div>
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onAction();
-            }}
-            className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            onClick={onAction}
+            className={variant === "destructive" ? "bg-destructive hover:bg-destructive/90" : ""}
           >
             {actionLabel}
           </AlertDialogAction>
@@ -54,4 +52,4 @@ export function ConfirmDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};

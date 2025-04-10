@@ -13,36 +13,6 @@ export const LOGO_BUCKET_NAME = "application-logo";
 export const LOGO_FOLDER_PATH = "logos";
 
 /**
- * Ensures the application-logo bucket exists
- * @returns Promise with boolean indicating success
- */
-export async function ensureLogoBucketExists(): Promise<boolean> {
-  try {
-    // Check if bucket exists
-    const { data: existingBuckets, error } = await supabase
-      .storage
-      .listBuckets();
-      
-    if (error) {
-      console.error("Failed to list buckets:", error);
-      return false;
-    }
-    
-    const bucketExists = existingBuckets?.some(bucket => bucket.name === LOGO_BUCKET_NAME);
-    
-    if (bucketExists) {
-      return true;
-    } else {
-      console.error(`No ${LOGO_BUCKET_NAME} bucket exists. The bucket needs to be created in Supabase.`);
-      return false;
-    }
-  } catch (error) {
-    console.error("Failed to ensure bucket exists", error);
-    return false;
-  }
-}
-
-/**
  * Checks if a logo exists in storage
  * @returns Promise with boolean
  */
@@ -75,22 +45,6 @@ export async function checkLogoExists(): Promise<boolean> {
  */
 export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, success: boolean }> {
   try {
-    // First ensure storage bucket exists
-    const bucketExists = await ensureLogoBucketExists();
-    if (!bucketExists) {
-      console.error("Logo bucket doesn't exist and couldn't be created");
-      
-      // Even if bucket doesn't exist, let's try to proceed with local storage
-      const fileDataUrl = await fileToDataUrl(file);
-      if (fileDataUrl) {
-        // Store in localStorage at least, so it works for the current user
-        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
-        return { dataUrl: fileDataUrl, success: false };
-      }
-      
-      return { dataUrl: '', success: false };
-    }
-    
     // Delete any existing logos first to avoid accumulation
     await removeAppLogo();
     
@@ -266,7 +220,34 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
       return storedDataUrl;
     }
     
-    // Then check database
+    // Check for logos in the storage bucket
+    const logoExists = await checkLogoExists();
+    if (logoExists) {
+      // Find the first logo file
+      const { data: files, error: listError } = await supabase
+        .storage
+        .from(LOGO_BUCKET_NAME)
+        .list(LOGO_FOLDER_PATH, {
+          search: 'logo',
+          limit: 1,
+        });
+      
+      if (!listError && files && files.length > 0) {
+        // Get the public URL
+        const { data: publicUrl } = supabase
+          .storage
+          .from(LOGO_BUCKET_NAME)
+          .getPublicUrl(`${LOGO_FOLDER_PATH}/${files[0].name}`);
+          
+        if (publicUrl?.publicUrl) {
+          // Cache it
+          localStorage.setItem(LOGO_DATA_URL_KEY, publicUrl.publicUrl);
+          return publicUrl.publicUrl;
+        }
+      }
+    }
+    
+    // Then check database as fallback
     const { data: settingsData, error: settingsError } = await supabase
       .from("system_settings")
       .select("settings")
@@ -284,7 +265,7 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
       }
     }
     
-    // If both checks fail, return null
+    // If all checks fail, return null
     return null;
   } catch (error) {
     console.error("Error getting logo data URL:", error);
