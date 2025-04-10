@@ -14,9 +14,6 @@ import {
   Cell
 } from 'recharts';
 
-// Use direct components with default parameters instead of wrappers
-// This avoids the "Support for defaultProps will be removed" warnings
-
 interface BarChartProps {
   data: any[];
   className?: string;
@@ -44,10 +41,8 @@ export const BarChart: React.FC<BarChartProps> = ({
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <RechartsXAxis 
-            dataKey="name" 
-            // Using React default parameters instead of defaultProps
-          />
+          {/* Pass all properties directly to RechartsXAxis instead of using defaultProps */}
+          <RechartsXAxis dataKey="name" />
           <RechartsYAxis />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
