@@ -35,32 +35,39 @@ export const DialogWrapper: React.FC<DialogWrapperProps> = ({
   hideDescription = false,
   footer,
 }) => {
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
   // Always include DialogTitle, but optionally hide it visually
   const TitleComponent = hideTitle ? (
     <VisuallyHidden>
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle id={titleId}>{title}</DialogTitle>
     </VisuallyHidden>
   ) : (
-    <DialogTitle>{title}</DialogTitle>
+    <DialogTitle id={titleId}>{title}</DialogTitle>
   );
 
   // Always include DialogDescription (even if empty), but optionally hide it visually
   const DescriptionComponent = description ? (
     hideDescription ? (
       <VisuallyHidden>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogDescription id={descriptionId}>{description}</DialogDescription>
       </VisuallyHidden>
     ) : (
-      <DialogDescription>{description}</DialogDescription>
+      <DialogDescription id={descriptionId}>{description}</DialogDescription>
     )
   ) : (
     <VisuallyHidden>
-      <DialogDescription>Dialog content</DialogDescription>
+      <DialogDescription id={descriptionId}>Dialog content</DialogDescription>
     </VisuallyHidden>
   );
 
   const dialogContent = (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent 
+      className="sm:max-w-md"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+    >
       <DialogHeader>
         {TitleComponent}
         {DescriptionComponent}

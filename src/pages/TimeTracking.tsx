@@ -11,14 +11,12 @@ import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSidebar } from "@/components/ui/sidebar";
 
 export default function TimeTracking() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const { toggleSidebar } = useSidebar();
 
   // Refetch clients data when the component mounts to ensure data freshness
   const { isLoading: isClientsLoading } = useQuery({

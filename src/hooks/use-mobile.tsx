@@ -13,34 +13,44 @@ export function useIsMobile() {
   });
 
   React.useEffect(() => {
+    // Check if window is available (for SSR)
+    if (typeof window === 'undefined') return;
+
     // Set the initial value based on window width
     const checkMobile = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     };
     
-    // Run immediately
+    // Run immediately to set initial state
     checkMobile();
     
     // Set up media query listener for better performance
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     
-    // Modern event listener (for newer browsers)
+    // Handle media query changes
     const handleChange = (e: MediaQueryListEvent) => {
       setIsMobile(e.matches);
     };
     
+    // Fallback for resize events (used when matchMedia listener isn't available)
+    const handleResize = () => {
+      checkMobile();
+    };
+    
+    // Use the appropriate event listener based on browser support
     if (mql.addEventListener) {
       mql.addEventListener("change", handleChange);
     } else {
       // Fallback for older browsers
-      window.addEventListener("resize", checkMobile);
+      window.addEventListener("resize", handleResize);
     }
     
+    // Clean up event listeners
     return () => {
       if (mql.removeEventListener) {
         mql.removeEventListener("change", handleChange);
       } else {
-        window.removeEventListener("resize", checkMobile);
+        window.removeEventListener("resize", handleResize);
       }
     };
   }, []);
