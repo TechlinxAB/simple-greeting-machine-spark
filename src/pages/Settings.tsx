@@ -82,7 +82,7 @@ export default function Settings() {
   }
   
   const { data: appLogo, refetch: refetchLogo, isLoading: isLogoLoading } = useQuery({
-    queryKey: ["app-logo"],
+    queryKey: ["app-logo-settings"],
     queryFn: async () => {
       setLoadingLogo(true);
       try {
@@ -268,7 +268,7 @@ export default function Settings() {
         }
         
         queryClient.invalidateQueries({ queryKey: ["app-settings"] });
-        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
         
         toast.success("Colors and logo reset to default and applied to all users");
       } catch (error) {
@@ -362,8 +362,8 @@ export default function Settings() {
       } else {
         toast.success("Logo uploaded successfully");
         setHasExistingLogo(true);
-        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
-        queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
       }
       
       return dataUrl;
@@ -401,14 +401,14 @@ export default function Settings() {
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
-      const logoUrl = await handleLogoUpload(file);
+      const logoDataUrl = await handleLogoUpload(file);
       
-      if (!logoUrl) {
-        toast.warning("Using local preview. The logo upload process encountered issues.");
-      } else {
-        setLogoPreview(logoUrl);
+      if (logoDataUrl) {
+        setLogoPreview(logoDataUrl);
         setHasExistingLogo(true);
         refetchLogo();
+      } else {
+        toast.warning("Using local preview. The logo upload process encountered issues.");
       }
       
       URL.revokeObjectURL(objectUrl);
@@ -437,8 +437,8 @@ export default function Settings() {
         setHasExistingLogo(false);
         setLogoError(false);
         
-        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
-        queryClient.invalidateQueries({ queryKey: ["app-logo-sidebar"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
         
         toast.success("Logo removed successfully");
       } else {
@@ -540,7 +540,7 @@ export default function Settings() {
                       <div className="flex items-center space-x-4">
                         <div className="bg-white p-2 rounded border inline-block">
                           <img 
-                            src={`${logoPreview || appLogo}?t=${Date.now()}`}
+                            src={logoPreview || appLogo}
                             alt="App Logo" 
                             className="h-12 w-auto max-w-[200px] object-contain" 
                             onError={handleLogoError}

@@ -329,6 +329,9 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
     // First remove any existing logos
     await removeAppLogo();
     
+    // Ensure the bucket exists
+    await ensureLogoBucketExists();
+    
     // Create a filename with extension
     const fileExt = file.name.split('.').pop();
     const filePath = `${LOGO_FILENAME}.${fileExt}`;
@@ -336,7 +339,7 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
     console.log(`Uploading logo as ${filePath}`);
     
     // Upload the file
-    const { error: uploadError, data } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(LOGO_BUCKET)
       .upload(filePath, resizedBlob, {
         cacheControl: "no-cache",
@@ -345,24 +348,11 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
       
     if (uploadError) {
       console.error("Error uploading logo:", uploadError);
+      // Return the data URL as a fallback - this is an important change
       return { dataUrl, success: false };
     }
     
-    // Get the public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(LOGO_BUCKET)
-      .getPublicUrl(filePath);
-      
-    console.log("Logo uploaded successfully, public URL:", publicUrl);
-    
-    // Attempt to preload the image to verify it can be loaded
-    const canLoad = await preloadImage(publicUrl);
-    
-    if (!canLoad) {
-      // If we can't load from the public URL, we'll use the data URL as fallback
-      throw new Error("Logo uploaded but cannot be displayed correctly");
-    }
-    
+    // We'll return the dataUrl as the success path too - this is key to fix the issues
     return { dataUrl, success: true };
   } catch (error) {
     console.error("Error in uploadAppLogo:", error);

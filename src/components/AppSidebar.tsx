@@ -86,14 +86,14 @@ export function AppSidebar() {
     enabled: !!user?.id
   });
 
-  const { data: appLogo, isLoading: logoLoading } = useQuery({
-    queryKey: ["app-logo-sidebar"],
+  // Modified to use data URL approach
+  const { data: logoDataUrl, isLoading: logoLoading } = useQuery({
+    queryKey: ["app-logo-dataurl"],
     queryFn: async () => {
       try {
         await ensureLogoBucketExists();
         
         const dataUrl = await getStoredLogoAsDataUrl();
-        
         if (!dataUrl) {
           return DEFAULT_LOGO_PATH;
         }
@@ -110,13 +110,13 @@ export function AppSidebar() {
   });
 
   useEffect(() => {
-    if (appLogo) {
-      setLogoUrl(appLogo);
+    if (logoDataUrl) {
+      setLogoUrl(logoDataUrl);
       setLogoError(false);
     } else {
       setLogoUrl(DEFAULT_LOGO_PATH);
     }
-  }, [appLogo]);
+  }, [logoDataUrl]);
 
   const links = [
     {
@@ -213,7 +213,7 @@ export function AppSidebar() {
               <div className="h-6 w-16 animate-pulse bg-gray-200 rounded"></div>
             ) : (
               <img 
-                src={`${logoUrl}?t=${Date.now()}`}
+                src={logoUrl}
                 alt="Logo" 
                 className="h-full w-auto max-w-[100px] object-contain" 
                 onError={handleLogoError}
