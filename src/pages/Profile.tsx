@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,11 @@ const Profile = () => {
         // First check if we have data in user metadata
         if (user.user_metadata) {
           setName(user.user_metadata.name || "");
-          setAvatarUrl(user.user_metadata.avatar_url || "");
+          
+          // Only set avatar from metadata if it exists and we don't have one from profiles yet
+          if (user.user_metadata.avatar_url) {
+            setAvatarUrl(user.user_metadata.avatar_url);
+          }
           
           // Only set DOB from metadata if it exists there
           if (user.user_metadata.date_of_birth) {
@@ -48,7 +51,12 @@ const Profile = () => {
         
         if (data) {
           setName(data.name || "");
-          setAvatarUrl(data.avatar_url || "");
+          
+          // Only update avatar_url if it exists in the database
+          if (data.avatar_url) {
+            setAvatarUrl(data.avatar_url);
+          }
+          
           if (data.date_of_birth) {
             setDob(data.date_of_birth);
           }
@@ -86,6 +94,7 @@ const Profile = () => {
   };
 
   const handleImageUploaded = (url: string) => {
+    console.log("Image URL updated:", url);
     setAvatarUrl(url);
   };
 

@@ -94,26 +94,39 @@ const ProfileImageUpload = ({
 
     setIsUploading(true);
     try {
-      // Extract the file path from the URL
-      const storageUrl = supabase.storage.from('app-assets').getPublicUrl('').data.publicUrl;
-      const filePath = avatarUrl.replace(storageUrl, '');
+      // Extract the file path from the URL correctly
+      // The URL format is usually: https://[project-ref].supabase.co/storage/v1/object/public/[bucket]/[path]
       
-      // Remove the leading slash if present
-      const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+      // Parse the URL correctly to get just the file path
+      const urlParts = avatarUrl.split('/');
+      // Find 'public' in the URL and take everything after it
+      const publicIndex = urlParts.findIndex(part => part === 'public');
       
-      console.log('Deleting file from path:', cleanFilePath);
+      if (publicIndex === -1) {
+        throw new Error('Unable to parse storage URL correctly');
+      }
+      
+      // Get the bucket name and file path
+      const bucket = urlParts[publicIndex + 1];
+      // Join the remaining parts to get the file path
+      const filePath = urlParts.slice(publicIndex + 2).join('/');
+      
+      console.log('Deleting file from bucket:', bucket);
+      console.log('File path for deletion:', filePath);
       
       // Delete from storage
       const { error } = await supabase.storage
         .from('app-assets')
-        .remove([cleanFilePath]);
+        .remove([filePath]);
         
       if (error) {
         console.error('Error removing profile image:', error);
         throw error;
       }
       
-      // Update profile
+      console.log('Profile image deleted successfully');
+      
+      // Update profile - clear the avatar URL
       onImageUploaded('');
       
       toast.success('Profile image removed successfully');
