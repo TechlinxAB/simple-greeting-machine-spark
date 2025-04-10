@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // API base URL for Fortnox
@@ -140,6 +141,16 @@ serve(async (req) => {
     if (method !== 'GET' && payload) {
       console.log("Request payload to Fortnox:", JSON.stringify(payload, null, 2));
       
+      // IMPORTANT: Preserve the original ArticleNumber when creating articles
+      if (method === 'POST' && path.includes('/articles') && payload.Article) {
+        console.log("🔍 Processing article creation with ArticleNumber:", payload.Article.ArticleNumber);
+        
+        // Make sure we don't remove or modify the ArticleNumber that was passed in
+        if (payload.Article.ArticleNumber) {
+          console.log("✅ Using provided ArticleNumber for article creation:", payload.Article.ArticleNumber);
+        }
+      }
+      
       // VALIDATION: For Invoice Creation
       if (method === 'POST' && path.includes('/invoices') && payload.Invoice) {
         console.log("🔍 Validating invoice payload...");
@@ -165,7 +176,7 @@ serve(async (req) => {
             console.log("⚠️ Replaced PricesIncludeVAT with VATIncluded as per Fortnox API");
           }
           
-          // Validate InvoiceRows
+          // Validate InvoiceRows but preserve ArticleNumber
           if (payload.Invoice.InvoiceRows && Array.isArray(payload.Invoice.InvoiceRows)) {
             payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
               // Create a new sanitized row
@@ -182,9 +193,10 @@ serve(async (req) => {
                 validRow.Unit = row.Unit;
               }
               
-              // Only include ArticleNumber if it's valid (numeric)
-              if (row.ArticleNumber && /^\d+$/.test(row.ArticleNumber.toString())) {
+              // Preserve ArticleNumber if provided
+              if (row.ArticleNumber) {
                 validRow.ArticleNumber = row.ArticleNumber;
+                console.log(`✅ Preserving ArticleNumber in invoice row: ${row.ArticleNumber}`);
               }
               
               return validRow;
@@ -238,81 +250,14 @@ serve(async (req) => {
           console.error("💥 Request payload that caused the error:", JSON.stringify(payload, null, 2));
         }
         
-        // Special handling for article number errors
-        if (method === 'POST' && path.includes('/invoices') && 
-            (text.includes("ArticleNumber") || 
-             text.includes("2001204") || 
-             text.includes("2001008") || 
-             text.includes("article not found"))) {
-          
-          console.log("🔄 Article number error detected, trying to retry without article numbers...");
-          
-          // Create a deep copy of the original payload for the retry
-          let retryPayload = JSON.parse(JSON.stringify(payload));
-          
-          // Remove all ArticleNumber fields from invoice rows
-          if (retryPayload.Invoice && retryPayload.Invoice.InvoiceRows) {
-            retryPayload.Invoice.InvoiceRows = retryPayload.Invoice.InvoiceRows.map((row: any) => {
-              const { ArticleNumber, ...restRow } = row;
-              return restRow;
-            });
-            
-            console.log("🔄 Retrying invoice creation without ArticleNumber fields:", JSON.stringify(retryPayload, null, 2));
-            
-            // Try again with the modified payload
-            const retryRes = await fetch(fortnoxUrl, {
-              method,
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Client-Secret': clientSecret,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify(retryPayload)
-            });
-            
-            const retryText = await retryRes.text();
-            
-            if (retryRes.ok) {
-              console.log("✅ Retry successful! Invoice created without ArticleNumber");
-              return new Response(retryText, {
-                status: retryRes.status,
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...corsHeaders
-                }
-              });
-            } else {
-              console.error("❌ Retry also failed:", retryText);
-              // Return the original error, we'll handle the retry on the client side
-            }
-          }
-          
-          // Extract error code for better diagnosis
-          let errorCode = null;
-          if (errorDetails?.ErrorInformation?.Code) {
-            errorCode = errorDetails.ErrorInformation.Code;
-          } else if (errorDetails?.ErrorInformation?.error?.code) {
-            errorCode = errorDetails.ErrorInformation.error.code;
-          }
-          
-          return new Response(
-            JSON.stringify({
-              error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
-              details: errorDetails,
-              fortnoxStatus: fortnoxRes.status,
-              requestPayload: payload,
-              errorCode: errorCode,
-              retryWithoutArticleNumber: true
-            }),
-            {
-              status: fortnoxRes.status,
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders
-              }
-            }
-          );
+        // No need for special handling for article number errors anymore as we preserve original article numbers
+        
+        // Extract error code for better diagnosis
+        let errorCode = null;
+        if (errorDetails?.ErrorInformation?.Code) {
+          errorCode = errorDetails.ErrorInformation.Code;
+        } else if (errorDetails?.ErrorInformation?.error?.code) {
+          errorCode = errorDetails.ErrorInformation.error.code;
         }
         
         return new Response(
@@ -321,7 +266,7 @@ serve(async (req) => {
             details: errorDetails,
             fortnoxStatus: fortnoxRes.status,
             requestPayload: payload,
-            errorCode: errorDetails?.ErrorInformation?.Code || errorDetails?.ErrorInformation?.error?.code || null
+            errorCode: errorCode
           }),
           {
             status: fortnoxRes.status,

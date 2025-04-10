@@ -102,25 +102,19 @@ export async function formatTimeEntriesForFortnox(
     const invoiceRows: FortnoxInvoiceRow[] = await Promise.all(timeEntries.map(async (entry) => {
       const product = entry.products as Product;
       
-      // Validate ArticleNumber - only use if it's numeric
+      // Check if article exists in Fortnox or create it with the original article number
       let articleNumber: string | undefined = undefined;
-      if (product.article_number && /^\d+$/.test(product.article_number)) {
+      if (product.article_number) {
         // Check if this article exists in Fortnox
         const exists = await checkFortnoxArticle(product.article_number);
         if (exists) {
           articleNumber = product.article_number;
         } else {
-          // Create or ensure article exists
+          // Create new article with the original article number
           const newArticleNumber = await ensureFortnoxArticle(product);
           if (newArticleNumber) {
             articleNumber = newArticleNumber;
           }
-        }
-      } else if (product.id) {
-        // If article number is not numeric, try to create a new one
-        const newArticleNumber = await ensureFortnoxArticle(product);
-        if (newArticleNumber) {
-          articleNumber = newArticleNumber;
         }
       }
       
@@ -141,8 +135,7 @@ export async function formatTimeEntriesForFortnox(
         quantity = entry.quantity;
       }
       
-      // Format description in a Fortnox-compatible way (avoid pipe symbols)
-      // Sanitize description by removing special characters and formatting properly
+      // Format description in a Fortnox-compatible way
       const baseDescription = entry.description || product.name || "Service";
       const timeInfo = product.type === 'activity' && entry.start_time && entry.end_time ? 
         formatDateRange(entry.start_time, entry.end_time) : '';
@@ -176,7 +169,7 @@ export async function formatTimeEntriesForFortnox(
         Unit: unit
       };
       
-      // Only add ArticleNumber if it exists and is numeric
+      // Only add ArticleNumber if it exists
       if (articleNumber) {
         row.ArticleNumber = articleNumber;
       }
@@ -343,6 +336,7 @@ export async function createFortnoxCustomer(client: Client): Promise<string> {
 
 /**
  * Generate a unique numeric article number
+ * This is now only used as a fallback if no article_number is provided
  */
 export async function generateNumericArticleNumber(): Promise<string> {
   // Start with a base number (current timestamp last 6 digits for uniqueness)
@@ -354,53 +348,85 @@ export async function generateNumericArticleNumber(): Promise<string> {
 
 /**
  * Create or update an article in Fortnox if needed
+ * Modified to preserve original article numbers
  */
 export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
   try {
-    // Check if product already has a valid article number
-    if (product.article_number && /^\d+$/.test(product.article_number)) {
+    // First check if the product has an article number
+    if (product.article_number) {
       // Check if this article exists in Fortnox
       const exists = await checkFortnoxArticle(product.article_number);
       if (exists) {
         console.log(`Using existing Fortnox article with number: ${product.article_number}`);
         return product.article_number;
       }
+      
+      // Article doesn't exist, create it with the original article number
+      console.log(`Creating new article with original article number: ${product.article_number}`);
+      
+      // Format the article data with the original article number
+      const articleData: FortnoxArticleData = {
+        Description: product.name || "Service",
+        ArticleNumber: product.article_number, // Use the original article number
+        Type: "SERVICE", // Default to SERVICE type for all products
+        SalesAccount: product.account_number || "3001",
+        SalesPrice: product.price,
+        VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
+        StockGoods: false // Set to false for service products
+      };
+      
+      // Create the article in Fortnox with the original article number
+      console.log("Creating new article in Fortnox with original number:", articleData);
+      const response = await fortnoxApiRequest("/articles", "POST", {
+        Article: articleData
+      });
+      
+      if (!response || !response.Article) {
+        console.error("Failed to create article in Fortnox");
+        return null;
+      }
+      
+      const newArticleNumber = response.Article.ArticleNumber;
+      console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
+      
+      return newArticleNumber;
+    } else {
+      // No article number provided, generate one
+      const generatedArticleNumber = await generateNumericArticleNumber();
+      
+      // Format the article data with the generated article number
+      const articleData: FortnoxArticleData = {
+        Description: product.name || "Service",
+        ArticleNumber: generatedArticleNumber,
+        Type: "SERVICE",
+        SalesAccount: product.account_number || "3001",
+        SalesPrice: product.price,
+        VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
+        StockGoods: false
+      };
+      
+      // Create the article in Fortnox with the generated number
+      console.log("Creating new article in Fortnox with generated number:", articleData);
+      const response = await fortnoxApiRequest("/articles", "POST", {
+        Article: articleData
+      });
+      
+      if (!response || !response.Article) {
+        console.error("Failed to create article in Fortnox");
+        return null;
+      }
+      
+      const newArticleNumber = response.Article.ArticleNumber;
+      console.log(`Article created in Fortnox with generated number: ${newArticleNumber}`);
+      
+      // Update our local product with the new article number
+      await supabase
+        .from("products")
+        .update({ article_number: newArticleNumber })
+        .eq("id", product.id);
+      
+      return newArticleNumber;
     }
-    
-    // Generate a new article number
-    const articleNumber = await generateNumericArticleNumber();
-    
-    // Format the article data
-    const articleData: FortnoxArticleData = {
-      Description: product.name || "Service",
-      ArticleNumber: articleNumber,
-      Type: "SERVICE", // Default to SERVICE type for all products
-      SalesAccount: product.account_number || "3001",
-      VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
-      StockGoods: false // Set to false for service products
-    };
-    
-    // Create the article in Fortnox
-    console.log("Creating new article in Fortnox:", articleData);
-    const response = await fortnoxApiRequest("/articles", "POST", {
-      Article: articleData
-    });
-    
-    if (!response || !response.Article) {
-      console.error("Failed to create article in Fortnox");
-      return null;
-    }
-    
-    const newArticleNumber = response.Article.ArticleNumber;
-    console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
-    
-    // Update our local product with the new article number
-    await supabase
-      .from("products")
-      .update({ article_number: newArticleNumber })
-      .eq("id", product.id);
-    
-    return newArticleNumber;
   } catch (error) {
     console.error("Error ensuring Fortnox article:", error);
     return null;
