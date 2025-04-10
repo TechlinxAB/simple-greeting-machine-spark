@@ -7,9 +7,10 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { AlertCircle } from "lucide-react";
+import type { Client } from "@/types";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -20,7 +21,7 @@ const formSchema = z.object({
   city: z.string().optional(),
   county: z.string().optional(),
   telephone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
+  email: z.string().email({ message: "Please enter a valid email" }).optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -29,11 +30,12 @@ interface ClientFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  clientToEdit?: Client | null;
 }
 
-export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
+export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: ClientFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const isEditMode = !!clientToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -50,27 +52,40 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
     },
   });
 
-  // Reset form when drawer opens or closes
+  // Set form values when editing an existing client
   useEffect(() => {
-    if (open) {
-      setFormError(null);
+    if (clientToEdit) {
+      form.reset({
+        name: clientToEdit.name,
+        organization_number: clientToEdit.organization_number || "",
+        client_number: clientToEdit.client_number || "",
+        address: clientToEdit.address || "",
+        postal_code: clientToEdit.postal_code || "",
+        city: clientToEdit.city || "",
+        county: clientToEdit.county || "",
+        telephone: clientToEdit.telephone || "",
+        email: clientToEdit.email || "",
+      });
     } else {
-      // Reset form with a slight delay to ensure the drawer is closed first
-      const timer = setTimeout(() => {
-        form.reset();
-      }, 300);
-      return () => clearTimeout(timer);
+      // Reset form when adding a new client
+      form.reset({
+        name: "",
+        organization_number: "",
+        client_number: "",
+        address: "",
+        postal_code: "",
+        city: "",
+        county: "",
+        telephone: "",
+        email: "",
+      });
     }
-  }, [open, form]);
+  }, [clientToEdit, form]);
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
-    setFormError(null);
-    
     try {
-      console.log("Creating new client:", values.name);
-      
-      // Create a client data object with proper typing
+      // Process empty strings to null for optional fields
       const clientData = {
         name: values.name,
         organization_number: values.organization_number || null,
@@ -82,28 +97,36 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
         telephone: values.telephone || null,
         email: values.email || null,
       };
-      
-      const { error, data } = await supabase.from("clients").insert(clientData).select().single();
 
-      if (error) {
-        console.error("Error creating client:", error);
-        throw error;
+      let error;
+
+      if (isEditMode && clientToEdit) {
+        // Update existing client
+        const { error: updateError } = await supabase
+          .from("clients")
+          .update(clientData)
+          .eq("id", clientToEdit.id);
+        
+        error = updateError;
+        if (!error) {
+          toast.success("Client updated successfully");
+        }
+      } else {
+        // Create new client
+        const { error: insertError } = await supabase.from("clients").insert(clientData);
+        error = insertError;
+        if (!error) {
+          toast.success("Client created successfully");
+        }
       }
+
+      if (error) throw error;
       
-      console.log("Client created successfully:", data);
-      toast.success("Client created successfully");
       form.reset();
       onOpenChange(false);
-      if (onSuccess) {
-        // Use setTimeout to ensure the drawer animation completes
-        setTimeout(() => {
-          onSuccess();
-        }, 100);
-      }
+      if (onSuccess) onSuccess();
     } catch (error: any) {
-      console.error("Failed to create client:", error);
-      setFormError(error.message || "Failed to create client");
-      toast.error(error.message || "Failed to create client");
+      toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'create'} client`);
     } finally {
       setIsLoading(false);
     }
@@ -113,29 +136,22 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Create new client</DrawerTitle>
+          <DrawerTitle>{isEditMode ? 'Edit' : 'Create new'} client</DrawerTitle>
           <DrawerDescription>
-            Add a new client to your account
+            {isEditMode ? 'Update client information' : 'Add a new client to your account'}
           </DrawerDescription>
         </DrawerHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="px-4 py-2 space-y-4 max-h-[60vh] overflow-y-auto">
-              {formError && (
-                <div className="bg-red-50 p-3 rounded-md border border-red-200 text-red-700 flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">{formError}</div>
-                </div>
-              )}
-              
+            <div className="px-4 py-2 space-y-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Client Name*</FormLabel>
+                    <FormLabel>Name*</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter client name" {...field} />
+                      <Input placeholder="Client name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,7 +166,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Organization Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Organization number" {...field} />
+                        <Input placeholder="555555-5555" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -164,7 +180,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Client Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Client number" {...field} />
+                        <Input placeholder="Client reference number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -179,7 +195,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="Street address" {...field} />
+                      <Textarea placeholder="Street address" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -194,7 +210,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Postal Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="Postal code" {...field} />
+                        <Input placeholder="12345" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -208,7 +224,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input placeholder="City" {...field} />
+                        <Input placeholder="Stockholm" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -222,7 +238,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>County</FormLabel>
                       <FormControl>
-                        <Input placeholder="County" {...field} />
+                        <Input placeholder="Stockholm County" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -238,7 +254,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Telephone</FormLabel>
                       <FormControl>
-                        <Input placeholder="Telephone number" {...field} />
+                        <Input placeholder="+46 70 123 4567" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -252,7 +268,11 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="Email address" {...field} />
+                        <Input 
+                          type="email" 
+                          placeholder="contact@company.com" 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -263,12 +283,7 @@ export function ClientForm({ open, onOpenChange, onSuccess }: ClientFormProps) {
             
             <DrawerFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
-                    Creating...
-                  </>
-                ) : "Create client"}
+                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? "Update Client" : "Create Client")}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Cancel</Button>

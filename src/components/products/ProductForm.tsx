@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
-import type { ProductType } from "@/types";
+import type { Product, ProductType } from "@/types";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -28,12 +28,14 @@ interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   productType?: ProductType;
+  productToEdit?: Product | null;
   onSuccess?: () => void;
 }
 
-export function ProductForm({ open, onOpenChange, productType = "activity", onSuccess }: ProductFormProps) {
+export function ProductForm({ open, onOpenChange, productType = "activity", productToEdit, onSuccess }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedType, setSelectedType] = useState<ProductType>(productType);
+  const isEditMode = !!productToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -46,6 +48,31 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
       type: productType,
     },
   });
+
+  // Set form values when editing an existing product
+  useEffect(() => {
+    if (productToEdit) {
+      setSelectedType(productToEdit.type);
+      form.reset({
+        name: productToEdit.name,
+        price: productToEdit.price,
+        account_number: productToEdit.account_number || "",
+        article_number: productToEdit.article_number || "",
+        vat_percentage: productToEdit.vat_percentage || 25,
+        type: productToEdit.type,
+      });
+    } else {
+      // Reset form when adding a new product
+      form.reset({
+        name: "",
+        price: 0,
+        account_number: "",
+        article_number: "",
+        vat_percentage: 25,
+        type: productType,
+      });
+    }
+  }, [productToEdit, form, productType]);
 
   // Update the form values when the product type changes
   const handleProductTypeChange = (value: string) => {
@@ -66,16 +93,35 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
         type: values.type,
       };
 
-      const { error } = await supabase.from("products").insert(productData);
+      let error;
+
+      if (isEditMode && productToEdit) {
+        // Update existing product
+        const { error: updateError } = await supabase
+          .from("products")
+          .update(productData)
+          .eq("id", productToEdit.id);
+        
+        error = updateError;
+        if (!error) {
+          toast.success("Product updated successfully");
+        }
+      } else {
+        // Create new product
+        const { error: insertError } = await supabase.from("products").insert(productData);
+        error = insertError;
+        if (!error) {
+          toast.success("Product created successfully");
+        }
+      }
 
       if (error) throw error;
       
-      toast.success("Product created successfully");
       form.reset();
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      toast.error(error.message || "Failed to create product");
+      toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'create'} product`);
     } finally {
       setIsLoading(false);
     }
@@ -85,18 +131,19 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Create new product</DrawerTitle>
+          <DrawerTitle>{isEditMode ? 'Edit' : 'Create new'} product</DrawerTitle>
           <DrawerDescription>
-            Add a new activity or item to your account
+            {isEditMode ? 'Edit an existing' : 'Add a new'} activity or item to your account
           </DrawerDescription>
         </DrawerHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="px-4 py-2 space-y-4">
               <Tabs 
-                defaultValue={selectedType} 
+                value={selectedType} 
                 onValueChange={handleProductTypeChange} 
                 className="mb-6"
+                disabled={isEditMode}
               >
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="activity" className="flex items-center gap-2">
@@ -189,7 +236,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", onSu
             
             <DrawerFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : `Create ${selectedType}`}
+                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? `Update ${selectedType}` : `Create ${selectedType}`)}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Cancel</Button>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, Clock, Info, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Search, Package, Clock, Info, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import { ProductForm } from "@/components/products/ProductForm";
 import type { Product, ProductType } from "@/types";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -24,6 +24,7 @@ export default function Products() {
   const [productType, setProductType] = useState<ProductType>("activity");
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const queryClient = useQueryClient();
   const { role, user } = useAuth();
 
@@ -149,6 +150,13 @@ export default function Products() {
     setProductToDelete(product);
   };
 
+  const handleEditProduct = (product: Product) => {
+    console.log("handleEditProduct called with:", product);
+    setProductType(product.type);
+    setProductToEdit(product);
+    setShowProductForm(true);
+  };
+
   const confirmDeleteProduct = () => {
     console.log("confirmDeleteProduct called, productToDelete:", productToDelete);
     if (productToDelete) {
@@ -166,6 +174,7 @@ export default function Products() {
 
   const handleAddProduct = (type: ProductType) => {
     setProductType(type);
+    setProductToEdit(null);
     setShowProductForm(true);
   };
 
@@ -297,21 +306,38 @@ export default function Products() {
                       {canManageProducts && (
                         <TableCell className="text-right">
                           <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteProduct(product)}
-                                  className="text-destructive hover:text-destructive/80"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Delete product</p>
-                              </TooltipContent>
-                            </Tooltip>
+                            <div className="flex justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditProduct(product)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit product</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteProduct(product)}
+                                    className="text-destructive hover:text-destructive/80"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Delete product</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                           </TooltipProvider>
                         </TableCell>
                       )}
@@ -328,6 +354,7 @@ export default function Products() {
         open={showProductForm} 
         onOpenChange={setShowProductForm}
         productType={productType}
+        productToEdit={productToEdit}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["all-products"] });
           queryClient.invalidateQueries({ queryKey: ["products"] });

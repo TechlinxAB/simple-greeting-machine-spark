@@ -8,14 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { DeleteClientDialog } from "@/components/clients/DeleteClientDialog";
-import { Plus, Search, Users, Mail, Phone, RefreshCw } from "lucide-react";
+import { Plus, Search, Users, Mail, Phone, RefreshCw, Pencil } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Client } from "@/types";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientForm, setShowClientForm] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
   const queryClient = useQueryClient();
 
   const { data: clients = [], isLoading, isError, refetch } = useQuery({
@@ -60,6 +62,16 @@ export default function Clients() {
     queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 
+  const handleEditClient = (client: Client) => {
+    setClientToEdit(client);
+    setShowClientForm(true);
+  };
+
+  const handleAddClient = () => {
+    setClientToEdit(null);
+    setShowClientForm(true);
+  };
+
   const filteredClients = clients.filter((client: Client) => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (client.organization_number && client.organization_number.includes(searchTerm)) ||
@@ -93,7 +105,7 @@ export default function Clients() {
           </Button>
           
           <Button 
-            onClick={() => setShowClientForm(true)}
+            onClick={handleAddClient}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -139,7 +151,7 @@ export default function Clients() {
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => setShowClientForm(true)}
+                onClick={handleAddClient}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Client
@@ -155,7 +167,7 @@ export default function Clients() {
                     <TableHead>Client #</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -187,10 +199,29 @@ export default function Clients() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <DeleteClientDialog 
-                          client={client} 
-                          onClientDeleted={handleClientChanged} 
-                        />
+                        <TooltipProvider>
+                          <div className="flex justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditClient(client)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit client</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <DeleteClientDialog 
+                              client={client} 
+                              onClientDeleted={handleClientChanged} 
+                            />
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -205,6 +236,7 @@ export default function Clients() {
         open={showClientForm} 
         onOpenChange={setShowClientForm} 
         onSuccess={handleClientChanged}
+        clientToEdit={clientToEdit}
       />
     </div>
   );
