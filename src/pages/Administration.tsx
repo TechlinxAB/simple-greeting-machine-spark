@@ -337,10 +337,12 @@ export default function Administration() {
         if (error) {
           console.error("Error deleting time entries:", error);
           toast.error("Failed to delete time entries");
+          setIsDeleting(false);
           return;
         }
         
         refetchTimeEntries();
+        toast.success(`${selectedItems.length} time entries deleted successfully`);
       } else {
         const timeEntries = await supabase
           .from("time_entries")
@@ -365,18 +367,20 @@ export default function Administration() {
         if (error) {
           console.error("Error deleting invoices:", error);
           toast.error("Failed to delete invoices");
+          setIsDeleting(false);
           return;
         }
         
         refetchInvoices();
+        toast.success(`${selectedItems.length} invoices deleted successfully`);
       }
       
-      toast.success(`${selectedItems.length} items deleted successfully`);
       setSelectedItems([]);
       setBulkDeleteConfirmOpen(false);
     } catch (error) {
       console.error("Error in bulk delete operation:", error);
       toast.error("An unexpected error occurred");
+      setIsDeleting(false);
     } finally {
       setIsDeleting(false);
     }
@@ -616,19 +620,31 @@ export default function Administration() {
           <AlertDialogHeader>
             <AlertDialogTitle>Bulk Delete Confirmation</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {selectedItems.length} selected {
-                activeTab === "time-entries" ? "time entries" : "invoices"
-              }? This action cannot be undone.
-              
-              {activeTab === "invoices" && (
-                <div className="mt-2 text-amber-500 flex items-start gap-2">
-                  <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                  <div>
-                    <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
-                    <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
+              <div>
+                Are you sure you want to delete {selectedItems.length} selected {
+                  activeTab === "time-entries" ? "time entries" : "invoices"
+                }? This action cannot be undone.
+                
+                {activeTab === "invoices" && (
+                  <div className="mt-2 text-amber-500 flex items-start gap-2">
+                    <Icons.alertCircle className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
+                      <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+                
+                {activeTab === "time-entries" && (
+                  <div className="mt-2 text-amber-500 flex items-start gap-2">
+                    <Icons.alertCircle className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Warning: Some time entries may be invoiced</p>
+                      <p>Deleting invoiced time entries will remove their invoice reference, which may cause inconsistencies with Fortnox.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,6 +1,6 @@
 
 import { format, formatDistanceToNow } from "date-fns";
-import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check } from "lucide-react";
+import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ export function TimeEntriesTable({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
+  const [pendingInvoicedId, setPendingInvoicedId] = useState<string | null>(null);
 
   // Reset deleting state when dialog closes
   useEffect(() => {
@@ -139,6 +141,37 @@ export function TimeEntriesTable({
     );
   };
 
+  // Handle checkbox toggle for invoiced time entries
+  const handleItemSelect = (id: string, invoiced: boolean) => {
+    if (invoiced) {
+      setPendingInvoicedId(id);
+      setInvoicedWarningOpen(true);
+    } else {
+      onItemSelect(id);
+    }
+  };
+
+  // Confirm selection of invoiced entry
+  const confirmInvoicedSelection = () => {
+    if (pendingInvoicedId) {
+      onItemSelect(pendingInvoicedId);
+      setInvoicedWarningOpen(false);
+      setPendingInvoicedId(null);
+    }
+  };
+
+  // Handle select all with separation of invoiced entries
+  const handleSelectAll = (checked: boolean) => {
+    const hasInvoicedEntries = timeEntries.some(entry => entry.invoiced);
+    
+    if (checked && hasInvoicedEntries) {
+      setInvoicedWarningOpen(true);
+      setPendingInvoicedId('all');
+    } else {
+      onSelectAll(checked);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -165,7 +198,7 @@ export function TimeEntriesTable({
                 <TableHead className="w-[40px]">
                   <Checkbox 
                     checked={timeEntries.length > 0 && selectedItems.length === timeEntries.length}
-                    onCheckedChange={onSelectAll}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
                     aria-label="Select all"
                   />
                 </TableHead>
@@ -183,13 +216,12 @@ export function TimeEntriesTable({
           </TableHeader>
           <TableBody>
             {timeEntries.map((entry) => (
-              <TableRow key={entry.id}>
+              <TableRow key={entry.id} className={entry.invoiced ? "bg-muted/20" : ""}>
                 {bulkDeleteMode && (
                   <TableCell>
                     <Checkbox 
                       checked={selectedItems.includes(entry.id)}
-                      onCheckedChange={() => onItemSelect(entry.id)}
-                      disabled={entry.invoiced}
+                      onCheckedChange={() => handleItemSelect(entry.id, !!entry.invoiced)}
                       aria-label={`Select entry ${entry.id}`}
                     />
                   </TableCell>
@@ -261,7 +293,9 @@ export function TimeEntriesTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this time entry? This action cannot be undone.
+              <div>
+                Are you sure you want to delete this time entry? This action cannot be undone.
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -287,12 +321,57 @@ export function TimeEntriesTable({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Invoiced entry warning dialog */}
+      <AlertDialog open={invoicedWarningOpen} onOpenChange={setInvoicedWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
+              <AlertCircle className="h-5 w-5" />
+              <span>Warning: Invoiced Time Entries</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <div>
+                <p className="mb-2">
+                  You are about to select {pendingInvoicedId === 'all' ? 'multiple' : 'an'} invoiced time {pendingInvoicedId === 'all' ? 'entries' : 'entry'}.
+                </p>
+                <p className="mb-2">
+                  <strong>Important:</strong> Deleting invoiced time entries may cause inconsistencies between your app's data and Fortnox.
+                </p>
+                <p>
+                  If these entries have been exported to Fortnox, the deletion will only happen in your database, not in Fortnox.
+                  This action cannot be reversed.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingInvoicedId(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingInvoicedId === 'all') {
+                  onSelectAll(true);
+                } else {
+                  confirmInvoicedSelection();
+                }
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-white border-none"
+            >
+              I understand, continue anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Edit Time Entry</DialogTitle>
             <DialogDescription>
-              Make changes to your time entry below.
+              <div>
+                Make changes to your time entry below.
+              </div>
             </DialogDescription>
           </DialogHeader>
           
