@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +24,6 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { 
   DEFAULT_LOGO_PATH,
-  getLogoForDisplay,
   ensureLogoBucketExists,
   getStoredLogoAsDataUrl
 } from "@/utils/logoUtils";

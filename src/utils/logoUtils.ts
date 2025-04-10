@@ -28,6 +28,92 @@ export const MAX_LOGO_HEIGHT = 100;
 export const MAX_LOGO_SIZE = 1048576;
 
 /**
+ * Test if an image can be loaded
+ */
+export function testImageLoad(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+/**
+ * Preloads an image to check if it can be displayed
+ */
+export function preloadImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    
+    img.onload = () => {
+      resolve(true);
+    };
+    
+    img.onerror = (error) => {
+      console.error("Failed to preload image:", url);
+      resolve(false);
+    };
+    
+    // Add cache-busting parameter
+    img.src = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+  });
+}
+
+/**
+ * Gets the public URL for the logo
+ */
+export function getAppLogoUrl(): string | null {
+  try {
+    // Get the list of files in the logo bucket
+    return supabase.storage
+      .from(LOGO_BUCKET)
+      .getPublicUrl(`${LOGO_FILENAME}.png`).data.publicUrl;
+  } catch (error) {
+    console.error("Error getting logo URL:", error);
+    return null;
+  }
+}
+
+/**
+ * Gets the logo for display, handling preloading and fallbacks
+ */
+export async function getLogoForDisplay(): Promise<string> {
+  try {
+    // Fetch the list of logos
+    console.log("Fetching logo list from storage");
+    const { data, error } = await supabase.storage
+      .from(LOGO_BUCKET)
+      .list();
+      
+    if (error || !data || data.length === 0) {
+      return DEFAULT_LOGO_PATH;
+    }
+    
+    // Get the first logo file
+    const logoFile = data[0];
+    const logoUrl = supabase.storage
+      .from(LOGO_BUCKET)
+      .getPublicUrl(logoFile.name).data.publicUrl;
+    
+    console.log("Logo URL constructed:", logoUrl);
+    
+    // Try to preload the image to check if it's accessible
+    const canLoad = await preloadImage(logoUrl);
+    
+    if (!canLoad) {
+      console.log("Logo exists but failed to preload, using default");
+      return DEFAULT_LOGO_PATH;
+    }
+    
+    return logoUrl;
+  } catch (error) {
+    console.error("Error in getLogoForDisplay:", error);
+    return DEFAULT_LOGO_PATH;
+  }
+}
+
+/**
  * Ensures the app-logo bucket exists in storage
  */
 export async function ensureLogoBucketExists(): Promise<void> {
@@ -250,7 +336,7 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
     console.log(`Uploading logo as ${filePath}`);
     
     // Upload the file
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError, data } = await supabase.storage
       .from(LOGO_BUCKET)
       .upload(filePath, resizedBlob, {
         cacheControl: "no-cache",
@@ -262,7 +348,21 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
       return { dataUrl, success: false };
     }
     
-    console.log("Logo uploaded successfully");
+    // Get the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(LOGO_BUCKET)
+      .getPublicUrl(filePath);
+      
+    console.log("Logo uploaded successfully, public URL:", publicUrl);
+    
+    // Attempt to preload the image to verify it can be loaded
+    const canLoad = await preloadImage(publicUrl);
+    
+    if (!canLoad) {
+      // If we can't load from the public URL, we'll use the data URL as fallback
+      throw new Error("Logo uploaded but cannot be displayed correctly");
+    }
+    
     return { dataUrl, success: true };
   } catch (error) {
     console.error("Error in uploadAppLogo:", error);
