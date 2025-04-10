@@ -32,7 +32,7 @@ const Header = forwardRef<
           {format(currentTime, "EEEE, MMMM d, yyyy")}
         </div>
         <div className="text-xs text-muted-foreground">
-          {format(currentTime, "h:mm a")}
+          {format(currentTime, "HH:mm")}
         </div>
       </div>
     </header>

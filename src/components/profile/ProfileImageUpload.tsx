@@ -51,15 +51,22 @@ const ProfileImageUpload = ({
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `profile-images/${fileName}`;
       
+      console.log('Uploading to path:', filePath);
+      console.log('Bucket: app-assets');
+      
+      // Convert file to binary buffer for upload
+      const fileBuffer = await file.arrayBuffer();
+      
       // Upload to Supabase Storage
       const { error: uploadError, data } = await supabase.storage
         .from('app-assets')
-        .upload(filePath, file, {
+        .upload(filePath, fileBuffer, {
           upsert: true,
           contentType: file.type
         });
         
       if (uploadError) {
+        console.error('Error uploading profile image:', uploadError);
         throw uploadError;
       }
       
@@ -67,6 +74,8 @@ const ProfileImageUpload = ({
       const { data: { publicUrl } } = supabase.storage
         .from('app-assets')
         .getPublicUrl(filePath);
+      
+      console.log('Upload successful, public URL:', publicUrl);
       
       // Pass the URL to parent component
       onImageUploaded(publicUrl);
@@ -92,12 +101,15 @@ const ProfileImageUpload = ({
       // Remove the leading slash if present
       const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
       
+      console.log('Deleting file from path:', cleanFilePath);
+      
       // Delete from storage
       const { error } = await supabase.storage
         .from('app-assets')
         .remove([cleanFilePath]);
         
       if (error) {
+        console.error('Error removing profile image:', error);
         throw error;
       }
       
