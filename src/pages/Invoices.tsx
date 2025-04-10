@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -232,7 +231,6 @@ export default function Invoices() {
       )
     : invoices;
 
-  // Check if any products have invalid article numbers
   const hasInvalidArticleNumbers = unbilledEntries.some(entry => 
     entry.products?.article_number && 
     !/^\d+$/.test(entry.products.article_number)
@@ -479,10 +477,11 @@ export default function Invoices() {
                             
                             const amount = entry.products ? entry.products.price * quantity : 0;
                             
-                            // Check if article number is valid (numeric)
                             const hasValidArticleNumber = 
                               entry.products?.article_number && 
                               /^\d+$/.test(entry.products.article_number);
+                            
+                            const unit = entry.products?.type === 'activity' ? 't' : 'st';
                             
                             return (
                               <TableRow key={entry.id}>
@@ -490,7 +489,7 @@ export default function Invoices() {
                                 <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
                                 <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
                                 <TableCell>
-                                  {quantity} {entry.products?.type === 'activity' ? 'hr' : 'pcs'}
+                                  {quantity} {unit}
                                 </TableCell>
                                 <TableCell>
                                   {entry.products?.article_number ? (

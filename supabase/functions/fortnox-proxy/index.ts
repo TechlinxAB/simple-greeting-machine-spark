@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // API base URL for Fortnox
@@ -178,13 +177,15 @@ serve(async (req) => {
                 AccountNumber: row.AccountNumber || "3001"
               };
               
+              // Add Unit if provided
+              if (row.Unit) {
+                validRow.Unit = row.Unit;
+              }
+              
               // Only include ArticleNumber if it's valid (numeric)
               if (row.ArticleNumber && /^\d+$/.test(row.ArticleNumber.toString())) {
                 validRow.ArticleNumber = row.ArticleNumber;
               }
-              
-              // UnitCode is not supported by Fortnox API for invoice rows
-              // Do not include UnitCode in the payload
               
               return validRow;
             });

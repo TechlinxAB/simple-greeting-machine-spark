@@ -21,6 +21,7 @@ interface FortnoxInvoiceRow {
   Price: number;
   VAT: number;
   AccountNumber?: string;
+  Unit?: string; // Add unit field for Fortnox
 }
 
 // Interface for Fortnox customer creation - WITHOUT CustomerNumber
@@ -162,13 +163,17 @@ export async function formatTimeEntriesForFortnox(
         }
       }
       
+      // Set appropriate unit based on product type
+      const unit = product.type === 'activity' ? 't' : 'st';
+      
       // Create the base row with required fields
       const row: FortnoxInvoiceRow = {
         Description: description,
         DeliveredQuantity: quantity,
         Price: product.price,
         VAT: vat,
-        AccountNumber: accountNumber
+        AccountNumber: accountNumber,
+        Unit: unit
       };
       
       // Only add ArticleNumber if it exists and is numeric
