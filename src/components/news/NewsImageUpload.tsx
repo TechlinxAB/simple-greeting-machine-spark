@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NewsImageUploadProps {
   initialImageUrl?: string | null;
@@ -21,6 +22,7 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { role } = useAuth();
+  const isMobile = useIsMobile();
   
   const canUploadImages = role === 'admin' || role === 'manager';
 
@@ -170,7 +172,7 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
           <img 
             src={imageUrl} 
             alt="Post featured image" 
-            className="w-full h-[200px] object-cover" 
+            className="w-full h-[150px] sm:h-[200px] object-cover" 
           />
           {canUploadImages && (
             <Button
@@ -186,7 +188,7 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
           )}
         </div>
       ) : (
-        <div className="border border-dashed rounded-md p-8 text-center">
+        <div className="border border-dashed rounded-md p-4 sm:p-8 text-center">
           <Input
             id="image-upload"
             type="file"
@@ -197,11 +199,11 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
             disabled={!canUploadImages}
           />
           <div className="flex flex-col items-center justify-center space-y-3">
-            <ImageIcon className="h-12 w-12 text-muted-foreground" />
-            <div className="text-muted-foreground text-sm">
+            <ImageIcon className="h-8 sm:h-12 w-8 sm:w-12 text-muted-foreground" />
+            <div className="text-muted-foreground text-xs sm:text-sm">
               {canUploadImages ? (
                 <>
-                  <p>Drag and drop an image or click to browse</p>
+                  <p>{isMobile ? "Tap to upload an image" : "Drag and drop an image or click to browse"}</p>
                   <p className="text-xs">PNG, JPG or GIF up to 5MB</p>
                 </>
               ) : (
@@ -214,7 +216,8 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="mt-2"
+                className="mt-2 text-xs sm:text-sm"
+                size={isMobile ? "sm" : "default"}
               >
                 {isUploading ? (
                   <>

@@ -93,6 +93,19 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Mobile optimizations */
+  input, select, textarea {
+    @apply text-base md:text-sm;
+    font-size: 16px; /* Prevent zoom on focus in iOS */
+  }
+  
+  /* Improve touch targets on mobile */
+  button, 
+  [role="button"],
+  a {
+    @apply outline-none;
+  }
 }
 
 @layer components {
@@ -124,6 +137,16 @@
     background-image: linear-gradient(to right, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.8));
   }
   
+  /* Responsive container classes */
+  .container {
+    @apply px-4 md:px-6 w-full max-w-[1400px];
+  }
+  
+  /* Responsive table container */
+  .table-container {
+    @apply w-full overflow-x-auto -mx-4 px-4;
+  }
+  
   @keyframes slideIn {
     from {
       transform: translateX(-20px);
@@ -142,5 +165,35 @@
     to {
       opacity: 1;
     }
+  }
+  
+  /* Mobile-specific helpers */
+  .mobile-full {
+    @apply -mx-4 px-4 w-screen md:mx-0 md:px-0 md:w-auto;
+  }
+  
+  .touch-scroll {
+    @apply overflow-x-auto overscroll-x-contain scrollbar-hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports(padding: max(0px)) {
+  body, 
+  .safe-padding-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-padding-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+  
+  .safe-padding-left {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+  }
+  
+  .safe-padding-right {
+    padding-right: max(0.5rem, env(safe-area-inset-right));
   }
 }

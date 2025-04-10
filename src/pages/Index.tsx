@@ -9,10 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, Users, Package, FileText, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Index() {
   const { user, isLoading: authLoading } = useAuth();
   const [loadingProgress, setLoadingProgress] = useState(10);
+  const isMobile = useIsMobile();
 
   // Animate loading progress
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function Index() {
   if (authLoading) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4">
-        <h1 className="text-2xl font-bold mb-8">Loading Time Tracking & Invoicing</h1>
+        <h1 className="text-2xl font-bold mb-8 text-center">Loading Time Tracking & Invoicing</h1>
         <Progress value={loadingProgress} className="w-full max-w-md mb-4" />
         <p className="text-muted-foreground">Preparing your workspace...</p>
       </div>
@@ -123,7 +125,7 @@ export default function Index() {
   const isDataLoading = clientsLoading || timeEntriesLoading || productsLoading || invoicesLoading;
 
   return (
-    <div className="container mx-auto py-6 space-y-8">
+    <div className="container mx-auto py-6 space-y-8 px-4 md:px-6">
       <div className="flex flex-col space-y-4">
         <h1 className="text-3xl font-bold">Welcome to Your Dashboard</h1>
         <p className="text-muted-foreground">
@@ -131,7 +133,7 @@ export default function Index() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {/* Time Entries Card */}
         <DashboardCard 
           title="Time Entries" 
@@ -228,10 +230,10 @@ function DashboardCard({
 }) {
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-4">
         <div className="flex flex-col space-y-1.5">
-          <CardTitle className="text-xl">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <CardTitle className="text-lg md:text-xl">{title}</CardTitle>
+          <CardDescription className="text-xs md:text-sm">{description}</CardDescription>
         </div>
         <div className="p-2 rounded-full bg-primary/10 text-primary">
           {icon}
@@ -241,11 +243,11 @@ function DashboardCard({
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
-          <div className="text-3xl font-bold">{count ?? 0}</div>
+          <div className="text-2xl md:text-3xl font-bold">{count ?? 0}</div>
         )}
       </CardContent>
       <CardFooter>
-        <Button variant="ghost" className="w-full justify-between" onClick={() => window.location.href = linkTo}>
+        <Button variant="ghost" className="w-full justify-between text-sm md:text-base" onClick={() => window.location.href = linkTo}>
           View All
           <ArrowRight className="h-4 w-4" />
         </Button>

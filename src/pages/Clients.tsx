@@ -12,6 +12,7 @@ import { Plus, Search, Users, Mail, Phone, RefreshCw, Pencil } from "lucide-reac
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { Client } from "@/types";
 
 export default function Clients() {
@@ -19,6 +20,7 @@ export default function Clients() {
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: clients = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["all-clients"],
@@ -79,11 +81,11 @@ export default function Clients() {
   );
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6 px-4 md:px-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold">Clients</h1>
         
-        <div className="flex w-full sm:w-auto gap-2">
+        <div className="flex w-full sm:w-auto gap-2 flex-wrap">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -106,7 +108,7 @@ export default function Clients() {
           
           <Button 
             onClick={handleAddClient}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 whitespace-nowrap"
           >
             <Plus className="h-4 w-4" />
             <span>New Client</span>
@@ -158,14 +160,14 @@ export default function Clients() {
               </Button>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Organization #</TableHead>
-                    <TableHead>Client #</TableHead>
-                    <TableHead>Location</TableHead>
+                    {!isMobile && <TableHead>Organization #</TableHead>}
+                    {!isMobile && <TableHead>Client #</TableHead>}
+                    {!isMobile && <TableHead>Location</TableHead>}
                     <TableHead>Contact</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -174,19 +176,21 @@ export default function Clients() {
                   {filteredClients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell className="font-medium">{client.name}</TableCell>
-                      <TableCell>{client.organization_number || "-"}</TableCell>
-                      <TableCell>{client.client_number || "-"}</TableCell>
-                      <TableCell>
-                        {client.city ? 
-                          `${client.city}${client.county ? `, ${client.county}` : ""}` : 
-                          "-"}
-                      </TableCell>
+                      {!isMobile && <TableCell>{client.organization_number || "-"}</TableCell>}
+                      {!isMobile && <TableCell>{client.client_number || "-"}</TableCell>}
+                      {!isMobile && (
+                        <TableCell>
+                          {client.city ? 
+                            `${client.city}${client.county ? `, ${client.county}` : ""}` : 
+                            "-"}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex flex-col space-y-1">
                           {client.email && (
                             <div className="flex items-center text-xs">
                               <Mail className="h-3 w-3 mr-1 text-muted-foreground" />
-                              <span>{client.email}</span>
+                              <span className="truncate max-w-[120px] md:max-w-none">{client.email}</span>
                             </div>
                           )}
                           {client.telephone && (

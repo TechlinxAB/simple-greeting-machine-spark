@@ -10,11 +10,13 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function TimeTracking() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // Refetch clients data when the component mounts to ensure data freshness
   const { isLoading: isClientsLoading } = useQuery({
@@ -41,7 +43,7 @@ export default function TimeTracking() {
     : format(selectedDate, "d MMMM yyyy");
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 px-4 md:px-6">
       <div className="flex justify-end mb-4">
         <Button 
           variant="outline" 
@@ -58,8 +60,8 @@ export default function TimeTracking() {
         </Button>
       </div>
       
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-3 space-y-6">
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-12 gap-6'}`}>
+        <div className={isMobile ? 'space-y-6' : 'col-span-3 space-y-6'}>
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
@@ -68,7 +70,7 @@ export default function TimeTracking() {
           <TimerWidget />
         </div>
         
-        <div className="col-span-9 space-y-6">
+        <div className={isMobile ? 'space-y-6 mt-6' : 'col-span-9 space-y-6'}>
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}

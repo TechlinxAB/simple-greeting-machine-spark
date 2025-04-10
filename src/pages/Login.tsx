@@ -78,7 +78,13 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="name@example.com" {...field} />
+                      <Input 
+                        type="email" 
+                        placeholder="name@example.com" 
+                        {...field} 
+                        className="w-full"
+                        autoComplete="email"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -92,7 +98,12 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input 
+                        type="password" 
+                        {...field} 
+                        className="w-full"
+                        autoComplete="current-password"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -123,6 +134,6 @@ const Login = () => {
       </Card>
     </div>
   );
-};
+}
 
 export default Login;
