@@ -7,6 +7,7 @@ import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface NewsImageUploadProps {
   initialImageUrl?: string | null;
@@ -16,10 +17,24 @@ interface NewsImageUploadProps {
 export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageUploadProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { role } = useAuth();
   
   const canUploadImages = role === 'admin' || role === 'manager';
+
+  // Extract filename from URL to use when deleting
+  const getFilePathFromUrl = (url: string): string | null => {
+    try {
+      // The URL format is like: https://[project-ref].supabase.co/storage/v1/object/public/news_images/[filename]
+      const urlParts = url.split('/');
+      return urlParts[urlParts.length - 1]; // Get the last segment which is the filename
+    } catch (error) {
+      console.error("Error extracting filename from URL:", error);
+      return null;
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,14 +67,19 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       const filePath = `${fileName}`;
 
       console.log("Uploading to news_images bucket:", filePath);
+      console.log("File type:", file.type);
+
+      // Create a Blob with explicit type to ensure it's not treated as JSON
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
 
       // Upload the image to the news_images bucket with explicit content type
-      const { error: uploadError, data } = await supabase
+      const { error: uploadError } = await supabase
         .storage
         .from('news_images')
-        .upload(filePath, file, {
+        .upload(filePath, blob, {
           contentType: file.type, // Explicitly set the content type based on the file
-          cacheControl: '3600'
+          cacheControl: '3600',
+          upsert: true
         });
 
       if (uploadError) {
@@ -97,8 +117,48 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       return;
     }
     
-    setImageUrl(null);
-    onImageUploaded('');
+    // Open confirm dialog instead of immediately removing
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmImageRemoval = async () => {
+    if (!imageUrl) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      // Extract the filename from the URL
+      const filePath = getFilePathFromUrl(imageUrl);
+      
+      if (filePath) {
+        console.log("Deleting file from storage:", filePath);
+        
+        // Delete the file from storage
+        const { error } = await supabase
+          .storage
+          .from('news_images')
+          .remove([filePath]);
+          
+        if (error) {
+          console.error("Error deleting file:", error);
+          throw error;
+        }
+        
+        console.log("File deleted successfully");
+      }
+      
+      // Update state and notify parent component
+      setImageUrl(null);
+      onImageUploaded('');
+      toast.success("Image removed successfully");
+      
+    } catch (error: any) {
+      console.error("Error removing image:", error);
+      toast.error(error.message || "Failed to remove image");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   return (
@@ -119,6 +179,7 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
               size="icon"
               className="absolute top-2 right-2 opacity-90"
               onClick={handleRemoveImage}
+              disabled={isDeleting}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -171,6 +232,17 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
           </div>
         </div>
       )}
+      
+      {/* Confirmation dialog for image removal */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Remove Image"
+        description="Are you sure you want to remove this image? This action cannot be undone."
+        actionLabel={isDeleting ? "Removing..." : "Remove"}
+        onAction={confirmImageRemoval}
+        variant="destructive"
+      />
     </div>
   );
 }
