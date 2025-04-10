@@ -127,14 +127,22 @@ export function applyColorTheme(settings: AppSettings) {
   
   // Store the name in localStorage for persistence
   localStorage.setItem("appName", settings.appName);
-  localStorage.setItem("logoUrl", settings.logoUrl || "");
+  if (settings.logoUrl) {
+    localStorage.setItem("logoUrl", settings.logoUrl);
+  }
   
   // Update document title
   document.title = settings.appName;
 }
 
 // Helper function to convert hex color to HSL
-function hexToHSL(hex: string) {
+function hexToHSL(hex: string | undefined) {
+  // Check if hex is undefined or not a valid hex color
+  if (!hex || typeof hex !== 'string' || !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) {
+    console.warn('Invalid hex color provided:', hex);
+    return null;
+  }
+  
   // Remove the # if present
   hex = hex.replace(/^#/, '');
   
