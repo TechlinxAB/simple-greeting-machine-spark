@@ -179,25 +179,26 @@ export function AppSidebar() {
     <Sidebar className="border-r bg-gradient-to-b from-slate-900 to-slate-800 text-white">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 flex items-center justify-center rounded-md overflow-hidden bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 shadow-xl">
+          <div className="relative h-9 w-9 flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 rounded-md bg-gradient-to-br from-white/10 to-transparent backdrop-blur-[2px] opacity-50 shadow-inner"></div>
             {logoLoading ? (
-              <div className="h-9 w-9 animate-pulse bg-gray-200/20 rounded"></div>
+              <div className="h-9 w-9 animate-pulse bg-white/5 rounded-md"></div>
             ) : logoError ? (
               <img 
                 src={DEFAULT_LOGO_PATH}
                 alt="Logo" 
-                className="h-full w-auto object-contain"
+                className="h-full w-auto object-contain relative z-10"
               />
             ) : (
               <img 
                 src={logoUrl}
                 alt="Logo" 
-                className="h-full w-auto object-contain" 
+                className="h-full w-auto object-contain relative z-10" 
                 onError={handleLogoError}
               />
             )}
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-white overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px]">
+          <h2 className="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80 overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] drop-shadow-sm">
             {appSettings?.appName || "Time Tracker"}
           </h2>
         </div>
