@@ -12,14 +12,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Timer as TimerType } from '@/types/timer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
+interface CompletedTimer extends TimerType {
+  _calculatedDuration?: number;
+}
+
 export function TimerWidget() {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string>('');
   const [productId, setProductId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [productType, setProductType] = useState<'activity' | 'item'>('activity');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [completedTimer, setCompletedTimer] = useState<TimerType | null>(null);
+  const [completedTimer, setCompletedTimer] = useState<CompletedTimer | null>(null);
   
   const { 
     activeTimer, 
@@ -48,19 +51,19 @@ export function TimerWidget() {
     }
   });
 
-  const { data: products = [] } = useQuery({
-    queryKey: ['products', productType],
+  // Only fetch activities (type = 'activity')
+  const { data: activities = [] } = useQuery({
+    queryKey: ['products-activities'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, type')
-        .eq('type', productType)
+        .select('id, name')
+        .eq('type', 'activity')
         .order('name');
       
       if (error) throw error;
       return data || [];
-    },
-    enabled: !!productType
+    }
   });
 
   const handleStartTimer = async () => {
@@ -72,14 +75,14 @@ export function TimerWidget() {
     if (!activeTimer) return;
     const stopped = await stopTimer();
     if (stopped) {
-      setCompletedTimer(stopped);
+      setCompletedTimer(stopped as CompletedTimer);
       setConfirmDialogOpen(true);
     }
   };
 
   const handleConvertToTimeEntry = async () => {
     if (!completedTimer) return;
-    const success = await convertTimerToTimeEntry(completedTimer.id);
+    const success = await convertTimerToTimeEntry(completedTimer.id, completedTimer._calculatedDuration);
     if (success) {
       setCompletedTimer(null);
       setConfirmDialogOpen(false);
@@ -145,9 +148,9 @@ export function TimerWidget() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-sm font-medium">Activity/Item:</span>
+                  <span className="text-sm font-medium">Activity:</span>
                   <div className="text-sm">
-                    {products.find(p => p.id === activeTimer.product_id)?.name || 'Unknown product'}
+                    {activities.find(p => p.id === activeTimer.product_id)?.name || 'Unknown activity'}
                   </div>
                 </div>
               </div>
@@ -230,31 +233,15 @@ export function TimerWidget() {
             {clientId && (
               <>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Type</label>
-                  <Select value={productType} onValueChange={(value: 'activity' | 'item') => {
-                    setProductType(value);
-                    setProductId('');
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="activity">Activity</SelectItem>
-                      <SelectItem value="item">Item</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Select {productType}</label>
+                  <label className="text-sm font-medium mb-1 block">Select Activity</label>
                   <Select value={productId} onValueChange={setProductId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={`Select an ${productType}`} />
+                      <SelectValue placeholder="Select an activity" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
+                      {activities.map((activity) => (
+                        <SelectItem key={activity.id} value={activity.id}>
+                          {activity.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -306,7 +293,9 @@ export function TimerWidget() {
                     </div>
                     <div>
                       <span className="font-medium">Duration:</span>{' '}
-                      {completedTimer && formatElapsedTime(elapsedSeconds)}
+                      {completedTimer?._calculatedDuration !== undefined ? 
+                        formatElapsedTime(completedTimer._calculatedDuration) : 
+                        formatElapsedTime(elapsedSeconds)}
                     </div>
                     {completedTimer?.description && (
                       <div className="col-span-2">

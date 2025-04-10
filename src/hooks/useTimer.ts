@@ -10,6 +10,8 @@ export function useTimer() {
   const { user } = useAuth();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [startTimestamp, setStartTimestamp] = useState<number | null>(null);
+  const [pausedDuration, setPausedDuration] = useState(0);
   const queryClient = useQueryClient();
 
   // Fetch active timer for the current user
@@ -47,19 +49,25 @@ export function useTimer() {
     if (!activeTimer) {
       setElapsedSeconds(0);
       setIsTimerRunning(false);
+      setStartTimestamp(null);
+      setPausedDuration(0);
       return;
     }
 
     const startTime = new Date(activeTimer.start_time).getTime();
-    const endTime = activeTimer.end_time ? new Date(activeTimer.end_time).getTime() : null;
     const now = new Date().getTime();
     
     if (activeTimer.status === 'running') {
       setIsTimerRunning(true);
+      setStartTimestamp(startTime);
       setElapsedSeconds(Math.floor((now - startTime) / 1000));
-    } else if (activeTimer.status === 'paused' && endTime) {
+    } else if (activeTimer.status === 'paused' && activeTimer.end_time) {
       setIsTimerRunning(false);
-      setElapsedSeconds(Math.floor((endTime - startTime) / 1000));
+      const endTime = new Date(activeTimer.end_time).getTime();
+      const pausedElapsedSeconds = Math.floor((endTime - startTime) / 1000);
+      setElapsedSeconds(pausedElapsedSeconds);
+      setPausedDuration(pausedElapsedSeconds);
+      setStartTimestamp(startTime);
     }
   }, [activeTimer]);
 
@@ -67,16 +75,17 @@ export function useTimer() {
   useEffect(() => {
     let intervalId: number;
     
-    if (isTimerRunning) {
+    if (isTimerRunning && startTimestamp) {
       intervalId = window.setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
+        const now = new Date().getTime();
+        setElapsedSeconds(Math.floor((now - startTimestamp) / 1000));
       }, 1000);
     }
     
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isTimerRunning]);
+  }, [isTimerRunning, startTimestamp]);
 
   // Start a new timer
   const startTimer = async (clientId: string, productId: string, description?: string) => {
@@ -104,6 +113,8 @@ export function useTimer() {
       
       setIsTimerRunning(true);
       setElapsedSeconds(0);
+      setStartTimestamp(new Date().getTime());
+      setPausedDuration(0);
       
       queryClient.invalidateQueries({ queryKey: ['active-timer', user.id] });
       toast.success('Timer started');
@@ -121,18 +132,20 @@ export function useTimer() {
     if (!activeTimer || !user) return;
 
     try {
+      const currentTime = new Date();
       const { error } = await supabase
         .from('user_timers')
         .update({
           status: 'paused',
-          end_time: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          end_time: currentTime.toISOString(),
+          updated_at: currentTime.toISOString(),
         })
         .eq('id', activeTimer.id);
 
       if (error) throw error;
       
       setIsTimerRunning(false);
+      setPausedDuration(elapsedSeconds);
       
       queryClient.invalidateQueries({ queryKey: ['active-timer', user.id] });
       toast.success('Timer paused');
@@ -147,19 +160,27 @@ export function useTimer() {
     if (!activeTimer || !user || activeTimer.status !== 'paused') return;
 
     try {
-      // Update the timer status and remove end_time
+      const currentTime = new Date();
+      // Calculate a new start time that accounts for the already elapsed time
+      const originalStartTime = new Date(activeTimer.start_time);
+      const elapsedMs = pausedDuration * 1000;
+      const newStartTime = new Date(currentTime.getTime() - elapsedMs);
+      
+      // Update the timer status and adjust the start_time
       const { error } = await supabase
         .from('user_timers')
         .update({
           status: 'running',
+          start_time: newStartTime.toISOString(),
           end_time: null,
-          updated_at: new Date().toISOString(),
+          updated_at: currentTime.toISOString(),
         })
         .eq('id', activeTimer.id);
 
       if (error) throw error;
       
       setIsTimerRunning(true);
+      setStartTimestamp(newStartTime.getTime());
       
       queryClient.invalidateQueries({ queryKey: ['active-timer', user.id] });
       toast.success('Timer resumed');
@@ -171,15 +192,34 @@ export function useTimer() {
 
   // Stop the timer completely
   const stopTimer = async () => {
-    if (!activeTimer || !user) return;
+    if (!activeTimer || !user) return null;
 
     try {
+      const currentTime = new Date();
+      let finalEndTime: Date;
+      let finalElapsedSeconds: number;
+      
+      if (activeTimer.status === 'running') {
+        finalEndTime = currentTime;
+        const startTime = new Date(activeTimer.start_time).getTime();
+        finalElapsedSeconds = Math.floor((finalEndTime.getTime() - startTime) / 1000);
+      } else if (activeTimer.status === 'paused' && activeTimer.end_time) {
+        // For paused timers, use the existing end_time
+        finalEndTime = new Date(activeTimer.end_time);
+        const startTime = new Date(activeTimer.start_time).getTime();
+        finalElapsedSeconds = Math.floor((finalEndTime.getTime() - startTime) / 1000);
+      } else {
+        // Fallback, should not happen
+        finalEndTime = currentTime;
+        finalElapsedSeconds = elapsedSeconds;
+      }
+      
       const { error } = await supabase
         .from('user_timers')
         .update({
           status: 'completed',
-          end_time: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          end_time: finalEndTime.toISOString(),
+          updated_at: currentTime.toISOString(),
         })
         .eq('id', activeTimer.id);
 
@@ -190,12 +230,15 @@ export function useTimer() {
       queryClient.invalidateQueries({ queryKey: ['active-timer', user.id] });
       toast.success('Timer stopped');
       
-      // Create a new Timer object with the updated status
-      return { 
+      // Create a new Timer object with the updated status and calculated time
+      const completedTimer = { 
         ...activeTimer, 
         status: 'completed', 
-        end_time: new Date().toISOString() 
-      } as Timer;
+        end_time: finalEndTime.toISOString(),
+        _calculatedDuration: finalElapsedSeconds // Adding for component use
+      } as Timer & { _calculatedDuration: number };
+      
+      return completedTimer;
     } catch (error) {
       console.error('Error stopping timer:', error);
       toast.error('Failed to stop timer');
@@ -204,7 +247,7 @@ export function useTimer() {
   };
 
   // Convert the timer to a time entry
-  const convertTimerToTimeEntry = async (timerId: string) => {
+  const convertTimerToTimeEntry = async (timerId: string, calculatedDuration?: number) => {
     if (!user) return false;
 
     try {
@@ -220,10 +263,13 @@ export function useTimer() {
       // Cast to our expected type
       const timerRecord = timer as UserTimerRecord;
       
-      if (!timerRecord || !timerRecord.end_time || !timerRecord.client_id || !timerRecord.product_id) {
+      if (!timerRecord || !timerRecord.client_id || !timerRecord.product_id) {
         toast.error('Timer data is incomplete');
         return false;
       }
+      
+      // Ensure we have end_time, either from record or current time
+      const endTime = timerRecord.end_time || new Date().toISOString();
       
       // Create the time entry
       const { error: insertError } = await supabase
@@ -233,7 +279,7 @@ export function useTimer() {
           client_id: timerRecord.client_id,
           product_id: timerRecord.product_id,
           start_time: timerRecord.start_time,
-          end_time: timerRecord.end_time,
+          end_time: endTime,
           description: timerRecord.description,
         });
 
