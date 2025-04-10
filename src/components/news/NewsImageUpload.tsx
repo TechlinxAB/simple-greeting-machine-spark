@@ -68,15 +68,15 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
 
       console.log("Uploading to news_images bucket:", filePath);
       console.log("File type:", file.type);
-
-      // IMPORTANT: Don't convert the file to a Blob, use the raw file directly
-      // This is the key difference compared to the previous implementation
+      
+      // Convert file to binary buffer for upload - this is the key difference from previous approach
+      const fileBuffer = await file.arrayBuffer();
 
       // Upload the image to the news_images bucket
       const { error: uploadError } = await supabase
         .storage
         .from('news_images')
-        .upload(filePath, file, {
+        .upload(filePath, fileBuffer, {
           contentType: file.type, // Explicitly set the content type
           cacheControl: '3600',
           upsert: true
