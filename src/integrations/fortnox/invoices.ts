@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -145,8 +146,8 @@ export async function formatTimeEntriesForFortnox(
       const validVatRates = [25, 12, 6];
       const vat = validVatRates.includes(product.vat_percentage) ? product.vat_percentage : 25;
       
-      // Always use the default account number to prevent errors
-      const accountNumber = VALID_ACCOUNTS.revenue.default;
+      // Use the account number from the product if it exists
+      const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
       
       // Set appropriate unit based on product type
       const unit = product.type === 'activity' ? 't' : 'st';
@@ -352,7 +353,7 @@ export async function createArticleFromDetails(articleDetails: any): Promise<str
       Description: articleDetails.description || "Product item",
       ArticleNumber: articleDetails.articleNumber,
       Type: "SERVICE", // Default to SERVICE type
-      SalesAccount: VALID_ACCOUNTS.revenue.default, // Always use default account
+      SalesAccount: articleDetails.accountNumber || VALID_ACCOUNTS.revenue.default, // Use the provided account number
       VAT: articleDetails.vat || 25, // Use provided VAT or default
       StockGoods: false // Set to false for service products
     };
@@ -379,7 +380,7 @@ export async function createArticleFromDetails(articleDetails: any): Promise<str
 
 /**
  * Create or update an article in Fortnox if needed
- * Modified to preserve original article numbers and handle account validation
+ * Modified to preserve original article numbers and account numbers
  */
 export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
   try {
@@ -395,15 +396,15 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // Article doesn't exist, create it with the original article number
       console.log(`Creating new article with original article number: ${product.article_number}`);
       
-      // Always use the default account number to prevent errors
-      const accountNumber = VALID_ACCOUNTS.revenue.default;
+      // Use the account number from the product or the default
+      const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
       
       // Format the article data with the original article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: product.article_number, // Use the original article number
         Type: "SERVICE", // Default to SERVICE type for all products
-        SalesAccount: accountNumber, // Use valid account number
+        SalesAccount: accountNumber, // Use the account number from the product
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false // Set to false for service products
       };
@@ -428,15 +429,15 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // No article number provided, generate one
       const generatedArticleNumber = await generateNumericArticleNumber();
       
-      // Always use the default account number
-      const accountNumber = VALID_ACCOUNTS.revenue.default;
+      // Use the account number from the product or the default
+      const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
       
       // Format the article data with the generated article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: generatedArticleNumber,
         Type: "SERVICE",
-        SalesAccount: accountNumber, // Use valid account number
+        SalesAccount: accountNumber, // Use the account number from the product
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false
       };

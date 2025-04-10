@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // API base URL for Fortnox
@@ -213,10 +212,20 @@ serve(async (req) => {
                 VAT: [25, 12, 6].includes(row.VAT) ? row.VAT : 25,
               };
               
-              // Ensure AccountNumber is valid - always use the default revenue account
-              // This fixes the "Kunde inte hitta konto" error
-              validRow.AccountNumber = VALID_ACCOUNTS.revenue.default;
-              console.log(`⚠️ Using safe default account number: ${VALID_ACCOUNTS.revenue.default} instead of ${row.AccountNumber}`);
+              // Keep the original AccountNumber if it's valid
+              if (row.AccountNumber) {
+                const accountNum = parseInt(row.AccountNumber);
+                if (!isNaN(accountNum) && accountNum >= VALID_ACCOUNTS.revenue.min && accountNum <= VALID_ACCOUNTS.revenue.max) {
+                  validRow.AccountNumber = row.AccountNumber;
+                  console.log(`✅ Using provided account number: ${row.AccountNumber}`);
+                } else {
+                  validRow.AccountNumber = VALID_ACCOUNTS.revenue.default;
+                  console.log(`⚠️ Invalid account number ${row.AccountNumber}, using default: ${VALID_ACCOUNTS.revenue.default}`);
+                }
+              } else {
+                validRow.AccountNumber = VALID_ACCOUNTS.revenue.default;
+                console.log(`ℹ️ No account number provided, using default: ${VALID_ACCOUNTS.revenue.default}`);
+              }
               
               // Add Unit if provided
               if (row.Unit) {
@@ -334,7 +343,7 @@ serve(async (req) => {
                       description: problematicRow.Description,
                       price: problematicRow.Price,
                       vat: problematicRow.VAT,
-                      accountNumber: VALID_ACCOUNTS.revenue.default, // Always use the default account number
+                      accountNumber: problematicRow.AccountNumber || VALID_ACCOUNTS.revenue.default, // Use the original account number if provided
                       unit: problematicRow.Unit || 'st'
                     }
                   }),
