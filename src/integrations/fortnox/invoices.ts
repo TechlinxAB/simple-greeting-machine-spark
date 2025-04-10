@@ -38,6 +38,19 @@ interface FortnoxCustomerData {
   Phone1?: string;
 }
 
+// Interface for Fortnox article creation
+interface FortnoxArticleData {
+  Description: string;
+  ArticleNumber?: string;
+  Type: string;
+  PurchasePrice?: number;
+  SalesPrice: number;
+  SalesAccount: string;
+  Unit?: string;
+  VAT: number;
+  StockGoods: boolean;
+}
+
 /**
  * Format time entries for export to Fortnox
  */
@@ -90,15 +103,22 @@ export async function formatTimeEntriesForFortnox(
     }
     
     // Format invoice rows from time entries
-    const invoiceRows: FortnoxInvoiceRow[] = timeEntries.map(entry => {
+    const invoiceRows: FortnoxInvoiceRow[] = await Promise.all(timeEntries.map(async (entry) => {
       const product = entry.products as Product;
+      
+      // Validate ArticleNumber - only use if it's numeric
+      let articleNumber: string | undefined = undefined;
+      if (product.article_number && /^\d+$/.test(product.article_number)) {
+        articleNumber = product.article_number;
+      }
+      
       // Get user profile from the map
       const userProfile = userProfileMap.get(entry.user_id);
       const userName = userProfile?.name || 'Unknown User';
       
       // Calculate quantity
       let quantity = 1;
-      let unitCode: string | undefined = undefined; // Only add if confirmed valid
+      let unitCode: string | undefined = undefined;
       
       if (product.type === 'activity' && entry.start_time && entry.end_time) {
         // Calculate hours from start_time to end_time
@@ -106,10 +126,10 @@ export async function formatTimeEntriesForFortnox(
         const end = new Date(entry.end_time);
         const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         quantity = parseFloat(diffHours.toFixed(2));
-        unitCode = "h"; // Hour unit code - only if confirmed valid
+        unitCode = "h"; // Hour unit code
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
-        unitCode = "st"; // Standard unit code for items - only if confirmed valid
+        unitCode = "st"; // Standard unit code for items
       }
       
       // Format description including user information
@@ -145,18 +165,18 @@ export async function formatTimeEntriesForFortnox(
         AccountNumber: accountNumber
       };
       
-      // Only add ArticleNumber if it exists and is valid
-      if (product.article_number && product.article_number.trim() !== "") {
-        row.ArticleNumber = product.article_number;
+      // Only add ArticleNumber if it exists and is numeric
+      if (articleNumber) {
+        row.ArticleNumber = articleNumber;
       }
       
-      // Only add UnitCode if it's a confirmed valid code
+      // Only add UnitCode if valid
       if (unitCode) {
         row.UnitCode = unitCode;
       }
       
       return row;
-    });
+    }));
     
     // Prepare the invoice data with only CustomerNumber, not full Customer object
     const invoiceData: FortnoxInvoiceData = {
@@ -225,6 +245,22 @@ export async function checkFortnoxCustomer(customerNumber: string): Promise<bool
 }
 
 /**
+ * Check if an article exists in Fortnox by ArticleNumber
+ */
+export async function checkFortnoxArticle(articleNumber: string): Promise<boolean> {
+  if (!articleNumber) return false;
+  
+  try {
+    await fortnoxApiRequest(`/articles/${articleNumber}`);
+    console.log(`Article with ArticleNumber ${articleNumber} exists in Fortnox`);
+    return true;
+  } catch (error) {
+    console.log(`Article with ArticleNumber ${articleNumber} not found in Fortnox`);
+    return false;
+  }
+}
+
+/**
  * Create a customer in Fortnox - no longer sends CustomerNumber
  */
 export async function createFortnoxCustomer(client: Client): Promise<string> {
@@ -256,6 +292,74 @@ export async function createFortnoxCustomer(client: Client): Promise<string> {
   } catch (error) {
     console.error("Error creating Fortnox customer:", error);
     throw error;
+  }
+}
+
+/**
+ * Generate a unique numeric article number
+ */
+export async function generateNumericArticleNumber(): Promise<string> {
+  // Start with a base number (current timestamp last 6 digits for uniqueness)
+  const timestamp = Date.now().toString().slice(-6);
+  const baseNumber = `1${timestamp}`;
+  
+  return baseNumber;
+}
+
+/**
+ * Create or update an article in Fortnox if needed
+ */
+export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
+  try {
+    // Check if product already has a valid article number
+    if (product.article_number && /^\d+$/.test(product.article_number)) {
+      // Check if this article exists in Fortnox
+      const exists = await checkFortnoxArticle(product.article_number);
+      if (exists) {
+        console.log(`Using existing Fortnox article with number: ${product.article_number}`);
+        return product.article_number;
+      }
+    }
+    
+    // Generate a new article number
+    const articleNumber = await generateNumericArticleNumber();
+    
+    // Format the article data
+    const articleData: FortnoxArticleData = {
+      Description: product.name,
+      ArticleNumber: articleNumber,
+      Type: product.type === 'activity' ? "SERVICE" : "STOCK",
+      SalesPrice: product.price,
+      SalesAccount: product.account_number || "3001",
+      Unit: product.type === 'activity' ? "h" : "st", 
+      VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
+      StockGoods: product.type === 'item'
+    };
+    
+    // Create the article in Fortnox
+    console.log("Creating new article in Fortnox:", articleData);
+    const response = await fortnoxApiRequest("/articles", "POST", {
+      Article: articleData
+    });
+    
+    if (!response || !response.Article) {
+      console.error("Failed to create article in Fortnox");
+      return null;
+    }
+    
+    const newArticleNumber = response.Article.ArticleNumber;
+    console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
+    
+    // Update our local product with the new article number
+    await supabase
+      .from("products")
+      .update({ article_number: newArticleNumber })
+      .eq("id", product.id);
+    
+    return newArticleNumber;
+  } catch (error) {
+    console.error("Error ensuring Fortnox article:", error);
+    return null;
   }
 }
 

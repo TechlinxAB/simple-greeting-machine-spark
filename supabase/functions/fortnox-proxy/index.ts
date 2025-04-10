@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // API base URL for Fortnox
@@ -140,6 +139,39 @@ serve(async (req) => {
     // Log the complete payload for debugging
     if (method !== 'GET' && payload) {
       console.log("Request payload to Fortnox:", JSON.stringify(payload, null, 2));
+      
+      // SAFETY CHECK: remove EmailInformation if present in Invoice payload
+      if (payload.Invoice && payload.Invoice.EmailInformation) {
+        console.log("⚠️ EmailInformation found in Invoice payload - removing");
+        delete payload.Invoice.EmailInformation;
+      }
+      
+      // VALIDATION: Ensure only valid fields are sent to Fortnox for invoices
+      if (payload.Invoice && payload.Invoice.InvoiceRows) {
+        console.log("🔍 Validating invoice rows...");
+        payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
+          // Keep only the required fields for invoice rows
+          const validRow = {
+            Description: row.Description,
+            DeliveredQuantity: row.DeliveredQuantity,
+            Price: row.Price,
+            VAT: [25, 12, 6].includes(row.VAT) ? row.VAT : 25,
+            AccountNumber: row.AccountNumber
+          };
+          
+          // Only add ArticleNumber if it's numeric and present
+          if (row.ArticleNumber && /^\d+$/.test(row.ArticleNumber.toString())) {
+            validRow.ArticleNumber = row.ArticleNumber;
+          }
+          
+          // Only add UnitCode if it's present and valid
+          if (row.UnitCode && typeof row.UnitCode === 'string') {
+            validRow.UnitCode = row.UnitCode;
+          }
+          
+          return validRow;
+        });
+      }
     }
     
     // IMPROVED ERROR HANDLING AND RESPONSE FORWARDING
@@ -174,6 +206,42 @@ serve(async (req) => {
         if (fortnoxRes.status === 400) {
           console.error("💥 Fortnox Bad Request (400) details:", JSON.stringify(errorDetails, null, 2));
           console.error("💥 Request payload that caused the error:", JSON.stringify(payload, null, 2));
+        }
+        
+        // Special handling for article number errors
+        if (method === 'POST' && path.includes('/invoices') && 
+            (text.includes("ArticleNumber") || 
+             text.includes("2001204") || 
+             text.includes("2001008") || 
+             text.includes("article not found"))) {
+          
+          console.log("🔄 Article number error detected, trying to retry without article numbers...");
+          
+          // Extract error code for better diagnosis
+          let errorCode = null;
+          if (errorDetails?.ErrorInformation?.Code) {
+            errorCode = errorDetails.ErrorInformation.Code;
+          } else if (errorDetails?.ErrorInformation?.error?.code) {
+            errorCode = errorDetails.ErrorInformation.error.code;
+          }
+          
+          return new Response(
+            JSON.stringify({
+              error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
+              details: errorDetails,
+              fortnoxStatus: fortnoxRes.status,
+              requestPayload: payload, // Include the original payload that caused the error
+              errorCode: errorCode,
+              retryWithoutArticleNumber: true // Flag to tell the client to retry without article numbers
+            }),
+            {
+              status: fortnoxRes.status,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            }
+          );
         }
         
         return new Response(

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
@@ -52,8 +53,49 @@ export async function fortnoxApiRequest(
     // Format endpoint to ensure it starts with a slash
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
+    // Special handling for invoice creation
+    if (method === 'POST' && path.includes('/invoices') && data && !retryWithoutArticleNumber) {
+      // Sanitize invoice data before sending
+      if (data.Invoice) {
+        // Remove EmailInformation if it exists
+        if (data.Invoice.EmailInformation) {
+          console.log("Removing EmailInformation from invoice data");
+          delete data.Invoice.EmailInformation;
+        }
+        
+        // Validate invoice rows
+        if (data.Invoice.InvoiceRows && Array.isArray(data.Invoice.InvoiceRows)) {
+          console.log("Validating invoice rows");
+          data.Invoice.InvoiceRows = data.Invoice.InvoiceRows.map(row => {
+            // Ensure VAT is one of the allowed values
+            if (!row.VAT || ![25, 12, 6].includes(row.VAT)) {
+              row.VAT = 25; // Default to 25%
+            }
+            
+            // Ensure AccountNumber is in valid range
+            const accountNum = parseInt(row.AccountNumber);
+            if (isNaN(accountNum) || accountNum < 3000 || accountNum > 3999) {
+              row.AccountNumber = "3001"; // Default to 3001
+            }
+            
+            // Only include ArticleNumber if it's valid (numeric)
+            if (row.ArticleNumber && !/^\d+$/.test(row.ArticleNumber.toString())) {
+              console.log(`Removing non-numeric ArticleNumber: ${row.ArticleNumber}`);
+              delete row.ArticleNumber;
+            }
+            
+            return row;
+          });
+        }
+      }
+    }
+    
+    // Debug: Log the sanitized payload for POST/PUT
+    if (method !== 'GET' && data) {
+      console.log("Sanitized request payload:", JSON.stringify(data, null, 2));
+    }
+    
     // Prepare the request body for the edge function
-    // IMPORTANT: We need to include the headers explicitly in the body
     const requestBody = {
       method,
       path,
@@ -74,11 +116,6 @@ export async function fortnoxApiRequest(
       }
     });
     
-    // Add debug logging for the exact payload for POST/PUT
-    if (method !== 'GET' && data) {
-      console.log("Request payload:", JSON.stringify(data, null, 2));
-    }
-    
     // Call the edge function with the properly structured request body
     const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
       body: requestBody
@@ -91,6 +128,7 @@ export async function fortnoxApiRequest(
       let errorMessage = "Fortnox API Error";
       let errorDetails = null;
       let errorCode = null;
+      let retryNeeded = false;
       
       if (typeof error === 'object' && error !== null) {
         // If the error contains a message that has JSON in it, parse it
@@ -111,6 +149,9 @@ export async function fortnoxApiRequest(
                 if (errorDetails?.errorCode) {
                   errorCode = errorDetails.errorCode;
                 }
+                if (errorDetails?.retryWithoutArticleNumber) {
+                  retryNeeded = true;
+                }
               }
             }
           } catch (parseError) {
@@ -125,34 +166,30 @@ export async function fortnoxApiRequest(
         method === 'POST' && 
         endpoint.includes('/invoices') && 
         !retryWithoutArticleNumber && 
-        data?.Invoice?.InvoiceRows
+        data?.Invoice?.InvoiceRows &&
+        (retryNeeded || 
+         errorMessage.includes("ArticleNumber") || 
+         errorCode === "2001204" || // ArticleNumber doesn't exist
+         errorCode === "2001008")   // Article not found
       ) {
-        // Check if error is related to article number
-        const isArticleNumberError = 
-          errorMessage.includes("ArticleNumber") || 
-          errorCode === "2001204" || // ArticleNumber doesn't exist
-          errorCode === "2001008";   // Article not found
-          
-        if (isArticleNumberError) {
-          console.log("⚠️ Article number error detected, retrying without article numbers");
-          
-          // Create a deep copy of the original data
-          const retryData = JSON.parse(JSON.stringify(data));
-          
-          // Modify each invoice row to remove ArticleNumber
-          if (retryData.Invoice && retryData.Invoice.InvoiceRows) {
-            retryData.Invoice.InvoiceRows = retryData.Invoice.InvoiceRows.map((row: any) => {
-              // Remove ArticleNumber and UnitCode but keep other fields
-              const { ArticleNumber, UnitCode, ...rest } = row;
-              return rest;
-            });
-          }
-          
-          console.log("Retrying with modified payload:", JSON.stringify(retryData, null, 2));
-          
-          // Retry the request with the modified data
-          return await fortnoxApiRequest(endpoint, method, retryData, true);
+        console.log("⚠️ Article number error detected, retrying without article numbers");
+        
+        // Create a deep copy of the original data
+        const retryData = JSON.parse(JSON.stringify(data));
+        
+        // Modify each invoice row to remove ArticleNumber
+        if (retryData.Invoice && retryData.Invoice.InvoiceRows) {
+          retryData.Invoice.InvoiceRows = retryData.Invoice.InvoiceRows.map((row: any) => {
+            // Create a new object without ArticleNumber and UnitCode
+            const { ArticleNumber, UnitCode, ...rest } = row;
+            return rest;
+          });
         }
+        
+        console.log("Retrying with modified payload:", JSON.stringify(retryData, null, 2));
+        
+        // Retry the request with the modified data
+        return await fortnoxApiRequest(endpoint, method, retryData, true);
       }
       
       // Throw a nicely formatted error

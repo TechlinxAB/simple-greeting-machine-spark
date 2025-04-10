@@ -29,6 +29,8 @@ type TimeEntryWithProfile = {
     type: string;
     price: number;
     vat_percentage: number;
+    article_number?: string;
+    account_number?: string;
   };
   user_profile?: {
     id?: string;
@@ -230,6 +232,12 @@ export default function Invoices() {
       )
     : invoices;
 
+  // Check if any products have invalid article numbers
+  const hasInvalidArticleNumbers = unbilledEntries.some(entry => 
+    entry.products?.article_number && 
+    !/^\d+$/.test(entry.products.article_number)
+  );
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -403,6 +411,16 @@ export default function Invoices() {
               </Select>
             </div>
             
+            {hasInvalidArticleNumbers && (
+              <Alert variant="warning" className="bg-yellow-50 border-yellow-200">
+                <AlertCircle className="h-4 w-4 text-yellow-800" />
+                <AlertTitle className="text-yellow-800">Non-numeric Article Numbers detected</AlertTitle>
+                <AlertDescription className="text-yellow-700">
+                  Some products have non-numeric article numbers. These will be automatically corrected when creating the invoice.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {errorMessage && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -442,6 +460,7 @@ export default function Invoices() {
                             <TableHead>User</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead>Quantity</TableHead>
+                            <TableHead>Art. Number</TableHead>
                             <TableHead className="text-right">Amount (SEK)</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -460,6 +479,11 @@ export default function Invoices() {
                             
                             const amount = entry.products ? entry.products.price * quantity : 0;
                             
+                            // Check if article number is valid (numeric)
+                            const hasValidArticleNumber = 
+                              entry.products?.article_number && 
+                              /^\d+$/.test(entry.products.article_number);
+                            
                             return (
                               <TableRow key={entry.id}>
                                 <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
@@ -468,12 +492,25 @@ export default function Invoices() {
                                 <TableCell>
                                   {quantity} {entry.products?.type === 'activity' ? 'hr' : 'pcs'}
                                 </TableCell>
+                                <TableCell>
+                                  {entry.products?.article_number ? (
+                                    hasValidArticleNumber ? (
+                                      entry.products.article_number
+                                    ) : (
+                                      <span className="text-yellow-600" title="Non-numeric article number will be fixed">
+                                        {entry.products.article_number}*
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-muted-foreground italic">Will be generated</span>
+                                  )}
+                                </TableCell>
                                 <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
                               </TableRow>
                             );
                           })}
                           <TableRow>
-                            <TableCell colSpan={4} className="font-bold text-right">Total:</TableCell>
+                            <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
                             <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
                           </TableRow>
                         </TableBody>
