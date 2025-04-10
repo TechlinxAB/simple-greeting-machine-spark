@@ -41,8 +41,7 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload the image - no need to check bucket existence or create bucket
-      // as we've already confirmed the bucket exists through our SQL operation
+      // Upload the image to the news_images bucket
       const { error: uploadError, data } = await supabase
         .storage
         .from('news_images')

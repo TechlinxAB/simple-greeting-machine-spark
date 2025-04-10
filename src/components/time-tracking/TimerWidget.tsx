@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Pause, Stop, Timer, Save, Trash2, AlertCircle } from 'lucide-react';
+import { Play, Pause, Square, Timer, Save, Trash2, AlertCircle } from 'lucide-react';
 import { useTimer } from '@/hooks/useTimer';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -194,7 +194,7 @@ export function TimerWidget() {
             onClick={handleStopTimer}
             className="flex items-center gap-1"
           >
-            <Stop className="h-4 w-4" />
+            <Square className="h-4 w-4" />
             <span>Stop</span>
           </Button>
         </CardFooter>
@@ -293,7 +293,7 @@ export function TimerWidget() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Timer Completed</AlertDialogTitle>
-            <AlertDialogDescription asChild>
+            <AlertDialogDescription>
               <div>
                 <div className="flex items-start gap-2 text-amber-500 mb-4">
                   <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -328,8 +328,7 @@ export function TimerWidget() {
                 e.preventDefault();
                 handleDeleteTimer();
               }}
-              variant="outline"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-transparent border border-destructive text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4" />
               <span>Delete Timer</span>

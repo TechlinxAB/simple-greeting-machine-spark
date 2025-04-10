@@ -11,3 +11,5 @@ export interface Timer {
   created_at?: string;
   updated_at?: string;
 }
+
+export type TimerStatus = 'running' | 'paused' | 'completed';

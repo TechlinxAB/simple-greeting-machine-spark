@@ -19,6 +19,7 @@ export function useTimer() {
       if (!user) return null;
       
       try {
+        // Using the generic any type to avoid type errors with the new table
         const { data, error } = await supabase
           .from('user_timers')
           .select('*')
@@ -199,7 +200,7 @@ export function useTimer() {
     if (!user) return false;
 
     try {
-      // First get the timer data
+      // First get the timer data - using any to avoid type errors
       const { data: timer, error: fetchError } = await supabase
         .from('user_timers')
         .select('*')
@@ -208,7 +209,10 @@ export function useTimer() {
 
       if (fetchError) throw fetchError;
       
-      if (!timer.end_time || !timer.client_id || !timer.product_id) {
+      // Safely cast the timer to the correct type
+      const timerData = timer as unknown as Timer;
+      
+      if (!timerData.end_time || !timerData.client_id || !timerData.product_id) {
         toast.error('Timer data is incomplete');
         return false;
       }
@@ -218,11 +222,11 @@ export function useTimer() {
         .from('time_entries')
         .insert({
           user_id: user.id,
-          client_id: timer.client_id,
-          product_id: timer.product_id,
-          start_time: timer.start_time,
-          end_time: timer.end_time,
-          description: timer.description,
+          client_id: timerData.client_id,
+          product_id: timerData.product_id,
+          start_time: timerData.start_time,
+          end_time: timerData.end_time,
+          description: timerData.description,
         });
 
       if (insertError) throw insertError;
