@@ -1,3 +1,4 @@
+
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
@@ -10,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { cn } from "@/lib/utils";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState } = useAuth();
@@ -111,6 +113,50 @@ export function AppLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  // Create simple direct menu for mobile view
+  const MobileMenu = () => {
+    const links = [
+      { title: "Time Tracking", href: "/" },
+      { title: "Dashboard", href: "/dashboard" },
+      { title: "Clients", href: "/clients" },
+      { title: "Products", href: "/products" },
+      { title: "Invoices", href: "/invoices" },
+      { title: "Settings", href: "/settings" },
+      { title: "Profile", href: "/profile" },
+    ];
+    
+    return (
+      <div className="flex flex-col p-4 space-y-2">
+        {links.map((link) => (
+          <Button 
+            key={link.title}
+            variant="ghost" 
+            className="justify-start text-left w-full py-6 text-base"
+            onClick={() => {
+              navigate(link.href);
+              setMobileSidebarOpen(false);
+            }}
+          >
+            {link.title}
+          </Button>
+        ))}
+        <div className="pt-4 border-t mt-4">
+          <Button 
+            variant="destructive" 
+            className="w-full" 
+            onClick={() => {
+              signOut();
+              setMobileSidebarOpen(false);
+            }}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   // Mobile sidebar component
   const MobileSidebarTrigger = () => {
     if (!isMobile) return null;
@@ -131,11 +177,8 @@ export function AppLayout() {
             </Button>
           </DrawerTrigger>
           <DrawerContent className="h-[85vh]">
-            <DrawerTitle className="sr-only">Navigation Menu</DrawerTitle>
-            <DrawerDescription className="sr-only">Application navigation sidebar</DrawerDescription>
-            <div className="h-full flex flex-col overflow-auto">
-              <AppSidebar />
-            </div>
+            <DrawerTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</DrawerTitle>
+            <MobileMenu />
           </DrawerContent>
         </Drawer>
       );
@@ -159,9 +202,8 @@ export function AppLayout() {
           side="left" 
           className="p-0 w-[80vw] sm:w-[300px] z-50"
         >
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <SheetDescription className="sr-only">Application navigation sidebar</SheetDescription>
-          <AppSidebar />
+          <SheetTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</SheetTitle>
+          <MobileMenu />
         </SheetContent>
       </Sheet>
     );
