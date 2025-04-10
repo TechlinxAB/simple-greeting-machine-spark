@@ -64,20 +64,20 @@ export function NewsImageUpload({ initialImageUrl, onImageUploaded }: NewsImageU
       // Create a unique file name to avoid collisions
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = fileName;
 
       console.log("Uploading to news_images bucket:", filePath);
       console.log("File type:", file.type);
 
-      // Create a Blob with explicit type to ensure it's not treated as JSON
-      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      // IMPORTANT: Don't convert the file to a Blob, use the raw file directly
+      // This is the key difference compared to the previous implementation
 
-      // Upload the image to the news_images bucket with explicit content type
+      // Upload the image to the news_images bucket
       const { error: uploadError } = await supabase
         .storage
         .from('news_images')
-        .upload(filePath, blob, {
-          contentType: file.type, // Explicitly set the content type based on the file
+        .upload(filePath, file, {
+          contentType: file.type, // Explicitly set the content type
           cacheControl: '3600',
           upsert: true
         });
