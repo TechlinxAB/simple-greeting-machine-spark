@@ -17,7 +17,9 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
 
-// Updated schema to make endTime required for activities
+// Create a local variable to store filtered products
+let filteredProducts: any[] = [];
+
 const timeEntrySchema = z.object({
   clientId: z.string({ required_error: "Client is required" }),
   productId: z.string({ required_error: "Product or activity is required" }),
@@ -48,9 +50,6 @@ interface TimeEntryFormProps {
   onSuccess: () => void;
 }
 
-// A global variable to store products for the schema validation
-let filteredProducts: any[] = [];
-
 export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
@@ -58,6 +57,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [currentDate] = useState<Date>(new Date());
+  const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
   
   // Refs for focus management
   const endTimeRef = useRef<HTMLDivElement>(null);
@@ -102,10 +102,22 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     fetchData();
   }, []);
 
+  // Update filteredProducts whenever selectedProductType or products change
   useEffect(() => {
-    // This is the fix: correctly filter products based on selectedProductType
-    filteredProducts = products.filter(product => product.type === selectedProductType);
-  }, [selectedProductType, products]);
+    // Filter products based on selectedProductType
+    const filtered = products.filter(product => product.type === selectedProductType);
+    setFilteredProductsList(filtered);
+    // Also update the global variable used by the schema validation
+    filteredProducts = filtered;
+    
+    // Clear selected product if type changes
+    if (watchProductId) {
+      const currentProduct = products.find(p => p.id === watchProductId);
+      if (currentProduct && currentProduct.type !== selectedProductType) {
+        form.setValue("productId", "");
+      }
+    }
+  }, [selectedProductType, products, form, watchProductId]);
 
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
@@ -407,7 +419,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
                               <SelectValue placeholder={`Select an ${selectedProductType}`} />
                             </SelectTrigger>
                             <SelectContent>
-                              {filteredProducts.map((product) => (
+                              {filteredProductsList.map((product) => (
                                 <SelectItem key={product.id} value={product.id}>
                                   {product.name}
                                 </SelectItem>
