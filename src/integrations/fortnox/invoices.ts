@@ -10,7 +10,7 @@ interface FortnoxInvoiceData {
   InvoiceDate?: string;
   DueDate?: string;
   Comments?: string;
-  PricesIncludeVAT?: boolean;
+  VATIncluded?: boolean;
   Currency?: string;
   Language?: string;
   InvoiceType?: string;
@@ -109,7 +109,23 @@ export async function formatTimeEntriesForFortnox(
       // Validate ArticleNumber - only use if it's numeric
       let articleNumber: string | undefined = undefined;
       if (product.article_number && /^\d+$/.test(product.article_number)) {
-        articleNumber = product.article_number;
+        // Check if this article exists in Fortnox
+        const exists = await checkFortnoxArticle(product.article_number);
+        if (exists) {
+          articleNumber = product.article_number;
+        } else {
+          // Create or ensure article exists
+          const newArticleNumber = await ensureFortnoxArticle(product);
+          if (newArticleNumber) {
+            articleNumber = newArticleNumber;
+          }
+        }
+      } else if (product.id) {
+        // If article number is not numeric, try to create a new one
+        const newArticleNumber = await ensureFortnoxArticle(product);
+        if (newArticleNumber) {
+          articleNumber = newArticleNumber;
+        }
       }
       
       // Get user profile from the map
@@ -185,7 +201,7 @@ export async function formatTimeEntriesForFortnox(
       InvoiceDate: new Date().toISOString().split('T')[0],
       DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
       Comments: `Invoice generated from Techlinx Time Tracker`,
-      PricesIncludeVAT: false, // Per Fortnox spec
+      VATIncluded: false, // Changed from PricesIncludeVAT to VATIncluded
       Currency: "SEK", // Swedish Krona
       Language: "SV", // Swedish
       InvoiceType: "INVOICE" // Regular invoice
@@ -326,14 +342,14 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
     
     // Format the article data
     const articleData: FortnoxArticleData = {
-      Description: product.name,
+      Description: product.name || "Service",
       ArticleNumber: articleNumber,
-      Type: product.type === 'activity' ? "SERVICE" : "STOCK",
+      Type: "SERVICE", // Default to SERVICE type for all products
       SalesPrice: product.price,
       SalesAccount: product.account_number || "3001",
       Unit: product.type === 'activity' ? "h" : "st", 
       VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
-      StockGoods: product.type === 'item'
+      StockGoods: false // Set to false for service products
     };
     
     // Create the article in Fortnox

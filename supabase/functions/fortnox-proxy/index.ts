@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // API base URL for Fortnox
@@ -140,37 +141,50 @@ serve(async (req) => {
     if (method !== 'GET' && payload) {
       console.log("Request payload to Fortnox:", JSON.stringify(payload, null, 2));
       
-      // SAFETY CHECK: remove EmailInformation if present in Invoice payload
-      if (payload.Invoice && payload.Invoice.EmailInformation) {
-        console.log("⚠️ EmailInformation found in Invoice payload - removing");
-        delete payload.Invoice.EmailInformation;
-      }
-      
-      // VALIDATION: Ensure only valid fields are sent to Fortnox for invoices
-      if (payload.Invoice && payload.Invoice.InvoiceRows) {
-        console.log("🔍 Validating invoice rows...");
-        payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
-          // Keep only the required fields for invoice rows
-          const validRow = {
-            Description: row.Description,
-            DeliveredQuantity: row.DeliveredQuantity,
-            Price: row.Price,
-            VAT: [25, 12, 6].includes(row.VAT) ? row.VAT : 25,
-            AccountNumber: row.AccountNumber
-          };
-          
-          // Only add ArticleNumber if it's numeric and present
-          if (row.ArticleNumber && /^\d+$/.test(row.ArticleNumber.toString())) {
-            validRow.ArticleNumber = row.ArticleNumber;
+      // VALIDATION: For Invoice Creation
+      if (method === 'POST' && path.includes('/invoices') && payload.Invoice) {
+        console.log("🔍 Validating invoice payload...");
+        
+        // Remove EmailInformation completely
+        if (payload.Invoice.EmailInformation) {
+          console.log("⚠️ Removing EmailInformation from Invoice payload - not needed for creation");
+          delete payload.Invoice.EmailInformation;
+        }
+        
+        // Ensure correct format for Invoice
+        if (payload.Invoice) {
+          // Make sure PricesIncludeVAT is correctly formatted
+          if (payload.Invoice.hasOwnProperty('PricesIncludeVAT')) {
+            payload.Invoice.VATIncluded = payload.Invoice.PricesIncludeVAT; 
+            delete payload.Invoice.PricesIncludeVAT;
+            console.log("⚠️ Replaced PricesIncludeVAT with VATIncluded as per Fortnox API");
           }
           
-          // Only add UnitCode if it's present and valid
-          if (row.UnitCode && typeof row.UnitCode === 'string') {
-            validRow.UnitCode = row.UnitCode;
+          // Validate InvoiceRows
+          if (payload.Invoice.InvoiceRows && Array.isArray(payload.Invoice.InvoiceRows)) {
+            payload.Invoice.InvoiceRows = payload.Invoice.InvoiceRows.map((row: any) => {
+              const validRow: any = {
+                Description: row.Description,
+                DeliveredQuantity: row.DeliveredQuantity,
+                Price: row.Price,
+                VAT: [25, 12, 6].includes(row.VAT) ? row.VAT : 25,
+                AccountNumber: row.AccountNumber || "3001"
+              };
+              
+              // Only include ArticleNumber if it's valid (numeric)
+              if (row.ArticleNumber && /^\d+$/.test(row.ArticleNumber.toString())) {
+                validRow.ArticleNumber = row.ArticleNumber;
+              }
+              
+              // Only include UnitCode if present
+              if (row.UnitCode) {
+                validRow.UnitCode = row.UnitCode;
+              }
+              
+              return validRow;
+            });
           }
-          
-          return validRow;
-        });
+        }
       }
     }
     
@@ -217,6 +231,47 @@ serve(async (req) => {
           
           console.log("🔄 Article number error detected, trying to retry without article numbers...");
           
+          // Create a deep copy of the original payload for the retry
+          let retryPayload = JSON.parse(JSON.stringify(payload));
+          
+          // Remove all ArticleNumber fields from invoice rows
+          if (retryPayload.Invoice && retryPayload.Invoice.InvoiceRows) {
+            retryPayload.Invoice.InvoiceRows = retryPayload.Invoice.InvoiceRows.map((row: any) => {
+              const { ArticleNumber, ...restRow } = row;
+              return restRow;
+            });
+            
+            console.log("🔄 Retrying invoice creation without ArticleNumber fields:", JSON.stringify(retryPayload, null, 2));
+            
+            // Try again with the modified payload
+            const retryRes = await fetch(fortnoxUrl, {
+              method,
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Client-Secret': clientSecret,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify(retryPayload)
+            });
+            
+            const retryText = await retryRes.text();
+            
+            if (retryRes.ok) {
+              console.log("✅ Retry successful! Invoice created without ArticleNumber");
+              return new Response(retryText, {
+                status: retryRes.status,
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
+              });
+            } else {
+              console.error("❌ Retry also failed:", retryText);
+              // Return the original error, we'll handle the retry on the client side
+            }
+          }
+          
           // Extract error code for better diagnosis
           let errorCode = null;
           if (errorDetails?.ErrorInformation?.Code) {
@@ -230,9 +285,9 @@ serve(async (req) => {
               error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
               details: errorDetails,
               fortnoxStatus: fortnoxRes.status,
-              requestPayload: payload, // Include the original payload that caused the error
+              requestPayload: payload,
               errorCode: errorCode,
-              retryWithoutArticleNumber: true // Flag to tell the client to retry without article numbers
+              retryWithoutArticleNumber: true
             }),
             {
               status: fortnoxRes.status,
@@ -249,7 +304,7 @@ serve(async (req) => {
             error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
             details: errorDetails,
             fortnoxStatus: fortnoxRes.status,
-            requestPayload: payload, // Include the original payload that caused the error
+            requestPayload: payload,
             errorCode: errorDetails?.ErrorInformation?.Code || errorDetails?.ErrorInformation?.error?.code || null
           }),
           {
