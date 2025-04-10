@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -223,14 +222,13 @@ function sanitizeFortnoxDescription(description: string): string {
  */
 function formatDateRange(startTime: string, endTime: string): string {
   const start = new Date(startTime);
-  const end = new Date(endTime);
   
-  // Format date as YYYY-MM-DD HH:MM
+  // Format date as YYYY-MM-DD only
   const formatDate = (date: Date) => {
-    return `${date.toISOString().split('T')[0]} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return `${date.toISOString().split('T')[0]}`;
   };
   
-  return `${formatDate(start)} to ${formatDate(end)}`;
+  return formatDate(start);
 }
 
 /**
