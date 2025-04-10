@@ -21,18 +21,14 @@ import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, Admin
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
-import { 
-  DEFAULT_LOGO_PATH,
-  ensureLogoBucketExists,
-  getStoredLogoAsDataUrl,
-  LOGO_DATA_URL_KEY
-} from "@/utils/logoUtils";
+import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
+import { useCachedLogo } from "@/hooks/useCachedLogo";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { user, signOut, role } = useAuth();
   const [logoError, setLogoError] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO_PATH);
+  const { logoUrl, isLoading: logoLoading } = useCachedLogo();
 
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
@@ -85,44 +81,6 @@ export function AppSidebar() {
     },
     enabled: !!user?.id
   });
-
-  // Use the improved logo data URL approach with localStorage fallback
-  const { data: logoDataUrl, isLoading: logoLoading } = useQuery({
-    queryKey: ["app-logo-dataurl"],
-    queryFn: async () => {
-      try {
-        // First check localStorage for cached logo
-        const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
-        if (cachedLogo) {
-          return cachedLogo;
-        }
-        
-        await ensureLogoBucketExists();
-        
-        const dataUrl = await getStoredLogoAsDataUrl();
-        if (!dataUrl) {
-          return DEFAULT_LOGO_PATH;
-        }
-        
-        return dataUrl;
-      } catch (error) {
-        console.error("Error fetching app logo for sidebar:", error);
-        return DEFAULT_LOGO_PATH;
-      }
-    },
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-    retry: 1
-  });
-
-  useEffect(() => {
-    if (logoDataUrl) {
-      setLogoUrl(logoDataUrl);
-      setLogoError(false);
-    } else {
-      setLogoUrl(DEFAULT_LOGO_PATH);
-    }
-  }, [logoDataUrl]);
 
   const links = [
     {
@@ -207,7 +165,6 @@ export function AppSidebar() {
   const handleLogoError = () => {
     console.log("Logo failed to load in sidebar, using fallback");
     setLogoError(true);
-    setLogoUrl(DEFAULT_LOGO_PATH);
   };
 
   return (

@@ -24,19 +24,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   checkLogoExists, 
   uploadAppLogo, 
-  removeAppLogo, 
-  getAppLogoUrl,
+  removeAppLogo,
   DEFAULT_LOGO_PATH,
   MAX_LOGO_WIDTH,
   MAX_LOGO_HEIGHT,
   MAX_LOGO_SIZE,
-  preloadImage,
   validateLogoFile,
-  getLogoForDisplay,
   ensureLogoBucketExists,
   fileToDataUrl,
-  testImageLoad,
-  getStoredLogoAsDataUrl
+  getStoredLogoAsDataUrl,
+  updateLogoInSystemSettings,
+  LOGO_DATA_URL_KEY
 } from "@/utils/logoUtils";
 
 const appSettingsSchema = z.object({
@@ -71,7 +69,6 @@ export default function Settings() {
   const [logoError, setLogoError] = useState(false);
   const [logoValidationError, setLogoValidationError] = useState<string | null>(null);
   const [loadingLogo, setLoadingLogo] = useState(true);
-  const [logoDataUrlKey, setLogoDataUrlKey] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -327,9 +326,7 @@ export async function removeAppLogo(): Promise<boolean> {
     const { error: settingsError } = await supabase
       .from("system_settings")
       .update({
-        settings: supabase.postgres.json({
-          logoUrl: null
-        })
+        settings: { logoUrl: null }
       })
       .eq("id", "app_settings");
       
@@ -399,9 +396,7 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string; succ
     const { error: settingsError } = await supabase
       .from("system_settings")
       .update({
-        settings: supabase.postgres.json({
-          logoUrl: dataUrl
-        })
+        settings: { logoUrl: dataUrl }
       })
       .eq("id", "app_settings");
       
@@ -438,11 +433,14 @@ export async function getStoredLogoAsDataUrl(): Promise<string | null> {
       .single();
       
     // If we have settings data with a logoUrl (which is a dataUrl), use that
-    if (!settingsError && settingsData?.settings?.logoUrl) {
-      const dataUrl = settingsData.settings.logoUrl;
-      // Cache it
-      localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
-      return dataUrl;
+    if (!settingsError && settingsData?.settings && typeof settingsData.settings === 'object') {
+      const settings = settingsData.settings as Record<string, any>;
+      if (settings.logoUrl) {
+        const dataUrl = settings.logoUrl;
+        // Cache it
+        localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+        return dataUrl;
+      }
     }
     
     // If no value in settings, try to download from storage
@@ -517,7 +515,7 @@ export async function updateLogoInSystemSettings(dataUrl: string): Promise<boole
     const { error } = await supabase
       .from("system_settings")
       .update({
-        settings: supabase.postgres.json({ logoUrl: dataUrl })
+        settings: { logoUrl: dataUrl }
       })
       .eq("id", "app_settings");
       
