@@ -123,8 +123,8 @@ export function AppLayout() {
       { title: "Clients", href: "/clients" },
       { title: "Products", href: "/products", showIf: isManagerOrAdmin },
       { title: "Invoices", href: "/invoices", showIf: isManagerOrAdmin },
-      { title: "Administration", href: "/administration", showIf: isAdmin },
-      { title: "Settings", href: "/settings", showIf: isManagerOrAdmin },
+      { title: "Administration", href: "/administration", showIf: isManagerOrAdmin },
+      { title: "Settings", href: "/settings", showIf: isAdmin },
       { title: "Profile", href: "/profile" },
     ];
     

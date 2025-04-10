@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -17,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { type Invoice } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -48,6 +48,7 @@ export default function Invoices() {
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>("");
+  const { role } = useAuth();
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
@@ -321,7 +322,11 @@ export default function Invoices() {
           {!fortnoxConnected && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-sm text-yellow-800">
-                Fortnox integration is not connected. Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.
+                Fortnox integration is not connected. {
+                  role === 'admin' 
+                    ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
+                    : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                }
               </p>
             </div>
           )}
@@ -476,9 +481,8 @@ export default function Invoices() {
                                       <TooltipContent>
                                         <p>A new article number will be generated and created in Fortnox</p>
                                       </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
+                                    </TooltipProvider>
+                                  )}
                               </TableCell>
                               <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
                             </TableRow>

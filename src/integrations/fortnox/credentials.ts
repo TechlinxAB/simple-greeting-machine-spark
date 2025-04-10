@@ -89,6 +89,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
 
 /**
  * Check if Fortnox integration is connected and tokens are valid
+ * This function is now role-independent, allowing any user to check if Fortnox is connected
  */
 export async function isFortnoxConnected(): Promise<boolean> {
   try {
@@ -141,6 +142,7 @@ export async function isFortnoxConnected(): Promise<boolean> {
 
 /**
  * Disconnect Fortnox integration
+ * This function should only be callable by admins (enforced at the UI level)
  */
 export async function disconnectFortnox(): Promise<void> {
   try {

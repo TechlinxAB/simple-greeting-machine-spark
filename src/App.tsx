@@ -39,11 +39,17 @@ const App = () => (
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
-                <Route path="/administration" element={<Administration />} />
                 
-                {/* Protected route requiring admin or manager role */}
-                <Route path="/settings" element={
+                {/* Protected route requiring admin or manager role for Administration */}
+                <Route path="/administration" element={
                   <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <Administration />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Protected route requiring only admin role for Settings */}
+                <Route path="/settings" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <Settings />
                   </ProtectedRoute>
                 } />
