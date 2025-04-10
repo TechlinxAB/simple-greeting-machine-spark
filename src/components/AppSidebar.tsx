@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
 import { useCachedLogo } from "@/hooks/useCachedLogo";
+import { Separator } from "./ui/separator";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -175,134 +176,145 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r bg-gradient-to-b from-sidebar-background to-sidebar-accent/90">
-      <SidebarHeader className="border-b border-sidebar-border/30 p-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-auto flex items-center justify-center rounded overflow-hidden bg-white/10 p-0.5 backdrop-blur-sm transition-all duration-300 hover:scale-105">
+    <Sidebar className="border-r bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 flex items-center justify-center rounded-md overflow-hidden bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 shadow-xl">
             {logoLoading ? (
-              <div className="h-8 w-20 animate-pulse bg-gray-200/20 rounded"></div>
+              <div className="h-9 w-9 animate-pulse bg-gray-200/20 rounded"></div>
             ) : logoError ? (
               <img 
                 src={DEFAULT_LOGO_PATH}
                 alt="Logo" 
-                className="h-full w-auto max-w-[100px] object-contain"
+                className="h-full w-auto object-contain"
               />
             ) : (
               <img 
                 src={logoUrl}
                 alt="Logo" 
-                className="h-full w-auto max-w-[100px] object-contain" 
+                className="h-full w-auto object-contain" 
                 onError={handleLogoError}
               />
             )}
           </div>
-          <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground overflow-hidden text-ellipsis transition-all duration-300 hover:text-white">
+          <h2 className="text-lg font-bold tracking-tight text-white overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px]">
             {appSettings?.appName || "Time Tracker"}
           </h2>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      
+      <SidebarContent className="px-2 py-2">
         <ScrollArea className="h-[calc(100vh-12rem)]">
-          <div className="px-2 py-4 space-y-6">
+          <div className="space-y-4">
             <SidebarGroup>
-              <SidebarGroupLabel className="mb-2 px-4 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider">Main</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="grid gap-1">
-                  {links.map((link) => {
-                    if (link.adminOnly && !isAdmin) return null;
-                    if (link.managerOnly && !isManagerOrAdmin) return null;
+              <SidebarMenu className="grid gap-1 px-2">
+                {links.map((link) => {
+                  if (link.adminOnly && !isAdmin) return null;
+                  if (link.managerOnly && !isManagerOrAdmin) return null;
 
-                    const isActive = pathname === link.href;
+                  const isActive = pathname === link.href;
 
-                    return (
-                      <SidebarMenuItem key={link.title}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            to={link.href}
-                            className={cn(
-                              "group relative flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white transition-all duration-200",
-                              isActive && "bg-sidebar-primary text-white font-medium",
-                              "before:absolute before:left-0 before:top-0 before:h-full before:w-0 before:rounded-l-md before:bg-primary/20 before:transition-all",
-                              "hover:before:w-1",
-                              isActive && "before:w-1"
-                            )}
-                          >
-                            <link.icon className={cn(
-                              "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
-                              isActive && "text-white"
-                            )} />
-                            <span className="transition-transform duration-200 group-hover:translate-x-0.5">
-                              {link.title}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
+                  return (
+                    <SidebarMenuItem key={link.title}>
+                      <SidebarMenuButton asChild>
+                        <Link
+                          to={link.href}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                            isActive 
+                              ? "bg-white/20 text-white font-medium shadow-inner" 
+                              : "text-white/70 hover:bg-white/10 hover:text-white",
+                            "backdrop-blur-sm"
+                          )}
+                        >
+                          <link.icon className={cn(
+                            "h-[18px] w-[18px] transition-all duration-200",
+                            isActive ? "text-white" : "text-white/70 group-hover:text-white"
+                          )} />
+                          <span className={cn(
+                            "transition-all duration-200",
+                            isActive ? "translate-x-0.5" : "group-hover:translate-x-0.5"
+                          )}>
+                            {link.title}
+                          </span>
+                          {isActive && (
+                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80"></span>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
             </SidebarGroup>
             
+            <Separator className="mx-2 my-2 bg-white/10" />
+            
             <SidebarGroup>
-              <SidebarGroupLabel className="mb-2 px-4 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider">Other</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="grid gap-1">
-                  {secondaryLinks.map((link) => {
-                    const isActive = pathname === link.href;
-                    
-                    return (
-                      <SidebarMenuItem key={link.title}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            to={link.href}
-                            className={cn(
-                              "group relative flex items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-white transition-all duration-200",
-                              isActive && "bg-sidebar-primary text-white font-medium",
-                              "before:absolute before:left-0 before:top-0 before:h-full before:w-0 before:rounded-l-md before:bg-primary/20 before:transition-all",
-                              "hover:before:w-1",
-                              isActive && "before:w-1"
-                            )}
-                          >
-                            <link.icon className={cn(
-                              "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
-                              isActive && "text-white"
-                            )} />
-                            <span className="transition-transform duration-200 group-hover:translate-x-0.5">
-                              {link.title}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
+              <SidebarMenu className="grid gap-1 px-2">
+                {secondaryLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  
+                  return (
+                    <SidebarMenuItem key={link.title}>
+                      <SidebarMenuButton asChild>
+                        <Link
+                          to={link.href}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                            isActive 
+                              ? "bg-white/20 text-white font-medium shadow-inner" 
+                              : "text-white/70 hover:bg-white/10 hover:text-white",
+                            "backdrop-blur-sm"
+                          )}
+                        >
+                          <link.icon className={cn(
+                            "h-[18px] w-[18px] transition-all duration-200",
+                            isActive ? "text-white" : "text-white/70 group-hover:text-white"
+                          )} />
+                          <span className={cn(
+                            "transition-all duration-200",
+                            isActive ? "translate-x-0.5" : "group-hover:translate-x-0.5"
+                          )}>
+                            {link.title}
+                          </span>
+                          {isActive && (
+                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80"></span>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
             </SidebarGroup>
           </div>
         </ScrollArea>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border/30 p-4 bg-sidebar-accent/50 backdrop-blur-sm">
+      
+      <SidebarFooter className="p-4 mt-auto">
         {user && (
-          <Link to="/profile" className="flex items-center justify-between hover:bg-sidebar-accent/50 rounded-md p-2 transition-all duration-200 group">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 ring-2 ring-white/20 group-hover:ring-white/30 transition-all duration-200 shadow-md group-hover:shadow-lg">
-                <AvatarImage 
-                  src={avatarUrl} 
-                  alt={displayName} 
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-primary/30 text-white font-semibold">
-                  {getInitials(displayName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium text-white group-hover:scale-105 transition-transform duration-200 overflow-hidden text-ellipsis max-w-[120px]">
-                  {displayName}
-                </p>
-                <p className="text-xs text-sidebar-foreground/80 group-hover:text-white/80 transition-colors duration-200 capitalize">
-                  {role || "User"}
-                </p>
-              </div>
+          <Link 
+            to="/profile" 
+            className="flex items-center gap-3 rounded-lg p-3 bg-white/10 backdrop-blur-sm hover:bg-white/15 transition-all duration-200 group shadow-md"
+          >
+            <Avatar className="h-11 w-11 ring-2 ring-white/20 transition-all duration-200 group-hover:ring-white/40 shadow-inner">
+              <AvatarImage 
+                src={avatarUrl} 
+                alt={displayName} 
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-primary/80 text-white font-semibold">
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-1 flex-1 min-w-0">
+              <p className="text-sm font-medium text-white group-hover:scale-105 transition-transform duration-200 overflow-hidden text-ellipsis whitespace-nowrap">
+                {displayName}
+              </p>
+              <p className="text-xs text-white/70 group-hover:text-white/90 transition-colors duration-200 capitalize overflow-hidden text-ellipsis whitespace-nowrap">
+                {role || "User"}
+              </p>
             </div>
             <Button
               variant="ghost"
@@ -312,7 +324,7 @@ export function AppSidebar() {
                 e.stopPropagation();
                 signOut();
               }}
-              className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-white transition-colors duration-200"
+              className="h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white transition-colors duration-200"
             >
               <LogOut className="h-4 w-4" />
               <span className="sr-only">Log out</span>
