@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -9,7 +8,8 @@ import {
   FilterIcon,
   Trash,
   Check,
-  ArrowUpDown
+  ArrowUpDown,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,11 +75,9 @@ export default function Administration() {
     },
   });
 
-  // Month and year derived from the selected date
   const selectedMonth = selectedDate.getMonth();
   const selectedYear = selectedDate.getFullYear();
   
-  // Handle month and year changes
   const handleMonthYearChange = (month: number, year: number) => {
     const newDate = new Date(selectedDate);
     setMonth(newDate, month);
@@ -88,7 +86,6 @@ export default function Administration() {
     setNoDateFilter(false);
   };
 
-  // Start and end dates for filtering
   const getDateRange = () => {
     if (noDateFilter) {
       return { startDate: null, endDate: null };
@@ -120,26 +117,22 @@ export default function Administration() {
             products(name, type, price)
           `);
         
-        // Apply date filter if not showing all time
         if (!noDateFilter) {
           query = query
             .gte("start_time", startDate!.toISOString())
             .lte("start_time", endDate!.toISOString());
         }
         
-        // Apply client filter if selected
         if (selectedClient) {
           query = query.eq("client_id", selectedClient);
         }
         
-        // Apply sorting
         if (sortField) {
           query = query.order(sortField, { ascending: sortDirection === 'asc' });
         } else {
           query = query.order("start_time", { ascending: false });
         }
         
-        // Apply pagination
         const from = (page - 1) * ITEMS_PER_PAGE;
         const to = from + ITEMS_PER_PAGE - 1;
         query = query.range(from, to);
@@ -152,10 +145,8 @@ export default function Administration() {
           return [];
         }
         
-        // Get all user IDs from time entries
         const userIds = [...new Set(entriesData.map(entry => entry.user_id).filter(Boolean))];
         
-        // Fetch all relevant profiles in a single query
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select("id, name")
@@ -165,7 +156,6 @@ export default function Administration() {
           console.error("Error fetching profiles:", profilesError);
         }
         
-        // Create a map of user IDs to profile names for quick lookups
         const profileMap = new Map();
         if (profilesData) {
           profilesData.forEach(profile => {
@@ -173,7 +163,6 @@ export default function Administration() {
           });
         }
         
-        // Add profile information to each entry
         const entriesWithProfiles = entriesData.map(entry => {
           return {
             ...entry,
@@ -210,26 +199,22 @@ export default function Administration() {
             clients(name)
           `);
         
-        // Apply date filter if not showing all time
         if (!noDateFilter) {
           query = query
             .gte("issue_date", startDate!.toISOString().split('T')[0])
             .lte("issue_date", endDate!.toISOString().split('T')[0]);
         }
         
-        // Apply client filter if selected
         if (selectedClient) {
           query = query.eq("client_id", selectedClient);
         }
         
-        // Apply sorting
         if (sortField) {
           query = query.order(sortField, { ascending: sortDirection === 'asc' });
         } else {
           query = query.order("issue_date", { ascending: false });
         }
         
-        // Apply pagination
         const from = (page - 1) * ITEMS_PER_PAGE;
         const to = from + ITEMS_PER_PAGE - 1;
         query = query.range(from, to);
@@ -251,7 +236,6 @@ export default function Administration() {
     },
   });
 
-  // Count queries for pagination
   const {
     data: timeEntriesCount = 0
   } = useQuery({
@@ -343,7 +327,6 @@ export default function Administration() {
       let table = activeTab === "time-entries" ? "time_entries" : "invoices";
       
       if (activeTab === "time-entries") {
-        // For time entries associated with invoices, update the time entries first
         await supabase
           .from("time_entries")
           .update({ 
@@ -353,7 +336,6 @@ export default function Administration() {
           .in("id", selectedItems)
           .filter("invoiced", "eq", true);
       } else {
-        // For invoices with time entries, update the time entries first
         const timeEntries = await supabase
           .from("time_entries")
           .select("id")
@@ -370,7 +352,6 @@ export default function Administration() {
         }
       }
       
-      // Delete the selected items
       const { error } = await supabase
         .from(table)
         .delete()
@@ -418,12 +399,10 @@ export default function Administration() {
     }
   };
   
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [selectedClient, noDateFilter, activeTab]);
   
-  // Reset selected items when tab changes
   useEffect(() => {
     setSelectedItems([]);
   }, [activeTab]);
@@ -563,7 +542,6 @@ export default function Administration() {
                 </div>
               </div>
               
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-sm text-muted-foreground">
@@ -631,7 +609,6 @@ export default function Administration() {
         </Card>
       </div>
       
-      {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

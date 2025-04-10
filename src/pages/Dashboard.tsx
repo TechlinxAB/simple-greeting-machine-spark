@@ -17,6 +17,7 @@ import {
 import { NewsEditor } from "@/components/news/NewsEditor";
 import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
 import { NewsPost } from "@/types/database";
+import { supabase } from "@/lib/supabase";
 
 export default function Dashboard() {
   const { user, role } = useAuth();

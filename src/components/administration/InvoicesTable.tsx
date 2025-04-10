@@ -1,31 +1,41 @@
-
-import { useState } from "react";
-import { format } from "date-fns";
-import { Trash2, AlertCircle, FileText } from "lucide-react";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle 
-} from "@/components/ui/alert-dialog";
+import React from 'react';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { Checkbox } from "@/components/ui/checkbox";
+import { formatCurrency } from "@/lib/formatCurrency";
 import { type Invoice } from "@/types";
+import { format } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { deleteRecord } from "@/lib/supabase";
+import { Trash2, Edit, ArrowUpDown, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-interface InvoicesTableProps {
+export interface InvoicesTableProps {
   invoices: Invoice[];
   isLoading: boolean;
   onInvoiceDeleted: () => void;
+  bulkDeleteMode?: boolean;
+  selectedItems?: string[];
+  onItemSelect?: (id: string) => void;
+  onSelectAll?: (checked: boolean) => void;
+  onSort?: (field: string) => void;
+  sortField?: string | null;
+  sortDirection?: 'asc' | 'desc';
 }
 
-export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: InvoicesTableProps) {
+export function InvoicesTable({
+  invoices,
+  isLoading,
+  onInvoiceDeleted,
+  bulkDeleteMode = false,
+  selectedItems = [],
+  onItemSelect = () => {},
+  onSelectAll = () => {},
+  onSort = () => {},
+  sortField = null,
+  sortDirection = 'desc'
+}: InvoicesTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -34,7 +44,6 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
   const handleDeleteClick = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     
-    // Check if the invoice has time entries
     try {
       const { data, error } = await supabase
         .from("time_entries")
@@ -62,7 +71,6 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
     setIsDeleting(true);
     
     try {
-      // For invoices with time entries, we need to update the time entries first
       if (hasTimeEntries) {
         const { error: updateError } = await supabase
           .from("time_entries")
@@ -79,7 +87,6 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
         }
       }
       
-      // Now delete the invoice
       const { error } = await supabase
         .from("invoices")
         .delete()
