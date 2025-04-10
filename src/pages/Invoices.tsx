@@ -1,9 +1,11 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -14,6 +16,7 @@ import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
+import { type Invoice } from "@/types";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -45,19 +48,21 @@ export default function Invoices() {
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { data: invoices = [], isLoading, refetch } = useQuery({
+  const { data: invoicesData = [], isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
         .select(`
           id,
+          client_id,
           invoice_number,
           status,
           issue_date,
           due_date,
           total_amount,
           exported_to_fortnox,
+          fortnox_invoice_id,
           clients:client_id (id, name)
         `)
         .order("issue_date", { ascending: false });
@@ -66,6 +71,12 @@ export default function Invoices() {
       return data || [];
     },
   });
+
+  // Convert the data to match the Invoice type
+  const invoices: Invoice[] = invoicesData.map(invoice => ({
+    ...invoice,
+    client_id: invoice.client_id
+  }));
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -458,3 +469,61 @@ export default function Invoices() {
     </div>
   );
 }
+
+// These variables are assumed to be declared elsewhere or in a part of the file we've kept
+// Make sure they are properly defined
+const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
+    queryKey: ["unbilled-entries", selectedClient],
+    queryFn: async () => {
+      if (!selectedClient) return [];
+      
+      const { data: entriesData, error: entriesError } = await supabase
+        .from("time_entries")
+        .select(`
+          id, 
+          user_id,
+          start_time, 
+          end_time, 
+          quantity, 
+          description,
+          products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
+        `)
+        .eq("client_id", selectedClient)
+        .eq("invoiced", false);
+      
+      if (entriesError) throw entriesError;
+      
+      if (entriesData && entriesData.length > 0) {
+        const userIds = entriesData.map(entry => entry.user_id);
+        
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", userIds);
+        
+        if (profilesError) throw profilesError;
+        
+        const userProfileMap = new Map();
+        if (profiles) {
+          profiles.forEach(profile => {
+            userProfileMap.set(profile.id, profile);
+          });
+        }
+        
+        return entriesData.map(entry => ({
+          ...entry,
+          user_profile: userProfileMap.get(entry.user_id) || { name: 'Unknown User' }
+        }));
+      }
+      
+      return entriesData || [];
+    },
+    enabled: !!selectedClient,
+  });
+
+  const { data: fortnoxConnected = false } = useQuery({
+    queryKey: ["fortnox-connected"],
+    queryFn: async () => {
+      return await isFortnoxConnected();
+    },
+  });
