@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -178,4 +177,14 @@ export function setupActivityTracking() {
     });
     clearInactivityTimer();
   };
+}
+
+/**
+ * Helper function to get the public URL for a file in storage
+ * @param bucket The bucket name
+ * @param path The file path
+ * @returns The public URL for the file
+ */
+export function getStorageFileUrl(bucket: string, path: string): string {
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }

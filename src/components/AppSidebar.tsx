@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 import { DashboardIcon, ClientsIcon, ProductsIcon, InvoicesIcon, TimeIcon, AdminIcon, SettingsIcon, ProfileIcon } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getStorageFileUrl } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
 export function AppSidebar() {

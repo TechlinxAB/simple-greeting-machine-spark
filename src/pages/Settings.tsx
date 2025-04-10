@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getStorageFileUrl } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -317,20 +316,11 @@ export default function Settings() {
         throw new Error("Upload successful but no file path was returned");
       }
       
-      // Get the public URL - this returns just { data: { publicUrl: string } } without an error property
-      const { data: publicUrlData } = supabase.storage
-        .from('app-assets')
-        .getPublicUrl(filePath);
-        
-      if (!publicUrlData?.publicUrl) {
-        throw new Error("Could not get public URL for the logo");
-      }
+      // Get the direct URL to the file (without checking for error since it doesn't have one)
+      const publicUrl = getStorageFileUrl('app-assets', filePath);
       
       toast.success("Logo uploaded successfully");
-      
-      setLogoPreview(publicUrlData.publicUrl);
-      
-      return publicUrlData.publicUrl;
+      return publicUrl;
     } catch (error) {
       let errorMsg = "Failed to upload logo";
       if (error instanceof Error) {
@@ -348,6 +338,7 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    // Set the preview immediately using a local object URL
     const objectUrl = URL.createObjectURL(file);
     setLogoPreview(objectUrl);
     
@@ -356,12 +347,13 @@ export default function Settings() {
     
     if (logoUrl) {
       appSettingsForm.setValue('logoUrl', logoUrl, { shouldDirty: true });
-      
       queryClient.invalidateQueries({ queryKey: ["app-settings"] });
     } else {
+      // If upload failed, restore the previous logo
       setLogoPreview(appSettings?.logoUrl || null);
     }
     
+    // Clean up the object URL to prevent memory leaks
     return () => URL.revokeObjectURL(objectUrl);
   };
   
