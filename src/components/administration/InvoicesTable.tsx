@@ -62,14 +62,6 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
     setIsDeleting(true);
     
     try {
-      // Check if this invoice is exported to Fortnox
-      if (selectedInvoice.exported_to_fortnox) {
-        toast.error("Cannot delete an invoice that has been exported to Fortnox.");
-        setDeleteDialogOpen(false);
-        setIsDeleting(false);
-        return;
-      }
-      
       // For invoices with time entries, we need to update the time entries first
       if (hasTimeEntries) {
         const { error: updateError } = await supabase
@@ -197,15 +189,10 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteClick(invoice)}
-                      disabled={invoice.exported_to_fortnox}
-                      className={
-                        invoice.exported_to_fortnox
-                          ? "text-muted-foreground cursor-not-allowed"
-                          : "text-destructive hover:text-destructive hover:bg-destructive/10"
-                      }
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       title={
                         invoice.exported_to_fortnox
-                          ? "Cannot delete exported invoices"
+                          ? "Warning: This will only delete from database, not from Fortnox"
                           : "Delete invoice"
                       }
                     >
@@ -224,19 +211,27 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
             <AlertDialogDescription>
+              {selectedInvoice?.exported_to_fortnox ? (
+                <div className="flex items-start gap-2 mb-2 text-amber-500">
+                  <AlertCircle className="h-5 w-5 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Warning: This invoice has been exported to Fortnox</p>
+                    <p>Deleting this invoice will only remove it from your database. It will <strong>not</strong> be deleted from Fortnox. This may cause data inconsistency.</p>
+                  </div>
+                </div>
+              ) : null}
+              
               {hasTimeEntries ? (
-                <div>
-                  <div className="flex items-start gap-2 mb-2">
-                    <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-amber-500">This invoice has time entries attached</p>
-                      <p>Deleting this invoice will remove the invoice association from these time entries, 
-                      making them available for invoicing again.</p>
-                    </div>
+                <div className="flex items-start gap-2 mb-2 mt-2">
+                  <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-500">This invoice has time entries attached</p>
+                    <p>Deleting this invoice will remove the invoice association from these time entries, 
+                    making them available for invoicing again.</p>
                   </div>
                 </div>
               ) : (
-                <p>Are you sure you want to delete this invoice? This action is irreversible.</p>
+                <p className="mt-2">Are you sure you want to delete this invoice? This action is irreversible.</p>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
