@@ -52,12 +52,13 @@ export function MonthYearSelector({
             disabled={isAllSelected}
             value={selectedMonth.toString()} 
             onValueChange={(value) => {
-              if (isAllSelected) return;
-              onMonthYearChange(parseInt(value), selectedYear);
+              if (!isAllSelected) {
+                onMonthYearChange(parseInt(value), selectedYear);
+              }
             }}
           >
             <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Month">
+              <SelectValue>
                 {months[selectedMonth]}
               </SelectValue>
             </SelectTrigger>
@@ -74,12 +75,13 @@ export function MonthYearSelector({
             disabled={isAllSelected}
             value={selectedYear.toString()} 
             onValueChange={(value) => {
-              if (isAllSelected) return;
-              onMonthYearChange(selectedMonth, parseInt(value));
+              if (!isAllSelected) {
+                onMonthYearChange(selectedMonth, parseInt(value));
+              }
             }}
           >
             <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Year">
+              <SelectValue>
                 {selectedYear}
               </SelectValue>
             </SelectTrigger>

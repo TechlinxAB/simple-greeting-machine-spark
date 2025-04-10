@@ -87,13 +87,15 @@ AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
 const AlertDialogDescription = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <AlertDialogPrimitive.Description
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}
-    asChild={typeof props.children !== 'string'}
     {...props}
-  />
+  >
+    {/* Wrap children in a fragment to ensure there's only one child passed to the component */}
+    <div>{children}</div>
+  </AlertDialogPrimitive.Description>
 ))
 AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName
 

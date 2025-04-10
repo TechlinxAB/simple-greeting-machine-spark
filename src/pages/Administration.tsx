@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -188,7 +187,6 @@ export default function Administration() {
     enabled: activeTab === "invoices",
     queryFn: async () => {
       try {
-        // Using literal string "invoices" instead of a variable
         let query = supabase
           .from("invoices")
           .select(`
@@ -321,7 +319,6 @@ export default function Administration() {
     setIsDeleting(true);
     
     try {
-      // Using literal table name strings instead of variables
       if (activeTab === "time-entries") {
         await supabase
           .from("time_entries")
@@ -626,10 +623,10 @@ export default function Administration() {
               {activeTab === "invoices" && (
                 <div className="mt-2 text-amber-500 flex items-start gap-2">
                   <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                  <span>
+                  <div>
                     <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
                     <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
-                  </span>
+                  </div>
                 </div>
               )}
             </AlertDialogDescription>
