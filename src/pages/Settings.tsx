@@ -25,7 +25,10 @@ import {
   uploadAppLogo, 
   removeAppLogo, 
   getAppLogoUrl,
-  DEFAULT_LOGO_PATH
+  DEFAULT_LOGO_PATH,
+  MAX_LOGO_WIDTH,
+  MAX_LOGO_HEIGHT,
+  MAX_LOGO_SIZE
 } from "@/utils/logoUtils";
 
 const appSettingsSchema = z.object({
@@ -58,6 +61,7 @@ export default function Settings() {
   const [showRemoveLogoConfirm, setShowRemoveLogoConfirm] = useState(false);
   const [hasExistingLogo, setHasExistingLogo] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [logoValidationError, setLogoValidationError] = useState<string | null>(null);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
@@ -80,7 +84,17 @@ export default function Settings() {
         }
         
         const logoUrl = await getAppLogoUrl();
-        return logoUrl ? `${logoUrl}?t=${Date.now()}` : null;
+        
+        if (logoUrl) {
+          const loadSuccessful = await preloadImage(logoUrl);
+          if (!loadSuccessful) {
+            console.warn("Logo preload failed, returning null");
+            return null;
+          }
+          return `${logoUrl}`;
+        }
+        
+        return null;
       } catch (error) {
         console.error("Error in app logo query:", error);
         setHasExistingLogo(false);
@@ -349,23 +363,53 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const objectUrl = URL.createObjectURL(file);
-    setLogoPreview(objectUrl);
-    setLogoFile(file);
+    setLogoValidationError(null);
     
-    const logoUrl = await handleLogoUpload(file);
-    
-    if (!logoUrl) {
-      setLogoPreview(null);
-      setLogoFile(null);
-    } else {
-      setLogoPreview(logoUrl);
-      setHasExistingLogo(true);
+    const validation = validateLogoFile(file);
+    if (!validation.valid) {
+      setLogoValidationError(validation.error);
+      e.target.value = '';
+      return;
     }
     
-    URL.revokeObjectURL(objectUrl);
+    setUploadingLogo(true);
     
-    e.target.value = '';
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      setLogoPreview(objectUrl);
+      setLogoFile(file);
+      
+      const logoUrl = await uploadAppLogo(file);
+      
+      if (!logoUrl) {
+        toast.error("Failed to upload logo");
+        setLogoPreview(null);
+        setLogoFile(null);
+      } else {
+        const loadSuccessful = await preloadImage(logoUrl);
+        if (!loadSuccessful) {
+          toast.error("Logo uploaded but cannot be displayed correctly");
+          await removeAppLogo();
+          setLogoPreview(null);
+          setLogoFile(null);
+          setHasExistingLogo(false);
+        } else {
+          setLogoPreview(logoUrl);
+          setHasExistingLogo(true);
+          toast.success("Logo uploaded successfully");
+          refetchLogo();
+        }
+      }
+      
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to process logo");
+      setLogoPreview(null);
+      setLogoFile(null);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
   };
   
   const handleRemoveLogo = async () => {
@@ -468,7 +512,7 @@ export default function Settings() {
                           <img 
                             src={logoPreview || appLogo || DEFAULT_LOGO_PATH}
                             alt="App Logo" 
-                            className="h-12 w-auto object-contain" 
+                            className="h-12 w-auto max-w-[200px] object-contain" 
                             onError={handleLogoError}
                           />
                         </div>
@@ -487,13 +531,18 @@ export default function Settings() {
                       <div className="flex flex-col gap-2">
                         <Input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/gif,image/svg+xml"
                           onChange={onLogoChange}
                           disabled={uploadingLogo || !canManageSettings}
                           className="w-full max-w-sm"
                         />
+                        {logoValidationError && (
+                          <p className="text-sm text-destructive">
+                            {logoValidationError}
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground">
-                          Upload a single logo image to represent your application.
+                          Upload a logo image (max {MAX_LOGO_WIDTH}×{MAX_LOGO_HEIGHT}px, {MAX_LOGO_SIZE / 1024 / 1024}MB). Recommended format: PNG or SVG.
                         </p>
                       </div>
                     )}
@@ -737,4 +786,28 @@ export default function Settings() {
       />
     </div>
   );
+}
+
+function preloadImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = url;
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+  });
+}
+
+function validateLogoFile(file: File): { valid: boolean, error: string | null } {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+  const maxSize = MAX_LOGO_SIZE;
+  
+  if (!allowedTypes.includes(file.type)) {
+    return { valid: false, error: "Invalid file type. Allowed types: JPEG, PNG, GIF, SVG." };
+  }
+  
+  if (file.size > maxSize) {
+    return { valid: false, error: `File size exceeds the limit of ${MAX_LOGO_SIZE / 1024 / 1024}MB.` };
+  }
+  
+  return { valid: true, error: null };
 }

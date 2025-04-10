@@ -23,7 +23,8 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { 
   getAppLogoUrl, 
-  DEFAULT_LOGO_PATH 
+  DEFAULT_LOGO_PATH,
+  preloadImage
 } from "@/utils/logoUtils";
 
 export function AppSidebar() {
@@ -89,7 +90,18 @@ export function AppSidebar() {
       try {
         const logoUrl = await getAppLogoUrl();
         console.log("Sidebar: Logo URL from storage:", logoUrl);
-        return logoUrl;
+        
+        if (logoUrl) {
+          // Preload the image to verify it loads correctly
+          const loadSuccessful = await preloadImage(logoUrl);
+          if (!loadSuccessful) {
+            console.log("Logo failed to load, using fallback");
+            return null;
+          }
+          return logoUrl;
+        }
+        
+        return null;
       } catch (error) {
         console.error("Sidebar: Error fetching app logo:", error);
         return null;
@@ -200,7 +212,7 @@ export function AppSidebar() {
             <img 
               src={logoUrl} 
               alt="Logo" 
-              className="h-full w-auto object-contain" 
+              className="h-full w-auto max-w-[100px] object-contain" 
               onError={handleLogoError}
             />
           </div>
