@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,37 +45,46 @@ export async function checkLogoExists(): Promise<boolean> {
 }
 
 /**
- * Uploads the app logo to storage
+ * Uploads the app logo to storage as binary data
  * @param file File to upload
  * @returns Promise with the data URL or null
  */
 export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, success: boolean }> {
   try {
     console.log("Starting logo upload process");
+    console.log("File type:", file.type);
+    console.log("File size:", file.size);
     
     // Delete any existing logos first to avoid accumulation
     await removeAppLogo();
     
-    // Ensure we're only uploading PNG files
+    // Strict validation for PNG only
     if (file.type !== 'image/png') {
       console.error("Only PNG files are supported for logo uploads");
       return { dataUrl: '', success: false };
     }
     
-    // Always use .png extension for consistency
+    // Generate a unique file name with png extension
     const fileName = `logo-${uuidv4()}.png`;
     const filePath = `${LOGO_FOLDER_PATH}/${fileName}`;
     
-    console.log(`Uploading file to ${filePath}`, `Content-Type: ${file.type}`);
+    console.log(`Preparing to upload ${fileName} to ${filePath}`);
+    console.log(`Content-Type: ${file.type}`);
     
-    // Try uploading the file with explicit content type
+    // Convert to array buffer to ensure binary upload
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBlob = new Blob([arrayBuffer], { type: 'image/png' });
+    
+    console.log("Created blob with type:", fileBlob.type);
+    
+    // Upload the file with explicit content type
     const { data, error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
-      .upload(filePath, file, {
+      .upload(filePath, fileBlob, {
         cacheControl: '3600',
         upsert: true,
-        contentType: 'image/png' // Explicitly set content type
+        contentType: 'image/png'
       });
       
     if (error) {
@@ -90,7 +100,8 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
       return { dataUrl: '', success: false };
     }
     
-    console.log("Logo upload successful, getting public URL");
+    console.log("Logo upload successful, path:", data?.path);
+    console.log("Getting public URL");
     
     // Get the public URL
     const { data: publicUrl } = supabase

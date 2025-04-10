@@ -20,9 +20,12 @@ export function useCachedLogo() {
     localStorage.getItem(LOGO_DATA_URL_KEY)
   );
 
+  // Add a timestamp to force refetch when needed
+  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+
   // Query for logo data
   const { data: logoDataUrl, isLoading } = useQuery({
-    queryKey: ['app-logo-data'],
+    queryKey: ['app-logo-data', refreshTimestamp],
     queryFn: async () => {
       // First try to get from localStorage
       const cached = localStorage.getItem(LOGO_DATA_URL_KEY);
@@ -50,7 +53,7 @@ export function useCachedLogo() {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === LOGO_DATA_URL_KEY) {
         setCachedLogo(e.newValue);
-        queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+        setRefreshTimestamp(Date.now());
       }
     };
 
@@ -66,7 +69,7 @@ export function useCachedLogo() {
           filter: 'id=eq.app_settings'
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+          setRefreshTimestamp(Date.now());
         }
       )
       .subscribe();
@@ -83,7 +86,7 @@ export function useCachedLogo() {
           filter: `bucket_id=eq.${LOGO_BUCKET_NAME}`
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+          setRefreshTimestamp(Date.now());
         }
       )
       .subscribe();
@@ -108,6 +111,9 @@ export function useCachedLogo() {
     logoUrl: logoDataUrl || DEFAULT_LOGO_PATH,
     isLoading,
     refreshLogo: () => {
+      // Force refetch by updating timestamp
+      setRefreshTimestamp(Date.now());
+      // Also invalidate queries
       queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
     }
   };

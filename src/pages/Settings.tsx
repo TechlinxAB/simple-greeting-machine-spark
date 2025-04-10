@@ -398,9 +398,16 @@ export default function Settings() {
     setLogoValidationError(null);
     setLogoError(false);
     
-    const validation = validateLogoFile(file);
-    if (!validation.valid) {
-      setLogoValidationError(validation.error);
+    // Verify the file is actually a PNG
+    if (file.type !== 'image/png') {
+      setLogoValidationError('Invalid file type. Only PNG files are allowed.');
+      e.target.value = '';
+      return;
+    }
+    
+    // Check file size
+    if (file.size > MAX_LOGO_SIZE) {
+      setLogoValidationError(`File size exceeds the maximum allowed size of ${MAX_LOGO_SIZE / 1024 / 1024}MB`);
       e.target.value = '';
       return;
     }
@@ -413,18 +420,14 @@ export default function Settings() {
       setLogoPreview(objectUrl);
       setLogoFile(file);
       
-      // Convert file to data URL for fallback display
-      const dataURLFromFile = await fileToDataUrl(file);
-      if (dataURLFromFile) {
-        localStorage.setItem(LOGO_DATA_URL_KEY, dataURLFromFile);
-      }
+      console.log("Uploading logo file:", file.name, "Type:", file.type, "Size:", file.size);
       
       // Process the actual upload
-      const logoDataUrl = await handleLogoUpload(file);
+      const { dataUrl, success } = await uploadAppLogo(file);
       
-      if (logoDataUrl) {
+      if (dataUrl) {
         // Update preview with the final data URL
-        setLogoPreview(logoDataUrl);
+        setLogoPreview(dataUrl);
         setHasExistingLogo(true);
         
         // Refresh all logo-related queries
@@ -433,8 +436,16 @@ export default function Settings() {
         
         // Release the temporary object URL
         URL.revokeObjectURL(objectUrl);
+        
+        if (success) {
+          toast.success("Logo uploaded successfully");
+        } else {
+          toast.warning("Logo saved locally but may not be available for other users");
+        }
       } else {
-        toast.warning("Using local preview. The logo upload process encountered issues.");
+        toast.error("Failed to upload logo");
+        setLogoPreview(null);
+        setLogoFile(null);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to process logo");
