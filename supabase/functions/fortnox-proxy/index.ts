@@ -291,6 +291,54 @@ serve(async (req) => {
           errorMessage = errorDetails.ErrorInformation.Message;
         }
         
+        // Check specifically for article not found errors
+        // Fortnox has specific error codes related to invalid article numbers
+        if (
+          (errorMessage && errorMessage.includes("Article not found")) || 
+          (errorMessage && errorMessage.includes("artikel finns inte")) ||
+          errorCode === 2000328 || // Article not found by article number
+          errorCode === 2000329    // Article not active
+        ) {
+          console.error("💥 Article doesn't exist in Fortnox error detected");
+          
+          // Get the article number from the request
+          let articleNumber = "";
+          
+          if (path.includes('/articles/') && method === 'GET') {
+            articleNumber = path.split('/articles/')[1]?.split('/')[0] || "";
+          } else if (payload?.Invoice?.InvoiceRows) {
+            // For invoice creation, check which article number caused the issue
+            const articleNumbers = payload.Invoice.InvoiceRows
+              .filter((row: any) => row.ArticleNumber)
+              .map((row: any) => row.ArticleNumber);
+            
+            if (articleNumbers.length > 0) {
+              articleNumber = articleNumbers.join(', ');
+            }
+          }
+          
+          // Create a user-friendly error message
+          const userMessage = articleNumber
+            ? `Article number "${articleNumber}" doesn't exist in Fortnox. Please create this article in Fortnox before proceeding.`
+            : `Article number doesn't exist in Fortnox. Please create the article in Fortnox before proceeding.`;
+          
+          return new Response(
+            JSON.stringify({
+              error: "Article not found in Fortnox",
+              message: userMessage,
+              fortnoxStatus: fortnoxRes.status,
+              errorCode: errorCode
+            }),
+            {
+              status: 404, // Return 404 for "not found" errors
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            }
+          );
+        }
+        
         // Add helpful context for specific error codes
         if (errorCode === 2001303) {
           errorMessage = `Account not found: ${errorMessage}. Please use an account between ${VALID_ACCOUNTS.revenue.min}-${VALID_ACCOUNTS.revenue.max}.`;

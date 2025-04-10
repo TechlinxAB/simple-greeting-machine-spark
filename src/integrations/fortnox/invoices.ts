@@ -535,49 +535,66 @@ export async function createFortnoxInvoice(
     
     // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API spec
     console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
-    const response = await fortnoxApiRequest("/invoices", "POST", {
-      Invoice: invoiceData
-    });
-    
-    if (!response || !response.Invoice) {
-      throw new Error("Failed to create invoice in Fortnox");
+    try {
+      const response = await fortnoxApiRequest("/invoices", "POST", {
+        Invoice: invoiceData
+      });
+      
+      if (!response || !response.Invoice) {
+        throw new Error("Failed to create invoice in Fortnox");
+      }
+      
+      const fortnoxInvoice = response.Invoice;
+      
+      // Create local invoice record
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert({
+          client_id: clientId,
+          invoice_number: fortnoxInvoice.DocumentNumber,
+          status: "sent",
+          issue_date: fortnoxInvoice.InvoiceDate,
+          due_date: fortnoxInvoice.DueDate,
+          total_amount: fortnoxInvoice.Total,
+          exported_to_fortnox: true,
+          fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+        })
+        .select()
+        .single();
+        
+      if (invoiceError) throw invoiceError;
+      
+      // Update time entries to mark as invoiced
+      const { error: updateError } = await supabase
+        .from("time_entries")
+        .update({
+          invoiced: true,
+          invoice_id: invoice.id
+        })
+        .in("id", timeEntryIds);
+        
+      if (updateError) throw updateError;
+      
+      return {
+        invoiceNumber: fortnoxInvoice.DocumentNumber,
+        invoiceId: invoice.id
+      };
+    } catch (error: any) {
+      // Check if this is an article not found error from our Fortnox proxy
+      if (error.message && typeof error.message === 'string') {
+        // Check for the specific error message we added in the fortnox-proxy
+        if (error.message.includes("Article not found in Fortnox") || 
+            (error.details && error.details.message && error.details.message.includes("Article"))) {
+          // Re-throw with a user-friendly message
+          console.error("Article not found error:", error);
+          throw new Error("Article number doesn't exist in Fortnox. Please create the article in Fortnox before proceeding.");
+        }
+      }
+      
+      // Re-throw the original error
+      throw error;
     }
     
-    const fortnoxInvoice = response.Invoice;
-    
-    // Create local invoice record
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert({
-        client_id: clientId,
-        invoice_number: fortnoxInvoice.DocumentNumber,
-        status: "sent",
-        issue_date: fortnoxInvoice.InvoiceDate,
-        due_date: fortnoxInvoice.DueDate,
-        total_amount: fortnoxInvoice.Total,
-        exported_to_fortnox: true,
-        fortnox_invoice_id: fortnoxInvoice.DocumentNumber
-      })
-      .select()
-      .single();
-      
-    if (invoiceError) throw invoiceError;
-    
-    // Update time entries to mark as invoiced
-    const { error: updateError } = await supabase
-      .from("time_entries")
-      .update({
-        invoiced: true,
-        invoice_id: invoice.id
-      })
-      .in("id", timeEntryIds);
-      
-    if (updateError) throw updateError;
-    
-    return {
-      invoiceNumber: fortnoxInvoice.DocumentNumber,
-      invoiceId: invoice.id
-    };
   } catch (error) {
     console.error("Error creating Fortnox invoice:", error);
     throw error;

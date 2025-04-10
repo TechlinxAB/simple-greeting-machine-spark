@@ -204,8 +204,17 @@ export default function Invoices() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setErrorMessage(errorMsg);
-      toast.error(`Failed to create invoice: ${errorMsg}`);
+      
+      // Check for specific article not found error
+      if (errorMsg.includes("Article number doesn't exist in Fortnox")) {
+        setErrorMessage("One or more article numbers don't exist in Fortnox. Please create these articles in Fortnox before proceeding.");
+        toast.error("Article not found in Fortnox", {
+          description: "Please create the article in Fortnox first."
+        });
+      } else {
+        setErrorMessage(errorMsg);
+        toast.error(`Failed to create invoice: ${errorMsg}`);
+      }
     } finally {
       setIsExportingInvoice(false);
     }
