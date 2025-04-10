@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,7 +48,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
     },
   });
 
-  // Set form values when editing an existing product
   useEffect(() => {
     if (productToEdit) {
       setSelectedType(productToEdit.type);
@@ -62,7 +60,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         type: productToEdit.type,
       });
     } else {
-      // Reset form when adding a new product
       form.reset({
         name: "",
         price: 0,
@@ -74,7 +71,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
     }
   }, [productToEdit, form, productType]);
 
-  // Update the form values when the product type changes
   const handleProductTypeChange = (value: string) => {
     setSelectedType(value as ProductType);
     form.setValue("type", value as "activity" | "item");
@@ -83,7 +79,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      // Create the product data object with explicit typing
       const productData = {
         name: values.name,
         price: values.price,
@@ -96,7 +91,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
       let error;
 
       if (isEditMode && productToEdit) {
-        // Update existing product
         const { error: updateError } = await supabase
           .from("products")
           .update(productData)
@@ -107,7 +101,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
           toast.success("Product updated successfully");
         }
       } else {
-        // Create new product
         const { error: insertError } = await supabase.from("products").insert(productData);
         error = insertError;
         if (!error) {
@@ -139,7 +132,6 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="py-2 space-y-4">
-              {/* Fix the error by conditionally rendering the Tabs component based on edit mode */}
               {isEditMode ? (
                 <div className="mb-6 flex items-center">
                   <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'activity' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
@@ -216,14 +208,13 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                 />
               </div>
               
-              {/* Fix the layout for account_number and article_number to be on the same line */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="account_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Number (for bookkeeping)</FormLabel>
+                      <FormLabel>Account Number</FormLabel>
                       <FormControl>
                         <Input placeholder="Account number" {...field} />
                       </FormControl>
@@ -237,7 +228,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   name="article_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Article Number (for Fortnox)</FormLabel>
+                      <FormLabel>Article Number</FormLabel>
                       <FormControl>
                         <Input placeholder="3001" {...field} />
                       </FormControl>
