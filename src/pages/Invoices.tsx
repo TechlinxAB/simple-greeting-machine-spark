@@ -74,7 +74,6 @@ export default function Invoices() {
     },
   });
 
-  // Convert the data to match the Invoice type
   const invoices: Invoice[] = invoicesData.map(invoice => ({
     ...invoice,
     client_id: invoice.client_id
@@ -196,8 +195,6 @@ export default function Invoices() {
     try {
       const timeEntryIds = unbilledEntries.map(entry => entry.id);
       
-      // Some products might not have article numbers or might not exist in Fortnox
-      // The system will now automatically create them as needed
       setProcessingStatus("Checking and creating products in Fortnox...");
       const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
       
@@ -481,8 +478,9 @@ export default function Invoices() {
                                       <TooltipContent>
                                         <p>A new article number will be generated and created in Fortnox</p>
                                       </TooltipContent>
-                                    </TooltipProvider>
-                                  )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
                             </TableRow>
