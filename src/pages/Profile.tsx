@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
@@ -84,6 +85,10 @@ const Profile = () => {
     }
   };
 
+  const handleImageUploaded = (url: string) => {
+    setAvatarUrl(url);
+  };
+
   const getInitials = (name: string) => {
     if (!name || name.trim() === "") return "";
     
@@ -129,12 +134,10 @@ const Profile = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="avatar">Profile Picture URL (Optional)</Label>
-                <Input
-                  id="avatar"
-                  placeholder="https://example.com/avatar.jpg"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
+                <Label>Profile Picture</Label>
+                <ProfileImageUpload 
+                  avatarUrl={avatarUrl} 
+                  onImageUploaded={handleImageUploaded} 
                 />
               </div>
             </CardContent>

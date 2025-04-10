@@ -53,6 +53,33 @@ export function AppSidebar() {
     }
   });
 
+  // Get profile data for current user
+  const { data: profileData } = useQuery({
+    queryKey: ["user-profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, avatar_url")
+          .eq("id", user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching user profile:", error);
+          return null;
+        }
+        
+        return data;
+      } catch (error) {
+        console.error("Error in profile query:", error);
+        return null;
+      }
+    },
+    enabled: !!user?.id
+  });
+
   const links = [
     {
       title: "Time Tracking",
@@ -103,16 +130,38 @@ export function AppSidebar() {
     },
   ];
 
-  const getInitials = (name?: string, email?: string) => {
-    if (name) {
-      return name
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase();
-    }
-    return email?.charAt(0).toUpperCase() || "U";
+  const getUserName = () => {
+    // Priority: profile name > user metadata name > email (fallback)
+    if (profileData?.name) return profileData.name;
+    if (user?.user_metadata?.name) return user.user_metadata.name;
+    return user?.email?.split('@')[0] || "User";
   };
+
+  const getUserAvatar = () => {
+    // Priority: profile avatar > user metadata avatar
+    if (profileData?.avatar_url) return profileData.avatar_url;
+    if (user?.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
+    return "";
+  };
+
+  const getInitials = (name?: string) => {
+    if (!name || name.trim() === "") {
+      // Fallback to email if no name
+      if (user?.email) {
+        return user.email.charAt(0).toUpperCase();
+      }
+      return "U";
+    }
+    
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+  };
+
+  const displayName = getUserName();
+  const avatarUrl = getUserAvatar();
 
   return (
     <Sidebar className="border-r">
@@ -192,16 +241,16 @@ export function AppSidebar() {
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
                 <AvatarImage 
-                  src={user.user_metadata?.avatar_url || ""} 
-                  alt={user.user_metadata?.name || user.email || "User"} 
+                  src={avatarUrl} 
+                  alt={displayName} 
                 />
                 <AvatarFallback className="bg-primary/10 text-primary-foreground">
-                  {getInitials(user.user_metadata?.name, user.email)}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-sidebar-foreground overflow-hidden text-ellipsis max-w-[120px]">
-                  {user.user_metadata?.name || user.email?.split('@')[0] || "User"}
+                  {displayName}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 capitalize">{role || "User"}</p>
               </div>
