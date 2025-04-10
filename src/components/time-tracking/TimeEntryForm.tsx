@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +16,6 @@ import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
 
-// Create a local variable to store filtered products
 let filteredProducts: any[] = [];
 
 const timeEntrySchema = z.object({
@@ -28,12 +26,10 @@ const timeEntrySchema = z.object({
   quantity: z.number().optional(),
   description: z.string().optional(),
 }).refine((data) => {
-  // If it's an activity, both startTime and endTime must be provided
   const product = filteredProducts.find(p => p.id === data.productId);
   if (product?.type === "activity") {
     return data.startTime !== undefined && data.endTime !== undefined;
   }
-  // If it's an item, quantity must be provided
   if (product?.type === "item") {
     return data.quantity !== undefined && data.quantity > 0;
   }
@@ -59,7 +55,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   const [currentDate] = useState<Date>(new Date());
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
   
-  // Refs for focus management
   const endTimeRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<TimeEntryFormValues>({
@@ -69,7 +64,7 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
       productId: "",
       description: "",
     },
-    mode: "onSubmit" // Only validate on form submission
+    mode: "onSubmit"
   });
 
   const watchProductId = form.watch("productId");
@@ -102,15 +97,11 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
     fetchData();
   }, []);
 
-  // Update filteredProducts whenever selectedProductType or products change
   useEffect(() => {
-    // Filter products based on selectedProductType
     const filtered = products.filter(product => product.type === selectedProductType);
     setFilteredProductsList(filtered);
-    // Also update the global variable used by the schema validation
     filteredProducts = filtered;
     
-    // Clear selected product if type changes
     if (watchProductId) {
       const currentProduct = products.find(p => p.id === watchProductId);
       if (currentProduct && currentProduct.type !== selectedProductType) {
@@ -157,7 +148,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
   };
 
   const handleStartTimeComplete = () => {
-    // Focus the end time field after completing the start time
     if (endTimeRef.current) {
       const input = endTimeRef.current.querySelector('input');
       if (input) {
@@ -178,7 +168,6 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
       return;
     }
 
-    // Validate based on product type
     if (product.type === "activity") {
       if (!values.startTime || !values.endTime) {
         toast.error("Both start and end times are required for activities");

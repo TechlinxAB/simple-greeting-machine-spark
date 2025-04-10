@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -341,6 +340,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                       onChange={(date) => handleTimeChange("startTime", date)}
                       ref={startTimeRef}
                       disabled={loading}
+                      roundOnBlur={false}
                     />
                   </FormControl>
                   <FormMessage />
@@ -360,6 +360,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                       onChange={(date) => handleTimeChange("endTime", date)}
                       ref={endTimeRef}
                       disabled={loading}
+                      roundOnBlur={false}
                     />
                   </FormControl>
                   <FormMessage />

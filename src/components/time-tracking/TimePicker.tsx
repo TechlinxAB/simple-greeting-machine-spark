@@ -15,7 +15,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   value, 
   onChange, 
   roundToMinutes = 15, 
-  roundOnBlur = true, // Changed to true by default for consistent 15-minute rounding
+  roundOnBlur = false, // Changed to false by default to prevent automatic rounding
   onComplete,
   disabled = false
 }, ref) => {
@@ -54,7 +54,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     if (filtered.length === 5 && filtered.includes(":")) {
       // If we have a complete time, create the Date object immediately
       setTimeout(() => {
-        handleTimeUpdate(filtered, true); // Apply rounding when input is complete
+        handleTimeUpdate(filtered, false); // Don't apply rounding when input is complete
         if (onComplete) {
           onComplete();
         }
@@ -127,7 +127,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate(timeInput, true); // Apply rounding on Enter/Tab
+        handleTimeUpdate(timeInput, roundOnBlur); // Only apply rounding if roundOnBlur is true
       }
       if (e.key === "Enter") {
         e.preventDefault();
