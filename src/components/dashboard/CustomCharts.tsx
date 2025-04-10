@@ -14,19 +14,32 @@ import {
   Cell
 } from 'recharts';
 
-// Define default props directly using modern JavaScript default parameters
-export const XAxis = ({ 
+// Define interfaces for the axis components
+interface XAxisProps {
+  dataKey?: string;
+  xAxisId?: string;
+  [key: string]: any;
+}
+
+interface YAxisProps {
+  yAxisId?: string;
+  [key: string]: any;
+}
+
+// Updated XAxis with proper TypeScript typing for props
+export const XAxis: React.FC<XAxisProps> = ({ 
   dataKey = "name", 
   xAxisId = "xAxis",
   ...props 
-}: any) => {
+}) => {
   return <RechartsXAxis dataKey={dataKey} xAxisId={xAxisId} {...props} />;
 };
 
-export const YAxis = ({ 
+// Updated YAxis with proper TypeScript typing for props
+export const YAxis: React.FC<YAxisProps> = ({ 
   yAxisId = "yAxis",
   ...props 
-}: any) => {
+}) => {
   return <RechartsYAxis yAxisId={yAxisId} {...props} />;
 };
 
@@ -62,8 +75,8 @@ export const BarChart: React.FC<BarChartProps> = ({
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" xAxisId={xAxisId} />
-          <YAxis yAxisId={yAxisId} />
+          <RechartsXAxis dataKey="name" xAxisId={xAxisId} />
+          <RechartsYAxis yAxisId={yAxisId} />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
