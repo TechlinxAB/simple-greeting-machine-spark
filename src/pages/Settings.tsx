@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -278,13 +279,20 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      const { error: bucketError } = await supabase.storage
-        .from('app-assets')
-        .getPublicUrl('test-bucket-exists');
-        
-      if (bucketError) {
-        console.error("Error accessing storage bucket:", bucketError);
-        toast.error("Could not access the storage bucket. Please contact your administrator.");
+      // First, check if we can access the app-assets bucket by trying to list files
+      try {
+        const { data: listData, error: listError } = await supabase.storage
+          .from('app-assets')
+          .list('logos');
+          
+        if (listError) {
+          console.error("Error accessing storage bucket:", listError);
+          toast.error("Could not access the storage bucket. Please contact your administrator.");
+          return null;
+        }
+      } catch (err) {
+        console.error("Error checking bucket access:", err);
+        toast.error("Could not access the app-assets bucket. Please contact your administrator.");
         return null;
       }
       
@@ -309,6 +317,7 @@ export default function Settings() {
         throw new Error("Upload successful but no file path was returned");
       }
       
+      // Get the public URL - this returns just { data: { publicUrl: string } } without an error property
       const { data: publicUrlData } = supabase.storage
         .from('app-assets')
         .getPublicUrl(filePath);
