@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,10 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from "recharts";
 import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { 
@@ -18,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
+import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 
 export default function Reports() {
   const { user, role } = useAuth();
@@ -34,7 +30,6 @@ export default function Reports() {
   
   const canEditNews = role === 'admin' || role === 'manager';
 
-  // Fetch user's time entries for today
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["time-entries", "today", user?.id],
     queryFn: async () => {
@@ -61,7 +56,6 @@ export default function Reports() {
     enabled: !!user,
   });
   
-  // Fetch user's time entries for the current month
   const { data: monthEntries = [] } = useQuery({
     queryKey: ["time-entries", "month", user?.id],
     queryFn: async () => {
@@ -88,7 +82,6 @@ export default function Reports() {
     enabled: !!user,
   });
   
-  // Fetch all time entries for the company (for admins/managers)
   const { data: companyEntries = [] } = useQuery({
     queryKey: ["time-entries", "company", "month"],
     queryFn: async () => {
@@ -114,7 +107,6 @@ export default function Reports() {
     enabled: !!user && (role === 'admin' || role === 'manager'),
   });
   
-  // Fetch company news
   const { data: newsData, refetch: refetchNews } = useQuery({
     queryKey: ["company-news"],
     queryFn: async () => {
@@ -127,11 +119,9 @@ export default function Reports() {
           
         if (error && error.code !== 'PGRST116') throw error;
         
-        // Handle the JSON data appropriately
         if (data?.settings && typeof data.settings === 'string') {
           return data.settings;
         } else if (data?.settings) {
-          // If it's an object or other non-string JSON, convert to string
           return JSON.stringify(data.settings);
         }
         
@@ -143,14 +133,12 @@ export default function Reports() {
     },
   });
   
-  // Update news content when data is loaded
   useEffect(() => {
     if (newsData) {
       setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData));
     }
   }, [newsData]);
   
-  // Calculate statistics
   const calculateTodayHours = () => {
     return todayEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
@@ -203,7 +191,6 @@ export default function Reports() {
     }, 0).toFixed(2);
   };
   
-  // Prepare chart data
   const prepareWeeklyActivityData = () => {
     const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const weekData = weekDays.map(day => ({ name: day, hours: 0 }));
@@ -247,7 +234,6 @@ export default function Reports() {
     }));
   };
   
-  // Handle news updates
   const handleSaveNews = async () => {
     try {
       const { error } = await supabase
@@ -270,12 +256,10 @@ export default function Reports() {
   };
   
   const handleCancelEdit = () => {
-    // Cast to string to ensure we always have a string when setting state
     setNewsContent(typeof newsData === 'string' ? newsData : JSON.stringify(newsData || ""));
     setEditingNews(false);
   };
   
-  // Colors for charts
   const COLORS = ['#8BC34A', '#4CAF50', '#009688', '#2196F3', '#3F51B5', '#673AB7', '#9C27B0'];
   
   return (
@@ -366,19 +350,17 @@ export default function Reports() {
                 <CardDescription>Hours worked per day this month</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={prepareWeeklyActivityData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value) => [`${value} hours`, 'Time Spent']}
-                      labelFormatter={(label) => `${label}`}
-                    />
-                    <Legend />
-                    <Bar dataKey="hours" fill="#4CAF50" name="Hours Logged" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart 
+                  data={prepareWeeklyActivityData()} 
+                  height={300}
+                  barKey="hours"
+                  barName="Hours Logged"
+                  barFill="#4CAF50"
+                  tooltip={{
+                    formatter: (value) => [`${value} hours`, 'Time Spent'],
+                    labelFormatter: (label) => `${label}`
+                  }}
+                />
               </CardContent>
             </Card>
             
@@ -389,27 +371,14 @@ export default function Reports() {
               </CardHeader>
               <CardContent className="flex justify-center">
                 <div className="w-full h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={prepareActivityTypeData()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="hours"
-                      >
-                        {prepareActivityTypeData().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value) => [`${value} hours`, 'Time Spent']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart
+                    data={prepareActivityTypeData()}
+                    dataKey="hours"
+                    colors={COLORS}
+                    tooltip={{
+                      formatter: (value) => [`${value} hours`, 'Time Spent']
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>

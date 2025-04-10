@@ -1,14 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from "recharts";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { 
   Calendar, Clock, DollarSign, Users, BarChart2, Activity, 
@@ -18,6 +14,7 @@ import { NewsEditor } from "@/components/news/NewsEditor";
 import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
 import { NewsPost } from "@/types/database";
 import { supabase } from "@/lib/supabase";
+import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 
 export default function Dashboard() {
   const { user, role } = useAuth();
@@ -336,19 +333,17 @@ export default function Dashboard() {
                 <CardDescription>Hours worked per day this month</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={prepareWeeklyActivityData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value) => [`${value} hours`, 'Time Spent']}
-                      labelFormatter={(label) => `${label}`}
-                    />
-                    <Legend />
-                    <Bar dataKey="hours" fill="#7FB069" name="Hours Logged" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart 
+                  data={prepareWeeklyActivityData()} 
+                  height={300}
+                  barKey="hours"
+                  barName="Hours Logged"
+                  barFill="#7FB069"
+                  tooltip={{
+                    formatter: (value) => [`${value} hours`, 'Time Spent'],
+                    labelFormatter: (label) => `${label}`
+                  }}
+                />
               </CardContent>
             </Card>
             
@@ -359,27 +354,14 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex justify-center">
                 <div className="w-full h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={prepareActivityTypeData()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="hours"
-                      >
-                        {prepareActivityTypeData().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value) => [`${value} hours`, 'Time Spent']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart
+                    data={prepareActivityTypeData()}
+                    dataKey="hours"
+                    colors={COLORS}
+                    tooltip={{
+                      formatter: (value) => [`${value} hours`, 'Time Spent']
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>
