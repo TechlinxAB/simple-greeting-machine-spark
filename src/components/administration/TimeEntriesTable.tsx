@@ -57,7 +57,7 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
     setIsDeleting(true);
     
     try {
-      // Check if this entry is part of an invoice
+      // MODIFIED: Only check for invoice status, not product existence
       if (selectedEntry.invoiced || selectedEntry.invoice_id) {
         toast.error("Cannot delete a time entry that has been invoiced.");
         setDeleteDialogOpen(false);
@@ -65,6 +65,7 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
         return;
       }
       
+      // Directly delete by ID, ignoring product relationship
       const { error } = await supabase
         .from("time_entries")
         .delete()
@@ -78,6 +79,7 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
       
       onEntryDeleted();
       setDeleteDialogOpen(false);
+      toast.success("Time entry deleted successfully");
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");

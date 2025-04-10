@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -49,7 +48,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // State for dialogs
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
@@ -58,7 +56,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const startDate = startOfDay(selectedDate);
   const endDate = endOfDay(selectedDate);
   
-  // Create a unique query key for this date
   const queryKey = ["time-entries", format(selectedDate, "yyyy-MM-dd")];
 
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
@@ -149,15 +146,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       const entryId = selectedEntry.id;
       console.log("Attempting to delete time entry with ID:", entryId);
       
-      // Make the DELETE request to Supabase with explicit user_id check
-      // This is crucial - it ensures we're properly addressing RLS policy requirements
-      const { data, error, status, statusText } = await supabase
+      const { error } = await supabase
         .from("time_entries")
         .delete()
         .eq("id", entryId)
-        .eq("user_id", user.id); // Add explicit user_id check to match RLS policy
+        .eq("user_id", user.id);
         
-      console.log("Delete response:", { status, statusText, data, error });
+      console.log("Delete response status:", error ? "Error" : "Success");
       
       if (error) {
         console.error("Supabase delete error:", error);
@@ -166,44 +161,20 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         return;
       }
       
-      // Close dialog first before showing success toast
       setDeleteDialogOpen(false);
       setSelectedEntry(null);
       setIsDeleting(false);
       
-      // Verification check with explicit user_id query
-      const { data: checkData, error: checkError } = await supabase
-        .from("time_entries")
-        .select("id")
-        .eq("id", entryId)
-        .eq("user_id", user.id);
-      
-      if (checkError) {
-        console.error("Error checking deletion:", checkError);
-      } else {
-        const stillExists = checkData && checkData.length > 0;
-        console.log(`Verification check: Entry ${entryId} ${stillExists ? 'still exists' : 'was deleted'}`);
-        
-        if (stillExists) {
-          console.warn("Entry still exists after deletion - possible RLS issue");
-          toast.error("Delete operation didn't remove the entry. Please contact your administrator.");
-          return;
-        }
-      }
-      
       toast.success("Time entry deleted successfully");
       
-      // Directly update the local state in React Query cache
       queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
         return oldData.filter(item => item.id !== entryId);
       });
       
-      // Then invalidate caches to ensure fresh data on next fetch
       await queryClient.invalidateQueries({ 
         queryKey: ["time-entries"]
       });
       
-      // Force a complete refetch
       await refetch();
       
     } catch (error: any) {
@@ -224,12 +195,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setEditDialogOpen(false);
     setSelectedEntry(null);
     
-    // Invalidate all time entries queries to ensure data consistency
     await queryClient.invalidateQueries({ 
       queryKey: ["time-entries"]
     });
     
-    // Explicit refetch for the current view
     await refetch();
     
     toast.success("Time entry updated successfully");
