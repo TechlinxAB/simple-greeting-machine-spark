@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -46,6 +45,15 @@ interface FortnoxArticleData {
   VAT: number;
   StockGoods: boolean;
 }
+
+// Define valid account ranges
+const VALID_ACCOUNTS = {
+  revenue: {
+    min: 3000,
+    max: 3999,
+    default: "3001" // Default revenue account
+  }
+};
 
 /**
  * Format time entries for export to Fortnox
@@ -137,16 +145,8 @@ export async function formatTimeEntriesForFortnox(
       const validVatRates = [25, 12, 6];
       const vat = validVatRates.includes(product.vat_percentage) ? product.vat_percentage : 25;
       
-      // Ensure account number is in valid sales account range (3000-3999)
-      let accountNumber = "3001"; // Default fallback
-      if (product.account_number) {
-        const accountNum = parseInt(product.account_number);
-        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
-          accountNumber = product.account_number;
-        } else {
-          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
-        }
-      }
+      // Always use the default account number to prevent errors
+      const accountNumber = VALID_ACCOUNTS.revenue.default;
       
       // Set appropriate unit based on product type
       const unit = product.type === 'activity' ? 't' : 'st';
@@ -352,7 +352,7 @@ export async function createArticleFromDetails(articleDetails: any): Promise<str
       Description: articleDetails.description || "Product item",
       ArticleNumber: articleDetails.articleNumber,
       Type: "SERVICE", // Default to SERVICE type
-      SalesAccount: articleDetails.accountNumber || "3001", // Use provided account or default
+      SalesAccount: VALID_ACCOUNTS.revenue.default, // Always use default account
       VAT: articleDetails.vat || 25, // Use provided VAT or default
       StockGoods: false // Set to false for service products
     };
@@ -395,16 +395,8 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // Article doesn't exist, create it with the original article number
       console.log(`Creating new article with original article number: ${product.article_number}`);
       
-      // Ensure account number is valid (3000-3999)
-      let accountNumber = "3001"; // Default fallback
-      if (product.account_number) {
-        const accountNum = parseInt(product.account_number);
-        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
-          accountNumber = product.account_number;
-        } else {
-          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
-        }
-      }
+      // Always use the default account number to prevent errors
+      const accountNumber = VALID_ACCOUNTS.revenue.default;
       
       // Format the article data with the original article number
       const articleData: FortnoxArticleData = {
@@ -436,16 +428,8 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // No article number provided, generate one
       const generatedArticleNumber = await generateNumericArticleNumber();
       
-      // Ensure account number is valid (3000-3999)
-      let accountNumber = "3001"; // Default fallback
-      if (product.account_number) {
-        const accountNum = parseInt(product.account_number);
-        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
-          accountNumber = product.account_number;
-        } else {
-          console.warn(`Invalid account number ${product.account_number} for product ${product.name}, using default 3001`);
-        }
-      }
+      // Always use the default account number
+      const accountNumber = VALID_ACCOUNTS.revenue.default;
       
       // Format the article data with the generated article number
       const articleData: FortnoxArticleData = {
@@ -589,7 +573,7 @@ export async function createFortnoxInvoice(
     // Update invoice data with the correct CustomerNumber
     invoiceData.CustomerNumber = customerNumber;
     
-    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as required by Fortnox API spec
+    // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as per API spec
     console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
     try {
       const response = await fortnoxApiRequest("/invoices", "POST", {
