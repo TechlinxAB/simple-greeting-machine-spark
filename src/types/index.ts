@@ -60,5 +60,17 @@ export interface Invoice {
   clients?: Client;
 }
 
+export type ProductType = 'activity' | 'item';
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  role: 'admin' | 'manager' | 'user';
+  avatar_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export * from "./auth";
 export * from "./database";

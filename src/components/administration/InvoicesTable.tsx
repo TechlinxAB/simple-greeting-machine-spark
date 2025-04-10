@@ -116,7 +116,7 @@ export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted }: Invoice
       case 'sent':
         return <Badge variant="secondary">Sent</Badge>;
       case 'paid':
-        return <Badge variant="success">Paid</Badge>;
+        return <Badge className="bg-green-500 hover:bg-green-600">Paid</Badge>;
       case 'overdue':
         return <Badge variant="destructive">Overdue</Badge>;
       default:

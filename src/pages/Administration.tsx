@@ -208,7 +208,7 @@ export default function Administration() {
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        mode="month"
+                        mode="single"
                         defaultMonth={selectedMonth}
                         onSelect={(date) => {
                           if (date) {
@@ -233,8 +233,8 @@ export default function Administration() {
                   </Popover>
                   
                   <Select
-                    value={selectedClient || ""}
-                    onValueChange={(value) => setSelectedClient(value || null)}
+                    value={selectedClient || "all"}
+                    onValueChange={(value) => setSelectedClient(value === "all" ? null : value)}
                   >
                     <SelectTrigger className="w-[220px]">
                       <SelectValue placeholder="Select a client">
@@ -247,7 +247,7 @@ export default function Administration() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Clients</SelectItem>
+                      <SelectItem value="all">All Clients</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
