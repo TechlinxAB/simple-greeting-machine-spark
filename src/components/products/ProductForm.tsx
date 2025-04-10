@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
 import type { Product, ProductType } from "@/types";
@@ -127,17 +128,17 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
   };
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>{isEditMode ? 'Edit' : 'Create new'} product</DrawerTitle>
-          <DrawerDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{isEditMode ? 'Edit' : 'Create new'} product</DialogTitle>
+          <DialogDescription>
             {isEditMode ? 'Edit an existing' : 'Add a new'} activity or item to your account
-          </DrawerDescription>
-        </DrawerHeader>
+          </DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="px-4 py-2 space-y-4">
+            <div className="py-2 space-y-4">
               {/* Fix the error by conditionally rendering the Tabs component based on edit mode */}
               {isEditMode ? (
                 <div className="mb-6 flex items-center">
@@ -246,17 +247,17 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
               </div>
             </div>
             
-            <DrawerFooter>
+            <DialogFooter className="mt-6">
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? `Update ${selectedType}` : `Create ${selectedType}`)}
               </Button>
-              <DrawerClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DrawerClose>
-            </DrawerFooter>
+              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
