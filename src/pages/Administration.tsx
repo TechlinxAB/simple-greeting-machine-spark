@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -75,31 +74,50 @@ export default function Administration() {
     queryKey: ["admin-time-entries", format(startDate, "yyyy-MM"), selectedClient],
     enabled: activeTab === "time-entries",
     queryFn: async () => {
-      let query = supabase
-        .from("time_entries")
-        .select(`
-          *,
-          clients(name),
-          products(name, type, price),
-          profiles:user_id(name)
-        `)
-        .gte("start_time", startDate.toISOString())
-        .lte("start_time", endDate.toISOString());
-      
-      if (selectedClient) {
-        query = query.eq("client_id", selectedClient);
-      }
-      
-      const { data, error } = await query.order("start_time", { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching time entries:", error);
+      try {
+        let query = supabase
+          .from("time_entries")
+          .select(`
+            *,
+            clients(name),
+            products(name, type, price)
+          `)
+          .gte("start_time", startDate.toISOString())
+          .lte("start_time", endDate.toISOString());
+        
+        if (selectedClient) {
+          query = query.eq("client_id", selectedClient);
+        }
+        
+        const { data: entriesData, error: entriesError } = await query.order("start_time", { ascending: false });
+        
+        if (entriesError) {
+          console.error("Error fetching time entries:", entriesError);
+          toast.error("Failed to load time entries");
+          return [];
+        }
+        
+        const entriesWithProfiles = await Promise.all(entriesData.map(async (entry) => {
+          if (!entry.user_id) return { ...entry, profiles: { name: "Unknown" } };
+          
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", entry.user_id)
+            .single();
+          
+          return {
+            ...entry,
+            profiles: profileData || { name: "Unknown" }
+          };
+        }));
+        
+        return entriesWithProfiles as TimeEntry[];
+      } catch (error) {
+        console.error("Error in time entries query:", error);
         toast.error("Failed to load time entries");
         return [];
       }
-      
-      // Convert data to match our TimeEntry type
-      return (data as unknown) as TimeEntry[];
     },
   });
 
