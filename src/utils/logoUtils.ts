@@ -9,6 +9,31 @@ export const MAX_LOGO_HEIGHT = 512;
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
 
 /**
+ * Ensures the app-logos bucket exists
+ * @returns Promise with boolean indicating success
+ */
+export async function ensureLogoBucketExists(): Promise<boolean> {
+  try {
+    // Check if bucket exists
+    const { data: existingBuckets } = await supabase
+      .storage
+      .listBuckets();
+      
+    const bucketExists = existingBuckets?.some(bucket => bucket.name === 'app-logos');
+    
+    if (bucketExists) {
+      return true;
+    } else {
+      console.error("No app-logos bucket exists. The bucket needs to be created in Supabase.");
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to ensure bucket exists", error);
+    return false;
+  }
+}
+
+/**
  * Checks if a logo exists in storage
  * @returns Promise with boolean
  */
@@ -41,6 +66,16 @@ export async function checkLogoExists(): Promise<boolean> {
  */
 export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, success: boolean }> {
   try {
+    // First ensure storage bucket exists
+    const bucketExists = await ensureLogoBucketExists();
+    if (!bucketExists) {
+      console.error("Logo bucket doesn't exist and couldn't be created");
+      return { dataUrl: '', success: false };
+    }
+    
+    // Delete any existing logos first to avoid accumulation
+    await removeAppLogo();
+    
     const fileExt = file.name.split('.').pop();
     const filePath = `logo-${uuidv4()}.${fileExt}`;
     
@@ -87,7 +122,7 @@ export async function removeAppLogo(): Promise<boolean> {
       .from('app-logos')
       .list('', {
         search: 'logo',
-        limit: 1,
+        limit: 10, // Increased to catch multiple potential logo files
       });
       
     if (listError) {
@@ -100,12 +135,12 @@ export async function removeAppLogo(): Promise<boolean> {
       return true;
     }
     
-    const fileToRemove = listData[0].name;
+    const filesToRemove = listData.map(file => file.name);
     
     const { error } = await supabase
       .storage
       .from('app-logos')
-      .remove([fileToRemove]);
+      .remove(filesToRemove);
       
     if (error) {
       console.error("Error removing logo:", error);
@@ -220,12 +255,17 @@ export async function updateLogoInSystemSettings(dataUrl: string): Promise<boole
       return false;
     }
     
-    // Prepare the settings object
+    // Prepare the settings object - Fix for spread operator error
     const currentSettings = data?.settings || {};
-    const updatedSettings = {
-      ...currentSettings,
-      logoUrl: dataUrl
-    };
+    const updatedSettings: Record<string, any> = {};
+    
+    // Copy all properties from current settings
+    if (typeof currentSettings === 'object') {
+      Object.assign(updatedSettings, currentSettings);
+    }
+    
+    // Add or update the logoUrl property
+    updatedSettings.logoUrl = dataUrl;
     
     // Update or insert the settings
     const { error } = await supabase
