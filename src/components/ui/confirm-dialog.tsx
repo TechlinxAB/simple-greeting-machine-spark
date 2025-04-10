@@ -35,7 +35,6 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {/* Fix: Wrap content in a div instead of incorrectly nesting inside p tag */}
           <AlertDialogDescription asChild>
             <div>{description}</div>
           </AlertDialogDescription>

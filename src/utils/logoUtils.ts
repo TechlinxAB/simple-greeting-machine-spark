@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -13,25 +12,61 @@ export const LOGO_BUCKET_NAME = "application-logo";
 export const LOGO_FOLDER_PATH = "logos";
 
 /**
+ * Ensure the logo bucket exists before any operations
+ */
+export async function ensureLogoBucketExists(): Promise<boolean> {
+  try {
+    console.log("Checking if application-logo bucket exists");
+    
+    // First check if the bucket already exists
+    const { data: buckets, error: bucketError } = await supabase
+      .storage
+      .listBuckets();
+      
+    if (bucketError) {
+      console.error("Error checking buckets:", bucketError);
+      return false;
+    }
+    
+    const bucketExists = buckets.some(bucket => bucket.name === LOGO_BUCKET_NAME);
+    
+    if (bucketExists) {
+      console.log("Logo bucket exists, proceeding");
+      return true;
+    }
+    
+    console.warn("Logo bucket doesn't exist but should have been created via migrations");
+    return false;
+  } catch (error) {
+    console.error("Error ensuring logo bucket exists:", error);
+    return false;
+  }
+}
+
+/**
  * Checks if a logo exists in storage
  * @returns Promise with boolean
  */
 export async function checkLogoExists(): Promise<boolean> {
   try {
+    // Make sure the bucket exists first
+    const bucketExists = await ensureLogoBucketExists();
+    if (!bucketExists) {
+      console.error("Logo bucket doesn't exist");
+      return false;
+    }
+    
     const { data, error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
-      .list(LOGO_FOLDER_PATH, {
-        search: 'logo',
-        limit: 1,
-      });
+      .list(LOGO_FOLDER_PATH);
       
     if (error) {
       console.error("Error checking logo exists:", error);
       return false;
     }
     
-    return data && data.length > 0;
+    return data && data.length > 0 && data.some(file => file.name.includes('logo'));
   } catch (error) {
     console.error("Error checking logo exists:", error);
     return false;
@@ -45,18 +80,39 @@ export async function checkLogoExists(): Promise<boolean> {
  */
 export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, success: boolean }> {
   try {
+    console.log("Starting logo upload process");
+    
+    // Make sure the bucket exists first
+    const bucketExists = await ensureLogoBucketExists();
+    if (!bucketExists) {
+      console.error("Logo bucket doesn't exist and couldn't be created");
+      
+      // Try local storage as fallback
+      const fileDataUrl = await fileToDataUrl(file);
+      if (fileDataUrl) {
+        localStorage.setItem(LOGO_DATA_URL_KEY, fileDataUrl);
+        return { dataUrl: fileDataUrl, success: false };
+      }
+      
+      return { dataUrl: '', success: false };
+    }
+    
     // Delete any existing logos first to avoid accumulation
     await removeAppLogo();
     
     const fileExt = file.name.split('.').pop();
-    const filePath = `${LOGO_FOLDER_PATH}/logo-${uuidv4()}.${fileExt}`;
+    const fileName = `logo-${uuidv4()}.${fileExt}`;
+    const filePath = `${LOGO_FOLDER_PATH}/${fileName}`;
     
+    console.log(`Uploading file to ${filePath}`);
+    
+    // Try uploading the file
     const { data, error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true // Changed to true to handle potential conflicts
       });
       
     if (error) {
@@ -72,6 +128,9 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
       return { dataUrl: '', success: false };
     }
     
+    console.log("Logo upload successful, getting public URL");
+    
+    // Get the public URL
     const { data: publicUrl } = supabase
       .storage
       .from(LOGO_BUCKET_NAME)
@@ -91,9 +150,13 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
     }
     
     const dataUrl = publicUrl.publicUrl;
+    console.log("Public URL obtained:", dataUrl);
     
     // Store in localStorage for quick access
     localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+    
+    // Update the logo in system settings
+    await updateLogoInSystemSettings(dataUrl);
     
     return { dataUrl, success: true };
   } catch (error) {
@@ -120,13 +183,19 @@ export async function uploadAppLogo(file: File): Promise<{ dataUrl: string, succ
  */
 export async function removeAppLogo(): Promise<boolean> {
   try {
+    // Make sure the bucket exists first
+    const bucketExists = await ensureLogoBucketExists();
+    if (!bucketExists) {
+      console.log("No logo bucket to remove files from");
+      localStorage.removeItem(LOGO_DATA_URL_KEY);
+      return true;
+    }
+    
+    // Check if there are any logo files to remove
     const { data: listData, error: listError } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
-      .list(LOGO_FOLDER_PATH, {
-        search: 'logo',
-        limit: 10, // Increased to catch multiple potential logo files
-      });
+      .list(LOGO_FOLDER_PATH);
       
     if (listError) {
       console.error("Error listing logos:", listError);
@@ -135,23 +204,38 @@ export async function removeAppLogo(): Promise<boolean> {
     
     if (!listData || listData.length === 0) {
       console.log("No logo found to remove");
+      localStorage.removeItem(LOGO_DATA_URL_KEY);
       return true;
     }
     
-    const filesToRemove = listData.map(file => `${LOGO_FOLDER_PATH}/${file.name}`);
+    // Filter files that contain "logo" in their name
+    const logoFiles = listData.filter(file => file.name.includes('logo'));
     
+    if (logoFiles.length === 0) {
+      console.log("No logo files found to remove");
+      localStorage.removeItem(LOGO_DATA_URL_KEY);
+      return true;
+    }
+    
+    const filesToRemove = logoFiles.map(file => `${LOGO_FOLDER_PATH}/${file.name}`);
+    console.log("Removing logo files:", filesToRemove);
+    
+    // Remove all logo files
     const { error } = await supabase
       .storage
       .from(LOGO_BUCKET_NAME)
       .remove(filesToRemove);
       
     if (error) {
-      console.error("Error removing logo:", error);
+      console.error("Error removing logo files:", error);
       return false;
     }
     
     // Always clear from localStorage too
     localStorage.removeItem(LOGO_DATA_URL_KEY);
+    
+    // Also update system settings to remove the logo
+    await updateLogoInSystemSettings("");
     
     return true;
   } catch (error) {
@@ -220,52 +304,62 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
       return storedDataUrl;
     }
     
-    // Check for logos in the storage bucket
-    const logoExists = await checkLogoExists();
-    if (logoExists) {
-      // Find the first logo file
-      const { data: files, error: listError } = await supabase
-        .storage
-        .from(LOGO_BUCKET_NAME)
-        .list(LOGO_FOLDER_PATH, {
-          search: 'logo',
-          limit: 1,
-        });
+    // Make sure the bucket exists
+    const bucketExists = await ensureLogoBucketExists();
+    if (!bucketExists) {
+      console.warn("Logo bucket doesn't exist, checking system settings instead");
       
-      if (!listError && files && files.length > 0) {
-        // Get the public URL
-        const { data: publicUrl } = supabase
-          .storage
-          .from(LOGO_BUCKET_NAME)
-          .getPublicUrl(`${LOGO_FOLDER_PATH}/${files[0].name}`);
-          
-        if (publicUrl?.publicUrl) {
+      // Try system settings as fallback
+      const { data: settingsData, error: settingsError } = await supabase
+        .from("system_settings")
+        .select("settings")
+        .eq("id", "app_settings")
+        .single();
+        
+      // If we have settings data with a logoUrl, use that
+      if (!settingsError && settingsData?.settings) {
+        const settings = settingsData.settings as Record<string, any>;
+        if (settings && typeof settings === 'object' && settings.logoUrl) {
+          const dataUrl = settings.logoUrl;
           // Cache it
-          localStorage.setItem(LOGO_DATA_URL_KEY, publicUrl.publicUrl);
-          return publicUrl.publicUrl;
+          localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+          return dataUrl;
         }
       }
-    }
-    
-    // Then check database as fallback
-    const { data: settingsData, error: settingsError } = await supabase
-      .from("system_settings")
-      .select("settings")
-      .eq("id", "app_settings")
-      .single();
       
-    // If we have settings data with a logoUrl (which is a dataUrl), use that
-    if (!settingsError && settingsData?.settings) {
-      const settings = settingsData.settings as Record<string, any>;
-      if (settings && typeof settings === 'object' && settings.logoUrl) {
-        const dataUrl = settings.logoUrl;
-        // Cache it
-        localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
-        return dataUrl;
-      }
+      return null;
     }
     
-    // If all checks fail, return null
+    // Check for logos in the storage bucket
+    const { data: files, error: listError } = await supabase
+      .storage
+      .from(LOGO_BUCKET_NAME)
+      .list(LOGO_FOLDER_PATH);
+    
+    if (listError || !files || files.length === 0) {
+      console.log("No logo files found in storage");
+      return null;
+    }
+    
+    // Find the first logo file
+    const logoFile = files.find(file => file.name.includes('logo'));
+    if (!logoFile) {
+      console.log("No logo file found in storage");
+      return null;
+    }
+    
+    // Get the public URL
+    const { data: publicUrl } = supabase
+      .storage
+      .from(LOGO_BUCKET_NAME)
+      .getPublicUrl(`${LOGO_FOLDER_PATH}/${logoFile.name}`);
+      
+    if (publicUrl?.publicUrl) {
+      // Cache it
+      localStorage.setItem(LOGO_DATA_URL_KEY, publicUrl.publicUrl);
+      return publicUrl.publicUrl;
+    }
+    
     return null;
   } catch (error) {
     console.error("Error getting logo data URL:", error);
