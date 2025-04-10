@@ -2,16 +2,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
-import { 
-  Users, 
-  Clock, 
-  FileText,
-  FilterIcon,
-  Trash,
-  Check,
-  ArrowUpDown,
-  AlertCircle
-} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -149,32 +139,36 @@ export default function Administration() {
         
         const userIds = [...new Set(entriesData.map(entry => entry.user_id).filter(Boolean))];
         
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .in("id", userIds);
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, name")
+            .in("id", userIds);
+            
+          if (profilesError) {
+            console.error("Error fetching profiles:", profilesError);
+          }
           
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
-        }
-        
-        const profileMap = new Map();
-        if (profilesData) {
-          profilesData.forEach(profile => {
-            profileMap.set(profile.id, profile.name || "Unknown");
+          const profileMap = new Map();
+          if (profilesData) {
+            profilesData.forEach(profile => {
+              profileMap.set(profile.id, profile.name || "Unknown");
+            });
+          }
+          
+          const entriesWithProfiles = entriesData.map(entry => {
+            return {
+              ...entry,
+              profiles: { 
+                name: profileMap.get(entry.user_id) || "Unknown" 
+              }
+            };
           });
+          
+          return entriesWithProfiles as TimeEntry[];
         }
         
-        const entriesWithProfiles = entriesData.map(entry => {
-          return {
-            ...entry,
-            profiles: { 
-              name: profileMap.get(entry.user_id) || "Unknown" 
-            }
-          };
-        });
-        
-        return entriesWithProfiles as TimeEntry[];
+        return entriesData as TimeEntry[];
       } catch (error) {
         console.error("Error in time entries query:", error);
         toast.error("Failed to load time entries");
@@ -194,6 +188,7 @@ export default function Administration() {
     enabled: activeTab === "invoices",
     queryFn: async () => {
       try {
+        // Here we use the explicit table name as a literal string instead of a variable
         let query = supabase
           .from("invoices")
           .select(`
@@ -443,14 +438,14 @@ export default function Administration() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                 <TabsList>
                   <TabsTrigger value="time-entries" className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
+                    <Icons.clock className="h-4 w-4" />
                     <span>Time Entries</span>
                     {timeEntries.length > 0 && (
                       <Badge variant="secondary" className="ml-1">{timeEntries.length}</Badge>
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="invoices" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
+                    <Icons.fileText className="h-4 w-4" />
                     <span>Invoices</span>
                     {invoices.length > 0 && (
                       <Badge variant="secondary" className="ml-1">{invoices.length}</Badge>
@@ -468,7 +463,7 @@ export default function Administration() {
                     <SelectTrigger className="w-[220px]">
                       <SelectValue placeholder="Select a client">
                         <span className="flex items-center">
-                          <Users className="mr-2 h-4 w-4" />
+                          <Icons.users className="mr-2 h-4 w-4" />
                           {selectedClient 
                             ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
                             : "All Clients"}
@@ -492,7 +487,7 @@ export default function Administration() {
                       onClick={() => setSelectedClient(null)}
                       title="Clear client filter"
                     >
-                      <FilterIcon className="h-4 w-4" />
+                      <Icons.filterIcon className="h-4 w-4" />
                     </Button>
                   )}
                   
@@ -514,7 +509,7 @@ export default function Administration() {
                       onClick={() => setBulkDeleteConfirmOpen(true)}
                       className="flex items-center gap-1"
                     >
-                      <Trash className="h-4 w-4" />
+                      <Icons.trash className="h-4 w-4" />
                       <span>Delete Selected ({selectedItems.length})</span>
                     </Button>
                   )}
@@ -537,7 +532,7 @@ export default function Administration() {
                       onClick={() => setBulkDeleteOpen(true)}
                       className="flex items-center gap-1"
                     >
-                      <Check className="h-4 w-4" />
+                      <Icons.check className="h-4 w-4" />
                       <span>Select Multiple</span>
                     </Button>
                   )}
@@ -622,7 +617,7 @@ export default function Administration() {
               
               {activeTab === "invoices" && (
                 <div className="mt-2 text-amber-500 flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 mt-0.5" />
+                  <Icons.alertCircle className="h-5 w-5 mt-0.5" />
                   <div>
                     <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
                     <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>

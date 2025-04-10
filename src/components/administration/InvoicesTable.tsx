@@ -9,7 +9,6 @@ import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Trash2, Edit, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Icons } from "@/components/icons";
 
@@ -205,7 +204,7 @@ export function InvoicesTable({
                           : "Delete invoice"
                       }
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Icons.trash className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>
