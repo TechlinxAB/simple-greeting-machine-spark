@@ -16,9 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { type TimeEntry } from "@/types";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 
 interface TimeEntriesTableProps {
   timeEntries: TimeEntry[];
@@ -57,29 +57,12 @@ export function TimeEntriesTable({ timeEntries, isLoading, onEntryDeleted }: Tim
     setIsDeleting(true);
     
     try {
-      // MODIFIED: Only check for invoice status, not product existence
-      if (selectedEntry.invoiced || selectedEntry.invoice_id) {
-        toast.error("Cannot delete a time entry that has been invoiced.");
+      const success = await deleteTimeEntry(selectedEntry.id);
+      
+      if (success) {
+        onEntryDeleted();
         setDeleteDialogOpen(false);
-        setIsDeleting(false);
-        return;
       }
-      
-      // Directly delete by ID, ignoring product relationship
-      const { error } = await supabase
-        .from("time_entries")
-        .delete()
-        .eq("id", selectedEntry.id);
-      
-      if (error) {
-        console.error("Error deleting time entry:", error);
-        toast.error("Failed to delete time entry");
-        return;
-      }
-      
-      onEntryDeleted();
-      setDeleteDialogOpen(false);
-      toast.success("Time entry deleted successfully");
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");

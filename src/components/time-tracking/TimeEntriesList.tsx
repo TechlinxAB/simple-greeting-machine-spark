@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +39,7 @@ import {
 import { TimeEntryEditForm } from "./TimeEntryEditForm";
 import { toast } from "sonner";
 import { TimeEntry } from "@/types";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -135,7 +137,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   };
   
   const confirmDelete = async () => {
-    if (!selectedEntry || !selectedEntry.id || !user) {
+    if (!selectedEntry || !selectedEntry.id) {
       toast.error("No time entry selected for deletion");
       return;
     }
@@ -143,44 +145,28 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setIsDeleting(true);
     
     try {
-      const entryId = selectedEntry.id;
-      console.log("Attempting to delete time entry with ID:", entryId);
+      const success = await deleteTimeEntry(selectedEntry.id);
       
-      const { error } = await supabase
-        .from("time_entries")
-        .delete()
-        .eq("id", entryId)
-        .eq("user_id", user.id);
+      if (success) {
+        setDeleteDialogOpen(false);
+        setSelectedEntry(null);
         
-      console.log("Delete response status:", error ? "Error" : "Success");
-      
-      if (error) {
-        console.error("Supabase delete error:", error);
-        toast.error(error.message || "Failed to delete time entry");
-        setIsDeleting(false);
-        return;
+        queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
+          return oldData.filter(item => item.id !== selectedEntry.id);
+        });
+        
+        await queryClient.invalidateQueries({ 
+          queryKey: ["time-entries"]
+        });
+        
+        await refetch();
       }
-      
-      setDeleteDialogOpen(false);
-      setSelectedEntry(null);
-      setIsDeleting(false);
-      
-      toast.success("Time entry deleted successfully");
-      
-      queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
-        return oldData.filter(item => item.id !== entryId);
-      });
-      
-      await queryClient.invalidateQueries({ 
-        queryKey: ["time-entries"]
-      });
-      
-      await refetch();
-      
     } catch (error: any) {
       setIsDeleting(false);
       console.error("Delete time entry error:", error);
       toast.error(error.message || "Failed to delete time entry");
+    } finally {
+      setIsDeleting(false);
     }
   };
   

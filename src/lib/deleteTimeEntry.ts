@@ -42,9 +42,11 @@ export async function deleteTimeEntry(timeEntryId: string): Promise<boolean> {
     }
     
     console.log(`Successfully deleted time entry with ID: ${timeEntryId}`);
+    toast.success("Time entry deleted successfully");
     return true;
   } catch (error) {
     console.error("Unexpected error during time entry deletion:", error);
+    toast.error("An unexpected error occurred while deleting the time entry");
     return false;
   }
 }
