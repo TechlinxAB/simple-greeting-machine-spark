@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
@@ -12,7 +11,8 @@ const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
 export async function fortnoxApiRequest(
   endpoint: string, 
   method: string = 'GET', 
-  data?: any
+  data?: any,
+  retryWithoutArticleNumber: boolean = false
 ): Promise<any> {
   try {
     // Get the Fortnox credentials from the database
@@ -90,6 +90,7 @@ export async function fortnoxApiRequest(
       // Try to extract more detailed error information
       let errorMessage = "Fortnox API Error";
       let errorDetails = null;
+      let errorCode = null;
       
       if (typeof error === 'object' && error !== null) {
         // If the error contains a message that has JSON in it, parse it
@@ -107,11 +108,50 @@ export async function fortnoxApiRequest(
                 if (errorDetails?.details) {
                   errorDetails = errorDetails.details;
                 }
+                if (errorDetails?.errorCode) {
+                  errorCode = errorDetails.errorCode;
+                }
               }
             }
           } catch (parseError) {
             console.error("Error parsing error message JSON:", parseError);
           }
+        }
+      }
+      
+      // Implement retry logic for article number issues
+      // Check if this is a POST to /invoices and if we haven't retried yet
+      if (
+        method === 'POST' && 
+        endpoint.includes('/invoices') && 
+        !retryWithoutArticleNumber && 
+        data?.Invoice?.InvoiceRows
+      ) {
+        // Check if error is related to article number
+        const isArticleNumberError = 
+          errorMessage.includes("ArticleNumber") || 
+          errorCode === "2001204" || // ArticleNumber doesn't exist
+          errorCode === "2001008";   // Article not found
+          
+        if (isArticleNumberError) {
+          console.log("⚠️ Article number error detected, retrying without article numbers");
+          
+          // Create a deep copy of the original data
+          const retryData = JSON.parse(JSON.stringify(data));
+          
+          // Modify each invoice row to remove ArticleNumber
+          if (retryData.Invoice && retryData.Invoice.InvoiceRows) {
+            retryData.Invoice.InvoiceRows = retryData.Invoice.InvoiceRows.map((row: any) => {
+              // Remove ArticleNumber and UnitCode but keep other fields
+              const { ArticleNumber, UnitCode, ...rest } = row;
+              return rest;
+            });
+          }
+          
+          console.log("Retrying with modified payload:", JSON.stringify(retryData, null, 2));
+          
+          // Retry the request with the modified data
+          return await fortnoxApiRequest(endpoint, method, retryData, true);
         }
       }
       

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -13,11 +14,6 @@ interface FortnoxInvoiceData {
   Currency?: string;
   Language?: string;
   InvoiceType?: string;
-  EmailInformation?: {
-    EmailAddressTo?: string;
-    EmailSubject?: string;
-    EmailBody?: string;
-  };
 }
 
 interface FortnoxInvoiceRow {
@@ -102,7 +98,7 @@ export async function formatTimeEntriesForFortnox(
       
       // Calculate quantity
       let quantity = 1;
-      let unitCode = "st"; // Default unit code (piece/item)
+      let unitCode: string | undefined = undefined; // Only add if confirmed valid
       
       if (product.type === 'activity' && entry.start_time && entry.end_time) {
         // Calculate hours from start_time to end_time
@@ -110,10 +106,10 @@ export async function formatTimeEntriesForFortnox(
         const end = new Date(entry.end_time);
         const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         quantity = parseFloat(diffHours.toFixed(2));
-        unitCode = "h"; // Hour unit code
+        unitCode = "h"; // Hour unit code - only if confirmed valid
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
-        unitCode = "st"; // Standard unit code for items
+        unitCode = "st"; // Standard unit code for items - only if confirmed valid
       }
       
       // Format description including user information
@@ -127,18 +123,39 @@ export async function formatTimeEntriesForFortnox(
         timeInfo
       ].filter(Boolean).join(' | ');
       
-      // Use the product's article_number if available, or fall back to a safe default
-      const articleNumber = product.article_number || "1000";
+      // Ensure VAT is one of the allowed values (25, 12, 6)
+      const validVatRates = [25, 12, 6];
+      const vat = validVatRates.includes(product.vat_percentage) ? product.vat_percentage : 25;
       
-      return {
-        ArticleNumber: articleNumber,
+      // Ensure account number is in valid sales account range (3000-3999)
+      let accountNumber = "3001"; // Default fallback
+      if (product.account_number) {
+        const accountNum = parseInt(product.account_number);
+        if (!isNaN(accountNum) && accountNum >= 3000 && accountNum <= 3999) {
+          accountNumber = product.account_number;
+        }
+      }
+      
+      // Create the base row with required fields
+      const row: FortnoxInvoiceRow = {
         Description: description,
         DeliveredQuantity: quantity,
         Price: product.price,
-        VAT: product.vat_percentage,
-        AccountNumber: product.account_number || "3010", // Fallback to 3010 if not specified
-        UnitCode: unitCode
+        VAT: vat,
+        AccountNumber: accountNumber
       };
+      
+      // Only add ArticleNumber if it exists and is valid
+      if (product.article_number && product.article_number.trim() !== "") {
+        row.ArticleNumber = product.article_number;
+      }
+      
+      // Only add UnitCode if it's a confirmed valid code
+      if (unitCode) {
+        row.UnitCode = unitCode;
+      }
+      
+      return row;
     });
     
     // Prepare the invoice data with only CustomerNumber, not full Customer object
@@ -151,12 +168,7 @@ export async function formatTimeEntriesForFortnox(
       PricesIncludeVAT: false, // Per Fortnox spec
       Currency: "SEK", // Swedish Krona
       Language: "SV", // Swedish
-      InvoiceType: "INVOICE", // Regular invoice
-      EmailInformation: client.email ? {
-        EmailAddressTo: client.email,
-        EmailSubject: "New Invoice",
-        EmailBody: "Please find attached your invoice."
-      } : undefined
+      InvoiceType: "INVOICE" // Regular invoice
     };
     
     // Log the exact structure being sent to Fortnox for debugging

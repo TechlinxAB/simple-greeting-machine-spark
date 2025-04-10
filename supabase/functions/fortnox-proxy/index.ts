@@ -181,7 +181,8 @@ serve(async (req) => {
             error: `Fortnox API Error: HTTP ${fortnoxRes.status}`,
             details: errorDetails,
             fortnoxStatus: fortnoxRes.status,
-            requestPayload: payload // Include the original payload that caused the error
+            requestPayload: payload, // Include the original payload that caused the error
+            errorCode: errorDetails?.ErrorInformation?.Code || errorDetails?.ErrorInformation?.error?.code || null
           }),
           {
             status: fortnoxRes.status,
