@@ -100,10 +100,11 @@ export function applyColorTheme(settings: AppSettings) {
   const root = document.documentElement;
   
   // Convert hex to hsl for CSS variables
-  const primaryHsl = hexToHSL(settings.primaryColor);
-  const secondaryHsl = hexToHSL(settings.secondaryColor);
-  const sidebarHsl = hexToHSL(settings.sidebarColor);
-  const accentHsl = hexToHSL(settings.accentColor);
+  // Make sure to handle undefined or invalid color values
+  const primaryHsl = settings.primaryColor ? hexToHSL(settings.primaryColor) : null;
+  const secondaryHsl = settings.secondaryColor ? hexToHSL(settings.secondaryColor) : null;
+  const sidebarHsl = settings.sidebarColor ? hexToHSL(settings.sidebarColor) : null;
+  const accentHsl = settings.accentColor ? hexToHSL(settings.accentColor) : null;
   
   if (primaryHsl) {
     root.style.setProperty('--primary', `${primaryHsl.h} ${primaryHsl.s}% ${primaryHsl.l}%`);

@@ -30,7 +30,6 @@ import {
   MAX_LOGO_HEIGHT,
   MAX_LOGO_SIZE,
   validateLogoFile,
-  ensureLogoBucketExists,
   fileToDataUrl,
   getStoredLogoAsDataUrl,
   updateLogoInSystemSettings,
@@ -84,8 +83,6 @@ export default function Settings() {
     queryFn: async () => {
       setLoadingLogo(true);
       try {
-        await ensureLogoBucketExists();
-        
         // Check localStorage first for cached logo
         const cachedLogo = localStorage.getItem(LOGO_DATA_URL_KEY);
         if (cachedLogo) {
@@ -355,24 +352,24 @@ export default function Settings() {
       setLogoError(false);
       setLogoValidationError(null);
       
-      await ensureLogoBucketExists();
-      
       const { dataUrl, success } = await uploadAppLogo(file);
       
       // Always use the dataUrl for immediate display regardless of success
-      setLogoPreview(dataUrl);
-      setHasExistingLogo(true);
-      
-      // Store the dataUrl in localStorage for persistence
-      localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
-      
-      // Also update the system settings directly with the dataUrl
-      await updateLogoInSystemSettings(dataUrl);
-      
-      // Refresh queryClient to update all components using the logo
-      queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
-      queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
-      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+      if (dataUrl) {
+        setLogoPreview(dataUrl);
+        setHasExistingLogo(true);
+        
+        // Store the dataUrl in localStorage for persistence
+        localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+        
+        // Also update the system settings directly with the dataUrl
+        await updateLogoInSystemSettings(dataUrl);
+        
+        // Refresh queryClient to update all components using the logo
+        queryClient.invalidateQueries({ queryKey: ["app-logo-settings"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo-dataurl"] });
+        queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+      }
       
       if (!success) {
         toast.warning("Logo saved locally but may not be available for other users");
@@ -415,6 +412,12 @@ export default function Settings() {
       const objectUrl = URL.createObjectURL(file);
       setLogoPreview(objectUrl);
       setLogoFile(file);
+      
+      // Convert file to data URL for fallback display
+      const dataURLFromFile = await fileToDataUrl(file);
+      if (dataURLFromFile) {
+        localStorage.setItem(LOGO_DATA_URL_KEY, dataURLFromFile);
+      }
       
       // Process the actual upload
       const logoDataUrl = await handleLogoUpload(file);

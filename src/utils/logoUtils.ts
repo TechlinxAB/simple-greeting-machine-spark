@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -6,31 +7,6 @@ export const DEFAULT_LOGO_PATH = "/logo.png";
 export const MAX_LOGO_WIDTH = 512;
 export const MAX_LOGO_HEIGHT = 512;
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
-
-/**
- * Ensures the logo storage bucket exists
- */
-export async function ensureLogoBucketExists() {
-  try {
-    const { data, error } = await supabase.storage.createBucket('app-logos', {
-      public: true,
-    });
-
-    if (error) {
-      if (error.message.includes('already exists')) {
-        console.log('Bucket already exists, skipping creation');
-      } else {
-        console.error('Error creating bucket:', error);
-        throw error;
-      }
-    } else {
-      console.log('Bucket created successfully:', data);
-    }
-  } catch (err) {
-    console.error("Failed to ensure bucket exists", err);
-    throw err;
-  }
-}
 
 /**
  * Checks if a logo exists in storage
@@ -232,12 +208,32 @@ export async function getSystemLogoDataUrl(): Promise<string | null> {
  */
 export async function updateLogoInSystemSettings(dataUrl: string): Promise<boolean> {
   try {
+    // First, get current settings to preserve other values
+    const { data, error: fetchError } = await supabase
+      .from("system_settings")
+      .select("settings")
+      .eq("id", "app_settings")
+      .single();
+      
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error("Error fetching current settings:", fetchError);
+      return false;
+    }
+    
+    // Prepare the settings object
+    const currentSettings = data?.settings || {};
+    const updatedSettings = {
+      ...currentSettings,
+      logoUrl: dataUrl
+    };
+    
+    // Update or insert the settings
     const { error } = await supabase
       .from("system_settings")
-      .update({
-        settings: { logoUrl: dataUrl }
-      })
-      .eq("id", "app_settings");
+      .upsert({
+        id: "app_settings",
+        settings: updatedSettings
+      });
       
     if (error) {
       console.error("Error updating logo in system settings:", error);
