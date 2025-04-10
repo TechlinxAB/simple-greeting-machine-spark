@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
 import type { Product, ProductType } from "@/types";
 
@@ -139,23 +138,36 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="px-4 py-2 space-y-4">
-              <Tabs 
-                value={selectedType} 
-                onValueChange={handleProductTypeChange} 
-                className="mb-6"
-                disabled={isEditMode}
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="activity" className="flex items-center gap-2">
+              {/* Fix the error by conditionally rendering the Tabs component based on edit mode */}
+              {isEditMode ? (
+                <div className="mb-6 flex items-center">
+                  <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'activity' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     <Clock className="h-4 w-4" />
                     <span>Activity</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="item" className="flex items-center gap-2">
+                  </div>
+                  <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'item' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     <Package className="h-4 w-4" />
                     <span>Item</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+                  </div>
+                </div>
+              ) : (
+                <Tabs 
+                  value={selectedType} 
+                  onValueChange={handleProductTypeChange} 
+                  className="mb-6"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="activity" className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Activity</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="item" className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      <span>Item</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
 
               <FormField
                 control={form.control}
