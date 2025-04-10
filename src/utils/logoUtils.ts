@@ -9,11 +9,11 @@ export const MAX_LOGO_HEIGHT = 512;
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
 
 // The bucket name we're using for logos
-export const LOGO_BUCKET_NAME = "app-assets";
+export const LOGO_BUCKET_NAME = "application-logo";
 export const LOGO_FOLDER_PATH = "logos";
 
 /**
- * Ensures the app-assets bucket exists
+ * Ensures the application-logo bucket exists
  * @returns Promise with boolean indicating success
  */
 export async function ensureLogoBucketExists(): Promise<boolean> {

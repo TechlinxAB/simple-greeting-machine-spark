@@ -1,10 +1,12 @@
+
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   LOGO_DATA_URL_KEY, 
   DEFAULT_LOGO_PATH, 
   getStoredLogoAsDataUrl,
-  getSystemLogoDataUrl 
+  getSystemLogoDataUrl,
+  LOGO_BUCKET_NAME
 } from '@/utils/logoUtils';
 import { supabase } from '@/lib/supabase';
 
@@ -53,7 +55,7 @@ export function useCachedLogo() {
     };
 
     // Set up Supabase real-time subscription for system_settings changes
-    const channel = supabase
+    const settingsChannel = supabase
       .channel('system_settings_changes')
       .on(
         'postgres_changes',
@@ -69,11 +71,29 @@ export function useCachedLogo() {
       )
       .subscribe();
 
+    // Set up storage subscription for logo changes
+    const storageChannel = supabase
+      .channel('storage_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'storage',
+          table: 'objects',
+          filter: `bucket_id=eq.${LOGO_BUCKET_NAME}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
+        }
+      )
+      .subscribe();
+
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      supabase.removeChannel(channel);
+      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(storageChannel);
     };
   }, [queryClient]);
 
