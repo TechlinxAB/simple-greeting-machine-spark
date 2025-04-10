@@ -47,19 +47,22 @@ export const BarChart: React.FC<BarChartProps> = ({
   barFill = "#4CAF50",
   tooltip
 }) => {
+  // Generate a consistent ID for xAxis
+  const xAxisId = "xAxis";
+  
   return (
     <div className={className || "w-full h-full"}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
+          <RechartsXAxis dataKey="name" xAxisId={xAxisId} />
+          <RechartsYAxis />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
           />
           <Legend />
-          <RechartsBar dataKey={barKey} fill={barFill} name={barName} />
+          <RechartsBar dataKey={barKey} fill={barFill} name={barName} xAxisId={xAxisId} />
         </RechartsBarChart>
       </ResponsiveContainer>
     </div>
