@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase, getStorageFileUrl, uploadFileToStorage } from "@/lib/supabase";
+import { 
+  supabase, 
+  checkLogoExists, 
+  uploadAppLogo, 
+  removeAppLogo 
+} from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,11 +19,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link } from "lucide-react";
+import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link, Upload, Trash } from "lucide-react";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 import { useNavigate, useLocation } from "react-router-dom";
 import { applyColorTheme, DEFAULT_THEME, AppSettings } from "@/components/ThemeProvider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
@@ -26,7 +32,6 @@ const appSettingsSchema = z.object({
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   sidebarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
-  logoUrl: z.string().optional(),
 });
 
 const fortnoxSettingsSchema = z.object({
@@ -48,6 +53,8 @@ export default function Settings() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [showRemoveLogoConfirm, setShowRemoveLogoConfirm] = useState(false);
+  const [hasExistingLogo, setHasExistingLogo] = useState(false);
   
   const isAdmin = role === 'admin';
   const canManageSettings = isAdmin || role === 'manager';
@@ -57,6 +64,35 @@ export default function Settings() {
   if (isFortnoxCallback) {
     return <FortnoxCallbackHandler />;
   }
+  
+  const { data: appLogo, refetch: refetchLogo } = useQuery({
+    queryKey: ["app-logo"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('app-logo')
+          .list();
+          
+        if (error) {
+          console.error("Error fetching app logo list:", error);
+          return null;
+        }
+        
+        if (!data || data.length === 0) {
+          setHasExistingLogo(false);
+          return null;
+        }
+        
+        const logoFile = data[0];
+        setHasExistingLogo(true);
+        return `https://xojrleypudfrbmvejpow.supabase.co/storage/v1/object/public/app-logo/${logoFile.name}`;
+      } catch (error) {
+        console.error("Error fetching app logo:", error);
+        setHasExistingLogo(false);
+        return null;
+      }
+    }
+  });
   
   const { data: appSettings, isLoading: isLoadingAppSettings } = useQuery({
     queryKey: ["app-settings"],
@@ -84,7 +120,6 @@ export default function Settings() {
             secondaryColor: settings.secondaryColor || DEFAULT_THEME.secondaryColor,
             sidebarColor: settings.sidebarColor || DEFAULT_THEME.sidebarColor,
             accentColor: settings.accentColor || DEFAULT_THEME.accentColor,
-            logoUrl: settings.logoUrl || DEFAULT_THEME.logoUrl,
           } as AppSettings;
         }
         
@@ -136,7 +171,6 @@ export default function Settings() {
       secondaryColor: DEFAULT_THEME.secondaryColor,
       sidebarColor: DEFAULT_THEME.sidebarColor,
       accentColor: DEFAULT_THEME.accentColor,
-      logoUrl: DEFAULT_THEME.logoUrl || "",
     },
   });
   
@@ -157,14 +191,15 @@ export default function Settings() {
         secondaryColor: appSettings.secondaryColor,
         sidebarColor: appSettings.sidebarColor,
         accentColor: appSettings.accentColor,
-        logoUrl: appSettings.logoUrl || "",
       });
-      
-      if (appSettings.logoUrl) {
-        setLogoPreview(appSettings.logoUrl);
-      }
     }
   }, [appSettings, appSettingsForm]);
+  
+  useEffect(() => {
+    if (appLogo) {
+      setLogoPreview(appLogo);
+    }
+  }, [appLogo]);
   
   useEffect(() => {
     if (fortnoxSettings) {
@@ -183,7 +218,6 @@ export default function Settings() {
       secondaryColor: DEFAULT_THEME.secondaryColor,
       sidebarColor: DEFAULT_THEME.sidebarColor,
       accentColor: DEFAULT_THEME.accentColor,
-      logoUrl: DEFAULT_THEME.logoUrl || "",
     });
     
     setLogoPreview(null);
@@ -195,14 +229,25 @@ export default function Settings() {
           .from("system_settings")
           .upsert({ 
             id: "app_settings", 
-            settings: DEFAULT_THEME as unknown as Record<string, any>
+            settings: {
+              ...DEFAULT_THEME,
+              logoUrl: null,
+            } as unknown as Record<string, any>
           });
           
         if (error) throw error;
         
-        queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+        if (hasExistingLogo) {
+          const removed = await removeAppLogo();
+          if (!removed) {
+            toast.error("Failed to remove the application logo");
+          }
+        }
         
-        toast.success("Colors reset to default and applied to all users");
+        queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+        
+        toast.success("Colors and logo reset to default and applied to all users");
       } catch (error) {
         console.error("Error saving default app settings:", error);
         toast.error("Failed to save default settings to the database");
@@ -221,16 +266,17 @@ export default function Settings() {
     }
     
     try {
-      applyColorTheme({
+      const settingsToSave = {
         ...data,
-        logoUrl: data.logoUrl || undefined
-      } as AppSettings);
+      };
+      
+      applyColorTheme(settingsToSave as AppSettings);
       
       const { error } = await supabase
         .from("system_settings")
         .upsert({ 
           id: "app_settings", 
-          settings: data as unknown as Record<string, any>
+          settings: settingsToSave as unknown as Record<string, any>
         });
         
       if (error) throw error;
@@ -278,18 +324,21 @@ export default function Settings() {
     try {
       setUploadingLogo(true);
       
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${timestamp}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
+      if (hasExistingLogo) {
+        toast.error("Please remove the existing logo before uploading a new one");
+        return null;
+      }
       
-      const publicUrl = await uploadFileToStorage('app-assets', filePath, file);
+      const publicUrl = await uploadAppLogo(file);
       
       if (!publicUrl) {
         throw new Error("Failed to upload logo or get public URL");
       }
       
       toast.success("Logo uploaded successfully");
+      
+      queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+      
       return publicUrl;
     } catch (error) {
       let errorMsg = "Failed to upload logo";
@@ -308,31 +357,54 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Set the preview immediately using a local object URL
-    const objectUrl = URL.createObjectURL(file);
-    setLogoPreview(objectUrl);
-    
-    setLogoFile(file);
-    const logoUrl = await handleLogoUpload(file);
-    
-    if (logoUrl) {
-      appSettingsForm.setValue('logoUrl', logoUrl, { shouldDirty: true });
-      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
-    } else {
-      // If upload failed, restore the previous logo
-      setLogoPreview(appSettings?.logoUrl || null);
+    if (hasExistingLogo) {
+      toast.error("Please remove the existing logo before uploading a new one");
+      e.target.value = '';
+      return;
     }
     
-    // Clean up the object URL to prevent memory leaks
+    const objectUrl = URL.createObjectURL(file);
+    setLogoPreview(objectUrl);
+    setLogoFile(file);
+    
+    const logoUrl = await handleLogoUpload(file);
+    
+    if (!logoUrl) {
+      setLogoPreview(null);
+      setLogoFile(null);
+    }
+    
     URL.revokeObjectURL(objectUrl);
+    
+    e.target.value = '';
   };
   
-  const handleRemoveLogo = () => {
-    appSettingsForm.setValue('logoUrl', '', { shouldDirty: true });
-    setLogoPreview(null);
-    setLogoFile(null);
+  const handleRemoveLogo = async () => {
+    if (!canManageSettings) {
+      toast.error("You don't have permission to change application settings");
+      return;
+    }
     
-    toast.info("Logo removed. Click Save to apply changes.");
+    try {
+      const removed = await removeAppLogo();
+      
+      if (removed) {
+        setLogoPreview(null);
+        setLogoFile(null);
+        setHasExistingLogo(false);
+        
+        queryClient.invalidateQueries({ queryKey: ["app-logo"] });
+        
+        toast.success("Logo removed successfully");
+      } else {
+        toast.error("Failed to remove logo");
+      }
+    } catch (error) {
+      console.error("Error removing logo:", error);
+      toast.error("Failed to remove logo");
+    } finally {
+      setShowRemoveLogoConfirm(false);
+    }
   };
   
   if (!user) {
@@ -388,58 +460,56 @@ export default function Settings() {
                     )}
                   />
                   
-                  <FormField
-                    control={appSettingsForm.control}
-                    name="logoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Application Logo</FormLabel>
-                        <div className="space-y-4">
-                          {logoPreview && (
-                            <div className="flex items-center space-x-4">
-                              <div className="bg-white p-2 rounded border inline-block">
-                                <img 
-                                  src={`${logoPreview}?t=${Date.now()}`}
-                                  alt="App Logo" 
-                                  className="h-12 w-auto object-contain" 
-                                />
-                              </div>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={handleRemoveLogo}
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          )}
-                          <FormControl>
-                            <div className="flex items-center">
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={onLogoChange}
-                                disabled={uploadingLogo}
-                                className="w-full max-w-sm"
-                              />
-                              {uploadingLogo && (
-                                <div className="ml-2 animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
-                              )}
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Upload a logo to display in the application header. Recommended size: 200×60px.
-                          </FormDescription>
-                          <FormMessage />
-                          <div className="text-sm text-amber-600">
-                            {field.value && !logoPreview && (
-                              <p>Logo is saved but not displaying. Please try uploading again.</p>
-                            )}
-                          </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Application Logo</Label>
+                      <FormDescription className="mt-1 mb-3">
+                        Upload a logo to display in the application header. Recommended size: 200×60px.
+                      </FormDescription>
+                    </div>
+                    
+                    {logoPreview || appLogo ? (
+                      <div className="flex items-center space-x-4">
+                        <div className="bg-white p-2 rounded border inline-block">
+                          <img 
+                            src={`${logoPreview || appLogo}?t=${Date.now()}`}
+                            alt="App Logo" 
+                            className="h-12 w-auto object-contain" 
+                          />
                         </div>
-                      </FormItem>
+                        <Button 
+                          type="button" 
+                          variant="destructive" 
+                          disabled={!canManageSettings}
+                          onClick={() => setShowRemoveLogoConfirm(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash className="h-4 w-4" />
+                          Remove Logo
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={onLogoChange}
+                          disabled={uploadingLogo || !canManageSettings}
+                          className="w-full max-w-sm"
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          Upload a single logo image to represent your application.
+                        </p>
+                      </div>
                     )}
-                  />
+                    
+                    {uploadingLogo && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+                        <span>Uploading logo...</span>
+                      </div>
+                    )}
+                  </div>
                   
                   <Separator className="my-6" />
                   
@@ -660,6 +730,16 @@ export default function Settings() {
           </TabsContent>
         )}
       </Tabs>
+      
+      <ConfirmDialog
+        open={showRemoveLogoConfirm}
+        onOpenChange={setShowRemoveLogoConfirm}
+        title="Remove Application Logo"
+        description="Are you sure you want to remove the application logo? This cannot be undone."
+        actionLabel="Remove Logo"
+        onAction={handleRemoveLogo}
+        variant="destructive"
+      />
     </div>
   );
 }

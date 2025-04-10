@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,6 +78,34 @@ export function AppSidebar() {
       }
     },
     enabled: !!user?.id
+  });
+
+  // Use a separate query to fetch the app logo from the storage bucket
+  const { data: appLogo } = useQuery({
+    queryKey: ["app-logo"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('app-logo')
+          .list();
+          
+        if (error) {
+          console.error("Error fetching app logo list:", error);
+          return null;
+        }
+        
+        if (!data || data.length === 0) {
+          return null;
+        }
+        
+        // Get the first (and should be only) logo file
+        const logoFile = data[0];
+        return getStorageFileUrl('app-logo', logoFile.name);
+      } catch (error) {
+        console.error("Error fetching app logo:", error);
+        return null;
+      }
+    }
   });
 
   const links = [
@@ -166,14 +195,14 @@ export function AppSidebar() {
   
   useEffect(() => {
     setLogoError(false);
-  }, [appSettings?.logoUrl]);
+  }, [appLogo]);
 
-  // Use a fallback logo that we know exists
+  // Default logo path that we know exists in the project
   const defaultLogoPath = "/src/logo.png"; 
   
-  // When logo fails to load, use the default logo path
-  const logoUrl = !logoError && appSettings?.logoUrl 
-    ? `${appSettings.logoUrl}?t=${Date.now()}` 
+  // Use the app logo from storage if available and not errored, otherwise use default
+  const logoUrl = !logoError && appLogo 
+    ? `${appLogo}?t=${Date.now()}` // Add cache-busting parameter
     : defaultLogoPath;
 
   return (

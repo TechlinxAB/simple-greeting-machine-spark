@@ -187,47 +187,98 @@ export function setupActivityTracking() {
  * @returns The public URL for the file
  */
 export function getStorageFileUrl(bucket: string, path: string): string {
-  // Using direct URL construction to avoid potential issues with the Supabase getPublicUrl method
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }
 
 /**
- * Helper function to upload a file to storage and return its public URL
- * @param bucket The bucket name
- * @param path The file path
- * @param file The file to upload
- * @returns The public URL of the uploaded file or null if upload failed
+ * Checks if a logo exists in the app-logo bucket
+ * @returns Promise resolving to true if a logo exists, false otherwise
  */
-export async function uploadFileToStorage(bucket: string, path: string, file: File): Promise<string | null> {
+export async function checkLogoExists(): Promise<boolean> {
   try {
-    // First check if we can access the bucket
-    const { data: listData, error: listError } = await supabase.storage
-      .from(bucket)
-      .list(path.split('/')[0]);
+    const { data, error } = await supabase.storage
+      .from('app-logo')
+      .list();
       
-    if (listError) {
-      console.error(`Error accessing storage bucket ${bucket}:`, listError);
-      return null;
+    if (error) {
+      console.error('Error checking if logo exists:', error);
+      return false;
     }
+    
+    return data && data.length > 0;
+  } catch (error) {
+    console.error('Unexpected error checking logo existence:', error);
+    return false;
+  }
+}
+
+/**
+ * Uploads a logo to the app-logo bucket, ensuring only one logo exists
+ * @param file The logo file to upload
+ * @returns The public URL of the uploaded logo or null if upload failed
+ */
+export async function uploadAppLogo(file: File): Promise<string | null> {
+  try {
+    // We'll only ever have one logo file in the bucket
+    const fileName = 'app-logo';
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${fileName}.${fileExt}`;
     
     // Upload the file
     const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, {
-        upsert: true,
+      .from('app-logo')
+      .upload(filePath, file, {
+        upsert: true, // Replace any existing file
         contentType: file.type,
       });
       
     if (uploadError) {
-      console.error(`Error uploading file to ${bucket}/${path}:`, uploadError);
+      console.error('Error uploading logo:', uploadError);
       return null;
     }
     
     // Return the public URL
-    return getStorageFileUrl(bucket, path);
-    
+    return getStorageFileUrl('app-logo', filePath);
   } catch (error) {
-    console.error(`Unexpected error uploading file to ${bucket}/${path}:`, error);
+    console.error('Unexpected error uploading logo:', error);
     return null;
+  }
+}
+
+/**
+ * Removes the app logo from storage
+ * @returns Promise resolving to true if removal was successful, false otherwise
+ */
+export async function removeAppLogo(): Promise<boolean> {
+  try {
+    // List all files in the app-logo bucket
+    const { data, error: listError } = await supabase.storage
+      .from('app-logo')
+      .list();
+      
+    if (listError) {
+      console.error('Error listing app logo files:', listError);
+      return false;
+    }
+    
+    if (!data || data.length === 0) {
+      // No logo to remove
+      return true;
+    }
+    
+    // Delete all files in the bucket (should only be one)
+    const { error: deleteError } = await supabase.storage
+      .from('app-logo')
+      .remove(data.map(file => file.name));
+      
+    if (deleteError) {
+      console.error('Error removing app logo:', deleteError);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Unexpected error removing app logo:', error);
+    return false;
   }
 }
