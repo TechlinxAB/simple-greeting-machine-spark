@@ -47,7 +47,7 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 
-                {/* Protected route requiring only admin role for Settings */}
+                {/* Protected route requiring ONLY admin role for Settings */}
                 <Route path="/settings" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <Settings />

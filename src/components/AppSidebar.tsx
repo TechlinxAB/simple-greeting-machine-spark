@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,7 +122,7 @@ export function AppSidebar() {
       title: "Administration",
       href: "/administration",
       icon: AdminIcon,
-      adminOnly: true,
+      managerOnly: true,
     },
   ];
 
@@ -137,6 +136,7 @@ export function AppSidebar() {
       title: "Settings",
       href: "/settings",
       icon: SettingsIcon,
+      adminOnly: true,
     },
   ];
 
@@ -254,6 +254,8 @@ export function AppSidebar() {
             <SidebarGroup>
               <SidebarMenu className="grid gap-1 px-2">
                 {secondaryLinks.map((link) => {
+                  if (link.adminOnly && !isAdmin) return null;
+                  
                   const isActive = pathname === link.href;
                   
                   return (
