@@ -49,7 +49,13 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       .maybeSingle();
       
     if (error) {
-      console.error('Error fetching system settings:', error);
+      // Enhanced error logging for debugging permission issues
+      if (error.code === 'PGRST116' || error.code === '42501') {
+        console.error('Permission error fetching Fortnox credentials:', error);
+        console.log('User may not have proper permissions to read system_settings');
+      } else {
+        console.error('Error fetching Fortnox credentials:', error);
+      }
       return null;
     }
     
@@ -95,6 +101,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
  */
 export async function isFortnoxConnected(): Promise<boolean> {
   try {
+    console.log("Checking Fortnox connection status");
     const credentials = await getFortnoxCredentials();
     
     if (!credentials || !credentials.accessToken) {
