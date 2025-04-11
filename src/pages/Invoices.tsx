@@ -18,6 +18,7 @@ import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { environment } from "@/config/environment";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -340,7 +341,7 @@ export default function Invoices() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-5">
+          <div className="space-y-5 max-h-[calc(85vh-180px)] flex flex-col">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Client</label>
               <Select value={selectedClient} onValueChange={setSelectedClient}>
@@ -390,7 +391,7 @@ export default function Invoices() {
             )}
             
             {selectedClient && (
-              <div className="space-y-3">
+              <div className="space-y-3 flex-1 overflow-hidden">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
                   <Button 
@@ -409,97 +410,99 @@ export default function Invoices() {
                     <p className="text-sm text-muted-foreground">No unbilled time entries for this client.</p>
                   </div>
                 ) : (
-                  <div className="border rounded-md overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Description</TableHead>
-                          <TableHead>User</TableHead>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Art. Number</TableHead>
-                          <TableHead className="text-right">Amount (SEK)</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {unbilledEntries.map((entry) => {
-                          let quantity = 1;
-                          
-                          if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-                            const start = new Date(entry.start_time);
-                            const end = new Date(entry.end_time);
-                            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                            quantity = parseFloat(diffHours.toFixed(2));
-                          } else if (entry.products?.type === 'item' && entry.quantity) {
-                            quantity = entry.quantity;
-                          }
-                          
-                          const amount = entry.products ? entry.products.price * quantity : 0;
-                          
-                          const hasValidArticleNumber = 
-                            entry.products?.article_number && 
-                            /^\d+$/.test(entry.products.article_number);
-                          
-                          const unit = entry.products?.type === 'activity' ? 't' : 'st';
-                          
-                          return (
-                            <TableRow key={entry.id}>
-                              <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
-                              <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
-                              <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
-                              <TableCell>
-                                {quantity} {unit}
-                              </TableCell>
-                              <TableCell>
-                                {entry.products?.article_number ? (
-                                  hasValidArticleNumber ? (
-                                    entry.products.article_number
+                  <ScrollArea className="border rounded-md h-[calc(85vh-400px)] min-h-[200px]">
+                    <div className="overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>Art. Number</TableHead>
+                            <TableHead className="text-right">Amount (SEK)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {unbilledEntries.map((entry) => {
+                            let quantity = 1;
+                            
+                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+                              const start = new Date(entry.start_time);
+                              const end = new Date(entry.end_time);
+                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                              quantity = parseFloat(diffHours.toFixed(2));
+                            } else if (entry.products?.type === 'item' && entry.quantity) {
+                              quantity = entry.quantity;
+                            }
+                            
+                            const amount = entry.products ? entry.products.price * quantity : 0;
+                            
+                            const hasValidArticleNumber = 
+                              entry.products?.article_number && 
+                              /^\d+$/.test(entry.products.article_number);
+                            
+                            const unit = entry.products?.type === 'activity' ? 't' : 'st';
+                            
+                            return (
+                              <TableRow key={entry.id}>
+                                <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
+                                <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
+                                <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
+                                <TableCell>
+                                  {quantity} {unit}
+                                </TableCell>
+                                <TableCell>
+                                  {entry.products?.article_number ? (
+                                    hasValidArticleNumber ? (
+                                      entry.products.article_number
+                                    ) : (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="text-blue-600 font-medium cursor-help">
+                                              {entry.products.article_number}*
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>This article number will be created in Fortnox</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )
                                   ) : (
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <span className="text-blue-600 font-medium cursor-help">
-                                            {entry.products.article_number}*
+                                          <span className="text-blue-600 italic cursor-help">
+                                            Auto-generate
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          <p>This article number will be created in Fortnox</p>
+                                          <p>A new article number will be generated and created in Fortnox</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
-                                  )
-                                ) : (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="text-blue-600 italic cursor-help">
-                                          Auto-generate
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>A new article number will be generated and created in Fortnox</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                        <TableRow>
-                          <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
-                          <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow>
+                            <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
+                            <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             )}
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setIsCreatingInvoice(false)}>
               Cancel
             </Button>
