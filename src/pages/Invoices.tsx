@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { environment } from "@/config/environment";
 
 type TimeEntryWithProfile = {
   id: string;

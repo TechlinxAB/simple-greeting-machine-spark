@@ -14,6 +14,7 @@ import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshC
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
+import { environment } from "@/config/environment";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -34,7 +35,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   useEffect(() => {
     // Generate the current URL for the redirect - make sure it's exactly what's registered in Fortnox
     const baseUrl = window.location.origin;
-    const redirectPath = "/settings?tab=fortnox";
+    const redirectPath = environment.fortnox.redirectBaseUrl;
     setRedirectUri(`${baseUrl}${redirectPath}`);
   }, []);
 
@@ -121,7 +122,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       console.log("Saved credentials to database before OAuth flow");
       
       // Build the Fortnox authorization URL according to their documentation
-      const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
+      const FORTNOX_AUTH_URL = environment.fortnox.authUrl;
       
       // Expanded scopes following the example from the Frappe implementation
       const scopes = [

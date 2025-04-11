@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,6 +13,7 @@ import { CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCcw } from "lu
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { environment } from "@/config/environment";
 
 interface FortnoxCallbackHandlerProps {
   onSuccess?: () => void;
@@ -45,7 +47,7 @@ export function FortnoxCallbackHandler({
   // Set the redirect URI when component mounts - must match exactly what was used in auth request
   useEffect(() => {
     const baseUrl = window.location.origin;
-    const redirectPath = "/settings?tab=fortnox";
+    const redirectPath = environment.fortnox.redirectBaseUrl;
     setRedirectUri(`${baseUrl}${redirectPath}`);
   }, []);
 

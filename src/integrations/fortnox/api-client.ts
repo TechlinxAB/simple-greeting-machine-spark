@@ -1,10 +1,10 @@
-
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
+import { environment } from '@/config/environment';
 
 // API base URL for Fortnox
-const FORTNOX_API_BASE = 'https://api.fortnox.se/3';
+const FORTNOX_API_URL = environment.fortnox.apiUrl;
 
 /**
  * Custom error interface for Fortnox API errors
