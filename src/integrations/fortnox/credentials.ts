@@ -4,6 +4,7 @@ import { FortnoxCredentials } from "./types";
 
 /**
  * Save Fortnox credentials to the database
+ * This function should only be callable by admins (enforced at the UI level)
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
@@ -34,6 +35,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
 
 /**
  * Get stored Fortnox credentials
+ * This function is accessible to both admins and managers
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
