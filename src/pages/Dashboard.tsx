@@ -91,8 +91,8 @@ export default function Dashboard() {
     queryKey: ["news-posts"],
     queryFn: async () => {
       try {
-        // Modified query to correctly join the profiles table
-        const { data, error } = await supabase
+        // First fetch the news posts
+        const { data: postsData, error: postsError } = await supabase
           .from("news_posts")
           .select(`
             id, 
@@ -101,18 +101,35 @@ export default function Dashboard() {
             image_url, 
             created_at, 
             updated_at, 
-            created_by,
-            profiles(id, name)
+            created_by
           `)
           .order("created_at", { ascending: false });
           
-        if (error) throw error;
+        if (postsError) throw postsError;
         
-        // Map the result to include the author name
-        const postsWithAuthor = data.map(post => ({
-          ...post,
-          author_name: post.profiles?.name || 'Unknown'
-        }));
+        // Then fetch user data separately for each post
+        const postsWithAuthor = await Promise.all(
+          postsData.map(async (post) => {
+            let authorName = 'Unknown';
+            
+            if (post.created_by) {
+              const { data: userData, error: userError } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", post.created_by)
+                .single();
+                
+              if (!userError && userData) {
+                authorName = userData.name || 'Unknown';
+              }
+            }
+            
+            return {
+              ...post,
+              author_name: authorName
+            };
+          })
+        );
         
         return postsWithAuthor as NewsPost[];
       } catch (error) {
