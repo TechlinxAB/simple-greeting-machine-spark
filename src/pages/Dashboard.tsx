@@ -100,7 +100,7 @@ export default function Dashboard() {
             created_at, 
             updated_at, 
             created_by,
-            profiles(name)
+            profiles:created_by(name)
           `)
           .order("created_at", { ascending: false });
           
@@ -230,14 +230,14 @@ export default function Dashboard() {
               {filters.includes('client') && (
                 <div className="flex-1 min-w-[200px]">
                   <Select
-                    value={selectedClient || ""}
-                    onValueChange={setSelectedClient}
+                    value={selectedClient || "all-clients"}
+                    onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Clients</SelectItem>
+                      <SelectItem value="all-clients">All Clients</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
@@ -345,14 +345,14 @@ export default function Dashboard() {
                 {filters.includes('client') && (
                   <div className="flex-1 min-w-[200px]">
                     <Select
-                      value={selectedClient || ""}
-                      onValueChange={setSelectedClient}
+                      value={selectedClient || "all-clients"}
+                      onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select client" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Clients</SelectItem>
+                        <SelectItem value="all-clients">All Clients</SelectItem>
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}

@@ -37,14 +37,14 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
   return (
     <div className="min-w-[200px]">
       <Select
-        value={value || ""}
-        onValueChange={(val) => onChange(val || null)}
+        value={value || "all-users"} // Use a non-empty fallback
+        onValueChange={(val) => onChange(val === "all-users" ? null : val)}
       >
         <SelectTrigger>
           <SelectValue placeholder="Select user" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Users</SelectItem>
+          <SelectItem value="all-users">All Users</SelectItem>
           {users.map((user) => (
             <SelectItem key={user.id} value={user.id}>
               {user.name || 'Unnamed User'}
