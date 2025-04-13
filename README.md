@@ -4,45 +4,108 @@
 
 A modern, efficient time tracking and invoicing web application designed for seamless client management and financial tracking.
 
-## Step-by-Step Installation Guide for Linux
+## Deployment Architecture
+
+This application uses a two-server setup:
+
+- **Server 1 (Reverse Proxy)**: aaPanel running on a separate server, handling SSL termination and routing
+- **Server 2 (Application Server)**: Running the Time Tracking application (192.168.0.103)
+
+## Deployment Instructions for Application Server (192.168.0.103)
 
 ### Prerequisites
 
 - Node.js (v18.x or later)
   ```bash
-  # Install Node.js using NVM (recommended)
+  # Install Node.js using NVM
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
   # Reload shell configuration
-  source ~/.bashrc  # or ~/.zshrc if using zsh
+  source ~/.bashrc
   # Install and use Node.js LTS
   nvm install --lts
   nvm use --lts
   ```
 
-- npm (comes with Node.js) or Bun
-  ```bash
-  # To install Bun (optional alternative to npm)
-  curl -fsSL https://bun.sh/install | bash
-  ```
-
-### 1. Clone the Repository
+### 1. Clone and Setup
 
 ```bash
-git clone <YOUR_GIT_URL>
-cd <YOUR_PROJECT_NAME>
-```
+# Create project directory
+mkdir -p /home/time-user/time-tracking
+cd /home/time-user/time-tracking
 
-### 2. Install Dependencies
+# Clone the repository (replace with your actual repository URL)
+git clone <YOUR_GIT_REPOSITORY_URL> .
 
-```bash
-# Using npm
+# Install dependencies
 npm install
-
-# Or using Bun
-bun install
 ```
 
-### 3. Supabase Configuration
+### 2. Build and Configure the Application
+
+```bash
+# Build the production version
+npm run build
+
+# Install serve globally to host the production build
+npm install -g serve
+```
+
+### 3. Configure Process Management with PM2
+
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start the application with PM2
+pm2 start serve --name "time-tracking" -- -s /home/time-user/time-tracking/dist -l 8080
+
+# Setup PM2 to start on system boot
+pm2 startup
+pm2 save
+```
+
+### 4. Testing the Application
+
+After deployment, the application should be accessible on the server at `http://192.168.0.103:8080`
+
+## Reverse Proxy Configuration (aaPanel Server)
+
+Configure the reverse proxy to forward requests from `timetracking.techlinx.se` to the application server:
+
+### Nginx Configuration
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name timetracking.techlinx.se;
+    
+    # SSL Configuration
+    ssl_certificate /path/to/your/fullchain.pem;
+    ssl_certificate_key /path/to/your/privkey.pem;
+    
+    # Proxy Configuration
+    location / {
+        proxy_pass http://192.168.0.103:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name timetracking.techlinx.se;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+## Supabase Configuration
 
 The application uses Supabase for backend services. The default configuration connects to a Supabase cloud instance.
 
@@ -77,136 +140,37 @@ export const environment: EnvironmentConfig = {
 };
 ```
 
-### 4. Development Server
+## Maintenance Commands
 
-Start the development server:
-
-```bash
-# Using npm
-npm run dev
-
-# Or using Bun
-bun dev
-```
-
-The application will be available at `http://localhost:8080`
-
-You can view it in your browser by visiting:
-- Local machine: http://localhost:8080
-- On your network: http://your-ip-address:8080 (find your IP with `ip addr show` or `hostname -I`)
-
-### 5. Production Build
-
-Create a production build:
+### Updating the Application
 
 ```bash
-# Using npm
+cd /home/time-user/time-tracking
+git pull
+npm install
 npm run build
-
-# Or using Bun
-bun run build
+pm2 restart time-tracking
 ```
 
-This will generate optimized files in the `dist` directory.
-
-### 6. Serving the Production Build
-
-#### Using a simple HTTP server
+### Viewing Logs
 
 ```bash
-# Install serve globally
-npm install -g serve
+# View application logs
+pm2 logs time-tracking
 
-# Serve the production build
-serve -s dist -l 8080
+# View system logs
+journalctl -u pm2-time-user
 ```
 
-The application will be available at `http://localhost:8080`
+### Troubleshooting
 
-#### Using NGINX (for production deployment)
+If the application is not accessible:
 
-1. Install NGINX:
-```bash
-sudo apt update
-sudo apt install nginx
-```
-
-2. Configure NGINX:
-```bash
-sudo nano /etc/nginx/sites-available/time-tracker
-```
-
-3. Add the following configuration:
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com www.your-domain.com;  # Replace with your domain
-
-    root /path/to/your/project/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-4. Enable the site and restart NGINX:
-```bash
-sudo ln -s /etc/nginx/sites-available/time-tracker /etc/nginx/sites-enabled/
-sudo nginx -t  # Test the configuration
-sudo systemctl restart nginx
-```
-
-#### Using PM2 (for persistent process management)
-
-1. Install PM2:
-```bash
-npm install -g pm2
-```
-
-2. Create a serve.js file:
-```bash
-echo 'const handler = require("serve-handler");
-const http = require("http");
-const server = http.createServer((request, response) => {
-  return handler(request, response, {
-    public: "dist"
-  });
-})
-server.listen(8080);' > serve.js
-```
-
-3. Start with PM2:
-```bash
-pm2 start serve.js --name "time-tracker"
-pm2 save
-```
-
-### 7. Fortnox Integration
-
-To enable Fortnox integration:
-
-1. Register for a Fortnox Developer account
-2. Create a new application
-3. Obtain Client ID and Client Secret
-4. Configure the integration in the application settings
-
-## Troubleshooting
-
-- **Port already in use**: If port 8080 is already in use, change it in `vite.config.ts`
-- **Node.js version**: Ensure you're using Node.js 16.x or later
-- **Dependency issues**: Try removing `node_modules` and reinstalling dependencies
-- **Supabase connection**: Verify your Supabase credentials are correct
-- **Linux permissions**: Ensure your user has proper permissions for the project directory
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+1. Verify the application is running: `pm2 status`
+2. Check application logs: `pm2 logs time-tracking`
+3. Ensure port 8080 is not blocked: `sudo ufw status`
+4. Test local access on the server: `curl http://localhost:8080`
+5. Check reverse proxy configuration on the aaPanel server
 
 ## License
 
