@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { format, isToday, isYesterday, isTomorrow, isThisWeek, isThisMonth, subDays, addDays } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, isToday, addMonths, subMonths } from 'date-fns';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -12,12 +12,14 @@ interface DateSelectorProps {
 }
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
-  const handlePreviousDay = () => {
-    onDateChange(subDays(selectedDate, 1));
+  const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
+
+  const handlePreviousMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
   };
 
-  const handleNextDay = () => {
-    onDateChange(addDays(selectedDate, 1));
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
 
   const handleSelectDate = (date: Date | undefined) => {
@@ -26,58 +28,44 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  const getDateLabel = () => {
-    if (isToday(selectedDate)) return 'Today';
-    if (isYesterday(selectedDate)) return 'Yesterday';
-    if (isTomorrow(selectedDate)) return 'Tomorrow';
-    if (isThisWeek(selectedDate)) return format(selectedDate, 'EEEE');
-    if (isThisMonth(selectedDate)) return format(selectedDate, 'EEEE, do');
-    return format(selectedDate, 'MMMM d, yyyy');
-  };
-
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-lg">
-          <span>Date</span>
+    <Card className="border-none shadow-md overflow-hidden">
+      <CardHeader className="pb-2 pt-4 px-4 border-b">
+        <CardTitle className="flex items-center justify-between text-base font-medium">
+          <div className="flex items-center">
+            {format(currentMonth, 'MMMM, yyyy')}
+          </div>
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
-              onClick={handlePreviousDay}
+              className="h-7 w-7 rounded-full hover:bg-accent"
+              onClick={handlePreviousMonth}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
-              onClick={handleNextDay}
+              className="h-7 w-7 rounded-full hover:bg-accent"
+              onClick={handleNextMonth}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="py-0">
-        <div className="flex flex-col items-center">
-          <Button
-            variant="outline"
-            className="w-full justify-start text-left font-normal mb-3"
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            <span>{getDateLabel()}</span>
-          </Button>
-          
-          <div className="w-full flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleSelectDate}
-              className="rounded-md border shadow-sm"
-            />
-          </div>
+      <CardContent className="p-0">
+        <div className="flex justify-center">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleSelectDate}
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+            className="w-full border-none"
+            showOutsideDays={true}
+          />
         </div>
       </CardContent>
     </Card>
