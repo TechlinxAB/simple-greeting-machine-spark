@@ -53,6 +53,7 @@ export function TimeJournalStats({
       try {
         console.log(`Fetching time entries for ${format(startDate, "MMMM yyyy")}`);
         
+        // Base query for time entries
         let query = supabase
           .from("time_entries")
           .select(`
@@ -63,9 +64,8 @@ export function TimeJournalStats({
             quantity, 
             created_at,
             user_id, 
-            products:product_id (id, name, type, price),
-            clients:client_id (id, name),
-            users:user_id (id)
+            product_id,
+            client_id
           `)
           .gte("created_at", startDate.toISOString())
           .lte("created_at", endDate.toISOString());
@@ -80,30 +80,52 @@ export function TimeJournalStats({
           query = query.eq("client_id", selectedClient);
         }
         
-        const { data, error } = await query;
+        const { data: entries, error } = await query;
         
         if (error) {
           console.error("Error fetching time entries:", error);
           throw error;
         }
         
-        console.log(`Found ${data?.length || 0} time entries`);
+        console.log(`Found ${entries?.length || 0} time entries`);
         
-        // For each entry, fetch the user profile to get the name
-        const entriesWithUsernames = await Promise.all(
-          (data || []).map(async (entry) => {
-            let username = "Unknown";
+        // For each entry, fetch the related product and client data
+        const enhancedEntries = await Promise.all(
+          (entries || []).map(async (entry) => {
+            // Fetch product data
+            let productData = null;
+            if (entry.product_id) {
+              const { data: product } = await supabase
+                .from("products")
+                .select("id, name, type, price")
+                .eq("id", entry.product_id)
+                .single();
+              productData = product;
+            }
             
+            // Fetch client data
+            let clientData = null;
+            if (entry.client_id) {
+              const { data: client } = await supabase
+                .from("clients")
+                .select("id, name")
+                .eq("id", entry.client_id)
+                .single();
+              clientData = client;
+            }
+            
+            // Fetch username
+            let username = "Unknown";
             if (entry.user_id) {
               try {
-                // Use the get_username function we created in the database
-                const { data: nameData, error: nameError } = await supabase.rpc(
-                  'get_username',
-                  { user_id: entry.user_id }
-                );
-                
-                if (!nameError && nameData) {
-                  username = nameData;
+                const { data: profileData } = await supabase
+                  .from("profiles")
+                  .select("name")
+                  .eq("id", entry.user_id)
+                  .single();
+                  
+                if (profileData && profileData.name) {
+                  username = profileData.name;
                 }
               } catch (err) {
                 console.error("Error fetching username:", err);
@@ -112,12 +134,14 @@ export function TimeJournalStats({
             
             return {
               ...entry,
+              products: productData,
+              clients: clientData,
               username
             };
           })
         );
         
-        return entriesWithUsernames || [];
+        return enhancedEntries || [];
       } catch (error) {
         console.error("Error in time entries query:", error);
         return [];

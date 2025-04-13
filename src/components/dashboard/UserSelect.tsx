@@ -20,6 +20,7 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
     queryKey: ["users"],
     queryFn: async () => {
       try {
+        // Directly query the profiles table which contains user information
         const { data, error } = await supabase
           .from("profiles")
           .select("id, name")
