@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -90,6 +91,7 @@ export default function Dashboard() {
     queryKey: ["news-posts"],
     queryFn: async () => {
       try {
+        // Modified query to correctly join the profiles table
         const { data, error } = await supabase
           .from("news_posts")
           .select(`
@@ -100,12 +102,13 @@ export default function Dashboard() {
             created_at, 
             updated_at, 
             created_by,
-            profiles:created_by(name)
+            profiles(id, name)
           `)
           .order("created_at", { ascending: false });
           
         if (error) throw error;
         
+        // Map the result to include the author name
         const postsWithAuthor = data.map(post => ({
           ...post,
           author_name: post.profiles?.name || 'Unknown'
