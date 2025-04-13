@@ -28,6 +28,20 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
+  // Custom day renderer to style today vs selected day
+  const modifiersStyles = {
+    selected: {
+      backgroundColor: 'hsl(var(--primary))',
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    today: {
+      backgroundColor: 'hsl(var(--primary)/0.2)',
+      color: 'hsl(var(--primary))',
+      fontWeight: 'bold',
+    },
+  };
+
   return (
     <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
       <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
@@ -65,6 +79,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             onMonthChange={setCurrentMonth}
             className="w-full border-none"
             showOutsideDays={true}
+            modifiersStyles={modifiersStyles}
           />
         </div>
       </CardContent>
