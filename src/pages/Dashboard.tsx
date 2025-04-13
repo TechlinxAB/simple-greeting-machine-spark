@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +38,6 @@ export default function Dashboard() {
   const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const queryClient = useQueryClient();
   
-  // New filter state
   const [filters, setFilters] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -49,7 +47,6 @@ export default function Dashboard() {
   const canManagePosts = role === 'admin' || role === 'manager';
   const canViewTeamJournal = role === 'admin' || role === 'manager';
   
-  // Get clients for filter
   const { data: clients = [] } = useQuery({
     queryKey: ["all-clients"],
     queryFn: async () => {
@@ -71,11 +68,9 @@ export default function Dashboard() {
     enabled: !!user,
   });
   
-  // Get available years
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   
-  // Get months
   const months = [
     { value: 0, label: "January" },
     { value: 1, label: "February" },
@@ -98,17 +93,22 @@ export default function Dashboard() {
         const { data, error } = await supabase
           .from("news_posts")
           .select(`
-            *,
-            created_by_profile:created_by(name)
+            id, 
+            title, 
+            content, 
+            image_url, 
+            created_at, 
+            updated_at, 
+            created_by,
+            profiles(name)
           `)
           .order("created_at", { ascending: false });
           
         if (error) throw error;
         
-        // Map the nested profile name to a more accessible property
         const postsWithAuthor = data.map(post => ({
           ...post,
-          author_name: post.created_by_profile?.name || 'Unknown'
+          author_name: post.profiles?.name || 'Unknown'
         }));
         
         return postsWithAuthor as NewsPost[];
@@ -147,7 +147,6 @@ export default function Dashboard() {
         ? current.filter(f => f !== filter)
         : [...current, filter];
       
-      // If we're removing a filter, clear the corresponding selection
       if (current.includes(filter) && !newFilters.includes(filter)) {
         if (filter === 'client') setSelectedClient(null);
         if (filter === 'year') setSelectedYear(new Date().getFullYear());
@@ -158,7 +157,6 @@ export default function Dashboard() {
     });
   };
   
-  // Reset filters when changing tabs
   useEffect(() => {
     setFilters([]);
     setSelectedClient(null);
@@ -227,7 +225,6 @@ export default function Dashboard() {
             </DropdownMenu>
           </div>
           
-          {/* Filter controls based on selected filters */}
           {filters.length > 0 && (
             <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
               {filters.includes('client') && (
@@ -343,7 +340,6 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Filter controls based on selected filters */}
             {filters.length > 0 && (
               <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
                 {filters.includes('client') && (
