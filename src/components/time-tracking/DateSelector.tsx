@@ -28,9 +28,9 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  // Custom styles for different day states
+  // Custom styles for different day states - selected style will override today style
   const modifiersStyles = {
-    // Selected day (clicked by user)
+    // Selected day (clicked by user) - this will override the "today" style because of CSS specificity
     selected: {
       backgroundColor: 'hsl(var(--primary))',
       color: 'white',
@@ -84,6 +84,10 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             className="w-full border-none"
             showOutsideDays={true}
             modifiersStyles={modifiersStyles}
+            modifiers={{
+              selected: (date) => selectedDate && date.getTime() === selectedDate.getTime(),
+              today: (date) => isToday(date) && (!selectedDate || date.getTime() !== selectedDate.getTime())
+            }}
           />
         </div>
       </CardContent>
