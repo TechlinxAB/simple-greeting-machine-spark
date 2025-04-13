@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function TimeTracking() {
+  // Initialize with current date to ensure today is selected by default
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
@@ -20,10 +21,16 @@ export default function TimeTracking() {
 
   // Force the calendar to properly recognize today's date as selected on initial load
   useEffect(() => {
-    // Triggering a re-render with the exact same date forces the calendar
-    // to properly apply the selected style to today's date
+    // Create a new Date object to force React to see this as a state change
+    // This ensures the selected styling is applied correctly on initial render
     const today = new Date();
-    setSelectedDate(new Date(today));
+    
+    // Small delay to ensure the component is fully mounted
+    const timer = setTimeout(() => {
+      setSelectedDate(new Date(today));
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Refetch clients data when the component mounts to ensure data freshness
