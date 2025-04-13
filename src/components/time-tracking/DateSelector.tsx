@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,6 +13,16 @@ interface DateSelectorProps {
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
+  
+  // Force a re-render when the component mounts to ensure styles are applied correctly
+  useEffect(() => {
+    // This will trigger a re-render and ensure the calendar applies styles correctly
+    const timer = setTimeout(() => {
+      setCurrentMonth(prev => new Date(prev));
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handlePreviousMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
