@@ -28,17 +28,21 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  // Custom day renderer to style today vs selected day
+  // Custom styles for different day states
   const modifiersStyles = {
+    // Selected day (clicked by user)
     selected: {
       backgroundColor: 'hsl(var(--primary))',
       color: 'white',
       fontWeight: 'bold',
+      borderRadius: '100%',
     },
+    // Today's date styling (when not selected)
     today: {
       backgroundColor: 'hsl(var(--primary)/0.2)',
       color: 'hsl(var(--primary))',
       fontWeight: 'bold',
+      borderRadius: '100%',
     },
   };
 
