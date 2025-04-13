@@ -7,15 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { 
-  Calendar, Clock, DollarSign, Users, BarChart2, Activity, 
-  FileText, Megaphone, Plus, ScrollText, Filter
+  Clock, Users, Megaphone, Plus, ScrollText, Filter
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, getYear } from "date-fns";
-import { toast } from "sonner";
+import { format, startOfMonth } from "date-fns";
 import { NewsEditor } from "@/components/news/NewsEditor";
 import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
 import { NewsPost } from "@/types/database";
-import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 import { 
   Select, 
   SelectContent, 
@@ -39,7 +36,7 @@ export default function Dashboard() {
   const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const queryClient = useQueryClient();
   
-  const [filters, setFilters] = useState<string[]>([]);
+  const [filters, setFilters] = useState<string[]>(["month"]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -178,7 +175,7 @@ export default function Dashboard() {
   };
   
   useEffect(() => {
-    setFilters([]);
+    setFilters(["month"]);
     setSelectedClient(null);
     setSelectedYear(new Date().getFullYear());
     setSelectedMonth(new Date().getMonth());
@@ -222,7 +219,7 @@ export default function Dashboard() {
                   <span>Filter by</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="bg-background">
                 <DropdownMenuCheckboxItem
                   checked={filters.includes('client')}
                   onCheckedChange={() => toggleFilter('client')}
@@ -253,7 +250,7 @@ export default function Dashboard() {
                     value={selectedClient || "all-clients"}
                     onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
@@ -274,7 +271,7 @@ export default function Dashboard() {
                     value={selectedYear.toString()}
                     onValueChange={(value) => setSelectedYear(parseInt(value))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -294,7 +291,7 @@ export default function Dashboard() {
                     value={selectedMonth.toString()}
                     onValueChange={(value) => setSelectedMonth(parseInt(value))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select month" />
                     </SelectTrigger>
                     <SelectContent>
@@ -315,6 +312,7 @@ export default function Dashboard() {
             selectedYear={selectedYear}
             selectedMonth={selectedMonth}
             selectedClient={selectedClient}
+            simplifiedView={true}
           />
         </TabsContent>
         
@@ -336,7 +334,7 @@ export default function Dashboard() {
                       <span>Filter by</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent>
+                  <DropdownMenuContent className="bg-background">
                     <DropdownMenuCheckboxItem
                       checked={filters.includes('client')}
                       onCheckedChange={() => toggleFilter('client')}
@@ -368,7 +366,7 @@ export default function Dashboard() {
                       value={selectedClient || "all-clients"}
                       onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background">
                         <SelectValue placeholder="Select client" />
                       </SelectTrigger>
                       <SelectContent>
@@ -389,7 +387,7 @@ export default function Dashboard() {
                       value={selectedYear.toString()}
                       onValueChange={(value) => setSelectedYear(parseInt(value))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background">
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
@@ -409,7 +407,7 @@ export default function Dashboard() {
                       value={selectedMonth.toString()}
                       onValueChange={(value) => setSelectedMonth(parseInt(value))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background">
                         <SelectValue placeholder="Select month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -431,6 +429,7 @@ export default function Dashboard() {
               selectedMonth={selectedMonth}
               selectedClient={selectedClient}
               showUserColumn={true}
+              simplifiedView={true}
             />
           </TabsContent>
         )}

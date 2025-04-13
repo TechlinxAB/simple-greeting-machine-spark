@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -37,10 +37,10 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
   return (
     <div className="min-w-[200px]">
       <Select
-        value={value || "all-users"} // Use a non-empty fallback
+        value={value || "all-users"} 
         onValueChange={(val) => onChange(val === "all-users" ? null : val)}
       >
-        <SelectTrigger>
+        <SelectTrigger className="bg-background">
           <SelectValue placeholder="Select user" />
         </SelectTrigger>
         <SelectContent>

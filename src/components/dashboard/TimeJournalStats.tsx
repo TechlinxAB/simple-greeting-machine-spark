@@ -3,7 +3,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Calendar,
@@ -20,6 +19,7 @@ interface TimeJournalStatsProps {
   selectedMonth: number;
   selectedClient: string | null;
   showUserColumn?: boolean;
+  simplifiedView?: boolean;
 }
 
 export function TimeJournalStats({
@@ -27,7 +27,8 @@ export function TimeJournalStats({
   selectedYear,
   selectedMonth,
   selectedClient,
-  showUserColumn = false
+  showUserColumn = false,
+  simplifiedView = false
 }: TimeJournalStatsProps) {
   // Calculate date range based on filters
   const startDate = useMemo(() => {
@@ -50,6 +51,8 @@ export function TimeJournalStats({
     ],
     queryFn: async () => {
       try {
+        console.log(`Fetching time entries for ${format(startDate, "MMMM yyyy")}`);
+        
         let query = supabase
           .from("time_entries")
           .select(`
@@ -83,6 +86,8 @@ export function TimeJournalStats({
           console.error("Error fetching time entries:", error);
           throw error;
         }
+        
+        console.log(`Found ${data?.length || 0} time entries`);
         
         // For each entry, fetch the user profile to get the name
         const entriesWithUsernames = await Promise.all(
@@ -148,59 +153,6 @@ export function TimeJournalStats({
     }, 0));
   };
   
-  // Prepare chart data
-  const prepareActivityTypeData = () => {
-    const activityMap = new Map();
-    
-    timeEntries.forEach(entry => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const activityName = entry.products.name || 'Unknown';
-        if (!activityMap.has(activityName)) {
-          activityMap.set(activityName, 0);
-        }
-        
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        
-        activityMap.set(activityName, activityMap.get(activityName) + hours);
-      }
-    });
-    
-    return Array.from(activityMap.entries()).map(([name, hours]) => ({ 
-      name, 
-      hours: parseFloat(hours.toFixed(2))
-    }));
-  };
-  
-  const prepareClientDistributionData = () => {
-    const clientMap = new Map();
-    
-    timeEntries.forEach(entry => {
-      const clientName = entry.clients?.name || 'Unknown';
-      
-      if (!clientMap.has(clientName)) {
-        clientMap.set(clientName, 0);
-      }
-      
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        clientMap.set(clientName, clientMap.get(clientName) + hours);
-      } else if (entry.products?.type === 'item') {
-        // For items we'll just count them as equivalent to 1 hour for visualization
-        clientMap.set(clientName, clientMap.get(clientName) + 1);
-      }
-    });
-    
-    return Array.from(clientMap.entries())
-      .map(([name, hours]) => ({ name, hours: parseFloat(hours.toFixed(2)) }))
-      .sort((a, b) => b.hours - a.hours); // Sort by hours descending
-  };
-  
-  const COLORS = ['#7FB069', '#5A9A5A', '#96C7A9', '#4E9258', '#8FCA8F', '#3C5948'];
-  
   // Prepare table data
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
@@ -218,7 +170,7 @@ export function TimeJournalStats({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-medium">Total Hours</CardTitle>
@@ -234,26 +186,6 @@ export function TimeJournalStats({
                   <div>
                     <p className="text-sm text-muted-foreground">Hours Logged</p>
                     <p className="text-2xl font-bold">{calculateTotalHours()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium">Total Revenue</CardTitle>
-                <CardDescription>
-                  {format(startDate, "MMMM yyyy")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                  <div className="rounded-full bg-primary/20 p-2 mr-3">
-                    <DollarSign className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Revenue</p>
-                    <p className="text-2xl font-bold">{calculateTotalRevenue()}</p>
                   </div>
                 </div>
               </CardContent>
@@ -280,47 +212,6 @@ export function TimeJournalStats({
             </Card>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Activity Types</CardTitle>
-                <CardDescription>Distribution of activities</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <div className="w-full h-[300px]">
-                  <PieChart
-                    data={prepareActivityTypeData()}
-                    dataKey="hours"
-                    colors={COLORS}
-                    tooltip={{
-                      formatter: (value) => [`${value} hours`, 'Time Spent']
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Distribution</CardTitle>
-                <CardDescription>Hours worked per client</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BarChart 
-                  data={prepareClientDistributionData()} 
-                  height={300}
-                  barKey="hours"
-                  barName="Hours"
-                  barFill="#7FB069"
-                  tooltip={{
-                    formatter: (value) => [`${value} hours`, 'Time Spent'],
-                    labelFormatter: (label) => `${label}`
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </div>
-          
           <Card>
             <CardHeader>
               <CardTitle>Time Entries</CardTitle>
@@ -337,14 +228,14 @@ export function TimeJournalStats({
                     <TableHead>Description</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Duration / Qty</TableHead>
-                    <TableHead>Revenue</TableHead>
+                    {!simplifiedView && <TableHead>Revenue</TableHead>}
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {timeEntries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={showUserColumn ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={showUserColumn ? (simplifiedView ? 6 : 7) : (simplifiedView ? 5 : 6)} className="text-center py-8 text-muted-foreground">
                         No time entries found for the selected period.
                       </TableCell>
                     </TableRow>
@@ -364,11 +255,13 @@ export function TimeJournalStats({
                             ? `${calculateDuration(entry.start_time, entry.end_time)} hrs`
                             : entry.quantity ? `${entry.quantity} items` : '-'}
                         </TableCell>
-                        <TableCell>
-                          {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                            ? formatCurrency(parseFloat(calculateDuration(entry.start_time, entry.end_time)) * (entry.products.price || 0))
-                            : entry.quantity ? formatCurrency(entry.quantity * (entry.products?.price || 0)) : '-'}
-                        </TableCell>
+                        {!simplifiedView && (
+                          <TableCell>
+                            {entry.products?.type === 'activity' && entry.start_time && entry.end_time
+                              ? formatCurrency(parseFloat(calculateDuration(entry.start_time, entry.end_time)) * (entry.products.price || 0))
+                              : entry.quantity ? formatCurrency(entry.quantity * (entry.products?.price || 0)) : '-'}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {entry.created_at ? format(new Date(entry.created_at), 'MMM d, yyyy') : '-'}
                         </TableCell>
