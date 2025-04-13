@@ -1,3 +1,4 @@
+
 # Time Tracking & Invoicing SaaS Platform
 
 ## Project Overview
@@ -33,8 +34,11 @@ This application uses a two-server setup:
 mkdir -p /home/time-user/time-tracking
 cd /home/time-user/time-tracking
 
-# Clone the repository (replace with your actual repository URL)
-git clone <YOUR_GIT_REPOSITORY_URL> .
+# Clone the repository
+git clone https://github.com/TechlinxAB/simple-greeting-machine-spark
+
+# Navigate to the project directory
+cd simple-greeting-machine-spark
 
 # Install dependencies
 npm install
@@ -56,8 +60,8 @@ npm install -g serve
 # Install PM2 globally
 npm install -g pm2
 
-# Start the application with PM2
-pm2 start serve --name "time-tracking" -- -s /home/time-user/time-tracking/dist -l 8080
+# Start the application with PM2 (make sure you're in the simple-greeting-machine-spark directory)
+pm2 start serve --name "time-tracking" -- -s /home/time-user/time-tracking/simple-greeting-machine-spark/dist -l 8080
 
 # Setup PM2 to start on system boot
 pm2 startup
@@ -145,7 +149,7 @@ export const environment: EnvironmentConfig = {
 ### Updating the Application
 
 ```bash
-cd /home/time-user/time-tracking
+cd /home/time-user/time-tracking/simple-greeting-machine-spark
 git pull
 npm install
 npm run build
