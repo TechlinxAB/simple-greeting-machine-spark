@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
@@ -18,19 +18,24 @@ export default function TimeTracking() {
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const initialMount = useRef(true);
 
   // Force the calendar to properly recognize today's date as selected on initial load
   useEffect(() => {
-    // Create a new Date object to force React to see this as a state change
-    // This ensures the selected styling is applied correctly on initial render
-    const today = new Date();
-    
-    // Small delay to ensure the component is fully mounted
-    const timer = setTimeout(() => {
-      setSelectedDate(new Date(today));
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    if (initialMount.current) {
+      initialMount.current = false;
+      
+      // Immediate update to ensure the styling applies right away
+      setSelectedDate(new Date());
+      
+      // Then a delayed update to ensure it's fully processed
+      const timer = setTimeout(() => {
+        const today = new Date();
+        setSelectedDate(new Date(today));
+      }, 150);
+      
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Refetch clients data when the component mounts to ensure data freshness

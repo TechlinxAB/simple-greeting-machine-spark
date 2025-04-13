@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,16 +13,22 @@ interface DateSelectorProps {
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
+  const initialRenderRef = useRef(true);
   
-  // Force a re-render when the component mounts to ensure styles are applied correctly
+  // Force a re-render after component mounts to ensure styles are applied correctly
   useEffect(() => {
-    // This will trigger a re-render and ensure the calendar applies styles correctly
-    const timer = setTimeout(() => {
-      setCurrentMonth(prev => new Date(prev));
-    }, 50);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    if (initialRenderRef.current) {
+      initialRenderRef.current = false;
+      
+      // Use a short timeout to ensure the component is fully mounted
+      const timer = setTimeout(() => {
+        // This ensures the calendar properly recognizes today's date
+        setCurrentMonth(new Date(currentMonth.getTime()));
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentMonth]);
 
   const handlePreviousMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -36,24 +42,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     if (date) {
       onDateChange(date);
     }
-  };
-
-  // Custom styles for different day states - selected style will override today style
-  const modifiersStyles = {
-    // Selected day (clicked by user) - this will override the "today" style because of CSS specificity
-    selected: {
-      backgroundColor: 'hsl(var(--primary))',
-      color: 'white',
-      fontWeight: 'bold',
-      borderRadius: '100%',
-    },
-    // Today's date styling (when not selected)
-    today: {
-      backgroundColor: 'hsl(var(--primary)/0.2)',
-      color: 'hsl(var(--primary))',
-      fontWeight: 'bold',
-      borderRadius: '100%',
-    },
   };
 
   return (
@@ -93,7 +81,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             onMonthChange={setCurrentMonth}
             className="w-full border-none"
             showOutsideDays={true}
-            modifiersStyles={modifiersStyles}
             modifiers={{
               selected: (date) => selectedDate && date.getTime() === selectedDate.getTime(),
               today: (date) => isToday(date) && (!selectedDate || date.getTime() !== selectedDate.getTime())
