@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
@@ -13,29 +13,37 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function TimeTracking() {
-  // Initialize with current date to ensure today is selected by default
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Initialize with a stable Date object for today to prevent unnecessary rerenders
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  });
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const initialMount = useRef(true);
 
-  // Force the calendar to properly recognize today's date as selected on initial load
+  // Use a strong initialization approach that forces the calendar to update
   useEffect(() => {
-    if (initialMount.current) {
-      initialMount.current = false;
-      
-      // Immediate update to ensure the styling applies right away
-      setSelectedDate(new Date());
-      
-      // Then a delayed update to ensure it's fully processed
-      const timer = setTimeout(() => {
-        const today = new Date();
-        setSelectedDate(new Date(today));
-      }, 150);
-      
-      return () => clearTimeout(timer);
-    }
+    // Force an immediate update
+    const today = new Date();
+    const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    setSelectedDate(normalizedToday);
+
+    // Then follow up with additional updates to ensure proper rendering
+    const timer1 = setTimeout(() => {
+      const refreshToday = new Date();
+      setSelectedDate(new Date(refreshToday.getFullYear(), refreshToday.getMonth(), refreshToday.getDate()));
+    }, 50);
+
+    const timer2 = setTimeout(() => {
+      const refreshToday = new Date();
+      setSelectedDate(new Date(refreshToday.getFullYear(), refreshToday.getMonth(), refreshToday.getDate()));
+    }, 150);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, []);
 
   // Refetch clients data when the component mounts to ensure data freshness
@@ -61,6 +69,11 @@ export default function TimeTracking() {
   const formattedDate = isToday(selectedDate) 
     ? "today" 
     : format(selectedDate, "d MMMM yyyy");
+
+  // Log selected date for debugging
+  useEffect(() => {
+    console.info("Current selected date:", selectedDate.toISOString(), "Is today:", isToday(selectedDate));
+  }, [selectedDate]);
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">

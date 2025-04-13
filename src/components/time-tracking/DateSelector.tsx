@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,22 +13,25 @@ interface DateSelectorProps {
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
-  const initialRenderRef = useRef(true);
+  const [forceRender, setForceRender] = useState(0);
   
-  // Force a re-render after component mounts to ensure styles are applied correctly
   useEffect(() => {
-    if (initialRenderRef.current) {
-      initialRenderRef.current = false;
-      
-      // Use a short timeout to ensure the component is fully mounted
-      const timer = setTimeout(() => {
-        // This ensures the calendar properly recognizes today's date
-        setCurrentMonth(new Date(currentMonth.getTime()));
-      }, 50);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentMonth]);
+    // Force multiple re-renders to ensure the calendar updates correctly
+    const timer1 = setTimeout(() => setForceRender(prev => prev + 1), 10);
+    const timer2 = setTimeout(() => setForceRender(prev => prev + 1), 50);
+    const timer3 = setTimeout(() => setForceRender(prev => prev + 1), 100);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, []);
+  
+  // Reset month when selected date changes
+  useEffect(() => {
+    setCurrentMonth(selectedDate);
+  }, [selectedDate]);
 
   const handlePreviousMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -43,6 +46,9 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
       onDateChange(date);
     }
   };
+
+  // Ensure rendering key is always unique for each re-render cycle
+  const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}`;
 
   return (
     <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
@@ -74,6 +80,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
       <CardContent className="p-0">
         <div className="flex justify-center">
           <Calendar
+            key={renderKey} 
             mode="single"
             selected={selectedDate}
             onSelect={handleSelectDate}
@@ -82,8 +89,12 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             className="w-full border-none"
             showOutsideDays={true}
             modifiers={{
-              selected: (date) => selectedDate && date.getTime() === selectedDate.getTime(),
-              today: (date) => isToday(date) && (!selectedDate || date.getTime() !== selectedDate.getTime())
+              selected: (date) => date.toDateString() === selectedDate.toDateString(),
+              today: (date) => isToday(date) && date.toDateString() !== selectedDate.toDateString()
+            }}
+            modifiersClassNames={{
+              selected: 'bg-primary text-primary-foreground',
+              today: 'bg-primary/20 text-primary'
             }}
           />
         </div>
