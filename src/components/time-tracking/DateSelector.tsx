@@ -29,8 +29,8 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   };
 
   return (
-    <Card className="border-none shadow-sm overflow-hidden w-full">
-      <CardHeader className="pb-2 pt-4 px-4 border-b-[1px] border-border/50">
+    <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
+      <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
         <CardTitle className="flex items-center justify-between text-base font-medium">
           <div className="flex items-center">
             {format(currentMonth, 'MMMM, yyyy')}

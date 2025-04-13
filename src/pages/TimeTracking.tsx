@@ -61,7 +61,7 @@ export default function TimeTracking() {
       </div>
       
       <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-12 gap-6'}`}>
-        <div className={isMobile ? 'space-y-6' : 'col-span-4 space-y-6'}>
+        <div className={isMobile ? 'space-y-6' : 'col-span-3 space-y-6 w-full max-w-[300px]'}>
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
@@ -70,7 +70,7 @@ export default function TimeTracking() {
           <TimerWidget />
         </div>
         
-        <div className={isMobile ? 'space-y-6 mt-6' : 'col-span-8 space-y-6'}>
+        <div className={isMobile ? 'space-y-6 mt-6' : 'col-span-9 space-y-6'}>
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}
