@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { useCachedLogo } from "@/hooks/useCachedLogo";
 
 // Define schema for form validation
 const loginSchema = z.object({
@@ -26,6 +27,7 @@ const Login = () => {
   const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const { logoUrl } = useCachedLogo();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -55,8 +57,15 @@ const Login = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
+        <CardHeader className="space-y-4 text-center">
+          <div className="mx-auto flex justify-center">
+            <img
+              src={logoUrl}
+              alt="Time Tracker Logo"
+              className="h-16 w-auto"
+            />
+          </div>
+          <CardTitle className="text-2xl font-bold">Time Tracker</CardTitle>
           <CardDescription>
             Enter your email and password to access your account
           </CardDescription>
@@ -122,12 +131,6 @@ const Login = () => {
                   "Sign in"
                 )}
               </Button>
-              <div className="text-center text-sm">
-                Don't have an account?{" "}
-                <Link to="/register" className="text-primary hover:underline">
-                  Sign up
-                </Link>
-              </div>
             </CardFooter>
           </form>
         </Form>
