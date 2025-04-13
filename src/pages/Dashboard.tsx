@@ -1,112 +1,95 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/formatCurrency";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { 
   Calendar, Clock, DollarSign, Users, BarChart2, Activity, 
-  FileText, Megaphone, Plus, ScrollText
+  FileText, Megaphone, Plus, ScrollText, Filter
 } from "lucide-react";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, getYear } from "date-fns";
+import { toast } from "sonner";
 import { NewsEditor } from "@/components/news/NewsEditor";
 import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
 import { NewsPost } from "@/types/database";
-import { supabase } from "@/lib/supabase";
 import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TimeJournalStats } from "@/components/dashboard/TimeJournalStats";
+import { UserSelect } from "@/components/dashboard/UserSelect";
 
 export default function Dashboard() {
   const { user, role } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("my-journal");
   const [creatingPost, setCreatingPost] = useState(false);
   const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const queryClient = useQueryClient();
   
-  const today = new Date();
-  const startOfToday = startOfDay(today);
-  const endOfToday = endOfDay(today);
-  const startOfCurrentMonth = startOfMonth(today);
-  const endOfCurrentMonth = endOfMonth(today);
-  
-  const canManagePosts = role === 'admin' || role === 'manager';
+  // New filter state
+  const [filters, setFilters] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
-  const { data: todayEntries = [] } = useQuery({
-    queryKey: ["time-entries", "today", user?.id],
+  const canManagePosts = role === 'admin' || role === 'manager';
+  const canViewTeamJournal = role === 'admin' || role === 'manager';
+  
+  // Get clients for filter
+  const { data: clients = [] } = useQuery({
+    queryKey: ["all-clients"],
     queryFn: async () => {
       if (!user) return [];
       
       try {
         const { data, error } = await supabase
-          .from("time_entries")
-          .select(`
-            id, start_time, end_time, quantity,
-            products:product_id (id, name, type, price)
-          `)
-          .eq("user_id", user.id)
-          .gte("created_at", startOfToday.toISOString())
-          .lte("created_at", endOfToday.toISOString());
+          .from("clients")
+          .select("id, name")
+          .order("name");
           
         if (error) throw error;
         return data || [];
       } catch (error) {
-        console.error("Error fetching today's entries:", error);
+        console.error("Error fetching clients:", error);
         return [];
       }
     },
     enabled: !!user,
   });
   
-  const { data: monthEntries = [] } = useQuery({
-    queryKey: ["time-entries", "month", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from("time_entries")
-          .select(`
-            id, start_time, end_time, quantity, created_at,
-            products:product_id (id, name, type, price)
-          `)
-          .eq("user_id", user.id)
-          .gte("created_at", startOfCurrentMonth.toISOString())
-          .lte("created_at", endOfCurrentMonth.toISOString());
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching month entries:", error);
-        return [];
-      }
-    },
-    enabled: !!user,
-  });
+  // Get available years
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   
-  const { data: companyEntries = [] } = useQuery({
-    queryKey: ["time-entries", "company", "month"],
-    queryFn: async () => {
-      if (!user || (role !== 'admin' && role !== 'manager')) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from("time_entries")
-          .select(`
-            id, start_time, end_time, quantity, created_at, user_id,
-            products:product_id (id, name, type, price)
-          `)
-          .gte("created_at", startOfCurrentMonth.toISOString())
-          .lte("created_at", endOfCurrentMonth.toISOString());
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching company entries:", error);
-        return [];
-      }
-    },
-    enabled: !!user && (role === 'admin' || role === 'manager'),
-  });
+  // Get months
+  const months = [
+    { value: 0, label: "January" },
+    { value: 1, label: "February" },
+    { value: 2, label: "March" },
+    { value: 3, label: "April" },
+    { value: 4, label: "May" },
+    { value: 5, label: "June" },
+    { value: 6, label: "July" },
+    { value: 7, label: "August" },
+    { value: 8, label: "September" },
+    { value: 9, label: "October" },
+    { value: 10, label: "November" },
+    { value: 11, label: "December" }
+  ];
   
   const { data: newsPosts = [], refetch: refetchNews } = useQuery({
     queryKey: ["news-posts"],
@@ -114,112 +97,27 @@ export default function Dashboard() {
       try {
         const { data, error } = await supabase
           .from("news_posts")
-          .select("*")
+          .select(`
+            *,
+            created_by_profile:created_by(name)
+          `)
           .order("created_at", { ascending: false });
           
         if (error) throw error;
-        return data as NewsPost[];
+        
+        // Map the nested profile name to a more accessible property
+        const postsWithAuthor = data.map(post => ({
+          ...post,
+          author_name: post.created_by_profile?.name || 'Unknown'
+        }));
+        
+        return postsWithAuthor as NewsPost[];
       } catch (error) {
         console.error("Error fetching news posts:", error);
         return [];
       }
     },
   });
-  
-  const calculateTodayHours = () => {
-    return todayEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + hours;
-      }
-      return total;
-    }, 0).toFixed(2);
-  };
-  
-  const calculateMonthHours = () => {
-    return monthEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + hours;
-      }
-      return total;
-    }, 0).toFixed(2);
-  };
-  
-  const calculateTodayRevenue = () => {
-    return formatCurrency(todayEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + (hours * (entry.products.price || 0));
-      } else if (entry.products?.type === 'item' && entry.quantity) {
-        return total + (entry.quantity * (entry.products.price || 0));
-      }
-      return total;
-    }, 0));
-  };
-  
-  const calculateMonthRevenue = () => {
-    return formatCurrency(monthEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + (hours * (entry.products.price || 0));
-      } else if (entry.products?.type === 'item' && entry.quantity) {
-        return total + (entry.quantity * (entry.products.price || 0));
-      }
-      return total;
-    }, 0));
-  };
-  
-  const prepareWeeklyActivityData = () => {
-    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    const weekData = weekDays.map(day => ({ name: day, hours: 0 }));
-    
-    monthEntries.forEach(entry => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const date = new Date(entry.created_at || new Date());
-        const dayIndex = (date.getDay() + 6) % 7; // Make Monday index 0
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        
-        weekData[dayIndex].hours += hours;
-      }
-    });
-    
-    return weekData;
-  };
-  
-  const prepareActivityTypeData = () => {
-    const activityMap = new Map();
-    
-    monthEntries.forEach(entry => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const activityName = entry.products.name || 'Unknown';
-        if (!activityMap.has(activityName)) {
-          activityMap.set(activityName, 0);
-        }
-        
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        
-        activityMap.set(activityName, activityMap.get(activityName) + hours);
-      }
-    });
-    
-    return Array.from(activityMap.entries()).map(([name, hours]) => ({ 
-      name, 
-      hours: parseFloat(hours.toFixed(2))
-    }));
-  };
   
   const handleNewsPostCreated = () => {
     setCreatingPost(false);
@@ -243,194 +141,283 @@ export default function Dashboard() {
     refetchNews();
   };
   
-  const COLORS = ['#7FB069', '#5A9A5A', '#96C7A9', '#4E9258', '#8FCA8F', '#3C5948'];
+  const toggleFilter = (filter: string) => {
+    setFilters(current => {
+      const newFilters = current.includes(filter)
+        ? current.filter(f => f !== filter)
+        : [...current, filter];
+      
+      // If we're removing a filter, clear the corresponding selection
+      if (current.includes(filter) && !newFilters.includes(filter)) {
+        if (filter === 'client') setSelectedClient(null);
+        if (filter === 'year') setSelectedYear(new Date().getFullYear());
+        if (filter === 'month') setSelectedMonth(new Date().getMonth());
+      }
+      
+      return newFilters;
+    });
+  };
+  
+  // Reset filters when changing tabs
+  useEffect(() => {
+    setFilters([]);
+    setSelectedClient(null);
+    setSelectedYear(new Date().getFullYear());
+    setSelectedMonth(new Date().getMonth());
+    setSelectedUser(null);
+  }, [activeTab]);
   
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard & Analytics</h1>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4" />
-            <span>Dashboard</span>
+          <TabsTrigger value="my-journal" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span>My Time Journal</span>
           </TabsTrigger>
+          
+          {canViewTeamJournal && (
+            <TabsTrigger value="team-journal" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Team Time Journal</span>
+            </TabsTrigger>
+          )}
+          
           <TabsTrigger value="news" className="flex items-center gap-2">
             <Megaphone className="h-4 w-4" />
             <span>Company News</span>
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium">Your Daily Stats</CardTitle>
-                <CardDescription>Today, {format(today, "MMMM d, yyyy")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                    <div className="rounded-full bg-primary/20 p-2 mr-3">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Hours Logged</p>
-                      <p className="text-2xl font-bold">{calculateTodayHours()}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                    <div className="rounded-full bg-primary/20 p-2 mr-3">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateTodayRevenue()}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="my-journal" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Your Time Records</h2>
             
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium">Your Monthly Stats</CardTitle>
-                <CardDescription>{format(today, "MMMM yyyy")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                    <div className="rounded-full bg-primary/20 p-2 mr-3">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Monthly Hours</p>
-                      <p className="text-2xl font-bold">{calculateMonthHours()}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                    <div className="rounded-full bg-primary/20 p-2 mr-3">
-                      <Activity className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateMonthRevenue()}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span>Filter by</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuCheckboxItem
+                  checked={filters.includes('client')}
+                  onCheckedChange={() => toggleFilter('client')}
+                >
+                  Client
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filters.includes('year')}
+                  onCheckedChange={() => toggleFilter('year')}
+                >
+                  Year
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filters.includes('month')}
+                  onCheckedChange={() => toggleFilter('month')}
+                >
+                  Month
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="col-span-1 lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Weekly Activity Distribution</CardTitle>
-                <CardDescription>Hours worked per day this month</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BarChart 
-                  data={prepareWeeklyActivityData()} 
-                  height={300}
-                  barKey="hours"
-                  barName="Hours Logged"
-                  barFill="#7FB069"
-                  tooltip={{
-                    formatter: (value) => [`${value} hours`, 'Time Spent'],
-                    labelFormatter: (label) => `${label}`
-                  }}
-                />
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Activity Types</CardTitle>
-                <CardDescription>Distribution of your activities</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <div className="w-full h-[300px]">
-                  <PieChart
-                    data={prepareActivityTypeData()}
-                    dataKey="hours"
-                    colors={COLORS}
-                    tooltip={{
-                      formatter: (value) => [`${value} hours`, 'Time Spent']
-                    }}
-                  />
+          {/* Filter controls based on selected filters */}
+          {filters.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
+              {filters.includes('client') && (
+                <div className="flex-1 min-w-[200px]">
+                  <Select
+                    value={selectedClient || ""}
+                    onValueChange={setSelectedClient}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardContent>
-            </Card>
-            
-            {(role === 'admin' || role === 'manager') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Overview</CardTitle>
-                  <CardDescription>Stats for all team members this month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                      <div className="rounded-full bg-primary/20 p-2 mr-3">
-                        <Users className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Team Hours</p>
-                        <p className="text-2xl font-bold">
-                          {companyEntries.reduce((total, entry) => {
-                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-                              const start = new Date(entry.start_time);
-                              const end = new Date(entry.end_time);
-                              const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              return total + hours;
-                            }
-                            return total;
-                          }, 0).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                      <div className="rounded-full bg-primary/20 p-2 mr-3">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Entries</p>
-                        <p className="text-2xl font-bold">{companyEntries.length}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-secondary/50 rounded-lg p-4 flex items-center">
-                      <div className="rounded-full bg-primary/20 p-2 mr-3">
-                        <DollarSign className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-2xl font-bold">
-                          {formatCurrency(companyEntries.reduce((total, entry) => {
-                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-                              const start = new Date(entry.start_time);
-                              const end = new Date(entry.end_time);
-                              const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              return total + (hours * (entry.products.price || 0));
-                            } else if (entry.products?.type === 'item' && entry.quantity) {
-                              return total + (entry.quantity * (entry.products.price || 0));
-                            }
-                            return total;
-                          }, 0))}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+              )}
+              
+              {filters.includes('year') && (
+                <div className="flex-1 min-w-[150px]">
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map(year => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {filters.includes('month') && (
+                <div className="flex-1 min-w-[150px]">
+                  <Select
+                    value={selectedMonth.toString()}
+                    onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map(month => (
+                        <SelectItem key={month.value} value={month.value.toString()}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <TimeJournalStats 
+            userId={user?.id}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            selectedClient={selectedClient}
+          />
         </TabsContent>
+        
+        {canViewTeamJournal && (
+          <TabsContent value="team-journal" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Team Time Records</h2>
+              
+              <div className="flex gap-2">
+                <UserSelect
+                  value={selectedUser}
+                  onChange={setSelectedUser}
+                />
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      <span>Filter by</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.includes('client')}
+                      onCheckedChange={() => toggleFilter('client')}
+                    >
+                      Client
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.includes('year')}
+                      onCheckedChange={() => toggleFilter('year')}
+                    >
+                      Year
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filters.includes('month')}
+                      onCheckedChange={() => toggleFilter('month')}
+                    >
+                      Month
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            
+            {/* Filter controls based on selected filters */}
+            {filters.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
+                {filters.includes('client') && (
+                  <div className="flex-1 min-w-[200px]">
+                    <Select
+                      value={selectedClient || ""}
+                      onValueChange={setSelectedClient}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All Clients</SelectItem>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {filters.includes('year') && (
+                  <div className="flex-1 min-w-[150px]">
+                    <Select
+                      value={selectedYear.toString()}
+                      onValueChange={(value) => setSelectedYear(parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map(year => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {filters.includes('month') && (
+                  <div className="flex-1 min-w-[150px]">
+                    <Select
+                      value={selectedMonth.toString()}
+                      onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map(month => (
+                          <SelectItem key={month.value} value={month.value.toString()}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <TimeJournalStats 
+              userId={selectedUser || undefined}
+              selectedYear={selectedYear}
+              selectedMonth={selectedMonth}
+              selectedClient={selectedClient}
+              showUserColumn={true}
+            />
+          </TabsContent>
+        )}
         
         <TabsContent value="news">
           {creatingPost ? (

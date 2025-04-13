@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +14,8 @@ import {
   Eye, 
   Edit, 
   Trash,
-  Loader2
+  Loader2,
+  User
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +80,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             invoiced,
             client_id,
             product_id,
+            user_id,
             products:product_id (id, name, type, price),
             clients:client_id (id, name)
           `)
@@ -92,7 +95,36 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         }
         
         console.log(`Found ${data?.length || 0} time entries`);
-        return data || [];
+        
+        // Get usernames for each entry
+        const entriesWithUsernames = await Promise.all(
+          (data || []).map(async (entry) => {
+            let username = "Unknown";
+            
+            if (entry.user_id) {
+              try {
+                // Use the get_username function we created in the database
+                const { data: nameData, error: nameError } = await supabase.rpc(
+                  'get_username',
+                  { user_id: entry.user_id }
+                );
+                
+                if (!nameError && nameData) {
+                  username = nameData;
+                }
+              } catch (err) {
+                console.error("Error fetching username:", err);
+              }
+            }
+            
+            return {
+              ...entry,
+              username
+            };
+          })
+        );
+        
+        return entriesWithUsernames || [];
       } catch (error) {
         console.error("Error fetching time entries:", error);
         return [];

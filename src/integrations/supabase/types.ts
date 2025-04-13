@@ -398,6 +398,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_username: {
+        Args: { user_id: string }
+        Returns: string
+      }
       is_admin_or_manager: {
         Args: Record<PropertyKey, never>
         Returns: boolean
