@@ -1,13 +1,11 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
 import { TimeEntriesList } from "@/components/time-tracking/TimeEntriesList";
 import { DateSelector } from "@/components/time-tracking/DateSelector";
 import { TimerWidget } from "@/components/time-tracking/TimerWidget";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { Users } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -77,22 +75,6 @@ export default function TimeTracking() {
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className="flex justify-end mb-4">
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={() => setShowClientForm(true)}
-          disabled={isClientsLoading}
-        >
-          {isClientsLoading ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          ) : (
-            <Users className="h-4 w-4" />
-          )}
-          <span>Add Client</span>
-        </Button>
-      </div>
-      
       <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-12 gap-6'}`}>
         <div className={isMobile ? 'space-y-6' : 'col-span-3 space-y-6 w-full max-w-[300px]'}>
           <DateSelector 

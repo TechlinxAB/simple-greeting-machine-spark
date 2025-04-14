@@ -78,7 +78,6 @@ export default function Administration() {
     setSelectedDate(newDate);
     setNoDateFilter(false);
     
-    // Log the date change to help with debugging
     console.log(`Date changed to: ${format(newDate, 'yyyy-MM-dd')}, month: ${month}, year: ${year}`);
   };
 
@@ -134,10 +133,7 @@ export default function Administration() {
             products(name, type, price)
           `);
         
-        // Important: For items, we need to make sure we're not filtering on start_time
-        // if there is no date filter, or we need to use created_at for items
         if (!noDateFilter && startDate && endDate) {
-          // We need a different approach for activities vs items
           query = query
             .or(`start_time.gte.${startDate.toISOString()},start_time.is.null`)
             .or(`start_time.lte.${endDate.toISOString()},start_time.is.null`)
@@ -173,13 +169,10 @@ export default function Administration() {
         
         console.log(`Found ${entriesData?.length || 0} time entries`);
         
-        // Extract all user IDs for batch fetching profiles
         const userIds = entriesData ? [...new Set(entriesData.map(entry => entry.user_id))] : [];
         
-        // Fetch all user profiles in a single query
         const userProfiles = await fetchUserProfiles(userIds);
         
-        // Attach user names to entries
         const processedEntries = entriesData?.map(entry => ({
           ...entry,
           profiles: {
@@ -476,68 +469,68 @@ export default function Administration() {
               </TabsList>
             </div>
             
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {activeTab === "time-entries" && (
+            <div className="mb-6 flex flex-wrap gap-3 items-center">
+              {activeTab === "time-entries" && (
+                <div className="flex items-center gap-3">
+                  <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
+                    <SelectTrigger className="min-w-[140px] w-auto">
+                      <SelectValue placeholder="All Clients">
+                        <span className="flex items-center">
+                          <Icons.users className="mr-2 h-4 w-4" />
+                          {selectedClient 
+                            ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
+                            : "All Clients"}
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-clients">All Clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
                   <UserSelect
                     selectedUserId={selectedUserId}
                     onUserChange={setSelectedUserId}
                     includeAllOption
-                    className="min-w-[160px]"
+                    className="w-auto"
                   />
-                )}
-                
-                <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
-                  <SelectTrigger className="min-w-[160px]">
-                    <SelectValue placeholder="All Clients">
-                      <span className="flex items-center">
-                        <Icons.users className="mr-2 h-4 w-4" />
-                        {selectedClient 
-                          ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
-                          : "All Clients"}
-                      </span>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all-clients">All Clients</SelectItem>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <div className="flex gap-2">
-                  <Button
-                    variant={activeFilter === 'current' ? 'default' : 'outline'}
-                    onClick={() => setActiveFilter('current')}
-                    className="flex items-center gap-2"
-                  >
-                    <CalendarRange className="h-4 w-4" />
-                    <span>Current</span>
-                  </Button>
-                  <Button
-                    variant={activeFilter === 'all' ? 'default' : 'outline'}
-                    onClick={() => setActiveFilter('all')}
-                    className="flex items-center gap-2"
-                  >
-                    <Infinity className="h-4 w-4" />
-                    <span>All Time</span>
-                  </Button>
                 </div>
-                
-                {!noDateFilter && (
-                  <MonthYearSelector
-                    selectedMonth={selectedMonth}
-                    selectedYear={selectedYear}
-                    onMonthYearChange={handleMonthYearChange}
-                    includeAllOption={false}
-                  />
-                )}
-              </div>
+              )}
+              
+              {!noDateFilter && (
+                <MonthYearSelector
+                  selectedMonth={selectedMonth}
+                  selectedYear={selectedYear}
+                  onMonthYearChange={handleMonthYearChange}
+                  includeAllOption={false}
+                />
+              )}
               
               <div className="flex items-center gap-2">
+                <Button
+                  variant={activeFilter === 'current' ? 'default' : 'outline'}
+                  onClick={() => setActiveFilter('current')}
+                  size="sm"
+                  className="h-9"
+                >
+                  Current
+                </Button>
+                <Button
+                  variant={activeFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => setActiveFilter('all')}
+                  size="sm"
+                  className="h-9"
+                >
+                  All Time
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-2 ml-auto">
                 {selectedItems.length > 0 && (
                   <Button
                     variant="destructive"

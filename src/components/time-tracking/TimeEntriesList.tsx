@@ -9,13 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { 
   Clock, 
   Package, 
-  CalendarClock, 
   ClipboardList, 
   Eye, 
   Edit, 
   Trash,
-  Loader2,
-  User
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,22 +143,31 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     const endDate = new Date(end);
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours.toFixed(2);
+    return diffHours;
+  };
+
+  const formatDuration = (hours: number) => {
+    if (hours < 1) {
+      const minutes = Math.round(hours * 60);
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    } else {
+      return `${hours.toFixed(2)} hour${hours !== 1 ? 's' : ''}`;
+    }
   };
 
   const getItemAmount = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
-      return `${hours} hours × ${formatCurrency(entry.products.price)}`;
+      const hours = calculateDuration(entry.start_time, entry.end_time);
+      return formatDuration(hours);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return `${entry.quantity} × ${formatCurrency(entry.products.price)}`;
+      return `${entry.quantity} units`;
     }
     return "-";
   };
 
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = parseFloat(calculateDuration(entry.start_time, entry.end_time));
+      const hours = calculateDuration(entry.start_time, entry.end_time);
       return formatCurrency(hours * entry.products.price);
     } else if (entry.products?.type === "item" && entry.quantity) {
       return formatCurrency(entry.quantity * entry.products.price);
@@ -257,86 +264,83 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
               <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client / Project</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {timeEntries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium">
-                      {entry.clients?.name || 'Unknown client'}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {entry.description || 
-                        (entry.products?.name || 'No description')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {entry.products ? (
-                          entry.products.type === 'activity' ? (
-                            <Clock className="h-4 w-4 text-blue-500" />
-                          ) : (
-                            <Package className="h-4 w-4 text-primary" />
-                          )
-                        ) : (
-                          <Package className="h-4 w-4 text-amber-600" />
-                        )}
-                        <span className="capitalize">
-                          {entry.products?.type || 'Deleted product'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getItemAmount(entry)}</TableCell>
-                    <TableCell className="font-semibold">
-                      {getItemTotal(entry)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.invoiced ? "default" : "outline"}>
-                        {entry.invoiced ? "Invoiced" : "Pending"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <CalendarClock className="h-3 w-3" />
-                        <span>{formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
-                          onClick={() => handleEditClick(entry)}
-                          disabled={entry.invoiced}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
-                          onClick={() => handleDeleteClick(entry)}
-                          disabled={entry.invoiced}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[180px]">Client</TableHead>
+                    <TableHead className="w-[250px]">Description</TableHead>
+                    <TableHead className="w-[100px]">Type</TableHead>
+                    <TableHead className="w-[120px]">Amount</TableHead>
+                    <TableHead className="w-[100px]">Total</TableHead>
+                    <TableHead className="w-[100px]">Status</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {timeEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {entry.clients?.name || 'Unknown client'}
+                      </TableCell>
+                      <TableCell className="max-w-[250px]">
+                        <div className="line-clamp-2">
+                          {entry.description || 
+                            (entry.products?.name || 'No description')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          {entry.products ? (
+                            entry.products.type === 'activity' ? (
+                              <Clock className="h-4 w-4 text-blue-500" />
+                            ) : (
+                              <Package className="h-4 w-4 text-primary" />
+                            )
+                          ) : (
+                            <Package className="h-4 w-4 text-amber-600" />
+                          )}
+                          <span className="capitalize">
+                            {entry.products?.type || 'Deleted product'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{getItemAmount(entry)}</TableCell>
+                      <TableCell className="font-semibold whitespace-nowrap">
+                        {getItemTotal(entry)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge variant={entry.invoiced ? "default" : "outline"}>
+                          {entry.invoiced ? "Invoiced" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8" 
+                            onClick={() => handleEditClick(entry)}
+                            disabled={entry.invoiced}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                            onClick={() => handleDeleteClick(entry)}
+                            disabled={entry.invoiced}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
