@@ -243,7 +243,9 @@ export function TimeEntriesTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {entry.start_time && format(new Date(entry.start_time), "MMM d, yyyy")}
+                  {entry.products?.type === "activity" && entry.start_time ? 
+                    format(new Date(entry.start_time), "MMM d, yyyy") :
+                    entry.created_at ? format(new Date(entry.created_at), "MMM d, yyyy") : "Unknown date"}
                 </TableCell>
                 <TableCell>
                   {entry.products?.type === "activity" && entry.start_time && entry.end_time

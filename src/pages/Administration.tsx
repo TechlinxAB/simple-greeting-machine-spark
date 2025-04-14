@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -16,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { type Client, type TimeEntry, type Invoice } from "@/types";
 import { Icons } from "@/components/icons";
+import { fetchUserProfiles } from "@/hooks/useSupabaseQuery";
 
 export default function Administration() {
   const { role } = useAuth();
@@ -120,10 +122,15 @@ export default function Administration() {
             products(name, type, price)
           `);
         
+        // Important: For items, we need to make sure we're not filtering on start_time
+        // if there is no date filter, or we need to use created_at for items
         if (!noDateFilter && startDate && endDate) {
+          // We need a different approach for activities vs items
           query = query
-            .gte("start_time", startDate.toISOString())
-            .lte("start_time", endDate.toISOString());
+            .or(`start_time.gte.${startDate.toISOString()},start_time.is.null`)
+            .or(`start_time.lte.${endDate.toISOString()},start_time.is.null`)
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
         }
         
         if (selectedClient) {
@@ -133,7 +140,7 @@ export default function Administration() {
         if (sortField) {
           query = query.order(sortField, { ascending: sortDirection === 'asc' });
         } else {
-          query = query.order("start_time", { ascending: false });
+          query = query.order("created_at", { ascending: false });
         }
         
         const from = (page - 1) * ITEMS_PER_PAGE;
@@ -150,12 +157,17 @@ export default function Administration() {
         
         console.log(`Found ${entriesData?.length || 0} time entries`);
         
-        // Process the data to add the username from user_id
+        // Extract all user IDs for batch fetching profiles
+        const userIds = entriesData ? [...new Set(entriesData.map(entry => entry.user_id))] : [];
+        
+        // Fetch all user profiles in a single query
+        const userProfiles = await fetchUserProfiles(userIds);
+        
+        // Attach user names to entries
         const processedEntries = entriesData?.map(entry => ({
           ...entry,
-          // Add a profiles object with name that we couldn't get from the join
           profiles: {
-            name: "User " + entry.user_id.substring(0, 8) // Simple fallback name based on user_id
+            name: userProfiles[entry.user_id] || `User ${entry.user_id.substring(0, 8)}`
           }
         }));
         
