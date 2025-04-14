@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -136,6 +137,14 @@ export default {
       const newUtilities = {
         '.hover-white-text:hover': {
           color: '#ffffff !important'
+        },
+        '.data-highlighted-white': {
+          '&[data-highlighted]': {
+            color: '#ffffff !important',
+            '& *': {
+              color: '#ffffff !important'
+            }
+          }
         }
       }
       addUtilities(newUtilities)

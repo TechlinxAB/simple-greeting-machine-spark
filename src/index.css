@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -248,4 +249,10 @@
   .safe-padding-right {
     padding-right: max(0.5rem, env(safe-area-inset-right));
   }
+}
+
+/* Fix for dropdown text color on hover */
+[data-highlighted],
+[data-highlighted] * {
+  color: white !important;
 }
