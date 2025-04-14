@@ -145,6 +145,23 @@ export default {
               color: '#ffffff !important'
             }
           }
+        },
+        // Add utility to override focus ring color and prevent green line
+        '.no-focus-ring': {
+          '&:focus': {
+            outline: 'none !important',
+            boxShadow: 'none !important',
+            borderColor: 'hsl(var(--input)) !important',
+            ring: '0 !important',
+            ringOffset: '0 !important'
+          },
+          '&:focus-visible': {
+            outline: 'none !important',
+            boxShadow: 'none !important',
+            borderColor: 'hsl(var(--input)) !important',
+            ring: '0 !important',
+            ringOffset: '0 !important'
+          }
         }
       }
       addUtilities(newUtilities)
