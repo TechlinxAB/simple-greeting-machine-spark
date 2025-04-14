@@ -39,9 +39,9 @@ export interface TimeEntry {
   invoiced?: boolean;
   created_at?: string;
   updated_at?: string;
-  // Join fields
-  clients?: Client;
-  products?: Product;
+  // Join fields - making these partial types to accommodate what Supabase returns
+  clients?: Partial<Client>;
+  products?: Partial<Product>;
   profiles?: {
     name?: string;
   };
@@ -60,7 +60,7 @@ export interface Invoice {
   created_at?: string;
   updated_at?: string;
   // Join fields
-  clients?: Client;
+  clients?: Partial<Client>;
 }
 
 export type ProductType = 'activity' | 'item';
