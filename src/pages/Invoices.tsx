@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -5,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X } from "lucide-react";
-import { format } from "date-fns";
+import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2 } from "lucide-react";
+import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +20,10 @@ import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { environment } from "@/config/environment";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
+import { UserSelect } from "@/components/dashboard/UserSelect";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -50,6 +55,10 @@ export default function Invoices() {
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { role } = useAuth();
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
@@ -95,11 +104,15 @@ export default function Invoices() {
   });
 
   const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
-    queryKey: ["unbilled-entries", selectedClient],
+    queryKey: ["unbilled-entries", selectedClient, selectedMonth, selectedYear],
     queryFn: async () => {
       if (!selectedClient) return [];
       
-      const { data: entriesData, error: entriesError } = await supabase
+      // Calculate date range based on month and year
+      const startDate = startOfMonth(new Date(selectedYear, selectedMonth));
+      const endDate = endOfMonth(new Date(selectedYear, selectedMonth));
+      
+      const query = supabase
         .from("time_entries")
         .select(`
           id, 
@@ -112,6 +125,12 @@ export default function Invoices() {
         `)
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
+      
+      // Add date range filter
+      query.or(`start_time.gte.${startDate.toISOString()},end_time.gte.${startDate.toISOString()}`);
+      query.and(`start_time.lte.${endDate.toISOString()},end_time.lte.${endDate.toISOString()}`);
+      
+      const { data: entriesData, error: entriesError } = await query;
       
       if (entriesError) throw entriesError;
       
@@ -149,6 +168,25 @@ export default function Invoices() {
       return await isFortnoxConnected();
     },
   });
+
+  const handleDeleteTimeEntry = async () => {
+    if (!timeEntryToDelete) return;
+    
+    const success = await deleteTimeEntry(timeEntryToDelete);
+    
+    if (success) {
+      toast.success("Time entry deleted successfully");
+      refetchUnbilled();
+    }
+    
+    setTimeEntryToDelete(null);
+    setIsDeleteDialogOpen(false);
+  };
+
+  const confirmDeleteTimeEntry = (entryId: string) => {
+    setTimeEntryToDelete(entryId);
+    setIsDeleteDialogOpen(true);
+  };
 
   const getBadgeVariant = (status: string) => {
     switch (status) {
@@ -225,6 +263,11 @@ export default function Invoices() {
       setIsExportingInvoice(false);
       setProcessingStatus("");
     }
+  };
+
+  const handleMonthYearChange = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
   };
 
   const calculateTotal = () => {
@@ -333,7 +376,7 @@ export default function Invoices() {
       </Card>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Create New Invoice</DialogTitle>
             <DialogDescription>
@@ -341,7 +384,7 @@ export default function Invoices() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-5 max-h-[calc(85vh-180px)] flex flex-col">
+          <div className="space-y-5 flex-1 overflow-hidden">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Client</label>
               <Select value={selectedClient} onValueChange={setSelectedClient}>
@@ -355,6 +398,19 @@ export default function Invoices() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {selectedClient && (
+              <div className="flex flex-col md:flex-row gap-4 mb-2">
+                <div className="w-full md:w-auto">
+                  <label className="text-sm font-medium block mb-2">Filter by Month/Year</label>
+                  <MonthYearSelector
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onMonthYearChange={handleMonthYearChange}
+                  />
+                </div>
+              </div>
+            )}
             
             {(hasInvalidArticleNumbers || missingArticleNumbers) && (
               <Alert className="bg-blue-50 border-blue-200">
@@ -407,10 +463,10 @@ export default function Invoices() {
                 
                 {unbilledEntries.length === 0 ? (
                   <div className="text-center py-4 border rounded-md bg-muted/20">
-                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client.</p>
+                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected month/year.</p>
                   </div>
                 ) : (
-                  <ScrollArea className="border rounded-md h-[calc(85vh-400px)] min-h-[200px]">
+                  <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[300px]">
                     <div className="overflow-hidden">
                       <Table>
                         <TableHeader>
@@ -418,9 +474,11 @@ export default function Invoices() {
                             <TableHead>Description</TableHead>
                             <TableHead>User</TableHead>
                             <TableHead>Product</TableHead>
+                            <TableHead>Date</TableHead>
                             <TableHead>Quantity</TableHead>
                             <TableHead>Art. Number</TableHead>
                             <TableHead className="text-right">Amount (SEK)</TableHead>
+                            <TableHead></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -444,11 +502,16 @@ export default function Invoices() {
                             
                             const unit = entry.products?.type === 'activity' ? 't' : 'st';
                             
+                            const entryDate = entry.start_time 
+                              ? format(parseISO(entry.start_time), 'yyyy-MM-dd')
+                              : 'N/A';
+                            
                             return (
                               <TableRow key={entry.id}>
                                 <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
                                 <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
                                 <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
+                                <TableCell>{entryDate}</TableCell>
                                 <TableCell>
                                   {quantity} {unit}
                                 </TableCell>
@@ -486,12 +549,23 @@ export default function Invoices() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => confirmDeleteTimeEntry(entry.id)}
+                                    className="h-8 w-8 text-destructive hover:text-destructive/80"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             );
                           })}
                           <TableRow>
-                            <TableCell colSpan={5} className="font-bold text-right">Total:</TableCell>
+                            <TableCell colSpan={6} className="font-bold text-right">Total:</TableCell>
                             <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
+                            <TableCell></TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>
@@ -526,6 +600,16 @@ export default function Invoices() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Time Entry"
+        description="Are you sure you want to delete this time entry? This action cannot be undone."
+        actionLabel="Delete"
+        onAction={handleDeleteTimeEntry}
+        variant="destructive"
+      />
     </div>
   );
 }
