@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -108,11 +107,10 @@ export default function Invoices() {
     queryFn: async () => {
       if (!selectedClient) return [];
       
-      // Calculate date range based on month and year
       const startDate = startOfMonth(new Date(selectedYear, selectedMonth));
       const endDate = endOfMonth(new Date(selectedYear, selectedMonth));
       
-      const query = supabase
+      let query = supabase
         .from("time_entries")
         .select(`
           id, 
@@ -126,9 +124,8 @@ export default function Invoices() {
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
-      // Add date range filter
-      query.or(`start_time.gte.${startDate.toISOString()},end_time.gte.${startDate.toISOString()}`);
-      query.and(`start_time.lte.${endDate.toISOString()},end_time.lte.${endDate.toISOString()}`);
+      query = query.gte('start_time', startDate.toISOString());
+      query = query.lte('start_time', endDate.toISOString());
       
       const { data: entriesData, error: entriesError } = await query;
       
