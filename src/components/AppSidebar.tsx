@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,13 +30,21 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { user, signOut, role } = useAuth();
   const [logoError, setLogoError] = useState(false);
-  const { logoUrl, isLoading: logoLoading } = useCachedLogo();
+  const { logoUrl, isLoading: logoLoading, isError, refreshLogo } = useCachedLogo();
 
   useEffect(() => {
+    // Reset logo error state when logoUrl changes
     if (logoUrl) {
       setLogoError(false);
     }
   }, [logoUrl]);
+
+  useEffect(() => {
+    // If logo has an error state, try refreshing once on mount
+    if (isError) {
+      refreshLogo();
+    }
+  }, [isError, refreshLogo]);
 
   const isAdmin = role === "admin";
   const isManagerOrAdmin = role === "manager" || role === "admin";
@@ -173,6 +182,9 @@ export function AppSidebar() {
   const handleLogoError = () => {
     console.log("Logo failed to load in sidebar, using fallback");
     setLogoError(true);
+    setTimeout(() => {
+      refreshLogo();
+    }, 2000);
   };
 
   return (
@@ -199,7 +211,7 @@ export function AppSidebar() {
             )}
           </div>
           <h2 className="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80 overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] drop-shadow-sm">
-            {appSettings?.appName || "Time Tracker"}
+            {logoLoading ? "Loading..." : (appSettings?.appName || "Time Tracker")}
           </h2>
         </div>
       </SidebarHeader>

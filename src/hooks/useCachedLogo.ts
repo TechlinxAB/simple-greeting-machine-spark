@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -17,6 +16,8 @@ import { supabase } from '@/lib/supabase';
 export function useCachedLogo() {
   const queryClient = useQueryClient();
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+  const [retryCount, setRetryCount] = useState(0);
+  const [isErrorState, setIsErrorState] = useState(false);
 
   // Cache the initial local storage value
   const initialCachedLogo = typeof window !== 'undefined' 
@@ -29,20 +30,37 @@ export function useCachedLogo() {
   const refreshLogo = useCallback(() => {
     console.log("Manually refreshing logo");
     setRefreshTimestamp(Date.now());
+    setRetryCount(0);
+    setIsErrorState(false);
     queryClient.invalidateQueries({ queryKey: ['app-logo-data'] });
   }, [queryClient]);
 
   // Query for logo data
-  const { data: logoDataUrl, isLoading } = useQuery({
-    queryKey: ['app-logo-data', refreshTimestamp],
+  const { data: logoDataUrl, isLoading, error } = useQuery({
+    queryKey: ['app-logo-data', refreshTimestamp, retryCount],
     queryFn: async () => {
-      console.log("Fetching logo data, timestamp:", refreshTimestamp);
+      console.log("Fetching logo data, timestamp:", refreshTimestamp, "retry:", retryCount);
       
       // First try to get from localStorage
       const cached = localStorage.getItem(LOGO_DATA_URL_KEY);
-      if (cached) {
+      if (cached && !isErrorState) {
         console.log("Using cached logo from localStorage");
-        return cached;
+        
+        // Verify the cached URL is valid by performing a quick HEAD request
+        try {
+          if (cached.startsWith('http')) {
+            const response = await fetch(cached, { method: 'HEAD' });
+            if (!response.ok) {
+              console.warn("Cached logo URL is invalid, will fetch from server");
+              localStorage.removeItem(LOGO_DATA_URL_KEY);
+              throw new Error("Invalid cached logo URL");
+            }
+          }
+          return cached;
+        } catch (e) {
+          console.warn("Error validating cached logo:", e);
+          // Continue to fetch from server
+        }
       }
       
       // Otherwise fetch from server
@@ -52,17 +70,43 @@ export function useCachedLogo() {
         if (dataUrl) {
           console.log("Server logo fetched successfully");
           localStorage.setItem(LOGO_DATA_URL_KEY, dataUrl);
+          setIsErrorState(false);
           return dataUrl;
         }
       } catch (error) {
         console.error('Failed to fetch logo:', error);
+        setIsErrorState(true);
+        if (cached) {
+          console.log("Using potentially invalid cached logo as fallback");
+          return cached;
+        }
       }
       
       console.log("Using default logo path");
+      setIsErrorState(false);
       return DEFAULT_LOGO_PATH;
     },
-    staleTime: 30000 // Reduce stale time to 30 seconds for more frequent refreshes
+    staleTime: 30000, // Reduce stale time to 30 seconds for more frequent refreshes
+    retry: 2,
+    retryDelay: 1000,
+    onError: (err) => {
+      console.error("Error fetching logo:", err);
+      setIsErrorState(true);
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+      }
+    }
   });
+
+  // Handle errors from the query
+  useEffect(() => {
+    if (error) {
+      console.error("Logo fetch error in effect:", error);
+      if (cachedLogo) {
+        console.log("Using cached logo as fallback after error");
+      }
+    }
+  }, [error, cachedLogo]);
 
   // Set up real-time subscription for logo changes in system_settings
   useEffect(() => {
@@ -72,6 +116,7 @@ export function useCachedLogo() {
         console.log("Storage event detected for logo");
         setCachedLogo(e.newValue);
         setRefreshTimestamp(Date.now());
+        setIsErrorState(false);
       }
     };
 
@@ -125,12 +170,14 @@ export function useCachedLogo() {
     if (logoDataUrl && logoDataUrl !== cachedLogo) {
       console.log("Updating cached logo from query result");
       setCachedLogo(logoDataUrl);
+      setIsErrorState(false);
     }
   }, [logoDataUrl, cachedLogo]);
 
   return {
-    logoUrl: logoDataUrl || DEFAULT_LOGO_PATH,
+    logoUrl: isErrorState && cachedLogo ? cachedLogo : (logoDataUrl || DEFAULT_LOGO_PATH),
     isLoading,
+    isError: isErrorState,
     refreshLogo
   };
 }

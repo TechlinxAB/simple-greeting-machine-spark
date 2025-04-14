@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { useCachedLogo } from "@/hooks/useCachedLogo";
+import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
 
 // Define schema for form validation
 const loginSchema = z.object({
@@ -25,9 +26,10 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  const { logoUrl } = useCachedLogo();
+  const { logoUrl, isLoading: logoLoading, refreshLogo } = useCachedLogo();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -54,16 +56,35 @@ const Login = () => {
     }
   };
 
+  const handleLogoError = () => {
+    console.log("Logo failed to load on login page, using fallback");
+    setLogoError(true);
+    setTimeout(() => {
+      refreshLogo();
+    }, 2000);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex justify-center">
-            <img
-              src={logoUrl}
-              alt="Time Tracker Logo"
-              className="h-16 w-auto"
-            />
+            {logoLoading ? (
+              <div className="h-16 w-16 bg-gray-200 animate-pulse rounded-sm"></div>
+            ) : logoError ? (
+              <img
+                src={DEFAULT_LOGO_PATH}
+                alt="Time Tracker Logo"
+                className="h-16 w-auto"
+              />
+            ) : (
+              <img
+                src={logoUrl}
+                alt="Time Tracker Logo"
+                className="h-16 w-auto"
+                onError={handleLogoError}
+              />
+            )}
           </div>
           <CardTitle className="text-2xl font-bold">Time Tracker</CardTitle>
           <CardDescription>
