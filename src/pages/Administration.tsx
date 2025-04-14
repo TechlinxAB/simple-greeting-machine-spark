@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -461,7 +460,7 @@ export default function Administration() {
               onUserChange={setSelectedUserId}
               includeAllOption
             />
-            <Select value={selectedClient || ""} onValueChange={(value) => setSelectedClient(value === "" ? null : value)}>
+            <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Clients" />
               </SelectTrigger>
@@ -656,4 +655,3 @@ export default function Administration() {
     </div>
   );
 }
-

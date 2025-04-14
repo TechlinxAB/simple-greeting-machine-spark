@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { User } from "lucide-react";
 
 interface UserSelectProps {
   selectedUserId: string | null;
@@ -43,8 +44,15 @@ export function UserSelect({ selectedUserId, onUserChange, includeAllOption = fa
         value={selectedUserId || "all-users"} 
         onValueChange={(val) => onUserChange(val === "all-users" ? null : val)}
       >
-        <SelectTrigger className="bg-background">
-          <SelectValue placeholder="Select user" />
+        <SelectTrigger className="bg-background w-[220px]">
+          <SelectValue placeholder="Select user">
+            <span className="flex items-center">
+              <User className="mr-2 h-4 w-4" />
+              {selectedUserId 
+                ? users.find(u => u.id === selectedUserId)?.name || "Unknown User" 
+                : "All Users"}
+            </span>
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {includeAllOption && <SelectItem value="all-users">All Users</SelectItem>}
