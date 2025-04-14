@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase, deleteRecord } from '@/lib/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -160,4 +159,38 @@ export async function deleteWithRetry(
  */
 export function safeData<T>(data: T | null | undefined, defaultValue: T): T {
   return data ?? defaultValue;
+}
+
+/**
+ * Fetches profiles data for specific users
+ * @param userIds Array of user IDs to fetch profiles for
+ * @returns Object mapping user IDs to their profile names
+ */
+export async function fetchUserProfiles(userIds: string[]): Promise<Record<string, string>> {
+  if (!userIds.length) return {};
+  
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+      
+    if (error) {
+      console.error('Error fetching user profiles:', error);
+      return {};
+    }
+    
+    // Create a mapping of user ID to name
+    const profileMap: Record<string, string> = {};
+    data?.forEach(profile => {
+      if (profile.id && profile.name) {
+        profileMap[profile.id] = profile.name;
+      }
+    });
+    
+    return profileMap;
+  } catch (error) {
+    console.error('Unexpected error fetching profiles:', error);
+    return {};
+  }
 }

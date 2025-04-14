@@ -199,7 +199,7 @@ export function TimeEntriesTable({
                 <TableHead className="w-[40px]">
                   <Checkbox 
                     checked={timeEntries.length > 0 && selectedItems.length === timeEntries.length}
-                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    onCheckedChange={(checked) => onSelectAll(!!checked)}
                     aria-label="Select all"
                   />
                 </TableHead>

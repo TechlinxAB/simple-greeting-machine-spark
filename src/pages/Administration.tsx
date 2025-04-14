@@ -117,8 +117,7 @@ export default function Administration() {
           .select(`
             *,
             clients(name),
-            products(name, type, price),
-            profiles(name)
+            products(name, type, price)
           `);
         
         if (!noDateFilter && startDate && endDate) {
@@ -151,7 +150,16 @@ export default function Administration() {
         
         console.log(`Found ${entriesData?.length || 0} time entries`);
         
-        return entriesData as TimeEntry[];
+        // Process the data to add the username from user_id
+        const processedEntries = entriesData?.map(entry => ({
+          ...entry,
+          // Add a profiles object with name that we couldn't get from the join
+          profiles: {
+            name: "User " + entry.user_id.substring(0, 8) // Simple fallback name based on user_id
+          }
+        }));
+        
+        return processedEntries as TimeEntry[];
       } catch (error) {
         console.error("Error in time entries query:", error);
         toast.error("Failed to load time entries");
