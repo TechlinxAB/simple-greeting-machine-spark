@@ -452,45 +452,6 @@ export default function Administration() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold">Administration</h1>
-        
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="flex w-full sm:w-auto gap-2">
-            <UserSelect
-              selectedUserId={selectedUserId}
-              onUserChange={setSelectedUserId}
-              includeAllOption
-            />
-            <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Clients" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-clients">All Clients</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-full sm:w-auto gap-2">
-            <Button
-              variant={activeFilter === 'current' ? 'default' : 'outline'}
-              onClick={() => setActiveFilter('current')}
-              className="flex items-center gap-2 flex-1 sm:flex-none"
-            >
-              <CalendarRange className="h-4 w-4" />
-              <span>Current</span>
-            </Button>
-            <Button
-              variant={activeFilter === 'all' ? 'default' : 'outline'}
-              onClick={() => setActiveFilter('all')}
-              className="flex items-center gap-2 flex-1 sm:flex-none"
-            >
-              <Infinity className="h-4 w-4" />
-              <span>All Time</span>
-            </Button>
-          </div>
-        </div>
       </div>
       
       <Card>
@@ -516,13 +477,19 @@ export default function Administration() {
             </div>
             
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Select
-                  value={selectedClient || "all"}
-                  onValueChange={(value) => setSelectedClient(value === "all" ? null : value)}
-                >
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="Select a client">
+              <div className="flex flex-wrap gap-2">
+                {activeTab === "time-entries" && (
+                  <UserSelect
+                    selectedUserId={selectedUserId}
+                    onUserChange={setSelectedUserId}
+                    includeAllOption
+                    className="min-w-[160px]"
+                  />
+                )}
+                
+                <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
+                  <SelectTrigger className="min-w-[160px]">
+                    <SelectValue placeholder="All Clients">
                       <span className="flex items-center">
                         <Icons.users className="mr-2 h-4 w-4" />
                         {selectedClient 
@@ -532,7 +499,7 @@ export default function Administration() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Clients</SelectItem>
+                    <SelectItem value="all-clients">All Clients</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -541,25 +508,33 @@ export default function Administration() {
                   </SelectContent>
                 </Select>
                 
-                {selectedClient && (
+                <div className="flex gap-2">
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedClient(null)}
-                    title="Clear client filter"
+                    variant={activeFilter === 'current' ? 'default' : 'outline'}
+                    onClick={() => setActiveFilter('current')}
+                    className="flex items-center gap-2"
                   >
-                    <Icons.filterIcon className="h-4 w-4" />
+                    <CalendarRange className="h-4 w-4" />
+                    <span>Current</span>
                   </Button>
-                )}
+                  <Button
+                    variant={activeFilter === 'all' ? 'default' : 'outline'}
+                    onClick={() => setActiveFilter('all')}
+                    className="flex items-center gap-2"
+                  >
+                    <Infinity className="h-4 w-4" />
+                    <span>All Time</span>
+                  </Button>
+                </div>
                 
-                <MonthYearSelector
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  onMonthYearChange={handleMonthYearChange}
-                  includeAllOption={true}
-                  onAllSelected={() => setNoDateFilter(prev => !prev)}
-                  isAllSelected={noDateFilter}
-                />
+                {!noDateFilter && (
+                  <MonthYearSelector
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onMonthYearChange={handleMonthYearChange}
+                    includeAllOption={false}
+                  />
+                )}
               </div>
               
               <div className="flex items-center gap-2">
@@ -642,7 +617,7 @@ export default function Administration() {
               {!isLoadingInvoices && (
                 <div className="mt-4 text-sm text-muted-foreground text-center">
                   {totalPages > 0 ? (
-                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
+                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
                   ) : (
                     <p>No invoices found matching the current filters.</p>
                   )}

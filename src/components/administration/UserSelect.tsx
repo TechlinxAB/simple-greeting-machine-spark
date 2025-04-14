@@ -44,7 +44,7 @@ export function UserSelect({ selectedUserId, onUserChange, includeAllOption = fa
         value={selectedUserId || "all-users"} 
         onValueChange={(val) => onUserChange(val === "all-users" ? null : val)}
       >
-        <SelectTrigger className="bg-background w-[220px]">
+        <SelectTrigger className="bg-background min-w-[160px]">
           <SelectValue placeholder="Select user">
             <span className="flex items-center">
               <User className="mr-2 h-4 w-4" />
