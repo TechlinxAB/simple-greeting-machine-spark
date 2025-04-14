@@ -1,605 +1,301 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
+
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
-import { InvoicesTable } from "@/components/administration/InvoicesTable";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Trash2, AlertCircle } from "lucide-react";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
-import { type Client, type TimeEntry, type Invoice } from "@/types";
-import { Icons } from "@/components/icons";
-import { fetchUserProfiles } from "@/hooks/useSupabaseQuery";
 import { UserSelect } from "@/components/administration/UserSelect";
-import { CalendarRange, Infinity } from "lucide-react";
+import { toast } from "sonner";
+import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 
 export default function Administration() {
-  const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("time-entries");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [noDateFilter, setNoDateFilter] = useState(true);
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [selectedEntriesIds, setSelectedEntriesIds] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<string | null>("start_time");
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const ITEMS_PER_PAGE = 100;
-  
-  if (role !== 'admin' && role !== 'manager') {
-    return (
-      <div className="container mx-auto py-12 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You do not have permission to access the administration page.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  const [allTimeEnabled, setAllTimeEnabled] = useState(false);
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["all-clients"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("name");
-      
-      if (error) {
-        console.error("Error fetching clients:", error);
-        toast.error("Failed to load clients");
-        return [];
-      }
-      
-      return data as Client[];
-    },
-  });
-
-  const selectedMonth = selectedDate.getMonth();
-  const selectedYear = selectedDate.getFullYear();
-  
   const handleMonthYearChange = (month: number, year: number) => {
-    const newDate = new Date(year, month, 1);
-    setSelectedDate(newDate);
-    setNoDateFilter(false);
-    
-    console.log(`Date changed to: ${format(newDate, 'yyyy-MM-dd')}, month: ${month}, year: ${year}`);
+    setSelectedMonth(month);
+    setSelectedYear(year);
   };
 
-  const handleAllTimeToggle = () => {
-    setNoDateFilter(true);
+  const handleUserChange = (userId: string | null) => {
+    setSelectedUserId(userId);
   };
 
-  const getDateRange = () => {
-    if (noDateFilter) {
-      return { startDate: null, endDate: null };
-    }
-    
-    const start = startOfMonth(selectedDate);
-    const end = endOfMonth(selectedDate);
-    
-    console.log(`Date range: ${format(start, 'yyyy-MM-dd')} to ${format(end, 'yyyy-MM-dd')}`);
-    
-    return {
-      startDate: start,
-      endDate: end
-    };
+  const startDate = allTimeEnabled ? undefined : startOfMonth(new Date(selectedYear, selectedMonth));
+  const endDate = allTimeEnabled ? undefined : endOfMonth(new Date(selectedYear, selectedMonth));
+
+  const toggleAllTime = (enabled: boolean) => {
+    setAllTimeEnabled(enabled);
   };
 
-  const { startDate, endDate } = getDateRange();
-
-  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, selectedUserId, sortField, sortDirection, page];
-  
-  const { 
-    data: timeEntries = [], 
-    isLoading: isLoadingTimeEntries,
-    refetch: refetchTimeEntries 
-  } = useQuery({
-    queryKey: timeEntriesQueryKey,
-    enabled: activeTab === "time-entries",
-    queryFn: async () => {
-      try {
-        console.log("Fetching time entries with params:", {
-          noDateFilter,
-          dateRange: !noDateFilter ? `${startDate?.toISOString()} to ${endDate?.toISOString()}` : 'No date filter',
-          client: selectedClient || 'All clients',
-          user: selectedUserId || 'All users'
-        });
-        
-        let query = supabase
-          .from("time_entries")
-          .select(`
-            *,
-            clients(name),
-            products(name, type, price)
-          `);
-        
-        if (!noDateFilter && startDate && endDate) {
-          query = query
-            .or(`start_time.gte.${startDate.toISOString()},start_time.is.null`)
-            .or(`start_time.lte.${endDate.toISOString()},start_time.is.null`)
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString());
-        }
-        
-        if (selectedClient) {
-          query = query.eq("client_id", selectedClient);
-        }
-        
-        if (selectedUserId) {
-          query = query.eq("user_id", selectedUserId);
-        }
-        
-        if (sortField) {
-          query = query.order(sortField, { ascending: sortDirection === 'asc' });
-        } else {
-          query = query.order("created_at", { ascending: false });
-        }
-        
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const to = from + ITEMS_PER_PAGE - 1;
-        query = query.range(from, to);
-        
-        const { data: entriesData, error: entriesError } = await query;
-        
-        if (entriesError) {
-          console.error("Error fetching time entries:", entriesError);
-          toast.error("Failed to load time entries");
-          return [];
-        }
-        
-        console.log(`Found ${entriesData?.length || 0} time entries`);
-        
-        const userIds = entriesData ? [...new Set(entriesData.map(entry => entry.user_id))] : [];
-        
-        const userProfiles = await fetchUserProfiles(userIds);
-        
-        const processedEntries = entriesData?.map(entry => ({
-          ...entry,
-          profiles: {
-            name: userProfiles[entry.user_id] || `User ${entry.user_id.substring(0, 8)}`
-          }
-        }));
-        
-        return processedEntries as TimeEntry[];
-      } catch (error) {
-        console.error("Error in time entries query:", error);
-        toast.error("Failed to load time entries");
-        return [];
-      }
-    },
-  });
-
-  const invoicesQueryKey = ["admin-invoices", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
-
-  const { 
-    data: invoices = [], 
-    isLoading: isLoadingInvoices,
-    refetch: refetchInvoices 
-  } = useQuery({
-    queryKey: invoicesQueryKey,
-    enabled: activeTab === "invoices",
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from("invoices")
-          .select(`
-            *,
-            clients(name)
-          `);
-        
-        if (!noDateFilter && startDate && endDate) {
-          query = query
-            .gte("issue_date", startDate.toISOString().split('T')[0])
-            .lte("issue_date", endDate.toISOString().split('T')[0]);
-        }
-        
-        if (selectedClient) {
-          query = query.eq("client_id", selectedClient);
-        }
-        
-        if (sortField) {
-          query = query.order(sortField, { ascending: sortDirection === 'asc' });
-        } else {
-          query = query.order("issue_date", { ascending: false });
-        }
-        
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const to = from + ITEMS_PER_PAGE - 1;
-        query = query.range(from, to);
-        
-        const { data, error } = await query;
-        
-        if (error) {
-          console.error("Error fetching invoices:", error);
-          toast.error("Failed to load invoices");
-          return [];
-        }
-        
-        return data as Invoice[];
-      } catch (error) {
-        console.error("Error in invoices query:", error);
-        toast.error("Failed to load invoices");
-        return [];
-      }
-    },
-  });
-
-  const {
-    data: timeEntriesCount = 0
-  } = useQuery({
-    queryKey: ["admin-time-entries-count", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient],
-    enabled: activeTab === "time-entries",
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from("time_entries")
-          .select("id", { count: 'exact', head: true });
-        
-        if (!noDateFilter) {
-          query = query
-            .gte("start_time", startDate!.toISOString())
-            .lte("start_time", endDate!.toISOString());
-        }
-        
-        if (selectedClient) {
-          query = query.eq("client_id", selectedClient);
-        }
-        
-        const { count, error } = await query;
-        
-        if (error) {
-          console.error("Error counting time entries:", error);
-          return 0;
-        }
-        
-        return count || 0;
-      } catch (error) {
-        console.error("Error in time entries count query:", error);
-        return 0;
-      }
-    }
-  });
-
-  const {
-    data: invoicesCount = 0
-  } = useQuery({
-    queryKey: ["admin-invoices-count", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient],
-    enabled: activeTab === "invoices",
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from("invoices")
-          .select("id", { count: 'exact', head: true });
-        
-        if (!noDateFilter) {
-          query = query
-            .gte("issue_date", startDate!.toISOString().split('T')[0])
-            .lte("issue_date", endDate!.toISOString().split('T')[0]);
-        }
-        
-        if (selectedClient) {
-          query = query.eq("client_id", selectedClient);
-        }
-        
-        const { count, error } = await query;
-        
-        if (error) {
-          console.error("Error counting invoices:", error);
-          return 0;
-        }
-        
-        return count || 0;
-      } catch (error) {
-        console.error("Error in invoices count query:", error);
-        return 0;
-      }
-    }
-  });
-
-  const handleEntryDeleted = () => {
-    refetchTimeEntries();
-    toast.success("Time entry deleted successfully");
-  };
-
-  const handleInvoiceDeleted = () => {
-    refetchInvoices();
-    toast.success("Invoice deleted successfully");
-  };
-  
-  const handleBulkDelete = async () => {
-    if (selectedItems.length === 0) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      if (activeTab === "time-entries") {
-        await supabase
-          .from("time_entries")
-          .update({ 
-            invoice_id: null,
-            invoiced: false 
-          })
-          .in("id", selectedItems)
-          .filter("invoiced", "eq", true);
-          
-        const { error } = await supabase
-          .from("time_entries")
-          .delete()
-          .in("id", selectedItems);
-          
-        if (error) {
-          console.error("Error deleting time entries:", error);
-          toast.error("Failed to delete time entries");
-          setIsDeleting(false);
-          return;
-        }
-        
-        refetchTimeEntries();
-        toast.success(`${selectedItems.length} time entries deleted successfully`);
-      } else {
-        const timeEntries = await supabase
-          .from("time_entries")
-          .select("id")
-          .in("invoice_id", selectedItems);
-          
-        if (timeEntries.data && timeEntries.data.length > 0) {
-          await supabase
-            .from("time_entries")
-            .update({ 
-              invoice_id: null,
-              invoiced: false 
-            })
-            .in("invoice_id", selectedItems);
-        }
-        
-        const { error } = await supabase
-          .from("invoices")
-          .delete()
-          .in("id", selectedItems);
-          
-        if (error) {
-          console.error("Error deleting invoices:", error);
-          toast.error("Failed to delete invoices");
-          setIsDeleting(false);
-          return;
-        }
-        
-        refetchInvoices();
-        toast.success(`${selectedItems.length} invoices deleted successfully`);
-      }
-      
-      setSelectedItems([]);
-      setBulkDeleteConfirmOpen(false);
-    } catch (error) {
-      console.error("Error in bulk delete operation:", error);
-      toast.error("An unexpected error occurred");
-      setIsDeleting(false);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
-  const toggleItemSelection = (id: string) => {
-    setSelectedItems(prev => 
-      prev.includes(id)
-        ? prev.filter(item => item !== id)
-        : [...prev, id]
-    );
-  };
-  
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const items = activeTab === "time-entries" 
-        ? timeEntries.map(entry => entry.id)
-        : invoices.map(invoice => invoice.id);
-      setSelectedItems(items);
-    } else {
-      setSelectedItems([]);
-    }
-  };
-  
-  useEffect(() => {
-    setPage(1);
-  }, [selectedClient, selectedUserId, noDateFilter, activeTab]);
-  
-  useEffect(() => {
-    setSelectedItems([]);
-  }, [activeTab]);
-  
-  const totalPages = Math.ceil(
-    activeTab === "time-entries" 
-      ? timeEntriesCount / ITEMS_PER_PAGE 
-      : invoicesCount / ITEMS_PER_PAGE
-  );
-  
   const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('asc');
     }
   };
 
+  const handleSelectEntry = (id: string) => {
+    setSelectedEntriesIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedEntriesIds(timeEntries.map(entry => entry.id));
+    } else {
+      setSelectedEntriesIds([]);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedEntriesIds.length === 0) {
+      toast.error("No time entries selected");
+      return;
+    }
+    
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteSelected = async () => {
+    if (selectedEntriesIds.length === 0) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const { error } = await supabase
+        .from("time_entries")
+        .delete()
+        .in("id", selectedEntriesIds);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success(`${selectedEntriesIds.length} time ${selectedEntriesIds.length === 1 ? 'entry' : 'entries'} deleted successfully`);
+      setSelectedEntriesIds([]);
+      
+      // Invalidate and refetch data
+      await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      
+    } catch (error: any) {
+      console.error("Error deleting time entries:", error);
+      toast.error(`Failed to delete time entries: ${error.message || "Unknown error"}`);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  let query = supabase
+    .from("time_entries")
+    .select(`
+      id, 
+      user_id,
+      client_id,
+      product_id,
+      start_time, 
+      end_time, 
+      quantity, 
+      description, 
+      created_at, 
+      updated_at,
+      invoiced,
+      products:product_id (id, name, type, price),
+      clients:client_id (name),
+      profiles:user_id (name)
+    `);
+  
+  if (selectedUserId) {
+    query = query.eq("user_id", selectedUserId);
+  }
+  
+  if (startDate) {
+    query = query.gte("start_time", startDate.toISOString());
+  }
+  
+  if (endDate) {
+    query = query.lte("start_time", endDate.toISOString());
+  }
+  
+  if (sortField) {
+    query = query.order(sortField, { ascending: sortDirection === 'asc' });
+  }
+
+  const { data: timeEntries = [], isLoading } = useQuery({
+    queryKey: ["time-entries", selectedMonth, selectedYear, selectedUserId, sortField, sortDirection, allTimeEnabled],
+    queryFn: async () => {
+      console.log("Fetching time entries with params:", {
+        month: selectedMonth,
+        year: selectedYear,
+        user: selectedUserId,
+        sort: sortField,
+        direction: sortDirection,
+        allTime: allTimeEnabled
+      });
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Error fetching time entries:", error);
+        throw error;
+      }
+      
+      console.log(`Found ${data?.length || 0} time entries`);
+      return data || [];
+    },
+  });
+
+  const handleEntryDeleted = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <h1 className="text-2xl font-bold">Administration</h1>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Management</CardTitle>
-          <CardDescription>
-            Manage time entries and invoices to maintain data integrity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="time-entries" className="w-full" onValueChange={setActiveTab}>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-              <TabsList>
-                <TabsTrigger value="time-entries" className="flex items-center gap-2">
-                  <Icons.clock className="h-4 w-4" />
-                  <span>Time Entries</span>
-                </TabsTrigger>
-                <TabsTrigger value="invoices" className="flex items-center gap-2">
-                  <Icons.fileText className="h-4 w-4" />
-                  <span>Invoices</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <div className="mb-6 flex flex-wrap gap-3 items-center">
-              {activeTab === "time-entries" && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <Select 
-                    value={selectedClient || "all-clients"} 
-                    onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="All Clients">
-                        <span className="flex items-center">
-                          <Icons.users className="mr-2 h-4 w-4" />
-                          {selectedClient 
-                            ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
-                            : "All Clients"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-clients">All Clients</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <UserSelect
-                    selectedUserId={selectedUserId}
-                    onUserChange={setSelectedUserId}
-                    includeAllOption
+      <Tabs defaultValue="time-entries" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="time-entries" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Time Entries</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+                <div className="grid gap-2 flex-1">
+                  <UserSelect 
+                    selectedUserId={selectedUserId} 
+                    onChange={handleUserChange} 
+                    label="Filter by user"
                   />
                 </div>
-              )}
-              
-              <div className="flex items-center gap-2">
-                <MonthYearSelector
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  onMonthYearChange={handleMonthYearChange}
-                  includeAllOption={true}
-                  onAllSelected={handleAllTimeToggle}
-                  isAllSelected={noDateFilter}
-                />
-              </div>
-              
-              <div className="flex items-center gap-2 ml-auto">
-                {selectedItems.length > 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setBulkDeleteConfirmOpen(true)}
-                    className="flex items-center gap-1"
-                  >
-                    <Icons.trash className="h-4 w-4" />
-                    <span>Delete Selected ({selectedItems.length})</span>
-                  </Button>
-                )}
                 
-                {bulkDeleteOpen ? (
+                <div className="grid gap-2 flex-1">
+                  <label className="text-sm font-medium">Date filter</label>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <AllTimeToggle 
+                      allTimeEnabled={allTimeEnabled} 
+                      onToggleAllTime={toggleAllTime}
+                    />
+                    
+                    {!allTimeEnabled && (
+                      <MonthYearSelector
+                        selectedMonth={selectedMonth}
+                        selectedYear={selectedYear}
+                        onMonthYearChange={handleMonthYearChange}
+                        className="flex-1"
+                      />
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 self-end">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setBulkDeleteOpen(false);
-                      setSelectedItems([]);
-                    }}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={handleDeleteSelected}
+                    disabled={selectedEntriesIds.length === 0}
                   >
-                    Cancel Selection
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    Delete Selected ({selectedEntriesIds.length})
                   </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBulkDeleteOpen(true)}
-                    className="flex items-center gap-1"
-                  >
-                    <Icons.check className="h-4 w-4" />
-                    <span>Select Multiple</span>
-                  </Button>
-                )}
+                </div>
               </div>
-            </div>
-            
-            <TabsContent value="time-entries" className="mt-4">
+              
               <TimeEntriesTable 
-                timeEntries={timeEntries} 
-                isLoading={isLoadingTimeEntries}
+                timeEntries={timeEntries}
+                isLoading={isLoading}
                 onEntryDeleted={handleEntryDeleted}
-                bulkDeleteMode={bulkDeleteOpen}
-                selectedItems={selectedItems}
-                onItemSelect={toggleItemSelection}
+                bulkDeleteMode={true}
+                selectedItems={selectedEntriesIds}
+                onItemSelect={handleSelectEntry}
                 onSelectAll={handleSelectAll}
+                onBulkDelete={handleDeleteSelected}
                 onSort={handleSort}
                 sortField={sortField}
                 sortDirection={sortDirection}
               />
-              
-              {!isLoadingTimeEntries && (
-                <div className="mt-4 text-sm text-muted-foreground text-center">
-                  {totalPages > 0 ? (
-                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, timeEntriesCount)} of {timeEntriesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
-                  ) : (
-                    <p>No time entries found matching the current filters.</p>
-                  )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-destructive mr-2" />
+              Delete {selectedEntriesIds.length} Time {selectedEntriesIds.length === 1 ? 'Entry' : 'Entries'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedEntriesIds.length} time {selectedEntriesIds.length === 1 ? 'entry' : 'entries'}? This action cannot be undone.
+              {timeEntries.some(entry => selectedEntriesIds.includes(entry.id) && entry.invoiced) && (
+                <div className="mt-2 p-2 border border-yellow-300 bg-yellow-50 rounded text-yellow-800">
+                  <strong>Warning:</strong> Some selected entries have already been invoiced. Deleting them may cause inconsistencies with your Fortnox data.
                 </div>
               )}
-            </TabsContent>
-            
-            <TabsContent value="invoices" className="mt-4">
-              <InvoicesTable 
-                invoices={invoices} 
-                isLoading={isLoadingInvoices}
-                onInvoiceDeleted={handleInvoiceDeleted}
-                bulkDeleteMode={bulkDeleteOpen}
-                selectedItems={selectedItems}
-                onItemSelect={toggleItemSelection}
-                onSelectAll={handleSelectAll}
-                onSort={handleSort}
-                sortField={sortField}
-                sortDirection={sortDirection}
-              />
-              
-              {!isLoadingInvoices && (
-                <div className="mt-4 text-sm text-muted-foreground text-center">
-                  {totalPages > 0 ? (
-                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
-                  ) : (
-                    <p>No invoices found matching the current filters.</p>
-                  )}
-                </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteSelected();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
               )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

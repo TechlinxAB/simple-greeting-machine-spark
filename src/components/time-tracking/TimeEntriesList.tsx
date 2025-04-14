@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +9,6 @@ import {
   Clock, 
   Package, 
   ClipboardList, 
-  Eye, 
   Edit, 
   Trash,
   Loader2
@@ -94,14 +92,12 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         
         console.log(`Found ${data?.length || 0} time entries`);
         
-        // Get usernames for each entry
         const entriesWithUsernames = await Promise.all(
           (data || []).map(async (entry) => {
             let username = "Unknown";
             
             if (entry.user_id) {
               try {
-                // Use the get_username function we created in the database
                 const { data: nameData, error: nameError } = await supabase.rpc(
                   'get_username',
                   { user_id: entry.user_id }
@@ -131,7 +127,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     enabled: !!user,
   });
 
-  // Reset deleting state when dialog closes
   useEffect(() => {
     if (!deleteDialogOpen) {
       setIsDeleting(false);
@@ -179,7 +174,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     console.log("Delete clicked for entry:", entry);
     setSelectedEntry(entry);
     setDeleteDialogOpen(true);
-    // Reset the deleting state when opening the dialog
     setIsDeleting(false);
   };
   
@@ -245,12 +239,6 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
           <CardTitle className="text-base font-medium">
             Activities for <span className="text-primary">{formattedDate}</span>
           </CardTitle>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <Eye className="h-3.5 w-3.5" />
-              <span>View full list</span>
-            </Button>
-          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

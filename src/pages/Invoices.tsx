@@ -19,12 +19,12 @@ import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { environment } from "@/config/environment";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { UserSelect } from "@/components/dashboard/UserSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
+import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -56,8 +56,8 @@ export default function Invoices() {
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>("");
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [fromDate, setFromDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [toDate, setToDate] = useState<Date | undefined>(endOfMonth(new Date()));
   const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [timeEntryToEdit, setTimeEntryToEdit] = useState<TimeEntryWithProfile | null>(null);
@@ -108,12 +108,9 @@ export default function Invoices() {
   });
 
   const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
-    queryKey: ["unbilled-entries", selectedClient, selectedMonth, selectedYear],
+    queryKey: ["unbilled-entries", selectedClient, fromDate, toDate],
     queryFn: async () => {
       if (!selectedClient) return [];
-      
-      const startDate = startOfMonth(new Date(selectedYear, selectedMonth));
-      const endDate = endOfMonth(new Date(selectedYear, selectedMonth));
       
       let query = supabase
         .from("time_entries")
@@ -129,8 +126,13 @@ export default function Invoices() {
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
-      query = query.gte('start_time', startDate.toISOString());
-      query = query.lte('start_time', endDate.toISOString());
+      if (fromDate) {
+        query = query.gte('start_time', fromDate.toISOString());
+      }
+      
+      if (toDate) {
+        query = query.lte('start_time', toDate.toISOString());
+      }
       
       const { data: entriesData, error: entriesError } = await query;
       
@@ -284,9 +286,9 @@ export default function Invoices() {
     }
   };
 
-  const handleMonthYearChange = (month: number, year: number) => {
-    setSelectedMonth(month);
-    setSelectedYear(year);
+  const handleDateRangeChange = (from: Date | undefined, to: Date | undefined) => {
+    setFromDate(from);
+    setToDate(to);
   };
 
   const calculateTotal = () => {
@@ -443,12 +445,12 @@ export default function Invoices() {
             
             {selectedClient && (
               <div className="flex flex-col md:flex-row gap-4 mb-2">
-                <div className="w-full md:w-auto">
-                  <label className="text-sm font-medium block mb-2">Filter by Month/Year</label>
-                  <MonthYearSelector
-                    selectedMonth={selectedMonth}
-                    selectedYear={selectedYear}
-                    onMonthYearChange={handleMonthYearChange}
+                <div className="w-full">
+                  <label className="text-sm font-medium block mb-2">Time span</label>
+                  <DateRangeSelector 
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    onDateChange={handleDateRangeChange}
                   />
                 </div>
               </div>

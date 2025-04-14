@@ -1,3 +1,4 @@
+
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +23,7 @@ interface TimeEntriesTableProps {
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
+  onBulkDelete?: (ids: string[]) => void; // Add this prop for bulk delete
   onSort?: (field: string) => void;
   sortField?: string | null;
   sortDirection?: 'asc' | 'desc';
@@ -41,6 +43,7 @@ export function TimeEntriesTable({
   selectedItems = [],
   onItemSelect = () => {},
   onSelectAll = () => {},
+  onBulkDelete = () => {}, // Default empty function
   onSort,
   sortField,
   sortDirection = 'asc'
