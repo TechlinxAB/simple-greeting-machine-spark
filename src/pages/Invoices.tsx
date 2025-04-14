@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2, Edit2 } from "lucide-react";
+import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
@@ -62,6 +62,7 @@ export default function Invoices() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [timeEntryToEdit, setTimeEntryToEdit] = useState<TimeEntryWithProfile | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [excludedEntries, setExcludedEntries] = useState<string[]>([]);
   const { role } = useAuth();
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
@@ -189,6 +190,14 @@ export default function Invoices() {
     setIsDeleteDialogOpen(true);
   };
 
+  const toggleExcludeEntry = (entryId: string) => {
+    setExcludedEntries(prev => 
+      prev.includes(entryId) 
+        ? prev.filter(id => id !== entryId) 
+        : [...prev, entryId]
+    );
+  };
+
   const getBadgeVariant = (status: string) => {
     switch (status) {
       case "paid":
@@ -234,7 +243,15 @@ export default function Invoices() {
     setProcessingStatus("Creating invoice...");
     
     try {
-      const timeEntryIds = unbilledEntries.map(entry => entry.id);
+      const includedEntries = unbilledEntries.filter(entry => !excludedEntries.includes(entry.id));
+      
+      if (includedEntries.length === 0) {
+        toast.error("All entries have been excluded. Cannot create an empty invoice.");
+        setIsExportingInvoice(false);
+        return;
+      }
+      
+      const timeEntryIds = includedEntries.map(entry => entry.id);
       
       setProcessingStatus("Checking and creating products in Fortnox...");
       const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
@@ -245,6 +262,7 @@ export default function Invoices() {
       
       setIsCreatingInvoice(false);
       setSelectedClient("");
+      setExcludedEntries([]);
       refetch();
       refetchUnbilled();
     } catch (error) {
@@ -274,22 +292,24 @@ export default function Invoices() {
   const calculateTotal = () => {
     let total = 0;
     
-    unbilledEntries.forEach(entry => {
-      if (entry.products) {
-        let quantity = 1;
-        
-        if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
-          const start = new Date(entry.start_time);
-          const end = new Date(entry.end_time);
-          const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          quantity = parseFloat(diffHours.toFixed(2));
-        } else if (entry.products.type === 'item' && entry.quantity) {
-          quantity = entry.quantity;
+    unbilledEntries
+      .filter(entry => !excludedEntries.includes(entry.id))
+      .forEach(entry => {
+        if (entry.products) {
+          let quantity = 1;
+          
+          if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
+            const start = new Date(entry.start_time);
+            const end = new Date(entry.end_time);
+            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            quantity = parseFloat(diffHours.toFixed(2));
+          } else if (entry.products.type === 'item' && entry.quantity) {
+            quantity = entry.quantity;
+          }
+          
+          total += entry.products.price * quantity;
         }
-        
-        total += entry.products.price * quantity;
-      }
-    });
+      });
     
     return total.toFixed(2);
   };
@@ -302,14 +322,18 @@ export default function Invoices() {
       )
     : invoices;
 
-  const hasInvalidArticleNumbers = unbilledEntries.some(entry => 
-    entry.products?.article_number && 
-    !/^\d+$/.test(entry.products.article_number)
-  );
+  const hasInvalidArticleNumbers = unbilledEntries
+    .filter(entry => !excludedEntries.includes(entry.id))
+    .some(entry => 
+      entry.products?.article_number && 
+      !/^\d+$/.test(entry.products.article_number)
+    );
 
-  const missingArticleNumbers = unbilledEntries.some(entry => 
-    !entry.products?.article_number
-  );
+  const missingArticleNumbers = unbilledEntries
+    .filter(entry => !excludedEntries.includes(entry.id))
+    .some(entry => 
+      !entry.products?.article_number
+    );
 
   const handleInvoiceDeleted = () => {
     refetch();
@@ -325,6 +349,11 @@ export default function Invoices() {
     setTimeEntryToEdit(null);
     refetchUnbilled();
     toast.success("Time entry updated successfully");
+  };
+
+  const resetExclusions = () => {
+    setExcludedEntries([]);
+    toast.success("All entries are now included");
   };
 
   return (
@@ -463,15 +492,28 @@ export default function Invoices() {
               <div className="space-y-3 flex-1 overflow-hidden">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => refetchUnbilled()}
-                    className="h-8"
-                  >
-                    <RefreshCcw className="h-3 w-3 mr-1" />
-                    Refresh
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {excludedEntries.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={resetExclusions}
+                        className="h-8 text-xs"
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Include All ({excludedEntries.length} excluded)
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => refetchUnbilled()}
+                      className="h-8"
+                    >
+                      <RefreshCcw className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
                 
                 {unbilledEntries.length === 0 ? (
@@ -491,6 +533,7 @@ export default function Invoices() {
                             <TableHead>Quantity</TableHead>
                             <TableHead>Art. Number</TableHead>
                             <TableHead className="text-right">Amount (SEK)</TableHead>
+                            <TableHead className="w-[100px]">Include</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -518,14 +561,18 @@ export default function Invoices() {
                             const entryDate = entry.start_time 
                               ? format(parseISO(entry.start_time), 'yyyy-MM-dd')
                               : 'N/A';
+                              
+                            const isExcluded = excludedEntries.includes(entry.id);
                             
                             return (
-                              <TableRow key={entry.id}>
+                              <TableRow key={entry.id} className={isExcluded ? "bg-muted/30" : ""}>
                                 <TableCell className="font-medium max-w-[200px]">
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger className="text-left truncate block w-full">
-                                        <span className="truncate block">{entry.description || 'No description'}</span>
+                                        <span className={`truncate block ${isExcluded ? "text-muted-foreground line-through" : ""}`}>
+                                          {entry.description || 'No description'}
+                                        </span>
                                       </TooltipTrigger>
                                       {entry.description && (
                                         <TooltipContent side="bottom" className="max-w-[300px] p-3">
@@ -536,13 +583,19 @@ export default function Invoices() {
                                     </Tooltip>
                                   </TooltipProvider>
                                 </TableCell>
-                                <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
-                                <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
-                                <TableCell>{entryDate}</TableCell>
-                                <TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entry.user_profile?.name || 'Unknown'}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entry.products?.name || 'Unknown Product'}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entryDate}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
                                   {quantity} {unit}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
                                   {entry.products?.article_number ? (
                                     hasValidArticleNumber ? (
                                       entry.products.article_number
@@ -575,7 +628,24 @@ export default function Invoices() {
                                     </TooltipProvider>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
+                                <TableCell className={`text-right ${isExcluded ? "text-muted-foreground" : ""}`}>
+                                  {amount.toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => toggleExcludeEntry(entry.id)}
+                                    className={`h-8 w-8 ${isExcluded ? "text-primary hover:text-primary/80" : "text-destructive hover:text-destructive/80"}`}
+                                    title={isExcluded ? "Include in invoice" : "Exclude from invoice"}
+                                  >
+                                    {isExcluded ? (
+                                      <CheckCircle className="h-4 w-4" />
+                                    ) : (
+                                      <XCircle className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-1">
                                     <Button 
@@ -602,7 +672,7 @@ export default function Invoices() {
                           <TableRow>
                             <TableCell colSpan={6} className="font-bold text-right">Total:</TableCell>
                             <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
-                            <TableCell></TableCell>
+                            <TableCell colSpan={2}></TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>
@@ -619,7 +689,12 @@ export default function Invoices() {
             </Button>
             <Button 
               onClick={handleCreateInvoice} 
-              disabled={!selectedClient || unbilledEntries.length === 0 || isExportingInvoice}
+              disabled={
+                !selectedClient || 
+                unbilledEntries.length === 0 || 
+                isExportingInvoice || 
+                unbilledEntries.every(entry => excludedEntries.includes(entry.id))
+              }
               className="flex items-center gap-2"
             >
               {isExportingInvoice ? (
