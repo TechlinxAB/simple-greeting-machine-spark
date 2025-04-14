@@ -199,7 +199,7 @@ export function TimeEntriesTable({
                   />
                 </TableHead>
               )}
-              <SortableHeader field="clients.name">Client</SortableHeader>
+              <SortableHeader field="clients.name" className="w-[250px] max-w-[250px] truncate">Client</SortableHeader>
               <TableHead>User</TableHead>
               <SortableHeader field="products.name">Product</SortableHeader>
               <TableHead>Type</TableHead>
@@ -223,7 +223,12 @@ export function TimeEntriesTable({
                     />
                   </TableCell>
                 )}
-                <TableCell>{entry.clients?.name || "Unknown client"}</TableCell>
+                <TableCell 
+                  className="w-[250px] max-w-[250px] truncate font-medium" 
+                  title={entry.clients?.name || "Unknown client"}
+                >
+                  {entry.clients?.name || "Unknown client"}
+                </TableCell>
                 <TableCell>
                   {entry.profiles?.name || "Unknown user"}
                 </TableCell>

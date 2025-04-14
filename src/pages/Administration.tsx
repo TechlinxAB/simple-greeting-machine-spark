@@ -26,7 +26,7 @@ export default function Administration() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [noDateFilter, setNoDateFilter] = useState(false);
+  const [noDateFilter, setNoDateFilter] = useState(true);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
@@ -81,7 +81,7 @@ export default function Administration() {
   };
 
   const handleAllTimeToggle = () => {
-    setNoDateFilter(!noDateFilter);
+    setNoDateFilter(true);
   };
 
   const getDateRange = () => {
@@ -467,7 +467,10 @@ export default function Administration() {
             <div className="mb-6 flex flex-wrap gap-3 items-center">
               {activeTab === "time-entries" && (
                 <div className="flex flex-wrap items-center gap-3">
-                  <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
+                  <Select 
+                    value={selectedClient || "all-clients"} 
+                    onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}
+                  >
                     <SelectTrigger className="w-[140px]">
                       <SelectValue placeholder="All Clients">
                         <span className="flex items-center">
