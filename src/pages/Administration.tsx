@@ -34,7 +34,6 @@ export default function Administration() {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [activeFilter, setActiveFilter] = useState<'current' | 'all'>('current');
   const ITEMS_PER_PAGE = 100;
   
   if (role !== 'admin' && role !== 'manager') {
@@ -81,13 +80,9 @@ export default function Administration() {
     console.log(`Date changed to: ${format(newDate, 'yyyy-MM-dd')}, month: ${month}, year: ${year}`);
   };
 
-  useEffect(() => {
-    if (activeFilter === 'all') {
-      setNoDateFilter(true);
-    } else {
-      setNoDateFilter(false);
-    }
-  }, [activeFilter]);
+  const handleAllTimeToggle = () => {
+    setNoDateFilter(!noDateFilter);
+  };
 
   const getDateRange = () => {
     if (noDateFilter) {
@@ -471,9 +466,9 @@ export default function Administration() {
             
             <div className="mb-6 flex flex-wrap gap-3 items-center">
               {activeTab === "time-entries" && (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Select value={selectedClient || "all-clients"} onValueChange={(value) => setSelectedClient(value === "all-clients" ? null : value)}>
-                    <SelectTrigger className="min-w-[140px] w-auto">
+                    <SelectTrigger className="w-[140px]">
                       <SelectValue placeholder="All Clients">
                         <span className="flex items-center">
                           <Icons.users className="mr-2 h-4 w-4" />
@@ -497,37 +492,19 @@ export default function Administration() {
                     selectedUserId={selectedUserId}
                     onUserChange={setSelectedUserId}
                     includeAllOption
-                    className="w-auto"
                   />
                 </div>
               )}
               
-              {!noDateFilter && (
+              <div className="flex items-center gap-2">
                 <MonthYearSelector
                   selectedMonth={selectedMonth}
                   selectedYear={selectedYear}
                   onMonthYearChange={handleMonthYearChange}
-                  includeAllOption={false}
+                  includeAllOption={true}
+                  onAllSelected={handleAllTimeToggle}
+                  isAllSelected={noDateFilter}
                 />
-              )}
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={activeFilter === 'current' ? 'default' : 'outline'}
-                  onClick={() => setActiveFilter('current')}
-                  size="sm"
-                  className="h-9"
-                >
-                  Current
-                </Button>
-                <Button
-                  variant={activeFilter === 'all' ? 'default' : 'outline'}
-                  onClick={() => setActiveFilter('all')}
-                  size="sm"
-                  className="h-9"
-                >
-                  All Time
-                </Button>
               </div>
               
               <div className="flex items-center gap-2 ml-auto">
