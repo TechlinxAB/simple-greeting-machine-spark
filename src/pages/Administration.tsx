@@ -18,12 +18,14 @@ import { type Client, type TimeEntry, type Invoice } from "@/types";
 import { Icons } from "@/components/icons";
 import { fetchUserProfiles } from "@/hooks/useSupabaseQuery";
 import { UserSelect } from "@/components/administration/UserSelect";
+import { CalendarRange, Infinity } from "lucide-react";
 
 export default function Administration() {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [noDateFilter, setNoDateFilter] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -32,6 +34,7 @@ export default function Administration() {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [activeFilter, setActiveFilter] = useState<'current' | 'all'>('current');
   const ITEMS_PER_PAGE = 100;
   
   if (role !== 'admin' && role !== 'manager') {
@@ -79,6 +82,14 @@ export default function Administration() {
     console.log(`Date changed to: ${format(newDate, 'yyyy-MM-dd')}, month: ${month}, year: ${year}`);
   };
 
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setNoDateFilter(true);
+    } else {
+      setNoDateFilter(false);
+    }
+  }, [activeFilter]);
+
   const getDateRange = () => {
     if (noDateFilter) {
       return { startDate: null, endDate: null };
@@ -97,7 +108,7 @@ export default function Administration() {
 
   const { startDate, endDate } = getDateRange();
 
-  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
+  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, selectedUserId, sortField, sortDirection, page];
   
   const { 
     data: timeEntries = [], 
@@ -111,7 +122,8 @@ export default function Administration() {
         console.log("Fetching time entries with params:", {
           noDateFilter,
           dateRange: !noDateFilter ? `${startDate?.toISOString()} to ${endDate?.toISOString()}` : 'No date filter',
-          client: selectedClient || 'All clients'
+          client: selectedClient || 'All clients',
+          user: selectedUserId || 'All users'
         });
         
         let query = supabase
@@ -135,6 +147,10 @@ export default function Administration() {
         
         if (selectedClient) {
           query = query.eq("client_id", selectedClient);
+        }
+        
+        if (selectedUserId) {
+          query = query.eq("user_id", selectedUserId);
         }
         
         if (sortField) {
@@ -411,7 +427,7 @@ export default function Administration() {
   
   useEffect(() => {
     setPage(1);
-  }, [selectedClient, noDateFilter, activeTab]);
+  }, [selectedClient, selectedUserId, noDateFilter, activeTab]);
   
   useEffect(() => {
     setSelectedItems([]);
@@ -440,12 +456,11 @@ export default function Administration() {
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <div className="flex w-full sm:w-auto gap-2">
             <UserSelect
-              selectedUserId={selectedUser}
-              onUserChange={setSelectedUser}
-              className="w-full sm:w-48"
+              selectedUserId={selectedUserId}
+              onUserChange={setSelectedUserId}
               includeAllOption
             />
-            <Select value={selectedClient || ""} onValueChange={setSelectedClient} className="w-full sm:w-48">
+            <Select value={selectedClient || ""} onValueChange={setSelectedClient}>
               <SelectTrigger>
                 <SelectValue placeholder="All Clients" />
               </SelectTrigger>
@@ -471,7 +486,7 @@ export default function Administration() {
               onClick={() => setActiveFilter('all')}
               className="flex items-center gap-2 flex-1 sm:flex-none"
             >
-              <Icons.infinity className="h-4 w-4" />
+              <Infinity className="h-4 w-4" />
               <span>All Time</span>
             </Button>
           </div>
@@ -627,7 +642,7 @@ export default function Administration() {
               {!isLoadingInvoices && (
                 <div className="mt-4 text-sm text-muted-foreground text-center">
                   {totalPages > 0 ? (
-                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
+                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
                   ) : (
                     <p>No invoices found matching the current filters.</p>
                   )}
