@@ -27,6 +27,12 @@ interface TimeEntriesTableProps {
   sortDirection?: 'asc' | 'desc';
 }
 
+interface SortableHeaderProps {
+  field: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
 export function TimeEntriesTable({ 
   timeEntries, 
   isLoading, 
@@ -125,11 +131,11 @@ export function TimeEntriesTable({
     return "0.00";
   };
   
-  const SortableHeader = ({ field, children }: { field: string, children: React.ReactNode }) => {
-    if (!onSort) return <TableHead>{children}</TableHead>;
+  const SortableHeader = ({ field, children, className }: SortableHeaderProps) => {
+    if (!onSort) return <TableHead className={className}>{children}</TableHead>;
     
     return (
-      <TableHead className="cursor-pointer" onClick={() => onSort(field)}>
+      <TableHead className={`cursor-pointer ${className || ''}`} onClick={() => onSort(field)}>
         <div className="flex items-center justify-between">
           <span>{children}</span>
           {sortField === field && (
