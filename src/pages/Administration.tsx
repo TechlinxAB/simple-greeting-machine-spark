@@ -69,26 +69,33 @@ export default function Administration() {
   const selectedYear = selectedDate.getFullYear();
   
   const handleMonthYearChange = (month: number, year: number) => {
-    const newDate = new Date(selectedDate);
-    setMonth(newDate, month);
-    setYear(newDate, year);
+    const newDate = new Date(year, month, 1);
     setSelectedDate(newDate);
     setNoDateFilter(false);
+    
+    // Log the date change to help with debugging
+    console.log(`Date changed to: ${format(newDate, 'yyyy-MM-dd')}, month: ${month}, year: ${year}`);
   };
 
   const getDateRange = () => {
     if (noDateFilter) {
       return { startDate: null, endDate: null };
     }
+    
+    const start = startOfMonth(selectedDate);
+    const end = endOfMonth(selectedDate);
+    
+    console.log(`Date range: ${format(start, 'yyyy-MM-dd')} to ${format(end, 'yyyy-MM-dd')}`);
+    
     return {
-      startDate: startOfMonth(selectedDate),
-      endDate: endOfMonth(selectedDate)
+      startDate: start,
+      endDate: end
     };
   };
 
   const { startDate, endDate } = getDateRange();
 
-  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
+  const timeEntriesQueryKey = ["admin-time-entries", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
   
   const { 
     data: timeEntries = [], 
@@ -99,18 +106,25 @@ export default function Administration() {
     enabled: activeTab === "time-entries",
     queryFn: async () => {
       try {
+        console.log("Fetching time entries with params:", {
+          noDateFilter,
+          dateRange: !noDateFilter ? `${startDate?.toISOString()} to ${endDate?.toISOString()}` : 'No date filter',
+          client: selectedClient || 'All clients'
+        });
+        
         let query = supabase
           .from("time_entries")
           .select(`
             *,
             clients(name),
-            products(name, type, price)
+            products(name, type, price),
+            profiles(name)
           `);
         
-        if (!noDateFilter) {
+        if (!noDateFilter && startDate && endDate) {
           query = query
-            .gte("start_time", startDate!.toISOString())
-            .lte("start_time", endDate!.toISOString());
+            .gte("start_time", startDate.toISOString())
+            .lte("start_time", endDate.toISOString());
         }
         
         if (selectedClient) {
@@ -135,36 +149,7 @@ export default function Administration() {
           return [];
         }
         
-        const userIds = [...new Set(entriesData.map(entry => entry.user_id).filter(Boolean))];
-        
-        if (userIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id, name")
-            .in("id", userIds);
-            
-          if (profilesError) {
-            console.error("Error fetching profiles:", profilesError);
-          }
-          
-          const profileMap = new Map();
-          if (profilesData) {
-            profilesData.forEach(profile => {
-              profileMap.set(profile.id, profile.name || "Unknown");
-            });
-          }
-          
-          const entriesWithProfiles = entriesData.map(entry => {
-            return {
-              ...entry,
-              profiles: { 
-                name: profileMap.get(entry.user_id) || "Unknown" 
-              }
-            };
-          });
-          
-          return entriesWithProfiles as TimeEntry[];
-        }
+        console.log(`Found ${entriesData?.length || 0} time entries`);
         
         return entriesData as TimeEntry[];
       } catch (error) {
@@ -175,7 +160,7 @@ export default function Administration() {
     },
   });
 
-  const invoicesQueryKey = ["admin-invoices", noDateFilter ? "all" : format(startDate!, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
+  const invoicesQueryKey = ["admin-invoices", noDateFilter ? "all" : format(selectedDate, "yyyy-MM"), selectedClient, sortField, sortDirection, page];
 
   const { 
     data: invoices = [], 
@@ -193,10 +178,10 @@ export default function Administration() {
             clients(name)
           `);
         
-        if (!noDateFilter) {
+        if (!noDateFilter && startDate && endDate) {
           query = query
-            .gte("issue_date", startDate!.toISOString().split('T')[0])
-            .lte("issue_date", endDate!.toISOString().split('T')[0]);
+            .gte("issue_date", startDate.toISOString().split('T')[0])
+            .lte("issue_date", endDate.toISOString().split('T')[0]);
         }
         
         if (selectedClient) {

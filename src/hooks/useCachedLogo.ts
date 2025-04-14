@@ -89,11 +89,13 @@ export function useCachedLogo() {
     staleTime: 30000, // Reduce stale time to 30 seconds for more frequent refreshes
     retry: 2,
     retryDelay: 1000,
-    onError: (err) => {
-      console.error("Error fetching logo:", err);
-      setIsErrorState(true);
-      if (retryCount < 3) {
-        setRetryCount(prev => prev + 1);
+    meta: {
+      onError: (err: Error) => {
+        console.error("Error fetching logo:", err);
+        setIsErrorState(true);
+        if (retryCount < 3) {
+          setRetryCount(prev => prev + 1);
+        }
       }
     }
   });
