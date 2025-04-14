@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -460,12 +461,12 @@ export default function Administration() {
               onUserChange={setSelectedUserId}
               includeAllOption
             />
-            <Select value={selectedClient || ""} onValueChange={setSelectedClient}>
+            <Select value={selectedClient || ""} onValueChange={(value) => setSelectedClient(value === "" ? null : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Clients" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Clients</SelectItem>
+                <SelectItem value="all-clients">All Clients</SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                 ))}
@@ -642,7 +643,7 @@ export default function Administration() {
               {!isLoadingInvoices && (
                 <div className="mt-4 text-sm text-muted-foreground text-center">
                   {totalPages > 0 ? (
-                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
+                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
                   ) : (
                     <p>No invoices found matching the current filters.</p>
                   )}
@@ -655,3 +656,4 @@ export default function Administration() {
     </div>
   );
 }
+
