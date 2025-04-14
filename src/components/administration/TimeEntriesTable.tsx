@@ -1,6 +1,5 @@
-
 import { format, formatDistanceToNow } from "date-fns";
-import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle } from "lucide-react";
+import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TimeEntriesTableProps {
   timeEntries: TimeEntry[];
@@ -46,7 +46,6 @@ export function TimeEntriesTable({
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
   const [pendingInvoicedId, setPendingInvoicedId] = useState<string | null>(null);
 
-  // Reset deleting state when dialog closes
   useEffect(() => {
     if (!deleteDialogOpen) {
       setIsDeleting(false);
@@ -61,7 +60,6 @@ export function TimeEntriesTable({
     
     setSelectedEntry(entry);
     setDeleteDialogOpen(true);
-    // Reset the deleting state when opening the dialog
     setIsDeleting(false);
   };
 
@@ -106,7 +104,7 @@ export function TimeEntriesTable({
   const handleEditSuccess = () => {
     setEditDialogOpen(false);
     toast.success("Time entry updated successfully");
-    onEntryDeleted(); // Refresh the list
+    onEntryDeleted();
   };
   
   const calculateDuration = (start: string, end: string) => {
@@ -142,7 +140,6 @@ export function TimeEntriesTable({
     );
   };
 
-  // Handle checkbox toggle for invoiced time entries
   const handleItemSelect = (id: string, invoiced: boolean) => {
     if (invoiced) {
       setPendingInvoicedId(id);
@@ -152,7 +149,6 @@ export function TimeEntriesTable({
     }
   };
 
-  // Confirm selection of invoiced entry
   const confirmInvoicedSelection = () => {
     if (pendingInvoicedId) {
       onItemSelect(pendingInvoicedId);
@@ -161,7 +157,6 @@ export function TimeEntriesTable({
     }
   };
 
-  // Handle select all with separation of invoiced entries
   const handleSelectAll = (checked: boolean) => {
     const hasInvoicedEntries = timeEntries.some(entry => entry.invoiced);
     
@@ -208,6 +203,7 @@ export function TimeEntriesTable({
               <TableHead>User</TableHead>
               <SortableHeader field="products.name">Product</SortableHeader>
               <TableHead>Type</TableHead>
+              <TableHead>Description</TableHead>
               <SortableHeader field="start_time">Date</SortableHeader>
               <TableHead>Duration/Quantity</TableHead>
               <TableHead>Amount</TableHead>
@@ -241,6 +237,26 @@ export function TimeEntriesTable({
                     )}
                     <span className="capitalize">{entry.products?.type || "Unknown"}</span>
                   </div>
+                </TableCell>
+                <TableCell className="max-w-[200px]">
+                  {entry.description ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="text-left truncate block w-full">
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">{entry.description}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[300px] p-3">
+                          <p className="font-medium mb-1">Description:</p>
+                          <p className="text-sm">{entry.description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <span className="text-muted-foreground text-sm italic">No description</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {entry.products?.type === "activity" && entry.start_time ? 
@@ -324,7 +340,6 @@ export function TimeEntriesTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Invoiced entry warning dialog */}
       <AlertDialog open={invoicedWarningOpen} onOpenChange={setInvoicedWarningOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -367,7 +382,6 @@ export function TimeEntriesTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Use the new DialogWrapper component to ensure proper accessibility */}
       <DialogWrapper 
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen}

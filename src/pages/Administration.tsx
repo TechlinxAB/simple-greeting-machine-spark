@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, parseISO, setMonth, setYear } from "date-fns";
@@ -18,6 +17,7 @@ import { MonthYearSelector } from "@/components/administration/MonthYearSelector
 import { type Client, type TimeEntry, type Invoice } from "@/types";
 import { Icons } from "@/components/icons";
 import { fetchUserProfiles } from "@/hooks/useSupabaseQuery";
+import { UserSelect } from "@/components/administration/UserSelect";
 
 export default function Administration() {
   const { role } = useAuth();
@@ -433,220 +433,210 @@ export default function Administration() {
   };
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
-        </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold">Administration</h1>
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Management</CardTitle>
-            <CardDescription>
-              Manage time entries and invoices to maintain data integrity
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="time-entries" className="w-full" onValueChange={setActiveTab}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-                <TabsList>
-                  <TabsTrigger value="time-entries" className="flex items-center gap-2">
-                    <Icons.clock className="h-4 w-4" />
-                    <span>Time Entries</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="invoices" className="flex items-center gap-2">
-                    <Icons.fileText className="h-4 w-4" />
-                    <span>Invoices</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              
-              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Select
-                    value={selectedClient || "all"}
-                    onValueChange={(value) => setSelectedClient(value === "all" ? null : value)}
-                  >
-                    <SelectTrigger className="w-[220px]">
-                      <SelectValue placeholder="Select a client">
-                        <span className="flex items-center">
-                          <Icons.users className="mr-2 h-4 w-4" />
-                          {selectedClient 
-                            ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
-                            : "All Clients"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Clients</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  {selectedClient && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedClient(null)}
-                      title="Clear client filter"
-                    >
-                      <Icons.filterIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  <MonthYearSelector
-                    selectedMonth={selectedMonth}
-                    selectedYear={selectedYear}
-                    onMonthYearChange={handleMonthYearChange}
-                    includeAllOption={true}
-                    onAllSelected={() => setNoDateFilter(prev => !prev)}
-                    isAllSelected={noDateFilter}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {selectedItems.length > 0 && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setBulkDeleteConfirmOpen(true)}
-                      className="flex items-center gap-1"
-                    >
-                      <Icons.trash className="h-4 w-4" />
-                      <span>Delete Selected ({selectedItems.length})</span>
-                    </Button>
-                  )}
-                  
-                  {bulkDeleteOpen ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setBulkDeleteOpen(false);
-                        setSelectedItems([]);
-                      }}
-                    >
-                      Cancel Selection
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setBulkDeleteOpen(true)}
-                      className="flex items-center gap-1"
-                    >
-                      <Icons.check className="h-4 w-4" />
-                      <span>Select Multiple</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              <TabsContent value="time-entries" className="mt-4">
-                <TimeEntriesTable 
-                  timeEntries={timeEntries} 
-                  isLoading={isLoadingTimeEntries}
-                  onEntryDeleted={handleEntryDeleted}
-                  bulkDeleteMode={bulkDeleteOpen}
-                  selectedItems={selectedItems}
-                  onItemSelect={toggleItemSelection}
-                  onSelectAll={handleSelectAll}
-                  onSort={handleSort}
-                  sortField={sortField}
-                  sortDirection={sortDirection}
-                />
-                
-                {!isLoadingTimeEntries && (
-                  <div className="mt-4 text-sm text-muted-foreground text-center">
-                    {totalPages > 0 ? (
-                      <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, timeEntriesCount)} of {timeEntriesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
-                    ) : (
-                      <p>No time entries found matching the current filters.</p>
-                    )}
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="invoices" className="mt-4">
-                <InvoicesTable 
-                  invoices={invoices} 
-                  isLoading={isLoadingInvoices}
-                  onInvoiceDeleted={handleInvoiceDeleted}
-                  bulkDeleteMode={bulkDeleteOpen}
-                  selectedItems={selectedItems}
-                  onItemSelect={toggleItemSelection}
-                  onSelectAll={handleSelectAll}
-                  onSort={handleSort}
-                  sortField={sortField}
-                  sortDirection={sortDirection}
-                />
-                
-                {!isLoadingInvoices && (
-                  <div className="mt-4 text-sm text-muted-foreground text-center">
-                    {totalPages > 0 ? (
-                      <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
-                    ) : (
-                      <p>No invoices found matching the current filters.</p>
-                    )}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex w-full sm:w-auto gap-2">
+            <UserSelect
+              selectedUserId={selectedUser}
+              onUserChange={setSelectedUser}
+              className="w-full sm:w-48"
+              includeAllOption
+            />
+            <Select value={selectedClient || ""} onValueChange={setSelectedClient} className="w-full sm:w-48">
+              <SelectTrigger>
+                <SelectValue placeholder="All Clients" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Clients</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button
+              variant={activeFilter === 'current' ? 'default' : 'outline'}
+              onClick={() => setActiveFilter('current')}
+              className="flex items-center gap-2 flex-1 sm:flex-none"
+            >
+              <CalendarRange className="h-4 w-4" />
+              <span>Current</span>
+            </Button>
+            <Button
+              variant={activeFilter === 'all' ? 'default' : 'outline'}
+              onClick={() => setActiveFilter('all')}
+              className="flex items-center gap-2 flex-1 sm:flex-none"
+            >
+              <Icons.infinity className="h-4 w-4" />
+              <span>All Time</span>
+            </Button>
+          </div>
+        </div>
       </div>
       
-      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Bulk Delete Confirmation</AlertDialogTitle>
-            <AlertDialogDescription>
-              <div>
-                Are you sure you want to delete {selectedItems.length} selected {
-                  activeTab === "time-entries" ? "time entries" : "invoices"
-                }? This action cannot be undone.
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Management</CardTitle>
+          <CardDescription>
+            Manage time entries and invoices to maintain data integrity
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="time-entries" className="w-full" onValueChange={setActiveTab}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+              <TabsList>
+                <TabsTrigger value="time-entries" className="flex items-center gap-2">
+                  <Icons.clock className="h-4 w-4" />
+                  <span>Time Entries</span>
+                </TabsTrigger>
+                <TabsTrigger value="invoices" className="flex items-center gap-2">
+                  <Icons.fileText className="h-4 w-4" />
+                  <span>Invoices</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Select
+                  value={selectedClient || "all"}
+                  onValueChange={(value) => setSelectedClient(value === "all" ? null : value)}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Select a client">
+                      <span className="flex items-center">
+                        <Icons.users className="mr-2 h-4 w-4" />
+                        {selectedClient 
+                          ? clients.find(c => c.id === selectedClient)?.name || "Select a client" 
+                          : "All Clients"}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 
-                {activeTab === "invoices" && (
-                  <div className="mt-2 text-amber-500 flex items-start gap-2">
-                    <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Warning: Some invoices may have been exported to Fortnox</p>
-                      <p>Deleting these invoices will only remove them from your database, not from Fortnox.</p>
-                    </div>
-                  </div>
+                {selectedClient && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedClient(null)}
+                    title="Clear client filter"
+                  >
+                    <Icons.filterIcon className="h-4 w-4" />
+                  </Button>
                 )}
                 
-                {activeTab === "time-entries" && (
-                  <div className="mt-2 text-amber-500 flex items-start gap-2">
-                    <Icons.alertCircle className="h-5 w-5 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Warning: Some time entries may be invoiced</p>
-                      <p>Deleting invoiced time entries will remove their invoice reference, which may cause inconsistencies with Fortnox.</p>
-                    </div>
-                  </div>
+                <MonthYearSelector
+                  selectedMonth={selectedMonth}
+                  selectedYear={selectedYear}
+                  onMonthYearChange={handleMonthYearChange}
+                  includeAllOption={true}
+                  onAllSelected={() => setNoDateFilter(prev => !prev)}
+                  isAllSelected={noDateFilter}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {selectedItems.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteConfirmOpen(true)}
+                    className="flex items-center gap-1"
+                  >
+                    <Icons.trash className="h-4 w-4" />
+                    <span>Delete Selected ({selectedItems.length})</span>
+                  </Button>
+                )}
+                
+                {bulkDeleteOpen ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setBulkDeleteOpen(false);
+                      setSelectedItems([]);
+                    }}
+                  >
+                    Cancel Selection
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="flex items-center gap-1"
+                  >
+                    <Icons.check className="h-4 w-4" />
+                    <span>Select Multiple</span>
+                  </Button>
                 )}
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleBulkDelete();
-              }}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete Selected"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </div>
+            
+            <TabsContent value="time-entries" className="mt-4">
+              <TimeEntriesTable 
+                timeEntries={timeEntries} 
+                isLoading={isLoadingTimeEntries}
+                onEntryDeleted={handleEntryDeleted}
+                bulkDeleteMode={bulkDeleteOpen}
+                selectedItems={selectedItems}
+                onItemSelect={toggleItemSelection}
+                onSelectAll={handleSelectAll}
+                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+              />
+              
+              {!isLoadingTimeEntries && (
+                <div className="mt-4 text-sm text-muted-foreground text-center">
+                  {totalPages > 0 ? (
+                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, timeEntriesCount)} of {timeEntriesCount} entries. Max per page is {ITEMS_PER_PAGE}.</p>
+                  ) : (
+                    <p>No time entries found matching the current filters.</p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="invoices" className="mt-4">
+              <InvoicesTable 
+                invoices={invoices} 
+                isLoading={isLoadingInvoices}
+                onInvoiceDeleted={handleInvoiceDeleted}
+                bulkDeleteMode={bulkDeleteOpen}
+                selectedItems={selectedItems}
+                onItemSelect={toggleItemSelection}
+                onSelectAll={handleSelectAll}
+                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+              />
+              
+              {!isLoadingInvoices && (
+                <div className="mt-4 text-sm text-muted-foreground text-center">
+                  {totalPages > 0 ? (
+                    <p>Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, invoicesCount)} of {invoicesCount} invoices. Max per page is {ITEMS_PER_PAGE}.</p>
+                  ) : (
+                    <p>No invoices found matching the current filters.</p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

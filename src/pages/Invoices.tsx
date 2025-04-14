@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2 } from "lucide-react";
+import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2, Edit2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
@@ -23,6 +23,8 @@ import { MonthYearSelector } from "@/components/administration/MonthYearSelector
 import { UserSelect } from "@/components/dashboard/UserSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
+import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 
 type TimeEntryWithProfile = {
   id: string;
@@ -58,6 +60,8 @@ export default function Invoices() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [timeEntryToEdit, setTimeEntryToEdit] = useState<TimeEntryWithProfile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { role } = useAuth();
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
@@ -311,6 +315,18 @@ export default function Invoices() {
     refetch();
   };
 
+  const handleEditTimeEntry = (entry: TimeEntryWithProfile) => {
+    setTimeEntryToEdit(entry);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setTimeEntryToEdit(null);
+    refetchUnbilled();
+    toast.success("Time entry updated successfully");
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -373,7 +389,7 @@ export default function Invoices() {
       </Card>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Create New Invoice</DialogTitle>
             <DialogDescription>
@@ -385,7 +401,7 @@ export default function Invoices() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Client</label>
               <Select value={selectedClient} onValueChange={setSelectedClient}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Select a client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -463,7 +479,7 @@ export default function Invoices() {
                     <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected month/year.</p>
                   </div>
                 ) : (
-                  <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[300px]">
+                  <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[400px]">
                     <div className="overflow-hidden">
                       <Table>
                         <TableHeader>
@@ -475,7 +491,7 @@ export default function Invoices() {
                             <TableHead>Quantity</TableHead>
                             <TableHead>Art. Number</TableHead>
                             <TableHead className="text-right">Amount (SEK)</TableHead>
-                            <TableHead></TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -505,7 +521,21 @@ export default function Invoices() {
                             
                             return (
                               <TableRow key={entry.id}>
-                                <TableCell className="font-medium">{entry.description || 'No description'}</TableCell>
+                                <TableCell className="font-medium max-w-[200px]">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger className="text-left truncate block w-full">
+                                        <span className="truncate block">{entry.description || 'No description'}</span>
+                                      </TooltipTrigger>
+                                      {entry.description && (
+                                        <TooltipContent side="bottom" className="max-w-[300px] p-3">
+                                          <p className="font-medium mb-1">Description:</p>
+                                          <p className="text-sm">{entry.description}</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
                                 <TableCell>{entry.user_profile?.name || 'Unknown'}</TableCell>
                                 <TableCell>{entry.products?.name || 'Unknown Product'}</TableCell>
                                 <TableCell>{entryDate}</TableCell>
@@ -547,14 +577,24 @@ export default function Invoices() {
                                 </TableCell>
                                 <TableCell className="text-right">{amount.toFixed(2)}</TableCell>
                                 <TableCell>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    onClick={() => confirmDeleteTimeEntry(entry.id)}
-                                    className="h-8 w-8 text-destructive hover:text-destructive/80"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center space-x-1">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => handleEditTimeEntry(entry)}
+                                      className="h-8 w-8 text-primary hover:text-primary/80"
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => confirmDeleteTimeEntry(entry.id)}
+                                      className="h-8 w-8 text-destructive hover:text-destructive/80"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
@@ -607,6 +647,36 @@ export default function Invoices() {
         onAction={handleDeleteTimeEntry}
         variant="destructive"
       />
+
+      {timeEntryToEdit && (
+        <DialogWrapper
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          title="Edit Time Entry"
+          description="Make changes to this time entry."
+        >
+          <TimeEntryEditForm
+            timeEntry={{
+              id: timeEntryToEdit.id,
+              user_id: timeEntryToEdit.user_id,
+              client_id: selectedClient || "",
+              product_id: timeEntryToEdit.products?.id || "",
+              start_time: timeEntryToEdit.start_time,
+              end_time: timeEntryToEdit.end_time,
+              quantity: timeEntryToEdit.quantity,
+              description: timeEntryToEdit.description,
+              created_at: "",
+              updated_at: "",
+              invoiced: false,
+              products: timeEntryToEdit.products,
+              clients: { name: "" },
+              profiles: { name: timeEntryToEdit.user_profile?.name || "" }
+            }}
+            onSuccess={handleEditSuccess}
+            onCancel={() => setIsEditDialogOpen(false)}
+          />
+        </DialogWrapper>
+      )}
     </div>
   );
 }
