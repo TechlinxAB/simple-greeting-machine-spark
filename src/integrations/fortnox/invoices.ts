@@ -594,14 +594,26 @@ export async function createFortnoxInvoice(
       
       if (isResend) {
         // For resends, find the existing invoice record
+        // First get the invoice_id from one of the time entries
+        const { data: timeEntryData, error: timeEntryError } = await supabase
+          .from("time_entries")
+          .select("invoice_id")
+          .in("id", timeEntryIds)
+          .limit(1);
+          
+        if (timeEntryError) throw timeEntryError;
+        
+        const invoiceId = timeEntryData?.[0]?.invoice_id;
+        
+        if (!invoiceId) {
+          throw new Error("Could not find invoice ID from time entries");
+        }
+        
+        // Now query for the invoice using the found ID
         const { data: existingInvoice, error: existingInvoiceError } = await supabase
           .from("invoices")
           .select("*")
-          .in("id", (await supabase
-            .from("time_entries")
-            .select("invoice_id")
-            .in("id", timeEntryIds)
-            .limit(1)).data?.[0]?.invoice_id ?? '')
+          .eq("id", invoiceId)
           .maybeSingle();
           
         if (existingInvoiceError) throw existingInvoiceError;
