@@ -55,27 +55,27 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
 
   return (
     <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
-      <CardHeader className="pb-1 pt-2 px-1 sm:px-3 border-b border-primary/20">
-        <CardTitle className="flex items-center justify-between text-xs sm:text-sm font-medium">
+      <CardHeader className={isMobile ? "pb-1 pt-2 px-2 border-b border-primary/20" : "pb-2 pt-3 px-4 border-b border-primary/20"}>
+        <CardTitle className="flex items-center justify-between font-medium">
           <div className="flex items-center">
             {format(currentMonth, 'MMMM, yyyy')}
           </div>
-          <div className="flex gap-0.5 sm:gap-1">
+          <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5 sm:h-6 sm:w-6 rounded-full hover:bg-accent"
+              className={isMobile ? "h-6 w-6 rounded-full hover:bg-accent" : "h-8 w-8 rounded-full hover:bg-accent"}
               onClick={handlePreviousMonth}
             >
-              <ChevronLeft className="h-3 w-3" />
+              <ChevronLeft className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5 sm:h-6 sm:w-6 rounded-full hover:bg-accent"
+              className={isMobile ? "h-6 w-6 rounded-full hover:bg-accent" : "h-8 w-8 rounded-full hover:bg-accent"}
               onClick={handleNextMonth}
             >
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
             </Button>
           </div>
         </CardTitle>

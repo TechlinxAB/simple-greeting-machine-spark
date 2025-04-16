@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -261,29 +262,29 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   };
 
   const MobileTableRow = ({ entry }: { entry: any }) => (
-    <div className="border-b p-2 space-y-1.5 last:border-b-0">
+    <div className="border-b p-3 space-y-2 last:border-b-0">
       <div className="flex justify-between items-start">
         <div>
-          <div className="font-medium text-xs">{entry.clients?.name || 'Unknown client'}</div>
-          <div className="text-[0.65rem] text-muted-foreground mt-0.5 mb-1 line-clamp-1">
+          <div className="font-medium">{entry.clients?.name || 'Unknown client'}</div>
+          <div className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-1">
             {entry.description || (entry.products?.name || 'No description')}
           </div>
         </div>
-        <Badge variant={entry.invoiced ? "default" : "outline"} className="ml-2 text-[0.65rem] h-5">
+        <Badge variant={entry.invoiced ? "default" : "outline"} className="ml-2">
           {entry.invoiced ? "Invoiced" : "Pending"}
         </Badge>
       </div>
       
-      <div className="flex justify-between text-[0.7rem]">
+      <div className="flex justify-between text-sm">
         <div className="flex items-center gap-1">
           {entry.products ? (
             entry.products.type === 'activity' ? (
-              <Clock className="h-3 w-3 text-blue-500" />
+              <Clock className="h-4 w-4 text-blue-500" />
             ) : (
-              <Package className="h-3 w-3 text-primary" />
+              <Package className="h-4 w-4 text-primary" />
             )
           ) : (
-            <Package className="h-3 w-3 text-amber-600" />
+            <Package className="h-4 w-4 text-amber-600" />
           )}
           <span className="capitalize">
             {entry.products?.type || 'Deleted product'}
@@ -295,25 +296,25 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         </div>
       </div>
 
-      <div className="flex justify-end space-x-1 pt-0.5">
+      <div className="flex justify-end space-x-1 pt-1">
         <Button 
           variant="ghost" 
           size="sm"
-          className="h-6 w-6 p-0" 
+          className="h-8 w-8 p-0" 
           onClick={() => handleEditClick(entry)}
           disabled={entry.invoiced}
         >
-          <Edit className="h-3 w-3" />
+          <Edit className="h-4 w-4" />
           <span className="sr-only">Edit</span>
         </Button>
         <Button 
           variant="ghost" 
           size="sm"
-          className="h-6 w-6 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
           onClick={() => handleDeleteClick(entry)}
           disabled={entry.invoiced}
         >
-          <Trash className="h-3 w-3" />
+          <Trash className="h-4 w-4" />
           <span className="sr-only">Delete</span>
         </Button>
       </div>
@@ -323,21 +324,21 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-1 pt-2 px-2 sm:px-4">
-          <CardTitle className="text-xs sm:text-sm font-medium">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-medium">
             Activities for <span className="text-primary">{formattedDate}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-4 sm:py-6">
-              <div className="animate-spin h-5 w-5 sm:h-6 sm:w-6 border-3 border-primary border-t-transparent rounded-full"></div>
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
             </div>
           ) : timeEntries.length === 0 ? (
-            <div className="text-center py-6 sm:py-8 text-muted-foreground">
-              <ClipboardList className="mx-auto h-8 w-8 sm:h-10 sm:w-10 mb-2 sm:mb-3 text-muted-foreground/60" />
-              <p className="text-xs sm:text-sm">No activities recorded for this day.</p>
-              <p className="text-[0.65rem] sm:text-xs mt-1 sm:mt-2">Click "Save time entry" to add your first activity.</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <ClipboardList className="mx-auto h-10 w-10 mb-3 text-muted-foreground/60" />
+              <p className="text-sm">No activities recorded for this day.</p>
+              <p className="text-xs mt-2">Click "Save time entry" to add your first activity.</p>
             </div>
           ) : isMobile ? (
             <div className="divide-y">
@@ -375,24 +376,24 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                         <div className="flex items-center gap-1">
                           {entry.products ? (
                             entry.products.type === 'activity' ? (
-                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+                              <Clock className="h-4 w-4 text-blue-500" />
                             ) : (
-                              <Package className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                              <Package className="h-4 w-4 text-primary" />
                             )
                           ) : (
-                            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
+                            <Package className="h-4 w-4 text-amber-600" />
                           )}
-                          <span className="capitalize text-[0.65rem] sm:text-xs">
+                          <span className="capitalize text-xs">
                             {entry.products?.type || 'Deleted product'}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-[0.65rem] sm:text-xs">{getItemAmount(entry)}</TableCell>
-                      <TableCell className="font-semibold whitespace-nowrap text-[0.65rem] sm:text-xs">
+                      <TableCell className="whitespace-nowrap text-xs">{getItemAmount(entry)}</TableCell>
+                      <TableCell className="font-semibold whitespace-nowrap text-xs">
                         {getItemTotal(entry)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        <Badge variant={entry.invoiced ? "default" : "outline"} className="text-[0.65rem] h-5">
+                        <Badge variant={entry.invoiced ? "default" : "outline"}>
                           {entry.invoiced ? "Invoiced" : "Pending"}
                         </Badge>
                       </TableCell>
@@ -401,20 +402,20 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-6 w-6 sm:h-7 sm:w-7" 
+                            className="h-8 w-8" 
                             onClick={() => handleEditClick(entry)}
                             disabled={entry.invoiced}
                           >
-                            <Edit className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-6 w-6 sm:h-7 sm:w-7 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                            className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
                             onClick={() => handleDeleteClick(entry)}
                             disabled={entry.invoiced}
                           >
-                            <Trash className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            <Trash className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -428,7 +429,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       </Card>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="max-w-[360px] sm:max-w-md">
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
             <AlertDialogDescription>
@@ -447,7 +448,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
@@ -459,17 +460,17 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       </AlertDialog>
       
       <AlertDialog open={invoicedWarningOpen} onOpenChange={setInvoicedWarningOpen}>
-        <AlertDialogContent className="max-w-[360px] sm:max-w-md">
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
               <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Warning: Invoiced Time Entry</span>
+              <span>Warning: Invoiced Time Entry</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
-              <p className="mb-2 text-[0.7rem] sm:text-xs">
+              <p className="mb-2">
                 You are about to delete an invoiced time entry. This may cause inconsistencies between your app's data and Fortnox.
               </p>
-              <p className="text-[0.7rem] sm:text-xs">
+              <p>
                 If this entry has been exported to Fortnox, the deletion will only happen in your database, not in Fortnox.
                 This action cannot be reversed.
               </p>
@@ -487,7 +488,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
                 </>
               ) : (

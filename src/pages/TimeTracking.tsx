@@ -70,9 +70,9 @@ export default function TimeTracking() {
     : format(selectedDate, "d MMMM yyyy");
 
   return (
-    <div className="container mx-auto py-3 md:py-5 px-2 md:px-4 max-w-screen-xl">
-      <div className={`grid ${isMobile ? 'grid-cols-1 gap-3 md:gap-4' : 'grid-cols-12 gap-3 md:gap-4'}`}>
-        <div className={isMobile ? 'space-y-3 md:space-y-4' : 'col-span-3 space-y-3 md:space-y-4 w-full max-w-[280px]'}>
+    <div className="container mx-auto py-4 px-4 max-w-screen-xl">
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-12 gap-6'}`}>
+        <div className={isMobile ? 'space-y-4' : 'col-span-3 space-y-4'}>
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
@@ -81,7 +81,7 @@ export default function TimeTracking() {
           <TimerWidget />
         </div>
         
-        <div className={isMobile ? 'space-y-3 md:space-y-4 mt-3 md:mt-4' : 'col-span-9 space-y-3 md:space-y-4'}>
+        <div className={isMobile ? 'space-y-4 mt-4' : 'col-span-9 space-y-4'}>
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}
