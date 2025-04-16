@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -92,6 +91,15 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+  
+  [data-hoverable], 
+  button,
+  [role="button"],
+  a,
+  .interactive,
+  .clickable {
+    @apply cursor-pointer;
   }
   
   /* Calendar styles - specifically targeting hover and selected states */
@@ -368,4 +376,14 @@
 [data-highlighted],
 [data-highlighted] * {
   color: white !important;
+}
+
+/* Ensuring popover triggers look clickable */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+/* Popover trigger elements are always clickable */
+[data-state] {
+  cursor: pointer;
 }

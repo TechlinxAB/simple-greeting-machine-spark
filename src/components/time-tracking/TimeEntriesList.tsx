@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -46,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -58,7 +58,6 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   const queryClient = useQueryClient();
   const autoIsLaptop = useIsLaptop();
   
-  // Use explicit prop if provided, otherwise use the hook
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -303,19 +302,17 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                         {entry.clients?.name || 'Unknown client'}
                       </TableCell>
                       <TableCell className={compact ? "max-w-[180px]" : "max-w-[250px]"} isCompact={compact}>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="line-clamp-2 cursor-help">
-                                {entry.description || 
-                                  (entry.products?.name || 'No description')}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[300px] p-4 text-wrap break-words">
-                              <p>{entry.description || (entry.products?.name || 'No description')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="line-clamp-2">
+                              {entry.description || 
+                                (entry.products?.name || 'No description')}
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="max-w-[300px] p-4 text-wrap break-words">
+                            <p>{entry.description || (entry.products?.name || 'No description')}</p>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                       <TableCell className="whitespace-nowrap" isCompact={compact}>
                         <div className="flex items-center gap-1">

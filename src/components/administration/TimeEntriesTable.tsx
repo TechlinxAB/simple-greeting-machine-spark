@@ -1,4 +1,3 @@
-
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,7 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery } from "@tanstack/react-query";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 
@@ -388,20 +387,18 @@ export function TimeEntriesTable({
                 </TableCell>
                 <TableCell className="max-w-[200px]" isCompact={isCompact}>
                   {entry.description ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left truncate block w-full">
-                          <div className="flex items-center gap-1">
-                            <FileText className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground shrink-0`} />
-                            <span className="truncate">{entry.description}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-[300px] p-3">
-                          <p className="font-medium mb-1">Description:</p>
-                          <p className="text-sm">{entry.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Popover>
+                      <PopoverTrigger className="text-left truncate block w-full">
+                        <div className="flex items-center gap-1">
+                          <FileText className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground shrink-0`} />
+                          <span className="truncate">{entry.description}</span>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent side="bottom" className="max-w-[300px] p-3">
+                        <p className="font-medium mb-1">Description:</p>
+                        <p className="text-sm">{entry.description}</p>
+                      </PopoverContent>
+                    </Popover>
                   ) : (
                     <span className="text-muted-foreground text-sm italic">No description</span>
                   )}
