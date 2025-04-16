@@ -35,8 +35,7 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
             invoice_id,
             created_at,
             updated_at,
-            products (id, name, type, price),
-            profiles (name)
+            products (id, name, type, price)
           `)
           .eq('invoice_id', invoice.id);
 
@@ -45,16 +44,43 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
           return;
         }
 
-        // Properly cast the product type to ensure it matches the TimeEntry type
-        const typedEntries: TimeEntry[] = (data || []).map(entry => ({
-          ...entry,
-          products: entry.products ? {
-            ...entry.products,
-            type: entry.products.type as 'activity' | 'item'
-          } : undefined
-        }));
-
-        setTimeEntries(typedEntries);
+        // Fetch user names separately since there's no direct relation
+        if (data && data.length > 0) {
+          const userIds = data.map(entry => entry.user_id);
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', userIds);
+            
+          if (profilesError) {
+            console.error('Error fetching profiles:', profilesError);
+          }
+          
+          // Create a map of user ID to name
+          const userNamesMap: Record<string, string> = {};
+          profilesData?.forEach(profile => {
+            if (profile.id) {
+              userNamesMap[profile.id] = profile.name || 'Unknown';
+            }
+          });
+          
+          // Properly cast the entries with correct types
+          const typedEntries: TimeEntry[] = data.map(entry => ({
+            ...entry,
+            products: entry.products ? {
+              ...entry.products,
+              type: entry.products.type as 'activity' | 'item'
+            } : undefined,
+            // Add properly structured profiles object
+            profiles: {
+              name: userNamesMap[entry.user_id] || 'Unknown'
+            }
+          }));
+          
+          setTimeEntries(typedEntries);
+        } else {
+          setTimeEntries([]);
+        }
       } catch (error) {
         console.error('Error in fetchTimeEntries:', error);
       } finally {
