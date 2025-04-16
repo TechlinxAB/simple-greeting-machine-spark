@@ -25,6 +25,11 @@ import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm"
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
+import { ClientSelect } from "@/components/administration/ClientSelect";
+import { UserSelect } from "@/components/administration/UserSelect";
+import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 
 const calculateDuration = (startTime: string, endTime: string): number => {
   const start = new Date(startTime);
@@ -63,10 +68,13 @@ type TimeEntryWithProfile = {
   };
 };
 
-export default function Invoices() {
+export default function Administration() {
+  const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [isAllTime, setIsAllTime] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -82,7 +90,7 @@ export default function Invoices() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { role } = useAuth();
 
-  const { data: invoicesData = [], isLoading, refetch } = useQuery({
+  const { data: invoicesData = [], isLoading: isLoadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -283,7 +291,7 @@ export default function Invoices() {
       setIsCreatingInvoice(false);
       setSelectedClient("");
       setExcludedEntries([]);
-      refetch();
+      refetchInvoices();
       refetchUnbilled();
     } catch (error) {
       console.error("Error creating invoice:", error);
@@ -356,7 +364,7 @@ export default function Invoices() {
     );
 
   const handleInvoiceDeleted = () => {
-    refetch();
+    refetchInvoices();
   };
 
   const handleEditTimeEntry = (entry: TimeEntryWithProfile) => {
@@ -403,72 +411,145 @@ export default function Invoices() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Invoices</h1>
+        <h1 className="text-2xl font-bold">Administration</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
-              placeholder="Search invoices..." 
+              placeholder={activeTab === "invoices" ? "Search invoices..." : "Search time entries..."} 
               className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          <Button 
-            className="flex items-center gap-2"
-            onClick={() => setIsCreatingInvoice(true)}
-            disabled={!fortnoxConnected}
-          >
-            <FilePlus2 className="h-4 w-4" />
-            <span>New Invoice</span>
-          </Button>
+          {activeTab === "invoices" && (
+            <Button 
+              className="flex items-center gap-2"
+              onClick={() => setIsCreatingInvoice(true)}
+              disabled={!fortnoxConnected}
+            >
+              <FilePlus2 className="h-4 w-4" />
+              <span>New Invoice</span>
+            </Button>
+          )}
         </div>
       </div>
       
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>All Invoices</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => refetch()}
-            className="flex items-center gap-2"
-          >
-            <RefreshCcw className="h-3.5 w-3.5" />
-            <span>Refresh</span>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <InvoicesTable
-            invoices={filteredInvoices}
-            isLoading={isLoading}
-            onInvoiceDeleted={handleInvoiceDeleted}
-            onViewDetails={handleViewInvoiceDetails}
-          />
+      <Tabs 
+        defaultValue="time-entries" 
+        value={activeTab} 
+        onValueChange={setActiveTab} 
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="time-entries" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Time Entries</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw className="h-3.5 w-3.5" />
+                <span>Refresh</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="w-full md:w-1/3">
+                  <label className="text-sm font-medium">Client</label>
+                  <ClientSelect
+                    value={selectedClient}
+                    onValueChange={setSelectedClient}
+                  />
+                </div>
+                <div className="w-full md:w-1/3">
+                  <label className="text-sm font-medium">User</label>
+                  <UserSelect
+                    value={selectedUser}
+                    onValueChange={setSelectedUser}
+                  />
+                </div>
+                <div className="w-full md:w-1/3">
+                  <label className="text-sm font-medium">Time range</label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <DateRangeSelector 
+                      fromDate={isAllTime ? undefined : fromDate}
+                      toDate={isAllTime ? undefined : toDate}
+                      onDateChange={handleDateRangeChange}
+                      disabled={isAllTime}
+                    />
+                    <AllTimeToggle
+                      checked={isAllTime}
+                      onCheckedChange={setIsAllTime}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <TimeEntriesTable 
+                clientId={selectedClient}
+                userId={selectedUser}
+                fromDate={isAllTime ? undefined : fromDate}
+                toDate={isAllTime ? undefined : toDate}
+                searchTerm={searchTerm}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="invoices" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>All Invoices</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetchInvoices()}
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw className="h-3.5 w-3.5" />
+                <span>Refresh</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <InvoicesTable
+                invoices={filteredInvoices}
+                isLoading={isLoadingInvoices}
+                onInvoiceDeleted={handleInvoiceDeleted}
+                onViewDetails={handleViewInvoiceDetails}
+              />
 
-          {!fortnoxConnected && (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                Fortnox integration is not connected. {
-                  role === 'admin' 
-                    ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
-                    : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
-                }
-              </p>
-            </div>
+              {!fortnoxConnected && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800">
+                    Fortnox integration is not connected. {
+                      role === 'admin' 
+                        ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
+                        : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                    }
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {selectedInvoice && (
+            <InvoiceDetailsView 
+              invoice={selectedInvoice} 
+              open={isDetailsOpen} 
+              onClose={() => setIsDetailsOpen(false)} 
+            />
           )}
-        </CardContent>
-      </Card>
-      
-      {selectedInvoice && (
-        <InvoiceDetailsView 
-          invoice={selectedInvoice} 
-          open={isDetailsOpen} 
-          onClose={() => setIsDetailsOpen(false)} 
-        />
-      )}
+        </TabsContent>
+      </Tabs>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
         <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
