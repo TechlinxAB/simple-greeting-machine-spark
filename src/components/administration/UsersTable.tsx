@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -167,7 +168,8 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
     user: <UserIcon className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'} text-gray-500`} />
   };
 
-  const roleBadgeVariants = {
+  // Explicitly type the roleBadgeVariants object with the correct types
+  const roleBadgeVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "blue"> = {
     admin: "destructive",
     manager: "blue",
     user: "secondary",
@@ -222,7 +224,7 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
                     </TableCell>
                     <TableCell isCompact={isCompact}>
                       <Badge 
-                        variant={roleBadgeVariants[user.role as keyof typeof roleBadgeVariants] || "secondary"} 
+                        variant={roleBadgeVariants[user.role] || "secondary"} 
                         className="flex items-center gap-1 w-fit"
                       >
                         {roleIcons[user.role as keyof typeof roleIcons] || <UserIcon className="h-3 w-3" />}
