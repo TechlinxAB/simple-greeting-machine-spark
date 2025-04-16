@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isToday, addMonths, subMonths } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -14,6 +15,7 @@ interface DateSelectorProps {
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
   const [forceRender, setForceRender] = useState(0);
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     // Force multiple re-renders to ensure the calendar updates correctly
@@ -52,8 +54,8 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
 
   return (
     <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
-      <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
-        <CardTitle className="flex items-center justify-between text-base font-medium">
+      <CardHeader className="pb-2 pt-3 px-2 sm:px-4 border-b border-primary/20">
+        <CardTitle className="flex items-center justify-between text-sm sm:text-base font-medium">
           <div className="flex items-center">
             {format(currentMonth, 'MMMM, yyyy')}
           </div>
@@ -61,24 +63,24 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full hover:bg-accent"
+              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full hover:bg-accent"
               onClick={handlePreviousMonth}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full hover:bg-accent"
+              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full hover:bg-accent"
               onClick={handleNextMonth}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="flex justify-center">
+        <div className="flex justify-center scale-[0.85] sm:scale-100 origin-top sm:origin-center transform sm:transform-none">
           <Calendar
             key={renderKey} 
             mode="single"

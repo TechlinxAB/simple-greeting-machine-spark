@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -27,8 +28,10 @@ import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Administration() {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
@@ -233,11 +236,11 @@ export default function Administration() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Administration</h1>
+    <div className="w-full max-w-full mx-auto py-3 sm:py-6 space-y-4 sm:space-y-6 px-0 sm:px-2 md:px-4 overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Administration</h1>
         
-        <div className="flex w-full sm:w-auto gap-2">
+        <div className="flex w-full sm:w-auto gap-2 mt-2 sm:mt-0">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -250,33 +253,35 @@ export default function Administration() {
           
           {activeTab === "invoices" && (
             <Button 
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
               onClick={() => setIsCreatingInvoice(true)}
               disabled={!fortnoxConnected}
+              size={isMobile ? "sm" : "default"}
             >
               <FilePlus2 className="h-4 w-4" />
-              <span>New Invoice</span>
+              <span className="hidden sm:inline">New Invoice</span>
+              <span className="sm:hidden">New</span>
             </Button>
           )}
         </div>
       </div>
       
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4">
-            <TabsTrigger value="time-entries" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+            <TabsTrigger value="time-entries" className="text-xs sm:text-sm px-2 sm:px-3">
               Time Entries
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+            <TabsTrigger value="invoices" className="text-xs sm:text-sm px-2 sm:px-3">
               Invoices
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="time-entries" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Time Entries</h2>
+            <div className="p-2 sm:p-4 md:p-6">
+              <div className="mb-4 sm:mb-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold">Time Entries</h2>
                   <div className="flex items-center gap-2">
                     {bulkDeleteMode ? (
                       <>
@@ -284,6 +289,7 @@ export default function Administration() {
                           variant="outline"
                           size="sm"
                           onClick={toggleBulkDeleteMode}
+                          className="text-xs sm:text-sm"
                         >
                           Cancel
                         </Button>
@@ -292,41 +298,43 @@ export default function Administration() {
                           size="sm"
                           onClick={handleBulkDelete}
                           disabled={selectedItems.length === 0}
+                          className="text-xs sm:text-sm"
                         >
-                          Delete Selected ({selectedItems.length})
+                          Delete ({selectedItems.length})
                         </Button>
                       </>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
                         onClick={toggleBulkDeleteMode}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        <span>Bulk Delete</span>
+                        <span className="hidden sm:inline">Bulk Delete</span>
+                        <span className="sm:hidden">Delete</span>
                       </Button>
                     )}
                   </div>
                 </div>
                 
-                <div className="flex flex-wrap gap-4 items-end">
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Filter by user</p>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 items-start sm:items-end">
+                  <div className="w-full sm:w-auto flex-1 min-w-[120px] sm:min-w-[200px]">
+                    <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">Filter by user</p>
                     <UserSelect
                       value={selectedUser}
                       onChange={setSelectedUser}
                     />
                   </div>
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Filter by client</p>
+                  <div className="w-full sm:w-auto flex-1 min-w-[120px] sm:min-w-[200px]">
+                    <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">Filter by client</p>
                     <ClientSelect
                       value={selectedClient}
                       onChange={setSelectedClient}
                     />
                   </div>
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Date filter</p>
+                  <div className="w-full sm:w-auto flex-1 min-w-[120px] sm:min-w-[200px]">
+                    <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">Date filter</p>
                     <div className="flex items-center space-x-2">
                       <AllTimeToggle
                         isAllTime={isAllTime}
@@ -345,39 +353,43 @@ export default function Administration() {
                 </div>
               </div>
               
-              <TimeEntriesTable 
-                clientId={selectedClient || undefined}
-                userId={selectedUser === "all" ? undefined : selectedUser}
-                fromDate={fromDate}
-                toDate={toDate}
-                searchTerm={searchTerm || undefined}
-                bulkDeleteMode={bulkDeleteMode}
-                selectedItems={selectedItems}
-                onItemSelect={handleItemSelect}
-                onSelectAll={handleSelectAll}
-                onBulkDelete={handleBulkDelete}
-              />
+              <div className="overflow-x-auto -mx-2 px-2">
+                <TimeEntriesTable 
+                  clientId={selectedClient || undefined}
+                  userId={selectedUser === "all" ? undefined : selectedUser}
+                  fromDate={fromDate}
+                  toDate={toDate}
+                  searchTerm={searchTerm || undefined}
+                  bulkDeleteMode={bulkDeleteMode}
+                  selectedItems={selectedItems}
+                  onItemSelect={handleItemSelect}
+                  onSelectAll={handleSelectAll}
+                  onBulkDelete={handleBulkDelete}
+                />
+              </div>
             </div>
           </TabsContent>
           
           <TabsContent value="invoices" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className="p-6">
+            <div className="p-2 sm:p-4 md:p-6">
               <Card className="shadow-none">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>All Invoices</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-base sm:text-lg">All Invoices</CardTitle>
                 </CardHeader>
                 
-                <CardContent>
-                  <InvoicesTable
-                    invoices={filteredInvoices}
-                    isLoading={isLoadingInvoices}
-                    onInvoiceDeleted={handleInvoiceDeleted}
-                    onViewDetails={handleViewInvoiceDetails}
-                  />
+                <CardContent className="p-0 sm:p-4">
+                  <div className="overflow-x-auto -mx-2 px-2">
+                    <InvoicesTable
+                      invoices={filteredInvoices}
+                      isLoading={isLoadingInvoices}
+                      onInvoiceDeleted={handleInvoiceDeleted}
+                      onViewDetails={handleViewInvoiceDetails}
+                    />
+                  </div>
 
                   {!fortnoxConnected && (
-                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800">
+                    <div className="mt-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-md text-xs sm:text-sm">
+                      <p className="text-yellow-800">
                         Fortnox integration is not connected. {
                           role === 'admin' 
                             ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>

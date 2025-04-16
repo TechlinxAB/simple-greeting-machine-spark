@@ -12,7 +12,8 @@ import {
   Edit, 
   Trash,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  MoreHorizontal
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,11 +34,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TimeEntryEditForm } from "./TimeEntryEditForm";
 import { toast } from "sonner";
 import { TimeEntry } from "@/types";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -47,6 +55,7 @@ interface TimeEntriesListProps {
 export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesListProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
@@ -250,24 +259,90 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     toast.success("Time entry updated successfully");
   };
 
+  const MobileTableRow = ({ entry }: { entry: any }) => (
+    <div className="border-b p-3 space-y-2 last:border-b-0">
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="font-medium">{entry.clients?.name || 'Unknown client'}</div>
+          <div className="text-xs text-muted-foreground mt-1 mb-2">
+            {entry.description || (entry.products?.name || 'No description')}
+          </div>
+        </div>
+        <Badge variant={entry.invoiced ? "default" : "outline"} className="ml-2 text-xs">
+          {entry.invoiced ? "Invoiced" : "Pending"}
+        </Badge>
+      </div>
+      
+      <div className="flex justify-between text-sm">
+        <div className="flex items-center gap-1.5">
+          {entry.products ? (
+            entry.products.type === 'activity' ? (
+              <Clock className="h-3.5 w-3.5 text-blue-500" />
+            ) : (
+              <Package className="h-3.5 w-3.5 text-primary" />
+            )
+          ) : (
+            <Package className="h-3.5 w-3.5 text-amber-600" />
+          )}
+          <span className="capitalize">
+            {entry.products?.type || 'Deleted product'}
+          </span>
+        </div>
+        <div className="text-right">
+          <div>{getItemAmount(entry)}</div>
+          <div className="font-semibold">{getItemTotal(entry)}</div>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-2 pt-1">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="h-7 w-7 p-0" 
+          onClick={() => handleEditClick(entry)}
+          disabled={entry.invoiced}
+        >
+          <Edit className="h-3.5 w-3.5" />
+          <span className="sr-only">Edit</span>
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="h-7 w-7 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+          onClick={() => handleDeleteClick(entry)}
+          disabled={entry.invoiced}
+        >
+          <Trash className="h-3.5 w-3.5" />
+          <span className="sr-only">Delete</span>
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
-          <CardTitle className="text-base font-medium">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 sm:pt-4">
+          <CardTitle className="text-sm sm:text-base font-medium">
             Activities for <span className="text-primary">{formattedDate}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            <div className="flex items-center justify-center py-6 sm:py-8">
+              <div className="animate-spin h-6 w-6 sm:h-8 sm:w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             </div>
           ) : timeEntries.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>No activities recorded for this day.</p>
-              <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
+            <div className="text-center py-8 sm:py-12 text-muted-foreground">
+              <ClipboardList className="mx-auto h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 text-muted-foreground/60" />
+              <p className="text-sm sm:text-base">No activities recorded for this day.</p>
+              <p className="text-xs sm:text-sm mt-1 sm:mt-2">Click "Save time entry" to add your first activity.</p>
+            </div>
+          ) : isMobile ? (
+            <div className="divide-y">
+              {timeEntries.map((entry) => (
+                <MobileTableRow key={entry.id} entry={entry} />
+              ))}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -280,7 +355,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                     <TableHead className="w-[120px]">Amount</TableHead>
                     <TableHead className="w-[100px]">Total</TableHead>
                     <TableHead className="w-[100px]">Status</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
