@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -118,9 +119,10 @@ export function InvoicesTable({
       
       const timeEntryIds = timeEntries.map(entry => entry.id);
       
+      // Set isResend to true to handle updating the existing invoice rather than creating a new one
       const result = await createFortnoxInvoice(invoice.client_id, timeEntryIds, true);
       
-      toast.success(`Invoice #${result.invoiceNumber} was successfully resent to Fortnox`);
+      toast.success(`Invoice was successfully resent to Fortnox with new invoice number: ${result.invoiceNumber}`);
       onInvoiceDeleted();
     } catch (error) {
       console.error("Error resending invoice to Fortnox:", error);

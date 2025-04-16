@@ -589,22 +589,25 @@ export async function createFortnoxInvoice(
       
       const fortnoxInvoice = response.Invoice;
       
-      // Create local invoice record or update existing one for resends
+      // Update or create invoice record
       let invoice;
       
       if (isResend) {
-        // For resends, check if we need to update an existing invoice record or create a new one
+        // For resends, find the existing invoice record
         const { data: existingInvoice, error: existingInvoiceError } = await supabase
           .from("invoices")
           .select("*")
-          .eq("client_id", clientId)
-          .eq("invoice_number", fortnoxInvoice.DocumentNumber)
+          .in("id", (await supabase
+            .from("time_entries")
+            .select("invoice_id")
+            .in("id", timeEntryIds)
+            .limit(1)).data?.[0]?.invoice_id ?? '')
           .maybeSingle();
           
         if (existingInvoiceError) throw existingInvoiceError;
         
         if (existingInvoice) {
-          // Update existing invoice
+          // Update existing invoice with new Fortnox invoice number
           const { data: updatedInvoice, error: updateError } = await supabase
             .from("invoices")
             .update({
@@ -623,7 +626,7 @@ export async function createFortnoxInvoice(
           if (updateError) throw updateError;
           invoice = updatedInvoice;
         } else {
-          // Create new invoice record for resend
+          // Fallback: Create new invoice record if existing one not found
           const { data: newInvoice, error: insertError } = await supabase
             .from("invoices")
             .insert({
@@ -642,7 +645,7 @@ export async function createFortnoxInvoice(
           if (insertError) throw insertError;
           invoice = newInvoice;
           
-          // Update time entries to link to the new invoice
+          // Update time entries to link to the new invoice if needed
           const { error: linkError } = await supabase
             .from("time_entries")
             .update({
