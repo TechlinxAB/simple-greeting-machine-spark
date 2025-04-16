@@ -220,8 +220,8 @@ export function AppLayout() {
       <div className="min-h-screen flex w-full">
         {!isMobile && <AppSidebar />}
         
-        <div className="flex-1 flex flex-col relative">
-          <Header className="sticky top-0 z-40" /> {/* Ensure header is below sidebar z-index */}
+        <div className="flex-1 flex flex-col relative z-0"> {/* Added z-0 to ensure it's below sidebar */}
+          <Header className="sticky top-0 z-30 left-0 right-0" /> {/* Reduced z-index and made sure it spans full width */}
           <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
