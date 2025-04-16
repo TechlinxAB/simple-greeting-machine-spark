@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
@@ -15,84 +14,197 @@ interface FortnoxApiError extends Error {
 }
 
 /**
- * Make a request to the Fortnox API via our Edge Function proxy
- * @param endpoint The Fortnox API endpoint to call
- * @param method HTTP method to use
- * @param data Request body data (for POST/PUT requests)
- * @returns The response data from Fortnox
+ * Make an authenticated request to the Fortnox API
  */
 export async function fortnoxApiRequest(
-  endpoint: string,
-  method: string = "GET",
-  data?: any
-) {
+  endpoint: string, 
+  method: string = 'GET', 
+  data?: any,
+  retryWithoutArticleNumber: boolean = false
+): Promise<any> {
   try {
-    // Ensure endpoint starts with a slash
-    if (!endpoint.startsWith("/")) {
-      endpoint = `/${endpoint}`;
+    // Get the Fortnox credentials from the database
+    const credentials = await getFortnoxCredentials();
+    
+    if (!credentials || !credentials.accessToken) {
+      throw new Error('Fortnox credentials not found or missing access token');
     }
     
-    // Get authentication token for supabase user to pass to edge function
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    
-    const token = session?.access_token;
-    
-    if (!token) {
-      throw new Error("User authentication required");
-    }
-    
-    // Prepare the request options with proper content type for UTF-8 support
-    const options: RequestInit = {
-      method,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-    };
-    
-    // Add request body for non-GET requests
-    if (method !== "GET" && data) {
-      options.body = JSON.stringify(data);
-    }
-    
-    // Get the full URL to the edge function
-    const { origin } = window.location;
-    const edgeFunctionUrl = `${origin}/api/fortnox-proxy${endpoint}`;
-    
-    console.log(`Making ${method} request to Fortnox proxy: ${edgeFunctionUrl}`);
-    if (data) {
-      console.log("Request data:", JSON.stringify(data, null, 2));
-    }
-    
-    // Make the request to our Edge Function with complete URL
-    const response = await fetch(edgeFunctionUrl, options);
-    
-    // Handle various response types
-    const contentType = response.headers.get("content-type");
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Fortnox API error:", errorText);
+    // Check if token is expired and refresh if needed
+    if (credentials.expiresAt && credentials.expiresAt < Date.now()) {
+      if (!credentials.refreshToken) {
+        throw new Error('Refresh token not available');
+      }
       
-      try {
-        const errorJson = JSON.parse(errorText);
-        throw errorJson;
-      } catch (e) {
-        throw new Error(`Fortnox API error: ${errorText}`);
+      const refreshed = await refreshAccessToken(
+        credentials.clientId,
+        credentials.clientSecret,
+        credentials.refreshToken
+      );
+      
+      // Save the refreshed tokens
+      await saveFortnoxCredentials({
+        ...credentials,
+        ...refreshed,
+      });
+      
+      // Update access token for the current request
+      credentials.accessToken = refreshed.accessToken;
+    }
+    
+    // Log the request details
+    console.log(`Making ${method} request to Fortnox endpoint: ${endpoint}`);
+    console.log("Using access token:", credentials.accessToken?.substring(0, 10) + "...");
+    console.log("Using client secret:", credentials.clientSecret?.substring(0, 5) + "...");
+
+    // Format endpoint to ensure it starts with a slash
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Special handling for article creation - preserve ArticleNumber
+    if (method === 'POST' && path.includes('/articles') && data) {
+      // Make sure we don't remove ArticleNumber during article creation
+      console.log("Creating article with data:", JSON.stringify(data, null, 2));
+      if (data.Article && data.Article.ArticleNumber) {
+        console.log(`Preserving original ArticleNumber: ${data.Article.ArticleNumber}`);
       }
     }
     
-    // Try to parse JSON response, but fall back to text if it's not JSON
-    if (contentType && contentType.includes("application/json")) {
-      return await response.json();
-    } else {
-      return await response.text();
+    // Special handling for invoice creation - preserve ArticleNumber in rows
+    if (method === 'POST' && path.includes('/invoices') && data && !retryWithoutArticleNumber) {
+      // Sanitize invoice data before sending
+      if (data.Invoice) {
+        // Remove EmailInformation if it exists
+        if (data.Invoice.EmailInformation) {
+          console.log("Removing EmailInformation from invoice data");
+          delete data.Invoice.EmailInformation;
+        }
+        
+        // Validate invoice rows but preserve ArticleNumber
+        if (data.Invoice.InvoiceRows && Array.isArray(data.Invoice.InvoiceRows)) {
+          console.log("Validating invoice rows while preserving ArticleNumber");
+          data.Invoice.InvoiceRows = data.Invoice.InvoiceRows.map(row => {
+            // Ensure VAT is one of the allowed values
+            if (!row.VAT || ![25, 12, 6].includes(row.VAT)) {
+              row.VAT = 25; // Default to 25%
+            }
+            
+            // Ensure AccountNumber is in valid range
+            const accountNum = parseInt(row.AccountNumber);
+            if (isNaN(accountNum) || accountNum < 3000 || accountNum > 3999) {
+              row.AccountNumber = "3001"; // Default to 3001
+            }
+            
+            // Preserve ArticleNumber - no validation needed as we trust the original article number
+            if (row.ArticleNumber) {
+              console.log(`Preserving ArticleNumber in invoice row: ${row.ArticleNumber}`);
+            }
+            
+            return row;
+          });
+        }
+      }
     }
+    
+    // Debug: Log the sanitized payload for POST/PUT
+    if (method !== 'GET' && data) {
+      console.log("Sanitized request payload:", JSON.stringify(data, null, 2));
+    }
+    
+    // Prepare the request body for the edge function
+    const requestBody = {
+      method,
+      path,
+      payload: data,
+      headers: {
+        'Authorization': `Bearer ${credentials.accessToken}`,
+        'Client-Secret': credentials.clientSecret
+      }
+    };
+    
+    console.log("Sending request to fortnox-proxy with body:", {
+      method: requestBody.method,
+      path: requestBody.path,
+      hasPayload: !!requestBody.payload,
+      headers: {
+        'Authorization': `Bearer ${credentials.accessToken?.substring(0, 5)}...`,
+        'Client-Secret': `${credentials.clientSecret?.substring(0, 5)}...`
+      }
+    });
+    
+    // Call the edge function with the properly structured request body
+    const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
+      body: requestBody
+    });
+    
+    if (error) {
+      console.error("❌ Edge Function error:", error.message, error);
+      
+      // Try to extract more detailed error information
+      let errorMessage = "Fortnox API Error";
+      let errorDetails = null;
+      let errorCode = null;
+      
+      if (typeof error === 'object' && error !== null) {
+        // If the error contains a message that has JSON in it, parse it
+        if (error.message && typeof error.message === 'string') {
+          try {
+            if (error.message.includes('{') && error.message.includes('}')) {
+              const jsonStart = error.message.indexOf('{');
+              const jsonEnd = error.message.lastIndexOf('}') + 1;
+              
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                errorDetails = JSON.parse(error.message.substring(jsonStart, jsonEnd));
+                if (errorDetails?.error) {
+                  errorMessage = `Fortnox API Error: ${errorDetails.error}`;
+                }
+                if (errorDetails?.details) {
+                  errorDetails = errorDetails.details;
+                }
+                if (errorDetails?.errorCode) {
+                  errorCode = errorDetails.errorCode;
+                }
+              }
+            }
+          } catch (parseError) {
+            console.error("Error parsing error message JSON:", parseError);
+          }
+        }
+      }
+      
+      // Add article details to the error so we can automatically create it
+      if (errorDetails && errorDetails.articleDetails) {
+        const articleDetails = errorDetails.articleDetails;
+        console.log("Found article details in error, can be used to auto-create:", articleDetails);
+      }
+      
+      // Throw a nicely formatted error with all the details we have
+      const formattedError = new Error(`${errorMessage}: ${JSON.stringify(errorDetails || error.message || 'Unknown error')}`) as FortnoxApiError;
+      formattedError.response = errorDetails;
+      throw formattedError;
+    }
+    
+    // Handle case where data contains an error object from Fortnox
+    if (!responseData) {
+      throw new Error('Empty response from Fortnox API');
+    }
+    
+    // Check if the response contains a Fortnox error
+    if (responseData.error || responseData.ErrorInformation) {
+      console.error("❌ Fortnox API returned error:", responseData);
+      
+      const errorMessage = 
+        responseData.error?.message || 
+        responseData.ErrorInformation?.message || 
+        responseData.error || 
+        'Unknown Fortnox error';
+      
+      throw new Error(`Fortnox API Error: ${errorMessage}`);
+    }
+    
+    console.log("✅ Fortnox API Success:", responseData);
+    return responseData;
   } catch (error) {
-    console.error("Error making Fortnox API request:", error);
+    console.error('Error in Fortnox API request:', error);
     throw error;
   }
 }

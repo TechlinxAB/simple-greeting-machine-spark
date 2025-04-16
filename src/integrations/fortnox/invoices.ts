@@ -194,28 +194,25 @@ export async function formatTimeEntriesForFortnox(
 /**
  * Helper function to sanitize description for Fortnox API
  * Removes pipe symbols and other special characters that cause validation errors
- * while preserving Swedish characters
  */
 function sanitizeFortnoxDescription(description: string): string {
-  if (!description) return "";
-  
-  console.log("Original description:", description);
-  
   // Replace pipe symbols with hyphens
   let sanitized = description.replace(/\|/g, '-');
   
   // Replace multiple spaces/hyphens with single ones
   sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
   
-  // Special regex that explicitly preserves Swedish characters
-  // Only remove truly problematic characters for the API
-  // This regex preserves all alphanumeric characters, Swedish characters, spaces and basic punctuation
-  sanitized = sanitized.replace(/[^\w\såäöÅÄÖ\-,.()]/g, '');
+  // Replace other potentially problematic characters
+  sanitized = sanitized.replace(/[^\w\s\-,.()]/g, '');
   
   // Trim the description to avoid having spaces or hyphens at start/end
   sanitized = sanitized.trim();
   
-  console.log("Sanitized description:", sanitized);
+  // Limit the length to avoid potential issues (Fortnox might have limits)
+  const maxLength = 100;
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength - 3) + '...';
+  }
   
   return sanitized;
 }
