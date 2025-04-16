@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Invoice, TimeEntry } from '@/types';
@@ -18,7 +19,7 @@ import { Clock, Package, Loader2, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { toast } from "sonner";
 
 interface InvoiceDetailsViewProps {
@@ -122,16 +123,22 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
   };
 
   const copyToClipboard = (text: string, entryId: string) => {
+    // Create a temporary textarea element
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    textarea.style.position = 'fixed'; // Prevent scrolling to bottom
-    textarea.style.opacity = '0';
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px'; // Move off-screen
+    textarea.setAttribute('readonly', ''); // Make it readonly to maintain original line breaks
     document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
+    
     try {
+      // Select the text in the textarea
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length); // For mobile devices
+      
+      // Execute the copy command
       const successful = document.execCommand('copy');
+      
       if (successful) {
         setCopiedId(entryId);
         toast.success("Description copied to clipboard");
@@ -141,13 +148,15 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
     } catch (err) {
       console.error("Failed to copy text: ", err);
       toast.error("Failed to copy to clipboard");
+    } finally {
+      // Clean up
+      document.body.removeChild(textarea);
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
     }
-
-    document.body.removeChild(textarea);
-    
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
@@ -293,36 +302,36 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                           <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
                           <TableCell className="max-w-[150px]">
                             {entry.description ? (
-                              <Popover>
-                                <PopoverTrigger asChild>
+                              <HoverCard>
+                                <HoverCardTrigger asChild>
                                   <div className="truncate cursor-pointer text-blue-600 hover:text-blue-800 transition-colors hover:underline">
                                     {entry.description}
                                   </div>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-4" side="top" align="start">
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-80 p-4" side="right">
                                   <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                       <h4 className="font-medium text-sm">Description</h4>
                                       <Button
-                                        variant="ghost"
+                                        variant="outline"
                                         size="sm"
-                                        className="h-8 px-2"
                                         onClick={() => copyToClipboard(entry.description || '', entry.id)}
+                                        className="h-8 px-2 cursor-pointer hover:bg-primary/10"
                                       >
                                         {copiedId === entry.id ? (
-                                          <Check className="h-4 w-4 text-green-500" />
+                                          <Check className="h-4 w-4 text-green-500 mr-1" />
                                         ) : (
-                                          <Copy className="h-4 w-4" />
+                                          <Copy className="h-4 w-4 mr-1" />
                                         )}
-                                        <span className="ml-1">{copiedId === entry.id ? "Copied" : "Copy"}</span>
+                                        <span>{copiedId === entry.id ? "Copied!" : "Copy"}</span>
                                       </Button>
                                     </div>
                                     <div className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
                                       {entry.description}
                                     </div>
                                   </div>
-                                </PopoverContent>
-                              </Popover>
+                                </HoverCardContent>
+                              </HoverCard>
                             ) : (
                               <span className="text-muted-foreground italic text-xs">No description</span>
                             )}
