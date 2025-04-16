@@ -9,13 +9,13 @@ export function Toaster() {
       richColors
       toastOptions={{
         style: {
-          background: "hsl(var(--background))",
-          color: "hsl(var(--foreground))",
+          background: "#ffffff",
+          color: "#000000",
           border: "1px solid hsl(var(--border))",
-          cursor: "pointer", // Add cursor pointer to indicate clickability
+          cursor: "pointer", 
         },
         className: "toaster group",
-        descriptionClassName: "text-sm text-muted-foreground",
+        descriptionClassName: "text-sm text-gray-700",
         duration: 3000, // Auto dismiss after 3 seconds
       }}
     />
