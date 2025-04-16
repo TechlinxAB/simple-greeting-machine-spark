@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -251,7 +250,7 @@ export default function Administration() {
       if (error) throw error;
       
       toast.success("Invoice exported to Fortnox successfully");
-      refetch();
+      refetchInvoices();
     } catch (error) {
       console.error("Error exporting invoice to Fortnox:", error);
       toast.error("Failed to export invoice to Fortnox");
@@ -467,14 +466,14 @@ export default function Administration() {
                   <label className="text-sm font-medium">Client</label>
                   <ClientSelect
                     value={selectedClient}
-                    onValueChange={setSelectedClient}
+                    onChange={setSelectedClient}
                   />
                 </div>
                 <div className="w-full md:w-1/3">
                   <label className="text-sm font-medium">User</label>
                   <UserSelect
                     value={selectedUser}
-                    onValueChange={setSelectedUser}
+                    onChange={setSelectedUser}
                   />
                 </div>
                 <div className="w-full md:w-1/3">
@@ -484,11 +483,10 @@ export default function Administration() {
                       fromDate={isAllTime ? undefined : fromDate}
                       toDate={isAllTime ? undefined : toDate}
                       onDateChange={handleDateRangeChange}
-                      disabled={isAllTime}
                     />
                     <AllTimeToggle
                       checked={isAllTime}
-                      onCheckedChange={setIsAllTime}
+                      onChange={setIsAllTime}
                     />
                   </div>
                 </div>
@@ -563,7 +561,7 @@ export default function Administration() {
           <div className="space-y-5 flex-1 overflow-hidden">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Client</label>
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <Select value={selectedClient} onChange={setSelectedClient}>
                 <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Select a client" />
                 </SelectTrigger>

@@ -1,3 +1,4 @@
+
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,11 +14,12 @@ import { supabase } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
 
 interface TimeEntriesTableProps {
-  timeEntries: TimeEntry[];
-  isLoading: boolean;
-  onEntryDeleted: () => void;
+  timeEntries?: TimeEntry[];
+  isLoading?: boolean;
+  onEntryDeleted?: () => void;
   bulkDeleteMode?: boolean;
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
@@ -26,6 +28,11 @@ interface TimeEntriesTableProps {
   onSort?: (field: string) => void;
   sortField?: string | null;
   sortDirection?: 'asc' | 'desc';
+  clientId?: string;
+  userId?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  searchTerm?: string;
 }
 
 interface SortableHeaderProps {
@@ -35,9 +42,9 @@ interface SortableHeaderProps {
 }
 
 export function TimeEntriesTable({ 
-  timeEntries, 
-  isLoading, 
-  onEntryDeleted,
+  timeEntries: externalTimeEntries, 
+  isLoading: externalIsLoading, 
+  onEntryDeleted = () => {},
   bulkDeleteMode = false,
   selectedItems = [],
   onItemSelect = () => {},
@@ -45,7 +52,12 @@ export function TimeEntriesTable({
   onBulkDelete = () => {},
   onSort,
   sortField,
-  sortDirection = 'asc'
+  sortDirection = 'asc',
+  clientId,
+  userId,
+  fromDate,
+  toDate,
+  searchTerm
 }: TimeEntriesTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -53,6 +65,70 @@ export function TimeEntriesTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
   const [pendingInvoicedId, setPendingInvoicedId] = useState<string | null>(null);
+  
+  // If external time entries and loading state are not provided, fetch them internally
+  const {
+    data: fetchedTimeEntries = [],
+    isLoading: isFetchingTimeEntries,
+  } = useQuery({
+    queryKey: ["time-entries", clientId, userId, fromDate, toDate, searchTerm],
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from("time_entries")
+          .select(`
+            id, 
+            user_id,
+            client_id,
+            product_id,
+            start_time, 
+            end_time, 
+            quantity, 
+            description,
+            created_at,
+            updated_at,
+            invoiced,
+            products:product_id (id, name, type, price),
+            clients:client_id (id, name),
+            profiles:user_id (id, name)
+          `);
+        
+        // Apply filters if provided
+        if (clientId) {
+          query = query.eq("client_id", clientId);
+        }
+        
+        if (userId && userId !== "all") {
+          query = query.eq("user_id", userId);
+        }
+        
+        if (fromDate) {
+          query = query.gte("created_at", fromDate.toISOString());
+        }
+        
+        if (toDate) {
+          query = query.lte("created_at", toDate.toISOString());
+        }
+
+        if (searchTerm) {
+          query = query.or(`description.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%,clients.name.ilike.%${searchTerm}%`);
+        }
+        
+        const { data, error } = await query.order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching time entries:", error);
+        return [];
+      }
+    },
+    enabled: !externalTimeEntries && (clientId !== undefined || userId !== undefined),
+  });
+
+  // Use either external or fetched time entries
+  const timeEntries = externalTimeEntries || fetchedTimeEntries;
+  const isLoading = externalIsLoading !== undefined ? externalIsLoading : isFetchingTimeEntries;
 
   useEffect(() => {
     if (!deleteDialogOpen) {
@@ -166,6 +242,11 @@ export function TimeEntriesTable({
   };
 
   const handleSelectAll = (checked: boolean) => {
+    // Safely check if timeEntries is defined and has entries before proceeding
+    if (!timeEntries || timeEntries.length === 0) {
+      return;
+    }
+    
     const hasInvoicedEntries = timeEntries.some(entry => entry.invoiced);
     
     if (checked && hasInvoicedEntries) {
@@ -184,7 +265,8 @@ export function TimeEntriesTable({
     );
   }
 
-  if (timeEntries.length === 0) {
+  // Make sure timeEntries is defined before checking its length
+  if (!timeEntries || timeEntries.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">No time entries found for the selected period.</p>
@@ -202,7 +284,7 @@ export function TimeEntriesTable({
                 <TableHead className="w-[40px]">
                   <Checkbox 
                     checked={timeEntries.length > 0 && selectedItems.length === timeEntries.length}
-                    onCheckedChange={(checked) => onSelectAll(!!checked)}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
                     aria-label="Select all"
                   />
                 </TableHead>
