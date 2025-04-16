@@ -250,16 +250,7 @@ export default function Administration() {
             />
           </div>
           
-          {activeTab === "invoices" && (
-            <Button 
-              className={`flex items-center gap-2 ${isLaptop ? 'text-xs h-9 px-3' : ''}`}
-              onClick={() => setIsCreatingInvoice(true)}
-              disabled={!fortnoxConnected}
-            >
-              <FilePlus2 className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />
-              <span>New Invoice</span>
-            </Button>
-          )}
+          
         </div>
       </div>
       
@@ -379,6 +370,7 @@ export default function Administration() {
                     onInvoiceDeleted={handleInvoiceDeleted}
                     onViewDetails={handleViewInvoiceDetails}
                     isCompact={isLaptop}
+                    isAdmin={true}
                   />
 
                   {!fortnoxConnected && (

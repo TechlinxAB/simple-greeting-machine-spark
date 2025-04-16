@@ -1,14 +1,17 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, Eye } from 'lucide-react';
+import { Loader2, Trash2, Eye, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useIsLaptop } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
+import { createFortnoxInvoice } from '@/integrations/fortnox';
 
 interface InvoicesTableProps {
   invoices: Invoice[];
@@ -21,6 +24,7 @@ interface InvoicesTableProps {
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
   isCompact?: boolean;
+  isAdmin?: boolean;
 }
 
 export function InvoicesTable({ 
@@ -33,11 +37,13 @@ export function InvoicesTable({
   selectedItems = [],
   onItemSelect,
   onSelectAll,
-  isCompact
+  isCompact,
+  isAdmin = false
 }: InvoicesTableProps) {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isResending, setIsResending] = React.useState<string | null>(null);
   const autoIsLaptop = useIsLaptop();
   
   // Use explicit prop if provided, otherwise use the hook
@@ -73,7 +79,7 @@ export function InvoicesTable({
         throw invoiceError;
       }
       
-      toast({
+      uiToast({
         title: "Invoice deleted",
         description: `Invoice #${invoiceToDelete.invoice_number} has been deleted.`,
       });
@@ -81,7 +87,7 @@ export function InvoicesTable({
       onInvoiceDeleted();
     } catch (error) {
       console.error('Error deleting invoice:', error);
-      toast({
+      uiToast({
         variant: "destructive",
         title: "Error deleting invoice",
         description: "There was an error deleting the invoice. Please try again.",
@@ -89,6 +95,29 @@ export function InvoicesTable({
     } finally {
       setIsDeleting(false);
       setInvoiceToDelete(null);
+    }
+  };
+
+  const handleResendInvoice = async (invoice: Invoice) => {
+    if (!invoice.client_id) return;
+    
+    setIsResending(invoice.id);
+    
+    try {
+      toast.loading("Resending invoice to Fortnox...");
+      
+      // We reuse the createFortnoxInvoice function but pass the existing invoice data
+      const result = await createFortnoxInvoice(invoice.client_id, [], invoice);
+      
+      toast.success(`Invoice #${result.invoiceNumber} was successfully resent to Fortnox`);
+      onInvoiceDeleted(); // Refresh the list
+    } catch (error) {
+      console.error("Error resending invoice to Fortnox:", error);
+      toast.error("Failed to resend invoice", {
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
+    } finally {
+      setIsResending(null);
     }
   };
 
@@ -115,7 +144,7 @@ export function InvoicesTable({
                 <TableHead className="w-[50px]" isCompact={compact}>
                   <input 
                     type="checkbox" 
-                    className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300`}
+                    className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300 cursor-pointer`}
                     checked={invoices.length > 0 && selectedItems.length === invoices.length}
                     onChange={(e) => onSelectAll?.(e.target.checked)}
                   />
@@ -152,7 +181,7 @@ export function InvoicesTable({
                     <TableCell isCompact={compact}>
                       <input 
                         type="checkbox" 
-                        className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300`}
+                        className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300 cursor-pointer`}
                         checked={selectedItems.includes(invoice.id)}
                         onChange={() => onItemSelect?.(invoice.id)}
                       />
@@ -187,14 +216,33 @@ export function InvoicesTable({
                       >
                         <Eye className={compact ? "h-3 w-3" : "h-4 w-4"} />
                       </Button>
-                      <Button
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteClick(invoice)}
-                        className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-destructive`}
-                      >
-                        <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
-                      </Button>
+                      
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleResendInvoice(invoice)}
+                            className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-blue-600`}
+                            disabled={isResending === invoice.id}
+                          >
+                            {isResending === invoice.id ? (
+                              <Loader2 className={`animate-spin ${compact ? "h-3 w-3" : "h-4 w-4"}`} />
+                            ) : (
+                              <RefreshCw className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                            )}
+                          </Button>
+                          
+                          <Button
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteClick(invoice)}
+                            className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-destructive`}
+                          >
+                            <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
