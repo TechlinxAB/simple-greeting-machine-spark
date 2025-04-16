@@ -15,6 +15,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
+import { cn } from "@/lib/utils"; 
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 let filteredProducts: any[] = [];
 
@@ -44,15 +46,19 @@ type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
 interface TimeEntryFormProps {
   selectedDate: Date;
   onSuccess: () => void;
+  isCompact?: boolean;
 }
 
-export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
+export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryFormProps) {
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
+  const autoIsLaptop = useIsLaptop();
+  
+  const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   const endTimeRef = useRef<HTMLDivElement>(null);
 
@@ -340,15 +346,15 @@ export function TimeEntryForm({ selectedDate, onSuccess }: TimeEntryFormProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex justify-between">
+      <CardHeader className={cn("pb-3", compact ? "pt-3" : "")}>
+        <CardTitle className={cn("flex justify-between", compact ? "text-sm" : "")}>
           <span>New time entry</span>
           {isToday(selectedDate) && (
             <span className="text-sm bg-green-500 text-white px-3 py-1 rounded-md">Today</span>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(compact ? "p-3" : "")}>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-4">

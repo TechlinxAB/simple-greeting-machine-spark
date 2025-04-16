@@ -26,6 +26,8 @@ import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 // Form schema with validation
 const formSchema = z.object({
@@ -43,13 +45,18 @@ interface TimeEntryEditFormProps {
   timeEntry: any;
   onSuccess: () => void;
   onCancel: () => void;
+  isCompact?: boolean;
 }
 
-export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryEditFormProps) {
+export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
   const [loading, setLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
+  const autoIsLaptop = useIsLaptop();
+  
+  // Use explicit prop if provided, otherwise use the hook
+  const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   // Create state to store Date objects for TimePicker
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
@@ -260,32 +267,32 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", compact ? "text-sm" : "")}>
         <FormField
           control={form.control}
           name="clientId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Client</FormLabel>
+              <FormLabel className={compact ? "text-sm" : ""}>Client</FormLabel>
               <Select 
                 onValueChange={field.onChange} 
                 defaultValue={field.value}
                 disabled={loading}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
+                    <SelectItem key={client.id} value={client.id} className={compact ? "text-xs" : ""}>
                       {client.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <FormMessage />
+              <FormMessage className={compact ? "text-xs" : ""} />
             </FormItem>
           )}
         />
@@ -313,7 +320,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* Replacing empty string value with a placeholder message in SelectValue instead */}
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} ({product.type}) - {product.price} SEK
@@ -417,11 +423,16 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel }: TimeEntryE
             variant="outline" 
             onClick={onCancel}
             disabled={loading}
+            className={compact ? "h-8 text-xs px-3" : ""}
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className={compact ? "h-8 text-xs px-3" : ""}
+          >
+            {loading && <Loader2 className={cn("mr-2 animate-spin", compact ? "h-3 w-3" : "h-4 w-4")} />}
             Update Time Entry
           </Button>
         </div>
