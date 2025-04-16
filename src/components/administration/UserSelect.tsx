@@ -19,7 +19,6 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
     queryKey: ["users"],
     queryFn: async () => {
       try {
-        // Directly query the profiles table which contains user information
         const { data, error } = await supabase
           .from("profiles")
           .select("id, name")
@@ -36,14 +35,16 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
 
   return (
     <Select
-      value={value || "all-users"} 
+      value={value || "all"} 
       onValueChange={(val) => onChange(val === "all-users" ? "all" : val)}
     >
-      <SelectTrigger className="bg-background w-[180px]">
-        <SelectValue placeholder="All Users" />
+      <SelectTrigger className="bg-background w-full">
+        <SelectValue placeholder="All Users">
+          {value === "all" ? "All Users" : users.find(u => u.id === value)?.name || "All Users"}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all-users">All Users</SelectItem>
+        <SelectItem value="all">All Users</SelectItem>
         {users.map((user) => (
           <SelectItem key={user.id} value={user.id}>
             {user.name || 'Unnamed User'}

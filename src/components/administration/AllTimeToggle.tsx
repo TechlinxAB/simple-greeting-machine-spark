@@ -14,7 +14,7 @@ export function AllTimeToggle({ isAllTime, onAllTimeChange }: AllTimeToggleProps
       onPressedChange={onAllTimeChange}
       variant="outline"
       aria-label="Toggle all time"
-      className={`flex gap-2 items-center ${isAllTime ? 'bg-primary/10' : ''}`}
+      className={`flex gap-2 items-center h-10 px-4 ${isAllTime ? 'bg-primary/10' : ''}`}
     >
       <Clock className="h-4 w-4" />
       <span>All Time</span>

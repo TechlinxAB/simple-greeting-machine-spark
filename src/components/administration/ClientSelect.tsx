@@ -38,7 +38,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
       value={value || "all-clients"} 
       onValueChange={(val) => onChange(val === "all-clients" ? "" : val)}
     >
-      <SelectTrigger className="bg-background w-[180px]">
+      <SelectTrigger className="bg-background w-full">
         <SelectValue placeholder="All Clients" />
       </SelectTrigger>
       <SelectContent>

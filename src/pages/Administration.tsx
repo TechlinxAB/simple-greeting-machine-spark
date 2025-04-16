@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -31,7 +30,7 @@ import { ClientSelect } from "@/components/administration/ClientSelect";
 import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -54,7 +53,6 @@ export default function Administration() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const { role } = useAuth();
 
-  // Calculate fromDate and toDate based on selectedMonth and selectedYear if not using all time
   const fromDate = isAllTime ? undefined : startOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
   const toDate = isAllTime ? undefined : endOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
 
@@ -233,7 +231,7 @@ export default function Administration() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Administration</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
@@ -260,75 +258,63 @@ export default function Administration() {
         </div>
       </div>
       
-      <div className="bg-card rounded-md shadow-sm">
+      <div className="bg-card rounded-md shadow-sm overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-muted/50 border-b w-full rounded-none justify-start h-auto p-0">
-            <TabsTrigger 
-              value="time-entries" 
-              className="data-[state=active]:bg-background rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3 px-4"
-            >
-              Time Entries
-            </TabsTrigger>
-            <TabsTrigger 
-              value="invoices" 
-              className="data-[state=active]:bg-background rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3 px-4"
-            >
-              Invoices
-            </TabsTrigger>
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
           </TabsList>
-        </Tabs>
         
-        {activeTab === "time-entries" && (
-          <div className="p-6">
-            <Card className="shadow-none">
-              <CardHeader className="flex flex-row items-center justify-between px-6 py-4">
-                <CardTitle>Time Entries</CardTitle>
-                <div className="flex items-center gap-2">
-                  {bulkDeleteMode ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={toggleBulkDeleteMode}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDelete}
-                        disabled={selectedItems.length === 0}
-                      >
-                        Delete Selected ({selectedItems.length})
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex items-center gap-2"
-                        onClick={refetchTimeEntries}
-                      >
-                        <RefreshCcw className="h-3.5 w-3.5" />
-                        <span>Refresh</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2 text-destructive hover:text-destructive"
-                        onClick={toggleBulkDeleteMode}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>Bulk Delete</span>
-                      </Button>
-                    </>
-                  )}
+          {activeTab === "time-entries" && (
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">Time Entries</h2>
+                  <div className="flex items-center gap-2">
+                    {bulkDeleteMode ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={toggleBulkDeleteMode}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBulkDelete}
+                          disabled={selectedItems.length === 0}
+                        >
+                          Delete Selected ({selectedItems.length})
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex items-center gap-2"
+                          onClick={refetchTimeEntries}
+                        >
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          <span>Refresh</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={toggleBulkDeleteMode}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Bulk Delete</span>
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="flex flex-wrap items-center gap-4 w-full mb-6">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm font-medium mb-2">Filter by user</p>
                     <UserSelect
@@ -361,64 +347,64 @@ export default function Administration() {
                     </div>
                   </div>
                 </div>
-                
-                <TimeEntriesTable 
-                  clientId={selectedClient || undefined}
-                  userId={selectedUser === "all" ? undefined : selectedUser}
-                  fromDate={fromDate}
-                  toDate={toDate}
-                  searchTerm={searchTerm || undefined}
-                  bulkDeleteMode={bulkDeleteMode}
-                  selectedItems={selectedItems}
-                  onItemSelect={handleItemSelect}
-                  onSelectAll={handleSelectAll}
-                  onBulkDelete={handleBulkDelete}
-                  onEntryDeleted={refetchTimeEntries}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        {activeTab === "invoices" && (
-          <div className="p-6">
-            <Card className="shadow-none">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>All Invoices</CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => refetchInvoices()}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCcw className="h-3.5 w-3.5" />
-                  <span>Refresh</span>
-                </Button>
-              </CardHeader>
+              </div>
               
-              <CardContent>
-                <InvoicesTable
-                  invoices={filteredInvoices}
-                  isLoading={isLoadingInvoices}
-                  onInvoiceDeleted={handleInvoiceDeleted}
-                  onViewDetails={handleViewInvoiceDetails}
-                />
+              <TimeEntriesTable 
+                clientId={selectedClient || undefined}
+                userId={selectedUser === "all" ? undefined : selectedUser}
+                fromDate={fromDate}
+                toDate={toDate}
+                searchTerm={searchTerm || undefined}
+                bulkDeleteMode={bulkDeleteMode}
+                selectedItems={selectedItems}
+                onItemSelect={handleItemSelect}
+                onSelectAll={handleSelectAll}
+                onBulkDelete={handleBulkDelete}
+                onEntryDeleted={refetchTimeEntries}
+              />
+            </div>
+          )}
+          
+          {activeTab === "invoices" && (
+            <div className="p-6">
+              <Card className="shadow-none">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>All Invoices</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => refetchInvoices()}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                    <span>Refresh</span>
+                  </Button>
+                </CardHeader>
+                
+                <CardContent>
+                  <InvoicesTable
+                    invoices={filteredInvoices}
+                    isLoading={isLoadingInvoices}
+                    onInvoiceDeleted={handleInvoiceDeleted}
+                    onViewDetails={handleViewInvoiceDetails}
+                  />
 
-                {!fortnoxConnected && (
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      Fortnox integration is not connected. {
-                        role === 'admin' 
-                          ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
-                          : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
-                      }
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  {!fortnoxConnected && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        Fortnox integration is not connected. {
+                          role === 'admin' 
+                            ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
+                            : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                        }
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
