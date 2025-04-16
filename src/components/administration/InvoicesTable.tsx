@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -101,8 +100,12 @@ export function InvoicesTable({
     
     setIsResending(invoice.id);
     
+    const loadingToastId = `resending-${invoice.id}`;
+    
     try {
-      toast.loading("Resending invoice to Fortnox...");
+      toast.loading("Resending invoice to Fortnox...", {
+        id: loadingToastId
+      });
       
       const { data: timeEntries, error: timeEntriesError } = await supabase
         .from("time_entries")
@@ -119,13 +122,16 @@ export function InvoicesTable({
       
       const timeEntryIds = timeEntries.map(entry => entry.id);
       
-      // Set isResend to true to handle updating the existing invoice rather than creating a new one
       const result = await createFortnoxInvoice(invoice.client_id, timeEntryIds, true);
       
+      toast.dismiss(loadingToastId);
       toast.success(`Invoice was successfully resent to Fortnox with new invoice number: ${result.invoiceNumber}`);
+      
       onInvoiceDeleted();
     } catch (error) {
       console.error("Error resending invoice to Fortnox:", error);
+      
+      toast.dismiss(loadingToastId);
       toast.error("Failed to resend invoice", {
         description: error instanceof Error ? error.message : "Unknown error occurred"
       });
