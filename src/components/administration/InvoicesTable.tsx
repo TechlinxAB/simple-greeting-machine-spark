@@ -17,6 +17,9 @@ interface InvoicesTableProps {
   onViewDetails: (invoice: Invoice) => void;
   bulkDeleteMode?: boolean;
   onBulkDelete?: () => void;
+  selectedItems?: string[];
+  onItemSelect?: (id: string) => void;
+  onSelectAll?: (checked: boolean) => void;
 }
 
 export function InvoicesTable({ 
@@ -25,7 +28,10 @@ export function InvoicesTable({
   onInvoiceDeleted, 
   onViewDetails,
   bulkDeleteMode = false,
-  onBulkDelete
+  onBulkDelete,
+  selectedItems = [],
+  onItemSelect,
+  onSelectAll
 }: InvoicesTableProps) {
   const { toast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
@@ -99,6 +105,16 @@ export function InvoicesTable({
         <Table>
           <TableHeader>
             <TableRow>
+              {bulkDeleteMode && (
+                <TableHead className="w-[50px]">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 rounded border-gray-300"
+                    checked={invoices.length > 0 && selectedItems.length === invoices.length}
+                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                  />
+                </TableHead>
+              )}
               <TableHead>Invoice #</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Issue Date</TableHead>
@@ -111,7 +127,7 @@ export function InvoicesTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className="h-24 text-center">
                   <div className="flex justify-center items-center">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
@@ -119,13 +135,23 @@ export function InvoicesTable({
               </TableRow>
             ) : invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className="h-24 text-center text-muted-foreground">
                   No invoices found
                 </TableCell>
               </TableRow>
             ) : (
               invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
+                  {bulkDeleteMode && (
+                    <TableCell>
+                      <input 
+                        type="checkbox" 
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={selectedItems.includes(invoice.id)}
+                        onChange={() => onItemSelect?.(invoice.id)}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                   <TableCell>{invoice.clients?.name}</TableCell>
                   <TableCell>
