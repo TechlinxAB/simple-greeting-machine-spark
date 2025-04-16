@@ -23,6 +23,21 @@ interface UsersTableProps {
   isCompact?: boolean;
 }
 
+// Define interfaces for the stats data structures
+interface ClientStat {
+  name: string;
+  hours: number;
+  revenue: number;
+}
+
+interface ProductStat {
+  name: string;
+  type: 'activity' | 'item';
+  units: number;
+  unitLabel: string;
+  revenue: number;
+}
+
 export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserStats, setShowUserStats] = useState(false);
@@ -164,29 +179,29 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
   };
 
   // Calculate stats for the selected user
-  const getUserClientStats = () => {
+  const getUserClientStats = (): ClientStat[] => {
     if (!selectedUser || userTimeEntries.length === 0) return [];
     
-    const clientStats = userTimeEntries.reduce((acc, entry) => {
+    const clientStats: Record<string, ClientStat> = {};
+    
+    userTimeEntries.forEach(entry => {
       const clientId = entry.client_id;
       const clientName = entry.clients?.name || 'Unknown Client';
       
-      if (!acc[clientId]) {
-        acc[clientId] = { name: clientName, hours: 0, revenue: 0 };
+      if (!clientStats[clientId]) {
+        clientStats[clientId] = { name: clientName, hours: 0, revenue: 0 };
       }
       
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        acc[clientId].hours += hours;
-        acc[clientId].revenue += hours * (entry.products?.price || 0);
+        clientStats[clientId].hours += hours;
+        clientStats[clientId].revenue += hours * (entry.products?.price || 0);
       } else if (entry.products?.type === 'item' && entry.quantity) {
-        acc[clientId].revenue += entry.quantity * (entry.products?.price || 0);
+        clientStats[clientId].revenue += entry.quantity * (entry.products?.price || 0);
       }
-      
-      return acc;
-    }, {});
+    });
     
     return Object.values(clientStats)
       .sort((a, b) => b.hours - a.hours)
@@ -197,19 +212,21 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
       }));
   };
   
-  const getUserProductStats = () => {
+  const getUserProductStats = (): ProductStat[] => {
     if (!selectedUser || userTimeEntries.length === 0) return [];
     
-    const productStats = userTimeEntries.reduce((acc, entry) => {
-      if (!entry.products) return acc;
+    const productStats: Record<string, Partial<ProductStat>> = {};
+    
+    userTimeEntries.forEach(entry => {
+      if (!entry.products) return;
       
-      const productId = entry.product_id;
+      const productId = entry.product_id || '';
       const productName = entry.products.name || 'Unknown Product';
       
-      if (!acc[productId]) {
-        acc[productId] = { 
+      if (!productStats[productId]) {
+        productStats[productId] = { 
           name: productName, 
-          type: entry.products.type,
+          type: entry.products.type as 'activity' | 'item',
           units: 0,
           revenue: 0 
         };
@@ -219,25 +236,23 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        acc[productId].units += hours;
-        acc[productId].revenue += hours * (entry.products.price || 0);
+        productStats[productId].units = (productStats[productId].units || 0) + hours;
+        productStats[productId].revenue = (productStats[productId].revenue || 0) + hours * (entry.products.price || 0);
       } else if (entry.products.type === 'item' && entry.quantity) {
-        acc[productId].units += entry.quantity;
-        acc[productId].revenue += entry.quantity * (entry.products.price || 0);
+        productStats[productId].units = (productStats[productId].units || 0) + entry.quantity;
+        productStats[productId].revenue = (productStats[productId].revenue || 0) + entry.quantity * (entry.products.price || 0);
       }
-      
-      return acc;
-    }, {});
+    });
     
     return Object.values(productStats)
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
       .map(stat => ({
-        name: stat.name,
-        type: stat.type,
-        units: stat.type === 'activity' ? parseFloat(stat.units.toFixed(1)) : Math.round(stat.units),
+        name: stat.name || '',
+        type: stat.type || 'item',
+        units: stat.type === 'activity' ? parseFloat((stat.units || 0).toFixed(1)) : Math.round(stat.units || 0),
         unitLabel: stat.type === 'activity' ? 'hours' : 'units',
-        revenue: Math.round(stat.revenue)
-      }));
+        revenue: Math.round(stat.revenue || 0)
+      })) as ProductStat[];
   };
 
   return (
