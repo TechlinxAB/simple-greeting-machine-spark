@@ -30,7 +30,7 @@ jwt_expiry = 3600
 enable_signup = true
 
 [functions]
-timeout_seconds = 30
+timeout_seconds = 60
 
 [functions.fortnox-proxy]
 memory_size = 256
