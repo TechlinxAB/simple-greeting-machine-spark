@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -175,6 +174,12 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
     user: "secondary",
   };
 
+  const roleColors = {
+    admin: "text-red-600",
+    manager: "text-blue-600",
+    user: "text-gray-600"
+  };
+
   return (
     <div className="space-y-4">
       {edgeFunctionError && (
@@ -223,13 +228,14 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
                       </div>
                     </TableCell>
                     <TableCell isCompact={isCompact}>
-                      <Badge 
-                        variant={roleBadgeVariants[user.role] || "secondary"} 
-                        className="flex items-center gap-1 w-fit"
+                      <span 
+                        className={`
+                          ${roleColors[user.role as keyof typeof roleColors]} 
+                          capitalize font-medium
+                        `}
                       >
-                        {roleIcons[user.role as keyof typeof roleIcons] || <UserIcon className="h-3 w-3" />}
-                        <span className="capitalize">{user.role}</span>
-                      </Badge>
+                        {user.role}
+                      </span>
                     </TableCell>
                     <TableCell isCompact={isCompact}>{getUserHours(user.id)} h</TableCell>
                     <TableCell isCompact={isCompact}>{getUserRevenue(user.id)} SEK</TableCell>
