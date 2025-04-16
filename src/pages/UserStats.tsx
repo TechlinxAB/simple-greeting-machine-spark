@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -34,7 +33,6 @@ import {
 import { useIsLaptop } from "@/hooks/use-mobile";
 import { type ProductType } from "@/types";
 
-// Define interfaces for the stats data structures
 interface ClientStat {
   name: string;
   hours: number;
@@ -63,7 +61,7 @@ interface UserTimeEntry {
   products?: {
     id: string;
     name: string;
-    type: ProductType; // Using the ProductType from types
+    type: ProductType;
     price: number;
   };
 }
@@ -75,7 +73,6 @@ export default function UserStats() {
   const [activeTab, setActiveTab] = useState("current-month");
   const [currentDate, setCurrentDate] = useState(new Date());
   
-  // Get user profile data
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
@@ -91,11 +88,9 @@ export default function UserStats() {
     enabled: !!userId
   });
 
-  // Date range calculations
   const currentMonthStart = startOfMonth(currentDate);
   const currentMonthEnd = endOfMonth(currentDate);
   
-  // Get time entries for the current month
   const { data: currentMonthTimeEntries = [], isLoading: isLoadingCurrentMonth } = useQuery({
     queryKey: ["user-time-entries", userId, "current-month", format(currentMonthStart, "yyyy-MM")],
     queryFn: async () => {
@@ -118,7 +113,6 @@ export default function UserStats() {
     enabled: !!userId
   });
   
-  // Get all time entries (no date filtering)
   const { data: allTimeEntries = [], isLoading: isLoadingAllTime } = useQuery({
     queryKey: ["user-time-entries", userId, "all-time"],
     queryFn: async () => {
@@ -139,7 +133,6 @@ export default function UserStats() {
     enabled: !!userId
   });
 
-  // Calculate stats functions
   const calculateHours = (entries: UserTimeEntry[]) => {
     return entries
       .filter(entry => entry.products?.type === 'activity' && entry.start_time && entry.end_time)
@@ -242,7 +235,6 @@ export default function UserStats() {
       })) as ProductStat[];
   };
 
-  // Month navigation
   const goToPreviousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
   };
@@ -251,12 +243,10 @@ export default function UserStats() {
     setCurrentDate(addMonths(currentDate, 1));
   };
 
-  // Handle navigation back to administration
   const handleGoBack = () => {
     navigate('/administration?tab=users');
   };
 
-  // Stats for current month and all time
   const currentMonthHours = calculateHours(currentMonthTimeEntries);
   const currentMonthRevenue = calculateRevenue(currentMonthTimeEntries);
   const allTimeHours = calculateHours(allTimeEntries);
@@ -320,7 +310,6 @@ export default function UserStats() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* User profile card */}
         <Card className="w-full md:w-1/3">
           <CardHeader className="pb-4">
             <div className="flex flex-col items-center text-center">
@@ -370,7 +359,6 @@ export default function UserStats() {
           </CardContent>
         </Card>
 
-        {/* Main stats area */}
         <Card className="w-full md:w-2/3">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -434,9 +422,12 @@ export default function UserStats() {
                         barKey="hours"
                         barName="Hours Worked"
                         nameKey="name"
-                        barFill="#3b82f6"
+                        barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value) => [`${value} hours`, '']
+                          formatter: (value, name) => {
+                            const displayName = name.split(' ')[0];
+                            return [`${value} hours`, displayName];
+                          }
                         }}
                       />
                     </div>
@@ -458,7 +449,7 @@ export default function UserStats() {
                             nameKey="name"
                             colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
                             tooltip={{
-                              formatter: (value) => [`${value} SEK`, '']
+                              formatter: (value, name) => [`${value} SEK`, name]
                             }}
                           />
                         </div>
@@ -512,9 +503,12 @@ export default function UserStats() {
                         barKey="hours"
                         barName="Hours Worked"
                         nameKey="name"
-                        barFill="#3b82f6"
+                        barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value) => [`${value} hours`, '']
+                          formatter: (value, name) => {
+                            const displayName = name.split(' ')[0];
+                            return [`${value} hours`, displayName];
+                          }
                         }}
                       />
                     </div>
@@ -536,7 +530,7 @@ export default function UserStats() {
                             nameKey="name"
                             colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
                             tooltip={{
-                              formatter: (value) => [`${value} SEK`, '']
+                              formatter: (value, name) => [`${value} SEK`, name]
                             }}
                           />
                         </div>
