@@ -13,17 +13,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       closeButton={true}
       richColors
-      onClick={() => {}} // This allows clicking to dismiss
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg cursor-pointer", // Add cursor-pointer to indicate clickability
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg cursor-pointer", // Cursor pointer indicates clickability
           description: "group-[.toast]:text-muted-foreground",
           actionButton:
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton:
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
+        duration: 3000, // Auto dismiss after 3 seconds
       }}
       {...props}
     />

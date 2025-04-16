@@ -7,7 +7,6 @@ export function Toaster() {
       position="top-right"
       closeButton={true}
       richColors
-      onClick={() => {}} // Add click-to-dismiss functionality
       toastOptions={{
         style: {
           background: "hsl(var(--background))",
@@ -17,6 +16,7 @@ export function Toaster() {
         },
         className: "toaster group",
         descriptionClassName: "text-sm text-muted-foreground",
+        duration: 3000, // Auto dismiss after 3 seconds
       }}
     />
   );
