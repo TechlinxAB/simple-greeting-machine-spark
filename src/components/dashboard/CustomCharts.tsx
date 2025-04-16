@@ -20,7 +20,7 @@ interface BarChartProps {
   height?: number;
   barKey: string;
   barName: string;
-  nameKey?: string; // Add the nameKey prop to the interface
+  nameKey?: string; 
   barFill?: string;
   tooltip?: {
     formatter?: (value: any) => [string, string];
@@ -34,7 +34,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   height = 300,
   barKey,
   barName,
-  nameKey = "name", // Default to "name" if not provided
+  nameKey = "name",
   barFill = "#4CAF50",
   tooltip
 }) => {
@@ -43,7 +43,6 @@ export const BarChart: React.FC<BarChartProps> = ({
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          {/* Use the nameKey prop for the dataKey */}
           <RechartsXAxis dataKey={nameKey} />
           <RechartsYAxis />
           <Tooltip 
@@ -68,6 +67,7 @@ interface PieChartProps {
   className?: string;
   height?: number;
   dataKey: string;
+  nameKey?: string;
   colors?: string[];
   label?: boolean | ((data: any) => string);
   tooltip?: {
@@ -80,6 +80,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   className = "w-full h-full",
   height = 300,
   dataKey,
+  nameKey = "name",
   colors = ['#8BC34A', '#4CAF50', '#009688', '#2196F3', '#3F51B5', '#673AB7', '#9C27B0'],
   label = true,
   tooltip
@@ -102,6 +103,7 @@ export const PieChart: React.FC<PieChartProps> = ({
             outerRadius={100}
             fill="#8884d8"
             dataKey={dataKey}
+            nameKey={nameKey}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />

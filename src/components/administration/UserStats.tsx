@@ -352,8 +352,8 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                     nameKey="name"
                     colors={COLORS}
                     tooltip={{
-                      formatter: (value, name, entry) => {
-                        return [`${value} hours`, entry.payload.fullName || name] as [string, string];
+                      formatter: (value) => {
+                        return [`${value} hours`, 'Client']; 
                       }
                     }}
                   />
@@ -374,8 +374,8 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                     nameKey="name"
                     colors={COLORS.slice().reverse()}
                     tooltip={{
-                      formatter: (value, name, entry) => {
-                        return [`${value} hours`, entry.payload.fullName || name] as [string, string];
+                      formatter: (value) => {
+                        return [`${value} hours`, 'Activity']; 
                       }
                     }}
                   />
