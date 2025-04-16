@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -193,7 +194,7 @@ export async function formatTimeEntriesForFortnox(
 
 /**
  * Helper function to sanitize description for Fortnox API
- * Removes pipe symbols and other special characters that cause validation errors
+ * Preserves Swedish characters (åäöÅÄÖ) while removing other problematic characters
  */
 function sanitizeFortnoxDescription(description: string): string {
   // Replace pipe symbols with hyphens
@@ -202,8 +203,9 @@ function sanitizeFortnoxDescription(description: string): string {
   // Replace multiple spaces/hyphens with single ones
   sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
   
-  // Replace other potentially problematic characters
-  sanitized = sanitized.replace(/[^\w\s\-,.()]/g, '');
+  // Use a more permissive replacement pattern that preserves Swedish characters
+  // Allow a-z, A-Z, 0-9, spaces, hyphens, periods, commas, parentheses, and Swedish characters åäöÅÄÖ
+  sanitized = sanitized.replace(/[^\w\såäöÅÄÖ\-,.()]/g, '');
   
   // Trim the description to avoid having spaces or hyphens at start/end
   sanitized = sanitized.trim();

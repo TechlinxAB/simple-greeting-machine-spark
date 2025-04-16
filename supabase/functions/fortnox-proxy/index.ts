@@ -241,12 +241,15 @@ serve(async (req) => {
               return validRow;
             });
             
-            // Additional sanitization - make sure descriptions don't have problematic characters
+            // Modified sanitization - preserve Swedish characters
             for (const row of payload.Invoice.InvoiceRows) {
               if (row.Description) {
-                // Remove pipe symbols and other potentially problematic characters
+                // Remove pipe symbols but preserve Swedish characters (åäöÅÄÖ)
                 row.Description = row.Description.replace(/\|/g, '-');
-                row.Description = row.Description.replace(/[^\w\s\-,.()]/g, '');
+                
+                // Use a more permissive regex that keeps Swedish characters intact
+                // Only remove characters that are known to cause issues with the API
+                row.Description = row.Description.replace(/[^\w\såäöÅÄÖ\-,.()]/g, '');
                 row.Description = row.Description.trim();
               }
             }
@@ -262,7 +265,7 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Client-Secret': clientSecret,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           'Accept': 'application/json',
           ...(method !== 'GET' ? {} : { 'Cache-Control': 'no-cache' }),
         },
@@ -350,7 +353,7 @@ serve(async (req) => {
                   {
                     status: 404,
                     headers: {
-                      'Content-Type': 'application/json',
+                      'Content-Type': 'application/json; charset=utf-8',
                       ...corsHeaders
                     }
                   }
@@ -368,7 +371,7 @@ serve(async (req) => {
               {
                 status: 404,
                 headers: {
-                  'Content-Type': 'application/json',
+                  'Content-Type': 'application/json; charset=utf-8',
                   ...corsHeaders
                 }
               }
@@ -391,7 +394,7 @@ serve(async (req) => {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Client-Secret': clientSecret,
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
                 'Accept': 'application/json',
               },
               body: JSON.stringify(payload),
@@ -404,7 +407,7 @@ serve(async (req) => {
               return new Response(retryText, {
                 status: retryRes.status,
                 headers: {
-                  'Content-Type': 'application/json',
+                  'Content-Type': 'application/json; charset=utf-8',
                   ...corsHeaders
                 },
               });
@@ -426,7 +429,7 @@ serve(async (req) => {
           {
             status: fortnoxRes.status,
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type': 'application/json; charset=utf-8',
               ...corsHeaders
             }
           }
@@ -439,7 +442,7 @@ serve(async (req) => {
         headersSent: {
           'Authorization': 'Bearer ***masked***',
           'Client-Secret': '***masked***',
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           'Accept': 'application/json',
         },
         response: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
@@ -449,7 +452,7 @@ serve(async (req) => {
       return new Response(text, {
         status: fortnoxRes.status,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           ...corsHeaders
         },
       });
@@ -461,7 +464,7 @@ serve(async (req) => {
       }), {
         status: 500,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           ...corsHeaders
         },
       });
@@ -476,7 +479,7 @@ serve(async (req) => {
       }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" } 
       }
     );
   }
