@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -25,7 +24,6 @@ import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm"
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 
-// Utility functions for calculating and formatting duration
 const calculateDuration = (startTime: string, endTime: string): number => {
   const start = new Date(startTime);
   const end = new Date(endTime);
@@ -47,6 +45,7 @@ type TimeEntryWithProfile = {
   end_time?: string;
   quantity?: number;
   description?: string;
+  created_at?: string;
   products?: {
     id: string;
     name: string;
@@ -135,19 +134,17 @@ export default function Invoices() {
           end_time, 
           quantity, 
           description,
+          created_at,
           products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
         `)
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
-      // Don't apply date filters if both dates are not set
       if (fromDate) {
-        // For activities, filter by start_time; for items (which have no start_time), filter by created_at
         query = query.or(`start_time.gte.${fromDate.toISOString()},and(start_time.is.null,created_at.gte.${fromDate.toISOString()})`);
       }
       
       if (toDate) {
-        // For activities, filter by start_time; for items (which have no start_time), filter by created_at
         query = query.or(`start_time.lte.${toDate.toISOString()},and(start_time.is.null,created_at.lte.${toDate.toISOString()})`);
       }
       
@@ -385,6 +382,15 @@ export default function Invoices() {
     return "-";
   };
 
+  const getEntryDate = (entry: TimeEntryWithProfile): string => {
+    if (entry.start_time) {
+      return format(parseISO(entry.start_time), 'yyyy-MM-dd');
+    } else if (entry.created_at) {
+      return format(parseISO(entry.created_at), 'yyyy-MM-dd');
+    }
+    return 'N/A';
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -587,9 +593,7 @@ export default function Invoices() {
                             
                             const unit = entry.products?.type === 'activity' ? 't' : 'st';
                             
-                            const entryDate = entry.start_time 
-                              ? format(parseISO(entry.start_time), 'yyyy-MM-dd')
-                              : 'N/A';
+                            const entryDate = getEntryDate(entry);
                               
                             const isExcluded = excludedEntries.includes(entry.id);
                             

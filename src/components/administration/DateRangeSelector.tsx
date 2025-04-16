@@ -29,8 +29,9 @@ export function DateRangeSelector({
   }, [fromDate, toDate]);
 
   const handleFromDateSelect = (date: Date | undefined) => {
-    // Prevent deselection - if date is undefined and we had a previous date, keep the previous date
-    if (!date && localFromDate) {
+    // We want to prevent unselection - if date is undefined, keep the previous date
+    // Also, if they click the same date again, don't treat it as an unselection
+    if (!date) {
       return;
     }
     
@@ -45,8 +46,9 @@ export function DateRangeSelector({
   };
 
   const handleToDateSelect = (date: Date | undefined) => {
-    // Prevent deselection - if date is undefined and we had a previous date, keep the previous date
-    if (!date && localToDate) {
+    // We want to prevent unselection - if date is undefined, keep the previous date
+    // Also, if they click the same date again, don't treat it as an unselection
+    if (!date) {
       return;
     }
     
