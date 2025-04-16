@@ -45,7 +45,16 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
           return;
         }
 
-        setTimeEntries(data || []);
+        // Properly cast the product type to ensure it matches the TimeEntry type
+        const typedEntries: TimeEntry[] = (data || []).map(entry => ({
+          ...entry,
+          products: entry.products ? {
+            ...entry.products,
+            type: entry.products.type as 'activity' | 'item'
+          } : undefined
+        }));
+
+        setTimeEntries(typedEntries);
       } catch (error) {
         console.error('Error in fetchTimeEntries:', error);
       } finally {
