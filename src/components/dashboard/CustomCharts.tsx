@@ -20,6 +20,7 @@ interface BarChartProps {
   height?: number;
   barKey: string;
   barName: string;
+  nameKey?: string; // Add the nameKey prop to the interface
   barFill?: string;
   tooltip?: {
     formatter?: (value: any) => [string, string];
@@ -33,6 +34,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   height = 300,
   barKey,
   barName,
+  nameKey = "name", // Default to "name" if not provided
   barFill = "#4CAF50",
   tooltip
 }) => {
@@ -41,8 +43,8 @@ export const BarChart: React.FC<BarChartProps> = ({
       <ResponsiveContainer width="100%" height={height}>
         <RechartsBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          {/* Pass all properties directly to RechartsXAxis instead of using defaultProps */}
-          <RechartsXAxis dataKey="name" />
+          {/* Use the nameKey prop for the dataKey */}
+          <RechartsXAxis dataKey={nameKey} />
           <RechartsYAxis />
           <Tooltip 
             formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
