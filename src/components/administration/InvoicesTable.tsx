@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Icons } from "@/components/icons";
+import { DialogWrapper } from "@/components/ui/dialog-wrapper";
+import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
 
 export interface InvoicesTableProps {
   invoices: Invoice[];
@@ -20,6 +22,7 @@ export interface InvoicesTableProps {
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
+  onBulkDelete?: () => void;
   onSort?: (field: string) => void;
   sortField?: string | null;
   sortDirection?: 'asc' | 'desc';
@@ -33,6 +36,7 @@ export function InvoicesTable({
   selectedItems = [],
   onItemSelect = () => {},
   onSelectAll = () => {},
+  onBulkDelete = () => {},
   onSort = () => {},
   sortField = null,
   sortDirection = 'desc'
@@ -41,6 +45,8 @@ export function InvoicesTable({
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasTimeEntries, setHasTimeEntries] = useState(false);
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
 
   const handleDeleteClick = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -110,6 +116,11 @@ export function InvoicesTable({
     }
   };
 
+  const handleViewDetails = (invoice: Invoice) => {
+    setViewingInvoice(invoice);
+    setViewDetailsOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'draft':
@@ -151,6 +162,15 @@ export function InvoicesTable({
         <Table>
           <TableHeader>
             <TableRow>
+              {bulkDeleteMode && (
+                <TableHead className="w-[40px]">
+                  <Checkbox 
+                    checked={invoices.length > 0 && selectedItems.length === invoices.length}
+                    onCheckedChange={(checked) => onSelectAll(!!checked)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               <TableHead>Invoice Number</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Issue Date</TableHead>
@@ -163,6 +183,15 @@ export function InvoicesTable({
           <TableBody>
             {invoices.map((invoice) => (
               <TableRow key={invoice.id}>
+                {bulkDeleteMode && (
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedItems.includes(invoice.id)}
+                      onCheckedChange={() => onItemSelect(invoice.id)}
+                      aria-label={`Select invoice ${invoice.id}`}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="font-medium">
                     {invoice.invoice_number || "N/A"}
@@ -193,6 +222,17 @@ export function InvoicesTable({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end">
+                    {invoice.exported_to_fortnox && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleViewDetails(invoice)}
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                        title="View invoice details"
+                      >
+                        <Icons.fileText className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -266,6 +306,17 @@ export function InvoicesTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DialogWrapper
+        open={viewDetailsOpen}
+        onOpenChange={setViewDetailsOpen}
+        title="Invoice Details"
+        description="View details of this invoice and related time entries."
+      >
+        {viewingInvoice && (
+          <InvoiceDetailsView invoice={viewingInvoice} />
+        )}
+      </DialogWrapper>
     </>
   );
 }

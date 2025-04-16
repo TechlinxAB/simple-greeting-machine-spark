@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, Trash2, AlertCircle, FileSearch } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { UserSelect } from "@/components/administration/UserSelect";
@@ -38,11 +37,16 @@ export default function Administration() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedEntriesIds, setSelectedEntriesIds] = useState<string[]>([]);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [sortField, setSortField] = useState<string | null>("start_time");
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [allTimeEnabled, setAllTimeEnabled] = useState(false);
+  const [timeEntriesBulkMode, setTimeEntriesBulkMode] = useState(false);
+  const [invoicesBulkMode, setInvoicesBulkMode] = useState(false);
+  const [isInvoiceDeleteDialogOpen, setIsInvoiceDeleteDialogOpen] = useState(false);
+  const [isDeletingInvoices, setIsDeletingInvoices] = useState(false);
 
   const handleMonthYearChange = (month: number, year: number) => {
     setSelectedMonth(month);
@@ -79,7 +83,13 @@ export default function Administration() {
     );
   };
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectInvoice = (id: string) => {
+    setSelectedInvoiceIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllEntries = (checked: boolean) => {
     if (checked) {
       setSelectedEntriesIds(timeEntries.map(entry => entry.id));
     } else {
@@ -87,7 +97,15 @@ export default function Administration() {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleSelectAllInvoices = (checked: boolean) => {
+    if (checked) {
+      setSelectedInvoiceIds(invoices.map(invoice => invoice.id));
+    } else {
+      setSelectedInvoiceIds([]);
+    }
+  };
+
+  const handleDeleteSelectedEntries = () => {
     if (selectedEntriesIds.length === 0) {
       toast.error("No time entries selected");
       return;
@@ -96,7 +114,16 @@ export default function Administration() {
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDeleteSelected = async () => {
+  const handleDeleteSelectedInvoices = () => {
+    if (selectedInvoiceIds.length === 0) {
+      toast.error("No invoices selected");
+      return;
+    }
+    
+    setIsInvoiceDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteSelectedEntries = async () => {
     if (selectedEntriesIds.length === 0) return;
     
     setIsDeleting(true);
@@ -126,7 +153,55 @@ export default function Administration() {
     }
   };
 
-  // Create base query
+  const confirmDeleteSelectedInvoices = async () => {
+    if (selectedInvoiceIds.length === 0) return;
+    
+    setIsDeletingInvoices(true);
+    
+    try {
+      // First update any time entries associated with these invoices
+      const { data: timeEntries, error: fetchError } = await supabase
+        .from("time_entries")
+        .select("id")
+        .in("invoice_id", selectedInvoiceIds);
+      
+      if (fetchError) throw fetchError;
+      
+      if (timeEntries && timeEntries.length > 0) {
+        const { error: updateError } = await supabase
+          .from("time_entries")
+          .update({ 
+            invoice_id: null,
+            invoiced: false 
+          })
+          .in("invoice_id", selectedInvoiceIds);
+        
+        if (updateError) throw updateError;
+      }
+      
+      // Now delete the invoices
+      const { error } = await supabase
+        .from("invoices")
+        .delete()
+        .in("id", selectedInvoiceIds);
+      
+      if (error) throw error;
+      
+      toast.success(`${selectedInvoiceIds.length} ${selectedInvoiceIds.length === 1 ? 'invoice' : 'invoices'} deleted successfully`);
+      setSelectedInvoiceIds([]);
+      
+      // Invalidate and refetch data
+      await queryClient.invalidateQueries({ queryKey: ["invoices-admin"] });
+      
+    } catch (error: any) {
+      console.error("Error deleting invoices:", error);
+      toast.error(`Failed to delete invoices: ${error.message || "Unknown error"}`);
+    } finally {
+      setIsDeletingInvoices(false);
+      setIsInvoiceDeleteDialogOpen(false);
+    }
+  };
+
   let query = supabase
     .from("time_entries")
     .select(`
@@ -145,7 +220,6 @@ export default function Administration() {
       clients (name)
     `);
   
-  // Apply filters
   if (selectedUserId) {
     query = query.eq("user_id", selectedUserId);
   }
@@ -154,11 +228,7 @@ export default function Administration() {
     query = query.eq("client_id", selectedClientId);
   }
   
-  // For activity-type entries, filter by start_time
-  // For item-type entries, filter by created_at as they don't have start_time
   if (!allTimeEnabled) {
-    // We need to handle both types of entries - those with start_time (activities) 
-    // and those without (items, which rely on created_at)
     if (startDate && endDate) {
       query = query.or(`start_time.gte.${startDate.toISOString()},and(start_time.is.null,created_at.gte.${startDate.toISOString()})`);
       query = query.or(`start_time.lte.${endDate.toISOString()},and(start_time.is.null,created_at.lte.${endDate.toISOString()})`);
@@ -190,7 +260,6 @@ export default function Administration() {
           throw error;
         }
         
-        // For each entry, fetch the user profile data separately
         const enhancedData = await Promise.all((data || []).map(async (entry) => {
           let profileName = "Unknown";
           
@@ -225,7 +294,6 @@ export default function Administration() {
     },
   });
   
-  // Transform raw data to match TimeEntry type
   const timeEntries: TimeEntry[] = rawTimeEntries.map((entry: any) => ({
     ...entry,
     products: entry.products ? {
@@ -234,7 +302,6 @@ export default function Administration() {
     } : undefined
   }));
 
-  // Fetch invoices for the Invoices tab
   const { data: invoices = [], isLoading: isLoadingInvoices } = useQuery({
     queryKey: ["invoices-admin"],
     queryFn: async () => {
@@ -265,6 +332,20 @@ export default function Administration() {
 
   const handleInvoiceDeleted = async () => {
     await queryClient.invalidateQueries({ queryKey: ["invoices-admin"] });
+  };
+
+  const toggleTimeEntriesBulkMode = () => {
+    setTimeEntriesBulkMode(prev => !prev);
+    if (timeEntriesBulkMode) {
+      setSelectedEntriesIds([]);
+    }
+  };
+
+  const toggleInvoicesBulkMode = () => {
+    setInvoicesBulkMode(prev => !prev);
+    if (invoicesBulkMode) {
+      setSelectedInvoiceIds([]);
+    }
   };
 
   return (
@@ -320,15 +401,24 @@ export default function Administration() {
                 
                 <div className="flex gap-2 self-end">
                   <Button
-                    variant="outline"
+                    variant={timeEntriesBulkMode ? "default" : "outline"}
                     size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={handleDeleteSelected}
-                    disabled={selectedEntriesIds.length === 0}
+                    onClick={toggleTimeEntriesBulkMode}
                   >
                     <Trash2 className="mr-1 h-4 w-4" />
-                    Delete Selected ({selectedEntriesIds.length})
+                    {timeEntriesBulkMode ? "Cancel Bulk Delete" : "Bulk Delete"}
                   </Button>
+
+                  {timeEntriesBulkMode && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteSelectedEntries}
+                      disabled={selectedEntriesIds.length === 0}
+                    >
+                      Delete Selected ({selectedEntriesIds.length})
+                    </Button>
+                  )}
                 </div>
               </div>
               
@@ -336,11 +426,11 @@ export default function Administration() {
                 timeEntries={timeEntries}
                 isLoading={isLoading}
                 onEntryDeleted={handleEntryDeleted}
-                bulkDeleteMode={true}
+                bulkDeleteMode={timeEntriesBulkMode}
                 selectedItems={selectedEntriesIds}
                 onItemSelect={handleSelectEntry}
-                onSelectAll={handleSelectAll}
-                onBulkDelete={handleDeleteSelected}
+                onSelectAll={handleSelectAllEntries}
+                onBulkDelete={handleDeleteSelectedEntries}
                 onSort={handleSort}
                 sortField={sortField}
                 sortDirection={sortDirection}
@@ -351,14 +441,40 @@ export default function Administration() {
 
         <TabsContent value="invoices" className="space-y-6">
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle>Invoices</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant={invoicesBulkMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleInvoicesBulkMode}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  {invoicesBulkMode ? "Cancel Bulk Delete" : "Bulk Delete"}
+                </Button>
+
+                {invoicesBulkMode && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelectedInvoices}
+                    disabled={selectedInvoiceIds.length === 0}
+                  >
+                    Delete Selected ({selectedInvoiceIds.length})
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <InvoicesTable 
                 invoices={invoices} 
                 isLoading={isLoadingInvoices}
                 onInvoiceDeleted={handleInvoiceDeleted}
+                bulkDeleteMode={invoicesBulkMode}
+                selectedItems={selectedInvoiceIds}
+                onItemSelect={handleSelectInvoice}
+                onSelectAll={handleSelectAllInvoices}
+                onBulkDelete={handleDeleteSelectedInvoices}
               />
             </CardContent>
           </Card>
@@ -386,12 +502,52 @@ export default function Administration() {
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                confirmDeleteSelected();
+                confirmDeleteSelectedEntries();
               }}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isInvoiceDeleteDialogOpen} onOpenChange={setIsInvoiceDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-destructive mr-2" />
+              Delete {selectedInvoiceIds.length} {selectedInvoiceIds.length === 1 ? 'Invoice' : 'Invoices'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedInvoiceIds.length} {selectedInvoiceIds.length === 1 ? 'invoice' : 'invoices'}? This action cannot be undone.
+              
+              {invoices.some(invoice => selectedInvoiceIds.includes(invoice.id) && invoice.exported_to_fortnox) && (
+                <div className="mt-2 p-2 border border-yellow-300 bg-yellow-50 rounded text-yellow-800">
+                  <strong>Warning:</strong> Some selected invoices have been exported to Fortnox. Deleting them will only remove them from your database, not from Fortnox.
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingInvoices}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteSelectedInvoices();
+              }}
+              disabled={isDeletingInvoices}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingInvoices ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
