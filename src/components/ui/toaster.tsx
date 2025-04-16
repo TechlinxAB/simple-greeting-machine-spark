@@ -6,7 +6,11 @@ export function Toaster() {
   return (
     <SonnerToaster 
       position="top-right"
-      closeButton={true}
+      closeButton={
+        <button>
+          <X className="h-4 w-4" />
+        </button>
+      }
       toastOptions={{
         style: {
           background: "hsl(var(--background))",
