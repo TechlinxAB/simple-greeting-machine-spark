@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -8,17 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { User } from "lucide-react";
 
 interface UserSelectProps {
-  selectedUserId: string | null;
-  onUserChange: (value: string | null) => void;
-  includeAllOption?: boolean;
-  className?: string;
-  label?: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
 }
 
-export function UserSelect({ selectedUserId, onUserChange, includeAllOption = false, className, label }: UserSelectProps) {
+export function UserSelect({ value, onChange }: UserSelectProps) {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
@@ -39,24 +36,16 @@ export function UserSelect({ selectedUserId, onUserChange, includeAllOption = fa
   });
 
   return (
-    <div className={className || ""}>
-      {label && <label className="text-sm font-medium mb-2 block">{label}</label>}
+    <div className="min-w-[200px]">
       <Select
-        value={selectedUserId || "all-users"} 
-        onValueChange={(val) => onUserChange(val === "all-users" ? null : val)}
+        value={value || "all-users"} 
+        onValueChange={(val) => onChange(val === "all-users" ? null : val)}
       >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Select user">
-            <span className="flex items-center">
-              <User className="mr-2 h-4 w-4" />
-              {selectedUserId 
-                ? users.find(u => u.id === selectedUserId)?.name || "Unknown User" 
-                : "All Users"}
-            </span>
-          </SelectValue>
+        <SelectTrigger className="bg-background">
+          <SelectValue placeholder="Select user" />
         </SelectTrigger>
         <SelectContent>
-          {includeAllOption && <SelectItem value="all-users">All Users</SelectItem>}
+          <SelectItem value="all-users">All Users</SelectItem>
           {users.map((user) => (
             <SelectItem key={user.id} value={user.id}>
               {user.name || 'Unnamed User'}

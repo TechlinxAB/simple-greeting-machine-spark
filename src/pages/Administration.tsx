@@ -119,6 +119,7 @@ export default function Administration() {
     }
   };
 
+  // Modified query to fix the relationship issue
   let query = supabase
     .from("time_entries")
     .select(`
@@ -133,9 +134,8 @@ export default function Administration() {
       created_at, 
       updated_at,
       invoiced,
-      products:product_id (id, name, type, price),
-      clients:client_id (name),
-      profiles:user_id (name)
+      products (id, name, type, price),
+      clients (name)
     `);
   
   if (selectedUserId) {
@@ -174,8 +174,34 @@ export default function Administration() {
           throw error;
         }
         
-        console.log(`Found ${data?.length || 0} time entries`);
-        return data || [];
+        // For each entry, fetch the user profile data separately
+        const enhancedData = await Promise.all((data || []).map(async (entry) => {
+          let profileName = "Unknown";
+          
+          if (entry.user_id) {
+            try {
+              const { data: profileData } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", entry.user_id)
+                .single();
+                
+              if (profileData && profileData.name) {
+                profileName = profileData.name;
+              }
+            } catch (err) {
+              console.error("Error fetching profile name:", err);
+            }
+          }
+          
+          return {
+            ...entry,
+            profiles: { name: profileName }
+          };
+        }));
+        
+        console.log(`Found ${enhancedData?.length || 0} time entries`);
+        return enhancedData || [];
       } catch (error) {
         console.error("Error fetching time entries:", error);
         return [];
@@ -216,9 +242,8 @@ export default function Administration() {
               <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
                 <div className="grid gap-2 flex-1">
                   <UserSelect 
-                    selectedUserId={selectedUserId} 
-                    onUserChange={handleUserChange} 
-                    label="Filter by user"
+                    value={selectedUserId} 
+                    onChange={handleUserChange} 
                   />
                 </div>
                 
