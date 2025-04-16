@@ -58,7 +58,7 @@ serve(async (req) => {
       });
     }
 
-    // Check if the user is an admin
+    // Check if the user is an admin or manager
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role')
@@ -73,9 +73,9 @@ serve(async (req) => {
       });
     }
     
-    if (profile?.role !== 'admin') {
-      console.error("Access denied: User is not an admin");
-      return new Response(JSON.stringify({ error: 'Unauthorized. Only administrators can access this function' }), {
+    if (profile?.role !== 'admin' && profile?.role !== 'manager') {
+      console.error("Access denied: User is not an admin or manager");
+      return new Response(JSON.stringify({ error: 'Unauthorized. Only administrators and managers can access this function' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
       });
