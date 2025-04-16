@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,14 +32,12 @@ export function AppSidebar() {
   const { logoUrl, isLoading: logoLoading, isError, refreshLogo } = useCachedLogo();
 
   useEffect(() => {
-    // Reset logo error state when logoUrl changes
     if (logoUrl) {
       setLogoError(false);
     }
   }, [logoUrl]);
 
   useEffect(() => {
-    // If logo has an error state, try refreshing once on mount
     if (isError) {
       refreshLogo();
     }
@@ -188,10 +185,10 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r bg-gradient-to-b from-slate-900 to-slate-800 text-white">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="relative h-9 w-9 flex items-center justify-center overflow-hidden">
+    <Sidebar className="border-r bg-gradient-to-b from-slate-900 to-slate-800 text-white cursor-default">
+      <SidebarHeader className="p-4 cursor-default">
+        <div className="flex items-center gap-3 cursor-default">
+          <div className="relative h-9 w-9 flex items-center justify-center overflow-hidden cursor-default">
             <div className="absolute inset-0 rounded-md bg-gradient-to-br from-white/10 to-transparent backdrop-blur-[2px] opacity-50 shadow-inner"></div>
             {logoLoading ? (
               <div className="h-9 w-9 animate-pulse bg-white/5 rounded-md"></div>
@@ -199,26 +196,26 @@ export function AppSidebar() {
               <img 
                 src={DEFAULT_LOGO_PATH}
                 alt="Logo" 
-                className="h-full w-auto object-contain relative z-10"
+                className="h-full w-auto object-contain relative z-10 cursor-default"
               />
             ) : (
               <img 
                 src={logoUrl}
                 alt="Logo" 
-                className="h-full w-auto object-contain relative z-10" 
+                className="h-full w-auto object-contain relative z-10 cursor-default" 
                 onError={handleLogoError}
               />
             )}
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80 overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] drop-shadow-sm">
+          <h2 className="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80 overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] drop-shadow-sm cursor-default">
             {logoLoading ? "Loading..." : (appSettings?.appName || "Time Tracker")}
           </h2>
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="px-2 py-2 cursor-default">
         <ScrollArea className="h-[calc(100vh-12rem)]">
-          <div className="space-y-4">
+          <div className="space-y-4 cursor-default">
             <SidebarGroup>
               <SidebarMenu className="grid gap-1 px-2">
                 {links.map((link) => {
@@ -307,7 +304,7 @@ export function AppSidebar() {
         </ScrollArea>
       </SidebarContent>
       
-      <SidebarFooter className="p-4 mt-auto">
+      <SidebarFooter className="p-4 mt-auto cursor-default">
         {user && (
           <Link 
             to="/profile" 

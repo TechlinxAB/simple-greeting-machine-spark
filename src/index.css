@@ -93,10 +93,9 @@
     @apply bg-background text-foreground;
   }
   
-  /* Make sure all interactive elements have pointer cursor */
-  button,
-  [role="button"],
-  a,
+  button:not([data-sidebar]),
+  [role="button"]:not([data-sidebar]),
+  a:not([data-sidebar]),
   input[type="submit"],
   input[type="button"],
   input[type="checkbox"],
@@ -108,22 +107,24 @@
   .rdp-nav_button,
   .clickable,
   .interactive,
-  [data-state="open"],
-  [data-state="closed"],
+  [data-state="open"]:not([data-sidebar]),
+  [data-state="closed"]:not([data-sidebar]),
   [data-radix-popper-content-wrapper],
   [data-hover],
   [data-description-toggle] {
     @apply cursor-pointer;
   }
   
-  /* Calendar styles - specifically targeting hover and selected states */
+  [data-sidebar]:not([data-sidebar="menu-button"]):not([data-sidebar="trigger"]):not([data-sidebar="menu-action"]):not([data-sidebar="rail"]) {
+    @apply cursor-default;
+  }
+  
   .rdp-day:hover:not(.rdp-day_selected) {
     color: hsl(var(--primary-foreground)) !important;
     background-color: hsl(var(--primary)) !important;
     cursor: pointer !important;
   }
   
-  /* Selected day styling reinforcement */
   .rdp-day_selected, 
   .rdp-day_selected:hover,
   .rdp-day_selected:focus {
@@ -132,34 +133,29 @@
     cursor: pointer !important;
   }
   
-  /* Today styling when not selected */
   .rdp-day_today:not(.rdp-day_selected) {
     background-color: hsl(var(--primary)/0.2) !important;
     color: hsl(var(--primary)) !important;
     cursor: pointer !important;
   }
   
-  /* Reset any hover effects to maintain selected appearance */
   .rdp-day_selected.rdp-day_today {
     background-color: hsl(var(--primary)) !important;
     color: hsl(var(--primary-foreground)) !important;
     cursor: pointer !important;
   }
 
-  /* Mobile optimizations */
   input, select, textarea {
     @apply text-base md:text-sm;
-    font-size: 16px; /* Prevent zoom on focus in iOS */
+    font-size: 16px;
   }
   
-  /* Improve touch targets on mobile */
   button, 
   [role="button"],
   a {
     @apply outline-none;
   }
   
-  /* Laptop optimization */
   @media (min-width: 768px) and (max-width: 1366px) {
     .compact-text {
       @apply text-xs;
@@ -193,7 +189,6 @@
       @apply px-3 py-2;
     }
     
-    /* Calendar specific optimizations for laptop mode */
     .rdp-caption {
       @apply text-sm;
     }
@@ -210,7 +205,6 @@
       @apply h-6 w-6;
     }
     
-    /* Administration page optimizations */
     .admin-container {
       @apply max-w-full overflow-x-auto px-2;
     }
@@ -270,17 +264,14 @@
     background-image: linear-gradient(to right, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.8));
   }
   
-  /* Responsive container classes */
   .container {
     @apply px-4 md:px-6 w-full max-w-[1400px];
   }
   
-  /* Responsive table container */
   .table-container {
     @apply w-full overflow-x-auto -mx-4 px-4;
   }
   
-  /* Laptop optimized classes */
   .laptop-container {
     @apply px-3 py-3;
   }
@@ -297,17 +288,14 @@
     @apply p-2;
   }
   
-  /* When in laptop mode, fix the width of the tab container to prevent horizontal scroll */
   .laptop-admin-tabs {
     @apply max-w-full;
   }
   
-  /* Fix table overflow issues in laptop mode */
   .laptop-table-container {
     @apply overflow-x-auto max-w-full;
   }
   
-  /* Optimize buttons for laptop mode */
   .laptop-button {
     @apply h-8 text-xs px-2.5;
   }
@@ -332,7 +320,6 @@
     }
   }
   
-  /* Mobile-specific helpers */
   .mobile-full {
     @apply -mx-4 px-4 w-screen md:mx-0 md:px-0 md:w-auto;
   }
@@ -340,25 +327,6 @@
   .touch-scroll {
     @apply overflow-x-auto overscroll-x-contain scrollbar-hidden;
     -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Mobile sidebar animation */
-  @keyframes slideInRight {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-  
-  @keyframes slideOutRight {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(100%);
-    }
   }
   
   .mobile-sidebar-enter {
@@ -370,7 +338,6 @@
   }
 }
 
-/* Safe area insets for notched devices */
 @supports(padding: max(0px)) {
   body, 
   .safe-padding-bottom {
@@ -390,18 +357,15 @@
   }
 }
 
-/* Fix for dropdown text color on hover */
 [data-highlighted],
 [data-highlighted] * {
   color: white !important;
 }
 
-/* Ensuring popover triggers look clickable */
 [data-radix-popper-content-wrapper] {
   z-index: 50 !important;
 }
 
-/* Popover trigger elements are always clickable */
 [data-state] {
   cursor: pointer;
 }
