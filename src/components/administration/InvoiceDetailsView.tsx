@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Invoice, TimeEntry } from '@/types';
 import { 
@@ -10,7 +9,7 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +18,8 @@ import { Clock, Package, Loader2, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 interface InvoiceDetailsViewProps {
   invoice: Invoice;
@@ -29,6 +30,7 @@ interface InvoiceDetailsViewProps {
 export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsViewProps) {
   const [timeEntries, setTimeEntries] = React.useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTimeEntries = async () => {
@@ -117,6 +119,16 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
       return (entry.quantity * (entry.products.price || 0)).toFixed(2);
     }
     return '0.00';
+  };
+
+  const copyToClipboard = (text: string, entryId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(entryId);
+    toast.success("Description copied to clipboard");
+    
+    setTimeout(() => {
+      setCopiedId(null);
+    }, 2000);
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
@@ -261,21 +273,40 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                           </TableCell>
                           <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
                           <TableCell className="max-w-[150px]">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="truncate cursor-help">
-                                    {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
+                            {entry.description ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <div className="truncate cursor-pointer text-blue-600 hover:text-blue-800 transition-colors hover:underline">
+                                    {entry.description}
                                   </div>
-                                </TooltipTrigger>
-                                {entry.description && (
-                                  <TooltipContent side="top" align="start" className="max-w-[300px] p-3">
-                                    <p className="font-medium mb-1">Description:</p>
-                                    <p className="text-sm whitespace-pre-wrap">{entry.description}</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-4" side="top" align="start">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="font-medium text-sm">Description</h4>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2"
+                                        onClick={() => copyToClipboard(entry.description || '', entry.id)}
+                                      >
+                                        {copiedId === entry.id ? (
+                                          <Check className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                          <Copy className="h-4 w-4" />
+                                        )}
+                                        <span className="ml-1">{copiedId === entry.id ? "Copied" : "Copy"}</span>
+                                      </Button>
+                                    </div>
+                                    <div className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
+                                      {entry.description}
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            ) : (
+                              <span className="text-muted-foreground italic text-xs">No description</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs whitespace-nowrap">
                             {entry.products?.type === 'activity' && entry.start_time ? 
