@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -264,8 +265,8 @@ export default function Administration() {
             <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
           </TabsList>
-        
-          {activeTab === "time-entries" && (
+          
+          <TabsContent value="time-entries">
             <div className="p-6">
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-6">
@@ -363,9 +364,9 @@ export default function Administration() {
                 onEntryDeleted={refetchTimeEntries}
               />
             </div>
-          )}
+          </TabsContent>
           
-          {activeTab === "invoices" && (
+          <TabsContent value="invoices">
             <div className="p-6">
               <Card className="shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -403,8 +404,8 @@ export default function Administration() {
                 </CardContent>
               </Card>
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
