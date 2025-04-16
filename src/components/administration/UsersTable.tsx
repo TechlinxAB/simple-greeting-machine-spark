@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -222,7 +221,10 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
                       </div>
                     </TableCell>
                     <TableCell isCompact={isCompact}>
-                      <Badge variant={roleBadgeVariants[user.role as keyof typeof roleBadgeVariants] as any || "secondary"} className="flex items-center gap-1 w-fit">
+                      <Badge 
+                        variant={roleBadgeVariants[user.role as keyof typeof roleBadgeVariants] || "secondary"} 
+                        className="flex items-center gap-1 w-fit"
+                      >
                         {roleIcons[user.role as keyof typeof roleIcons] || <UserIcon className="h-3 w-3" />}
                         <span className="capitalize">{user.role}</span>
                       </Badge>
