@@ -208,12 +208,6 @@ function sanitizeFortnoxDescription(description: string): string {
   // Trim the description to avoid having spaces or hyphens at start/end
   sanitized = sanitized.trim();
   
-  // Limit the length to avoid potential issues (Fortnox might have limits)
-  const maxLength = 100;
-  if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength - 3) + '...';
-  }
-  
   return sanitized;
 }
 
