@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { useIsMobile, useIsSmallScreen } from "@/hooks/use-mobile";
 
 interface DateRangeSelectorProps {
   fromDate: Date | undefined;
@@ -22,6 +23,8 @@ export function DateRangeSelector({
   const [toPickerOpen, setToPickerOpen] = useState(false);
   const [localFromDate, setLocalFromDate] = useState<Date | undefined>(fromDate);
   const [localToDate, setLocalToDate] = useState<Date | undefined>(toDate);
+  const isMobile = useIsMobile();
+  const isSmallScreen = useIsSmallScreen();
 
   useEffect(() => {
     setLocalFromDate(fromDate);
@@ -53,19 +56,20 @@ export function DateRangeSelector({
   };
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-2 sm:gap-3">
       <div>
-        <label className="text-sm font-medium block mb-2">From date</label>
+        <label className="text-xs sm:text-sm font-medium block mb-1 sm:mb-2">From date</label>
         <Popover open={fromPickerOpen} onOpenChange={setFromPickerOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
+              size={isMobile ? "sm" : "default"}
               className={cn(
-                "w-[150px] justify-start text-left font-normal",
+                "w-[120px] sm:w-[150px] justify-start text-left font-normal text-xs sm:text-sm",
                 !localFromDate && "text-muted-foreground"
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarIcon className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               {localFromDate ? format(localFromDate, 'MMM dd, yyyy') : "Select date"}
             </Button>
           </PopoverTrigger>
@@ -82,17 +86,18 @@ export function DateRangeSelector({
       </div>
 
       <div>
-        <label className="text-sm font-medium block mb-2">To date</label>
+        <label className="text-xs sm:text-sm font-medium block mb-1 sm:mb-2">To date</label>
         <Popover open={toPickerOpen} onOpenChange={setToPickerOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
+              size={isMobile ? "sm" : "default"}
               className={cn(
-                "w-[150px] justify-start text-left font-normal",
+                "w-[120px] sm:w-[150px] justify-start text-left font-normal text-xs sm:text-sm",
                 !localToDate && "text-muted-foreground"
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarIcon className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               {localToDate ? format(localToDate, 'MMM dd, yyyy') : "Select date"}
             </Button>
           </PopoverTrigger>

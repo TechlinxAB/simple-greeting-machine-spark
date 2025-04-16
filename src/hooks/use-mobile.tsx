@@ -1,8 +1,8 @@
 
 import * as React from "react";
 
-export const MOBILE_BREAKPOINT = 768; // You can adjust this breakpoint if needed for 13-inch laptops
-export const SMALL_SCREEN_BREAKPOINT = 1280; // Added for 13-inch laptops
+export const MOBILE_BREAKPOINT = 640; // Reduced from 768 to align with sm breakpoint in Tailwind
+export const SMALL_SCREEN_BREAKPOINT = 1024; // Reduced from 1280 to align with lg breakpoint in Tailwind
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean>(() => {
@@ -128,4 +128,55 @@ export function useIsSmallScreen() {
   }, []);
 
   return isSmallScreen;
+}
+
+// New utility for even smaller screens like phones
+export function useIsExtraSmallScreen() {
+  const [isExtraSmallScreen, setIsExtraSmallScreen] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 480; // Extra small screen breakpoint
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkExtraSmallScreen = () => {
+      setIsExtraSmallScreen(window.innerWidth < 480);
+    };
+    
+    checkExtraSmallScreen();
+    
+    const mql = window.matchMedia(`(max-width: 479px)`);
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsExtraSmallScreen(e.matches);
+    };
+    
+    const handleResize = () => {
+      checkExtraSmallScreen();
+    };
+    
+    if (mql.addEventListener) {
+      mql.addEventListener("change", handleChange);
+    } else {
+      // @ts-ignore
+      mql.addListener && mql.addListener(handleChange);
+    }
+    
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      if (mql.removeEventListener) {
+        mql.removeEventListener("change", handleChange);
+      } else {
+        // @ts-ignore
+        mql.removeListener && mql.removeListener(handleChange);
+      }
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return isExtraSmallScreen;
 }

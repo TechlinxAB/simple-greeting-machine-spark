@@ -20,28 +20,28 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("w-full max-w-[280px] mx-auto p-2 pointer-events-auto", className)}
+      className={cn("w-full max-w-[300px] mx-auto p-1 sm:p-2 pointer-events-auto", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-2 sm:space-x-2 sm:space-y-0",
-        month: "space-y-2 w-full",
+        month: "space-y-1 sm:space-y-2 w-full",
         caption: "flex justify-center pt-1 relative items-center", 
-        caption_label: "text-[0.65rem] sm:text-xs font-medium",
+        caption_label: "text-[0.6rem] sm:text-xs font-medium",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
           "h-5 w-5 sm:h-6 sm:w-6 bg-transparent p-0 opacity-80 hover:opacity-100 hover:bg-accent hover:text-accent-foreground" 
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex w-full justify-between mb-1",
+        nav_button_previous: "absolute left-0.5 sm:left-1",
+        nav_button_next: "absolute right-0.5 sm:right-1",
+        table: "w-full border-collapse space-y-0.5 sm:space-y-1",
+        head_row: "flex w-full justify-between mb-0.5 sm:mb-1",
         head_cell:
-          "text-muted-foreground rounded-md w-6 sm:w-8 font-normal text-[0.6rem] sm:text-[0.7rem] uppercase",
-        row: "flex w-full mt-1 justify-between",
-        cell: "relative h-6 w-6 sm:h-8 sm:w-8 p-0 text-center text-[0.65rem] sm:text-xs focus-within:relative focus-within:z-20",
+          "text-muted-foreground rounded-md w-5 sm:w-8 font-normal text-[0.55rem] sm:text-[0.7rem] uppercase",
+        row: "flex w-full mt-0.5 sm:mt-1 justify-between",
+        cell: "relative h-5 w-5 sm:h-8 sm:w-8 p-0 text-center text-[0.6rem] sm:text-xs focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-6 w-6 sm:h-8 sm:w-8 p-0 font-normal text-[0.65rem] sm:text-xs rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+          "h-5 w-5 sm:h-8 sm:w-8 p-0 font-normal text-[0.6rem] sm:text-xs rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -56,8 +56,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ..._props }) => <ChevronLeft className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5" />,
-        IconRight: ({ ..._props }) => <ChevronRight className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5" />,
+        IconLeft: ({ ..._props }) => <ChevronLeft className="h-2 w-2 sm:h-3.5 sm:w-3.5" />,
+        IconRight: ({ ..._props }) => <ChevronRight className="h-2 w-2 sm:h-3.5 sm:w-3.5" />,
       }}
       {...props}
     />
