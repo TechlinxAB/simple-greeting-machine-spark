@@ -9,9 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-
 serve(async (req) => {
   // Handle CORS preflight requests properly
   if (req.method === 'OPTIONS') {
@@ -22,6 +19,18 @@ serve(async (req) => {
   }
 
   try {
+    // Get Supabase connection details from environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseServiceRole) {
+      console.error("Missing Supabase environment variables");
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
+    
     // Extract the JWT token from Authorization header
     const authHeader = req.headers.get('Authorization');
     

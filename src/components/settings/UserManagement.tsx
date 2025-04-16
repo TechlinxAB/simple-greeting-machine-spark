@@ -84,7 +84,7 @@ export function UserManagement() {
           return [] as User[];
         }
         
-        console.log("Users data:", data);
+        console.log("Users data received:", data.length);
         
         const transformedUsers = data.map((user: UserResponse) => ({
           id: user.id,

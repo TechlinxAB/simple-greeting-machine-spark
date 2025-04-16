@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -65,7 +66,7 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
           throw new Error("No active session");
         }
         
-        // Get users from Edge Function
+        // Get users from Edge Function with explicit authorization header
         const { data, error } = await supabase.functions.invoke(
           'get-all-users',
           {
@@ -75,9 +76,13 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
           }
         );
         
-        if (error) throw error;
+        if (error) {
+          console.error("Failed to fetch users from edge function:", error);
+          throw error;
+        }
         
         if (!data || !Array.isArray(data)) {
+          console.error("Unexpected data format from get-all-users:", data);
           throw new Error("Unexpected data format from get-all-users");
         }
         
@@ -94,7 +99,7 @@ export function UsersTable({ searchTerm = '', isCompact, onUserSelect }: UsersTa
       }
     },
     enabled: !!session?.access_token,
-    retry: false,
+    retry: 1,
     refetchOnWindowFocus: false
   });
 
