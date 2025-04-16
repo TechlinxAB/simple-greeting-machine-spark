@@ -7,8 +7,7 @@ import {
   DialogContent, 
   DialogDescription, 
   DialogHeader, 
-  DialogTitle, 
-  DialogClose 
+  DialogTitle 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -19,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Clock, Package, Loader2, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InvoiceDetailsViewProps {
   invoice: Invoice;
@@ -125,18 +125,11 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl w-full p-0 overflow-hidden">
-        <DialogHeader className="p-6 border-b flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle className="text-xl font-semibold">Invoice Details</DialogTitle>
-            <DialogDescription>
-              View details of this invoice and related time entries.
-            </DialogDescription>
-          </div>
-          <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogClose>
+        <DialogHeader className="p-6 border-b">
+          <DialogTitle className="text-xl font-semibold">Invoice Details</DialogTitle>
+          <DialogDescription>
+            View details of this invoice and related time entries.
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[75vh] px-6 py-4">
@@ -267,8 +260,22 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                             </div>
                           </TableCell>
                           <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
-                          <TableCell className="max-w-[150px] truncate">
-                            {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
+                          <TableCell className="max-w-[150px]">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="truncate cursor-help">
+                                    {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
+                                  </div>
+                                </TooltipTrigger>
+                                {entry.description && (
+                                  <TooltipContent side="top" align="start" className="max-w-[300px] p-3">
+                                    <p className="font-medium mb-1">Description:</p>
+                                    <p className="text-sm whitespace-pre-wrap">{entry.description}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           </TableCell>
                           <TableCell className="text-xs whitespace-nowrap">
                             {entry.products?.type === 'activity' && entry.start_time ? 
