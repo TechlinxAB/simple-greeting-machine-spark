@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -29,24 +28,19 @@ interface UserStatsProps {
 export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   
-  // Format the current month and year for display
   const formattedMonthYear = format(currentDate, "MMMM yyyy");
   
-  // Get the start and end of the current month
   const startDate = startOfMonth(currentDate);
   const endDate = endOfMonth(currentDate);
   
-  // Function to navigate to previous month
   const goToPreviousMonth = () => {
     setCurrentDate(prevDate => subMonths(prevDate, 1));
   };
   
-  // Function to navigate to next month
   const goToNextMonth = () => {
     setCurrentDate(prevDate => addMonths(prevDate, 1));
   };
 
-  // Fetch user profile data
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
@@ -61,14 +55,10 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
     }
   });
 
-  // Fetch user email
   const { data: userEmail } = useQuery({
     queryKey: ["user-email", userId],
     queryFn: async () => {
-      // We cannot directly query auth.users table, so we'll use our function
-      // If this doesn't work for your setup, you can get the email another way
       try {
-        // This will only work for admin users who have access to the get-all-users function
         const { data } = await supabase.functions.invoke('get-all-users');
         const userWithEmail = Array.isArray(data) 
           ? data.find((u: any) => u.id === userId) 
@@ -82,7 +72,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
     enabled: !!userId
   });
 
-  // Fetch time entries for the selected month
   const { data: timeEntries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ["user-time-entries", userId, startDate, endDate],
     queryFn: async () => {
@@ -103,7 +92,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
     enabled: !!userId
   });
 
-  // Calculate total hours worked
   const totalHours = timeEntries.reduce((total, entry) => {
     if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
       const start = new Date(entry.start_time);
@@ -114,7 +102,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
     return total;
   }, 0).toFixed(1);
 
-  // Calculate total revenue generated
   const totalRevenue = timeEntries.reduce((total, entry) => {
     if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
       const start = new Date(entry.start_time);
@@ -127,10 +114,8 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
     return total;
   }, 0).toFixed(0);
 
-  // Calculate total number of entries
   const totalEntries = timeEntries.length;
 
-  // Prepare data for client distribution chart - ensure we show the BEGINNING of client names
   const prepareClientData = () => {
     const clientMap = new Map();
     
@@ -148,20 +133,17 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
       }
     });
     
-    // Prepare the data with truncated names that show the beginning of client names
     return Array.from(clientMap.entries()).map(([name, hours]) => {
-      // If name is longer than 20 characters, truncate it and add ellipsis at the end
       const displayName = name.length > 20 ? `${name.substring(0, 20)}...` : name;
       
       return { 
         name: displayName, 
-        fullName: name, // Keep the full name for tooltips
+        fullName: name, 
         hours: parseFloat(Number(hours).toFixed(1))
       };
     });
   };
 
-  // Prepare data for activity type chart - ensure we show the BEGINNING of activity names
   const prepareActivityData = () => {
     const activityMap = new Map();
     
@@ -180,33 +162,28 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
       }
     });
     
-    // Prepare the data with truncated names that show the beginning of activity names
     return Array.from(activityMap.entries()).map(([name, hours]) => {
-      // If name is longer than 20 characters, truncate it and add ellipsis at the end
       const displayName = name.length > 20 ? `${name.substring(0, 20)}...` : name;
       
       return { 
         name: displayName, 
-        fullName: name, // Keep the full name for tooltips
+        fullName: name, 
         hours: parseFloat(Number(hours).toFixed(1))
       };
     });
   };
 
-  // Prepare data for daily activity chart
   const prepareDailyActivityData = () => {
-    // Create an array with all days of the month
     const daysInMonth = endDate.getDate();
     const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({
       day: i + 1,
       hours: 0
     }));
     
-    // Fill in hours for days with activity
     timeEntries.forEach(entry => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const date = new Date(entry.start_time);
-        const day = date.getDate() - 1; // adjust for 0-based index
+        const day = date.getDate() - 1;
         
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -216,7 +193,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
       }
     });
     
-    // Round hours to 1 decimal place
     return dailyData.map(item => ({
       ...item,
       hours: parseFloat(item.hours.toFixed(1))
@@ -232,7 +208,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Back button and user info header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <Button
           variant="ghost"
@@ -277,7 +252,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
         </div>
       ) : (
         <>
-          {/* User profile section */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -299,7 +273,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
             </CardContent>
           </Card>
           
-          {/* Stats overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -344,9 +317,7 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
             </Card>
           </div>
           
-          {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Daily Activity Chart */}
             <Card className="col-span-1 lg:col-span-2">
               <CardHeader>
                 <CardTitle className={isCompact ? "text-base" : ""}>Daily Activity</CardTitle>
@@ -368,7 +339,6 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
               </CardContent>
             </Card>
             
-            {/* Client Distribution */}
             <Card>
               <CardHeader>
                 <CardTitle className={isCompact ? "text-base" : ""}>Client Distribution</CardTitle>
@@ -382,14 +352,15 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                     nameKey="name"
                     colors={COLORS}
                     tooltip={{
-                      formatter: (value, name, entry) => [`${value} hours`, entry.payload.fullName || name]
+                      formatter: (value, name, entry) => {
+                        return [`${value} hours`, entry.payload.fullName || name] as [string, string];
+                      }
                     }}
                   />
                 </div>
               </CardContent>
             </Card>
             
-            {/* Activity Types */}
             <Card>
               <CardHeader>
                 <CardTitle className={isCompact ? "text-base" : ""}>Activity Types</CardTitle>
@@ -403,7 +374,9 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                     nameKey="name"
                     colors={COLORS.slice().reverse()}
                     tooltip={{
-                      formatter: (value, name, entry) => [`${value} hours`, entry.payload.fullName || name]
+                      formatter: (value, name, entry) => {
+                        return [`${value} hours`, entry.payload.fullName || name] as [string, string];
+                      }
                     }}
                   />
                 </div>
