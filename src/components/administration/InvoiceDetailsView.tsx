@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Invoice, TimeEntry } from '@/types';
@@ -123,7 +122,6 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
 
   const copyToClipboard = (text: string, entryId: string) => {
     try {
-      // Modern clipboard API (more reliable)
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text)
           .then(() => {
@@ -136,11 +134,9 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
           })
           .catch(err => {
             console.error("Failed to copy using Clipboard API:", err);
-            // Fall back to the older method if the Clipboard API fails
             fallbackCopyToClipboard(text, entryId);
           });
       } else {
-        // Fall back to the older method for non-secure contexts
         fallbackCopyToClipboard(text, entryId);
       }
     } catch (err) {
@@ -149,12 +145,10 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
     }
   };
   
-  // Fallback copy method using document.execCommand
   const fallbackCopyToClipboard = (text: string, entryId: string) => {
     const textArea = document.createElement("textarea");
     textArea.value = text;
     
-    // Make the textarea out of viewport
     textArea.style.position = "fixed";
     textArea.style.left = "-999999px";
     textArea.style.top = "-999999px";
@@ -177,7 +171,6 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
     
     document.body.removeChild(textArea);
     
-    // Reset the copied state after 2 seconds
     setTimeout(() => {
       setCopiedId(null);
     }, 2000);
@@ -312,7 +305,9 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                     <TableBody>
                       {timeEntries.map((entry) => (
                         <TableRow key={entry.id}>
-                          <TableCell className="font-medium">{entry.products?.name || 'Unknown'}</TableCell>
+                          <TableCell className="font-medium">
+                            {entry.products?.name || 'Unknown'}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {entry.products?.type === 'activity' ? (
