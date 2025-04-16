@@ -589,26 +589,90 @@ export async function createFortnoxInvoice(
       
       const fortnoxInvoice = response.Invoice;
       
-      // Create local invoice record
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
-        .insert({
-          client_id: clientId,
-          invoice_number: fortnoxInvoice.DocumentNumber,
-          status: "sent",
-          issue_date: fortnoxInvoice.InvoiceDate,
-          due_date: fortnoxInvoice.DueDate,
-          total_amount: fortnoxInvoice.Total,
-          exported_to_fortnox: true,
-          fortnox_invoice_id: fortnoxInvoice.DocumentNumber
-        })
-        .select()
-        .single();
-        
-      if (invoiceError) throw invoiceError;
+      // Create local invoice record or update existing one for resends
+      let invoice;
       
-      // Only update the time entries if this is not a resend (avoid double-marking)
-      if (!isResend) {
+      if (isResend) {
+        // For resends, check if we need to update an existing invoice record or create a new one
+        const { data: existingInvoice, error: existingInvoiceError } = await supabase
+          .from("invoices")
+          .select("*")
+          .eq("client_id", clientId)
+          .eq("invoice_number", fortnoxInvoice.DocumentNumber)
+          .maybeSingle();
+          
+        if (existingInvoiceError) throw existingInvoiceError;
+        
+        if (existingInvoice) {
+          // Update existing invoice
+          const { data: updatedInvoice, error: updateError } = await supabase
+            .from("invoices")
+            .update({
+              invoice_number: fortnoxInvoice.DocumentNumber,
+              status: "sent",
+              issue_date: fortnoxInvoice.InvoiceDate,
+              due_date: fortnoxInvoice.DueDate,
+              total_amount: fortnoxInvoice.Total,
+              exported_to_fortnox: true,
+              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+            })
+            .eq("id", existingInvoice.id)
+            .select()
+            .single();
+            
+          if (updateError) throw updateError;
+          invoice = updatedInvoice;
+        } else {
+          // Create new invoice record for resend
+          const { data: newInvoice, error: insertError } = await supabase
+            .from("invoices")
+            .insert({
+              client_id: clientId,
+              invoice_number: fortnoxInvoice.DocumentNumber,
+              status: "sent",
+              issue_date: fortnoxInvoice.InvoiceDate,
+              due_date: fortnoxInvoice.DueDate,
+              total_amount: fortnoxInvoice.Total,
+              exported_to_fortnox: true,
+              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+            })
+            .select()
+            .single();
+            
+          if (insertError) throw insertError;
+          invoice = newInvoice;
+          
+          // Update time entries to link to the new invoice
+          const { error: linkError } = await supabase
+            .from("time_entries")
+            .update({
+              invoice_id: invoice.id
+            })
+            .in("id", timeEntryIds);
+            
+          if (linkError) throw linkError;
+        }
+      } else {
+        // For new invoices, create a new record
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from("invoices")
+          .insert({
+            client_id: clientId,
+            invoice_number: fortnoxInvoice.DocumentNumber,
+            status: "sent",
+            issue_date: fortnoxInvoice.InvoiceDate,
+            due_date: fortnoxInvoice.DueDate,
+            total_amount: fortnoxInvoice.Total,
+            exported_to_fortnox: true,
+            fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+          })
+          .select()
+          .single();
+          
+        if (invoiceError) throw invoiceError;
+        invoice = newInvoice;
+        
+        // Only update the time entries if this is not a resend (avoid double-marking)
         // Update time entries to mark as invoiced
         const { error: updateError } = await supabase
           .from("time_entries")
