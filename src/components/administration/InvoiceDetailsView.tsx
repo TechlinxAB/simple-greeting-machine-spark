@@ -109,39 +109,43 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
     return '0.00';
   };
 
+  // Count activities and items
+  const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
+  const itemCount = timeEntries.filter(entry => entry.products?.type === 'item').length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[900px] mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Invoice Information</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Invoice Information</CardTitle>
             <CardDescription>Details about this invoice</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="font-medium">Invoice Number:</div>
+          <CardContent>
+            <div className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
+              <div className="font-medium text-muted-foreground">Invoice Number:</div>
               <div>{invoice.invoice_number}</div>
               
-              <div className="font-medium">Fortnox Invoice ID:</div>
+              <div className="font-medium text-muted-foreground">Fortnox Invoice ID:</div>
               <div>{invoice.fortnox_invoice_id || 'N/A'}</div>
               
-              <div className="font-medium">Client:</div>
+              <div className="font-medium text-muted-foreground">Client:</div>
               <div>{invoice.clients?.name}</div>
               
-              <div className="font-medium">Issue Date:</div>
+              <div className="font-medium text-muted-foreground">Issue Date:</div>
               <div>{invoice.issue_date ? format(new Date(invoice.issue_date), 'MMM d, yyyy') : 'N/A'}</div>
               
-              <div className="font-medium">Due Date:</div>
+              <div className="font-medium text-muted-foreground">Due Date:</div>
               <div>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'N/A'}</div>
               
-              <div className="font-medium">Status:</div>
+              <div className="font-medium text-muted-foreground">Status:</div>
               <div>
-                <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
-                  {invoice.status || 'Unknown'}
+                <Badge variant="outline" className={`${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}>
+                  {invoice.status || 'draft'}
                 </Badge>
               </div>
               
-              <div className="font-medium">Total Amount:</div>
+              <div className="font-medium text-muted-foreground">Total Amount:</div>
               <div className="font-bold">
                 {new Intl.NumberFormat('sv-SE', { 
                   style: 'currency', 
@@ -153,8 +157,8 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
         </Card>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Summary</CardTitle>
             <CardDescription>Invoice line items summary</CardDescription>
           </CardHeader>
           <CardContent>
@@ -164,33 +168,27 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Time entries:</span>
-                    <span>{timeEntries.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Activities:</span>
-                    <span>
-                      {timeEntries.filter(entry => entry.products?.type === 'activity').length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Items:</span>
-                    <span>
-                      {timeEntries.filter(entry => entry.products?.type === 'item').length}
-                    </span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-medium">
-                    <span>Total:</span>
-                    <span>
-                      {new Intl.NumberFormat('sv-SE', { 
-                        style: 'currency', 
-                        currency: 'SEK'
-                      }).format(invoice.total_amount || 0)}
-                    </span>
-                  </div>
+                <div className="grid grid-cols-[150px_1fr] gap-y-2 text-sm">
+                  <span className="text-muted-foreground">Time entries:</span>
+                  <span className="text-right">{timeEntries.length}</span>
+                  
+                  <span className="text-muted-foreground">Activities:</span>
+                  <span className="text-right">{activityCount}</span>
+                  
+                  <span className="text-muted-foreground">Items:</span>
+                  <span className="text-right">{itemCount}</span>
+                </div>
+                
+                <Separator className="my-2" />
+                
+                <div className="grid grid-cols-[150px_1fr] gap-y-2 text-sm">
+                  <span className="font-medium">Total:</span>
+                  <span className="text-right font-bold">
+                    {new Intl.NumberFormat('sv-SE', { 
+                      style: 'currency', 
+                      currency: 'SEK'
+                    }).format(invoice.total_amount || 0)}
+                  </span>
                 </div>
               </div>
             )}
@@ -199,11 +197,11 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
       </div>
       
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Time Entries
-          </CardTitle>
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <CardTitle className="text-xl">Time Entries</CardTitle>
+          </div>
           <CardDescription>Time entries and items included in this invoice</CardDescription>
         </CardHeader>
         <CardContent>
@@ -216,17 +214,17 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
               No time entries found for this invoice.
             </div>
           ) : (
-            <ScrollArea className="h-[300px]">
+            <div className="border rounded-md overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>User</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[180px]">Product</TableHead>
+                    <TableHead className="w-[100px]">Type</TableHead>
+                    <TableHead className="w-[150px]">User</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Duration/Quantity</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead className="w-[100px]">Date</TableHead>
+                    <TableHead className="w-[130px]">Duration/Quantity</TableHead>
+                    <TableHead className="w-[120px] text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -240,24 +238,24 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
                           ) : (
                             <Package className="h-4 w-4 text-primary" />
                           )}
-                          <span className="capitalize">{entry.products?.type || 'Unknown'}</span>
+                          <span className="text-xs capitalize">{entry.products?.type || 'Unknown'}</span>
                         </div>
                       </TableCell>
                       <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">
-                        {entry.description || <span className="text-muted-foreground italic">No description</span>}
+                        {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs">
                         {entry.products?.type === 'activity' && entry.start_time ? 
                           format(new Date(entry.start_time), 'MMM d, yyyy') :
                           entry.created_at ? format(new Date(entry.created_at), 'MMM d, yyyy') : 'Unknown date'}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs">
                         {entry.products?.type === 'activity' && entry.start_time && entry.end_time
                           ? `${calculateDuration(entry.start_time, entry.end_time)} hours`
                           : entry.quantity ? `${entry.quantity} units` : 'N/A'}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-right">
                         {new Intl.NumberFormat('sv-SE', { 
                           style: 'currency', 
                           currency: 'SEK'
@@ -267,7 +265,7 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
