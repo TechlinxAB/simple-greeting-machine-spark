@@ -260,6 +260,7 @@ const Sidebar = React.forwardRef<
           ref={ref}
           className={cn(
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
+            "cursor-default", // Explicitly set cursor to default for the entire sidebar
             className
           )}
           {...props}
