@@ -6,7 +6,7 @@ export function Toaster() {
   return (
     <SonnerToaster 
       position="top-right"
-      closeButton
+      closeButton={true}
       toastOptions={{
         style: {
           background: "hsl(var(--background))",
@@ -15,7 +15,6 @@ export function Toaster() {
         },
         className: "toaster group",
         descriptionClassName: "text-sm text-muted-foreground",
-        closeButton: true,
       }}
     />
   );
