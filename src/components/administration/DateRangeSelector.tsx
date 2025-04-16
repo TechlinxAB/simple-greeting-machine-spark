@@ -61,7 +61,7 @@ export function DateRangeSelector({
             <Button
               variant="outline"
               className={cn(
-                "w-[150px] justify-start text-left font-normal",
+                "w-[150px] justify-start text-left font-normal cursor-pointer",
                 !localFromDate && "text-muted-foreground"
               )}
             >
@@ -88,7 +88,7 @@ export function DateRangeSelector({
             <Button
               variant="outline"
               className={cn(
-                "w-[150px] justify-start text-left font-normal",
+                "w-[150px] justify-start text-left font-normal cursor-pointer",
                 !localToDate && "text-muted-foreground"
               )}
             >

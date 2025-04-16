@@ -93,18 +93,25 @@
     @apply bg-background text-foreground;
   }
   
-  /* Restore default cursor for most elements, but keep specific interactions clickable */
-  [data-hoverable]:not([data-description-toggle]),
-  :not([data-description-toggle]) {
-    @apply cursor-default;
-  }
-  
-  /* Specific clickable elements */
+  /* Make sure all interactive elements have pointer cursor */
   button,
   [role="button"],
   a,
-  .interactive,
+  input[type="submit"],
+  input[type="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  option,
+  .rdp-button,
+  .rdp-day,
+  .rdp-nav_button,
   .clickable,
+  .interactive,
+  [data-state="open"],
+  [data-state="closed"],
+  [data-radix-popper-content-wrapper],
+  [data-hover],
   [data-description-toggle] {
     @apply cursor-pointer;
   }
@@ -113,6 +120,7 @@
   .rdp-day:hover:not(.rdp-day_selected) {
     color: hsl(var(--primary-foreground)) !important;
     background-color: hsl(var(--primary)) !important;
+    cursor: pointer !important;
   }
   
   /* Selected day styling reinforcement */
@@ -121,18 +129,21 @@
   .rdp-day_selected:focus {
     color: hsl(var(--primary-foreground)) !important;
     background-color: hsl(var(--primary)) !important;
+    cursor: pointer !important;
   }
   
   /* Today styling when not selected */
   .rdp-day_today:not(.rdp-day_selected) {
     background-color: hsl(var(--primary)/0.2) !important;
     color: hsl(var(--primary)) !important;
+    cursor: pointer !important;
   }
   
   /* Reset any hover effects to maintain selected appearance */
   .rdp-day_selected.rdp-day_today {
     background-color: hsl(var(--primary)) !important;
     color: hsl(var(--primary-foreground)) !important;
+    cursor: pointer !important;
   }
 
   /* Mobile optimizations */

@@ -46,7 +46,7 @@ function Calendar({
         ),
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100 hover:bg-accent hover:text-accent-foreground",
+          "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100 hover:bg-accent hover:text-accent-foreground cursor-pointer",
           isLaptop ? "h-6 w-6" : "h-7 w-7",
           hideNav && "hidden"
         ),
@@ -64,12 +64,12 @@ function Calendar({
         ),
         row: "flex w-full mt-2 justify-between",
         cell: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 cursor-pointer",
           isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "p-0 font-normal rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+          "p-0 font-normal rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer",
           isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
         ),
         day_range_end: "day-range-end",
