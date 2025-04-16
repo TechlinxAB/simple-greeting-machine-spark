@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/select";
 
 interface ClientSelectProps {
-  value: string | null;
-  onChange: (value: string | null) => void;
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export function ClientSelect({ value, onChange }: ClientSelectProps) {
@@ -34,24 +34,21 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
   });
 
   return (
-    <div className="min-w-[200px]">
-      <label className="text-sm font-medium block mb-2">Filter by client</label>
-      <Select
-        value={value || "all-clients"} 
-        onValueChange={(val) => onChange(val === "all-clients" ? null : val)}
-      >
-        <SelectTrigger className="bg-background">
-          <SelectValue placeholder="Select client" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all-clients">All Clients</SelectItem>
-          {clients.map((client) => (
-            <SelectItem key={client.id} value={client.id}>
-              {client.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select
+      value={value || "all-clients"} 
+      onValueChange={(val) => onChange(val === "all-clients" ? "" : val)}
+    >
+      <SelectTrigger className="bg-background w-[180px]">
+        <SelectValue placeholder="All Clients" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all-clients">All Clients</SelectItem>
+        {clients.map((client) => (
+          <SelectItem key={client.id} value={client.id}>
+            {client.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

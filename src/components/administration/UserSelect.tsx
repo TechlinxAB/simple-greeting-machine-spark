@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/select";
 
 interface UserSelectProps {
-  value: string | null;
-  onChange: (value: string | null) => void;
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export function UserSelect({ value, onChange }: UserSelectProps) {
@@ -35,24 +35,21 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
   });
 
   return (
-    <div className="min-w-[200px]">
-      <label className="text-sm font-medium block mb-2">Filter by user</label>
-      <Select
-        value={value || "all-users"} 
-        onValueChange={(val) => onChange(val === "all-users" ? null : val)}
-      >
-        <SelectTrigger className="bg-background">
-          <SelectValue placeholder="Select user" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all-users">All Users</SelectItem>
-          {users.map((user) => (
-            <SelectItem key={user.id} value={user.id}>
-              {user.name || 'Unnamed User'}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select
+      value={value || "all-users"} 
+      onValueChange={(val) => onChange(val === "all-users" ? "all" : val)}
+    >
+      <SelectTrigger className="bg-background w-[180px]">
+        <SelectValue placeholder="All Users" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all-users">All Users</SelectItem>
+        {users.map((user) => (
+          <SelectItem key={user.id} value={user.id}>
+            {user.name || 'Unnamed User'}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

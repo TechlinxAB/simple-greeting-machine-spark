@@ -14,7 +14,7 @@ import {
   Upload,
   FilePlus2
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, setMonth, setYear } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
@@ -27,10 +27,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
-import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 import { ClientSelect } from "@/components/administration/ClientSelect";
 import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
+import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -43,8 +43,8 @@ export default function Administration() {
   const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>("");
-  const [fromDate, setFromDate] = useState<Date | undefined>(startOfMonth(new Date()));
-  const [toDate, setToDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -52,6 +52,10 @@ export default function Administration() {
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const { role } = useAuth();
+
+  // Calculate fromDate and toDate based on selectedMonth and selectedYear if not using all time
+  const fromDate = isAllTime ? undefined : startOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
+  const toDate = isAllTime ? undefined : endOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
 
   const { data: invoicesData = [], isLoading: isLoadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["invoices"],
@@ -106,11 +110,6 @@ export default function Administration() {
   const confirmDeleteTimeEntry = (entryId: string) => {
     setTimeEntryToDelete(entryId);
     setIsDeleteDialogOpen(true);
-  };
-
-  const handleDateRangeChange = (from: Date | undefined, to: Date | undefined) => {
-    setFromDate(from);
-    setToDate(to);
   };
 
   const handleCreateInvoice = async () => {
@@ -301,57 +300,73 @@ export default function Administration() {
                       </Button>
                     </>
                   ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center gap-2"
-                      onClick={refetchTimeEntries}
-                    >
-                      <RefreshCcw className="h-3.5 w-3.5" />
-                      <span>Refresh</span>
-                    </Button>
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center gap-2"
+                        onClick={refetchTimeEntries}
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                        <span>Refresh</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2 text-destructive hover:text-destructive"
+                        onClick={toggleBulkDeleteMode}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete Selected (0)</span>
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardHeader>
               
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm font-medium mb-2">Filter by user</p>
-                    <UserSelect
-                      value={selectedUser}
-                      onValueChange={setSelectedUser}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium mb-2">Filter by client</p>
-                    <ClientSelect
-                      value={selectedClient}
-                      onValueChange={setSelectedClient}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium mb-2">Date filter</p>
-                    <div className="flex items-center space-x-2">
-                      <DateRangeSelector 
-                        fromDate={isAllTime ? undefined : fromDate}
-                        toDate={isAllTime ? undefined : toDate}
-                        onDateChange={handleDateRangeChange}
+                <div className="grid grid-cols-1 gap-4 mb-6">
+                  <div className="flex flex-wrap items-center gap-4 w-full">
+                    <div>
+                      <p className="text-sm font-medium mb-2">Filter by user</p>
+                      <UserSelect
+                        value={selectedUser}
+                        onChange={setSelectedUser}
                       />
-                      <AllTimeToggle
-                        isChecked={isAllTime}
-                        onCheckedChange={setIsAllTime}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-2">Filter by client</p>
+                      <ClientSelect
+                        value={selectedClient}
+                        onChange={setSelectedClient}
                       />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-2">Date filter</p>
+                      <div className="flex items-center space-x-2">
+                        <AllTimeToggle
+                          isAllTime={isAllTime}
+                          onAllTimeChange={setIsAllTime}
+                        />
+                        {!isAllTime && (
+                          <MonthYearPicker
+                            selectedMonth={selectedMonth}
+                            selectedYear={selectedYear}
+                            onMonthChange={setSelectedMonth}
+                            onYearChange={setSelectedYear}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
                 
                 <TimeEntriesTable 
-                  clientId={selectedClient}
-                  userId={selectedUser}
-                  fromDate={isAllTime ? undefined : fromDate}
-                  toDate={isAllTime ? undefined : toDate}
-                  searchTerm={searchTerm}
+                  clientId={selectedClient || undefined}
+                  userId={selectedUser === "all" ? undefined : selectedUser}
+                  fromDate={fromDate}
+                  toDate={toDate}
+                  searchTerm={searchTerm || undefined}
                   bulkDeleteMode={bulkDeleteMode}
                   selectedItems={selectedItems}
                   onItemSelect={handleItemSelect}
@@ -419,7 +434,7 @@ export default function Administration() {
               <label className="text-sm font-medium">Select Client</label>
               <ClientSelect 
                 value={selectedClient}
-                onValueChange={setSelectedClient}
+                onChange={setSelectedClient}
               />
             </div>
             
