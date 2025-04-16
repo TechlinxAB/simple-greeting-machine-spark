@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -424,7 +425,7 @@ export default function UserStats() {
                         nameKey="name"
                         barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value, name) => {
+                          formatter: (value: any, name: any): [string, string] => {
                             const displayName = name.split(' ')[0];
                             return [`${value} hours`, displayName];
                           }
@@ -449,7 +450,9 @@ export default function UserStats() {
                             nameKey="name"
                             colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
                             tooltip={{
-                              formatter: (value, name) => [`${value} SEK`, name]
+                              formatter: (value: any, name: any): [string, string] => {
+                                return [`${value} SEK`, name];
+                              }
                             }}
                           />
                         </div>
@@ -505,7 +508,7 @@ export default function UserStats() {
                         nameKey="name"
                         barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value, name) => {
+                          formatter: (value: any, name: any): [string, string] => {
                             const displayName = name.split(' ')[0];
                             return [`${value} hours`, displayName];
                           }
@@ -530,7 +533,9 @@ export default function UserStats() {
                             nameKey="name"
                             colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
                             tooltip={{
-                              formatter: (value, name) => [`${value} SEK`, name]
+                              formatter: (value: any, name: any): [string, string] => {
+                                return [`${value} SEK`, name];
+                              }
                             }}
                           />
                         </div>
