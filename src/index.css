@@ -93,12 +93,19 @@
     @apply bg-background text-foreground;
   }
   
-  [data-hoverable], 
+  /* Restore default cursor for most elements, but keep specific interactions clickable */
+  [data-hoverable]:not([data-description-toggle]),
+  :not([data-description-toggle]) {
+    @apply cursor-default;
+  }
+  
+  /* Specific clickable elements */
   button,
   [role="button"],
   a,
   .interactive,
-  .clickable {
+  .clickable,
+  [data-description-toggle] {
     @apply cursor-pointer;
   }
   

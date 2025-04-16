@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -304,7 +304,10 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                       <TableCell className={compact ? "max-w-[180px]" : "max-w-[250px]"} isCompact={compact}>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <div className="line-clamp-2">
+                            <div 
+                              data-description-toggle 
+                              className="line-clamp-2 cursor-pointer"
+                            >
                               {entry.description || 
                                 (entry.products?.name || 'No description')}
                             </div>
