@@ -7,7 +7,8 @@ import {
   Search, 
   Trash2, 
   Upload,
-  FilePlus2
+  FilePlus2,
+  Users
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, setMonth, setYear } from "date-fns";
 import { toast } from "sonner";
@@ -28,6 +29,8 @@ import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsLaptop } from "@/hooks/use-mobile";
+import { UsersTable } from "@/components/administration/UsersTable";
+import { UserStats } from "@/components/administration/UserStats";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -48,6 +51,7 @@ export default function Administration() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedViewUser, setSelectedViewUser] = useState<string | null>(null);
   const { role } = useAuth();
   const isLaptop = useIsLaptop();
 
@@ -234,6 +238,14 @@ export default function Administration() {
     setSelectedItems([]);
   };
 
+  const handleUserSelect = (userId: string) => {
+    setSelectedViewUser(userId);
+  };
+
+  const handleBackToUserList = () => {
+    setSelectedViewUser(null);
+  };
+
   return (
     <div className={`container mx-auto py-6 space-y-6 ${isLaptop ? 'px-2 max-w-full overflow-x-auto' : 'px-4'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -243,7 +255,7 @@ export default function Administration() {
           <div className="relative flex-grow">
             <Search className={`absolute left-2.5 top-2.5 ${isLaptop ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground`} />
             <input
-              placeholder={activeTab === "invoices" ? "Search invoices..." : "Search..."} 
+              placeholder={activeTab === "invoices" ? "Search invoices..." : activeTab === "users" ? "Search users..." : "Search..."} 
               className={`pl-8 ${isLaptop ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -260,6 +272,9 @@ export default function Administration() {
             </TabsTrigger>
             <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
               Invoices
+            </TabsTrigger>
+            <TabsTrigger value="users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+              Users
             </TabsTrigger>
           </TabsList>
           
@@ -380,6 +395,29 @@ export default function Administration() {
                       }
                     </p>
                   </div>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="users" className="m-0">
+              <div className={isLaptop ? "p-3" : "p-6"}>
+                {!selectedViewUser ? (
+                  <>
+                    <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
+                      <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Users</h2>
+                    </div>
+                    <UsersTable 
+                      searchTerm={searchTerm}
+                      isCompact={isLaptop}
+                      onUserSelect={handleUserSelect}
+                    />
+                  </>
+                ) : (
+                  <UserStats 
+                    userId={selectedViewUser}
+                    onBack={handleBackToUserList}
+                    isCompact={isLaptop}
+                  />
                 )}
               </div>
             </TabsContent>

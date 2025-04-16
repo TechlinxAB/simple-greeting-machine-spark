@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   name: string;
@@ -67,12 +66,10 @@ export type ProductType = 'activity' | 'item';
 
 export interface User {
   id: string;
-  email: string;
+  email?: string;
   name?: string;
-  role: 'admin' | 'manager' | 'user';
+  role?: string;
   avatar_url?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export * from "./auth";
