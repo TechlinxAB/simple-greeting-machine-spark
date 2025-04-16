@@ -126,7 +126,7 @@ export default function Administration() {
     }
   };
 
-  // Modified query to fix the relationship issue and include items
+  // Create base query
   let query = supabase
     .from("time_entries")
     .select(`
@@ -145,6 +145,7 @@ export default function Administration() {
       clients (name)
     `);
   
+  // Apply filters
   if (selectedUserId) {
     query = query.eq("user_id", selectedUserId);
   }
@@ -153,12 +154,15 @@ export default function Administration() {
     query = query.eq("client_id", selectedClientId);
   }
   
-  if (startDate) {
-    query = query.gte("start_time", startDate.toISOString());
-  }
-  
-  if (endDate) {
-    query = query.lte("start_time", endDate.toISOString());
+  // For activity-type entries, filter by start_time
+  // For item-type entries, filter by created_at as they don't have start_time
+  if (!allTimeEnabled) {
+    // We need to handle both types of entries - those with start_time (activities) 
+    // and those without (items, which rely on created_at)
+    if (startDate && endDate) {
+      query = query.or(`start_time.gte.${startDate.toISOString()},and(start_time.is.null,created_at.gte.${startDate.toISOString()})`);
+      query = query.or(`start_time.lte.${endDate.toISOString()},and(start_time.is.null,created_at.lte.${endDate.toISOString()})`);
+    }
   }
   
   if (sortField) {

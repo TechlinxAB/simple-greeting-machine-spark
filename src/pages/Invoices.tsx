@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -127,11 +126,13 @@ export default function Invoices() {
       
       // Don't apply date filters if both dates are not set
       if (fromDate) {
-        query = query.gte('start_time', fromDate.toISOString());
+        // For activities, filter by start_time; for items (which have no start_time), filter by created_at
+        query = query.or(`start_time.gte.${fromDate.toISOString()},and(start_time.is.null,created_at.gte.${fromDate.toISOString()})`);
       }
       
       if (toDate) {
-        query = query.lte('start_time', toDate.toISOString());
+        // For activities, filter by start_time; for items (which have no start_time), filter by created_at
+        query = query.or(`start_time.lte.${toDate.toISOString()},and(start_time.is.null,created_at.lte.${toDate.toISOString()})`);
       }
       
       const { data: entriesData, error: entriesError } = await query;
@@ -356,6 +357,16 @@ export default function Invoices() {
   const resetExclusions = () => {
     setExcludedEntries([]);
     toast.success("All entries are now included");
+  };
+
+  const getItemAmount = (entry: any) => {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
+      const hours = calculateDuration(entry.start_time, entry.end_time);
+      return formatDuration(hours);
+    } else if (entry.products?.type === "item" && entry.quantity) {
+      return `${entry.quantity} units`;
+    }
+    return "-";
   };
 
   return (

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,12 +29,27 @@ export function DateRangeSelector({
   }, [fromDate, toDate]);
 
   const handleFromDateSelect = (date: Date | undefined) => {
+    // Prevent deselection - if date is undefined and we had a previous date, keep the previous date
+    if (!date && localFromDate) {
+      return;
+    }
+    
     setLocalFromDate(date);
     onDateChange(date, localToDate);
     setFromPickerOpen(false);
+    
+    // Automatically open To date picker if From date was selected and To date is not set
+    if (date && !localToDate) {
+      setTimeout(() => setToPickerOpen(true), 100);
+    }
   };
 
   const handleToDateSelect = (date: Date | undefined) => {
+    // Prevent deselection - if date is undefined and we had a previous date, keep the previous date
+    if (!date && localToDate) {
+      return;
+    }
+    
     setLocalToDate(date);
     onDateChange(localFromDate, date);
     setToPickerOpen(false);
