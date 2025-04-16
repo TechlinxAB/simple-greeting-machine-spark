@@ -147,8 +147,8 @@ export async function formatTimeEntriesForFortnox(
       const timeInfo = product.type === 'activity' && entry.start_time && entry.end_time ? 
         formatDateRange(entry.start_time, entry.end_time) : '';
       
-      // Format description without pipe symbols and with proper spacing
-      const description = sanitizeFortnoxDescription(`${productName}: ${baseDescription} - ${userName}${timeInfo ? ' - ' + timeInfo : ''}`);
+      // Format description with a dash after product name
+      const description = sanitizeFortnoxDescription(`${productName} - ${baseDescription} - ${userName}${timeInfo ? ' - ' + timeInfo : ''}`);
       
       // Ensure VAT is one of the allowed values (25, 12, 6)
       const validVatRates = [25, 12, 6];
