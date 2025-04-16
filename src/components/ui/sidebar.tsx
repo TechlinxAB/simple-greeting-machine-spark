@@ -1,7 +1,6 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -260,8 +259,9 @@ const Sidebar = React.forwardRef<
           className={cn(
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
             "cursor-default", // Explicitly set cursor to default for the entire sidebar
-            "* cursor-default", // Apply default cursor to all child elements by default
-            "* [&>*:not([data-sidebar='menu-button']):not([data-sidebar='trigger']):not([data-sidebar='menu-action'])] cursor-default", 
+            "* cursor-default", // Apply default cursor to all child elements
+            "* [&>*]:cursor-default", // Force default cursor on all direct children
+            "[&_*:not([data-sidebar='menu-button']):not([data-sidebar='trigger']):not([data-sidebar='menu-action'])]:cursor-default", 
             className
           )}
           {...props}
