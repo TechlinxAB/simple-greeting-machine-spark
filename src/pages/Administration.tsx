@@ -249,8 +249,6 @@ export default function Administration() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          
         </div>
       </div>
       
@@ -265,129 +263,127 @@ export default function Administration() {
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="time-entries" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className={isLaptop ? "p-3" : "p-6"}>
-              <div className={isLaptop ? "mb-4" : "mb-6"}>
-                <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>Time Entries</h2>
-                  <div className="flex items-center gap-2">
-                    {bulkDeleteMode ? (
-                      <>
+          <div className="bg-card rounded-md shadow-sm border overflow-hidden">
+            <TabsContent value="time-entries" className="m-0">
+              <div className={isLaptop ? "p-3" : "p-6"}>
+                <div className={isLaptop ? "mb-4" : "mb-6"}>
+                  <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
+                    <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>Time Entries</h2>
+                    <div className="flex items-center gap-2">
+                      {bulkDeleteMode ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size={isLaptop ? "sm" : "default"}
+                            onClick={toggleBulkDeleteMode}
+                            className={isLaptop ? "text-xs h-8 px-2" : ""}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size={isLaptop ? "sm" : "default"}
+                            onClick={handleBulkDelete}
+                            disabled={selectedItems.length === 0}
+                            className={isLaptop ? "text-xs h-8 px-2" : ""}
+                          >
+                            Delete Selected ({selectedItems.length})
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           variant="outline"
                           size={isLaptop ? "sm" : "default"}
+                          className={`flex items-center gap-2 ${isLaptop ? "text-xs h-8 px-2" : ""}`}
                           onClick={toggleBulkDeleteMode}
-                          className={isLaptop ? "text-xs h-8 px-2" : ""}
                         >
-                          Cancel
+                          <Trash2 className={isLaptop ? "h-3 w-3" : "h-3.5 w-3.5"} />
+                          <span>Bulk Delete</span>
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size={isLaptop ? "sm" : "default"}
-                          onClick={handleBulkDelete}
-                          disabled={selectedItems.length === 0}
-                          className={isLaptop ? "text-xs h-8 px-2" : ""}
-                        >
-                          Delete Selected ({selectedItems.length})
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size={isLaptop ? "sm" : "default"}
-                        className={`flex items-center gap-2 ${isLaptop ? "text-xs h-8 px-2" : ""}`}
-                        onClick={toggleBulkDeleteMode}
-                      >
-                        <Trash2 className={isLaptop ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                        <span>Bulk Delete</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                
-                <div className={`flex flex-wrap gap-${isLaptop ? '3' : '4'} items-end`}>
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by user</p>
-                    <UserSelect
-                      value={selectedUser}
-                      onChange={setSelectedUser}
-                    />
-                  </div>
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by client</p>
-                    <ClientSelect
-                      value={selectedClient}
-                      onChange={setSelectedClient}
-                    />
-                  </div>
-                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Date filter</p>
-                    <div className="flex items-center space-x-2">
-                      <AllTimeToggle
-                        isAllTime={isAllTime}
-                        onAllTimeChange={setIsAllTime}
-                      />
-                      {!isAllTime && (
-                        <MonthYearPicker
-                          selectedMonth={selectedMonth}
-                          selectedYear={selectedYear}
-                          onMonthChange={setSelectedMonth}
-                          onYearChange={setSelectedYear}
-                        />
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              <TimeEntriesTable 
-                clientId={selectedClient || undefined}
-                userId={selectedUser === "all" ? undefined : selectedUser}
-                fromDate={fromDate}
-                toDate={toDate}
-                searchTerm={searchTerm || undefined}
-                bulkDeleteMode={bulkDeleteMode}
-                selectedItems={selectedItems}
-                onItemSelect={handleItemSelect}
-                onSelectAll={handleSelectAll}
-                onBulkDelete={handleBulkDelete}
-                isCompact={isLaptop}
-              />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="invoices" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className={isLaptop ? "p-3" : "p-6"}>
-              <Card className="shadow-none">
-                <CardHeader className={`flex flex-row items-center justify-between ${isLaptop ? 'py-3 px-4' : ''}`}>
-                  <CardTitle className={isLaptop ? "text-base" : ""}>All Invoices</CardTitle>
-                </CardHeader>
-                
-                <CardContent>
-                  <InvoicesTable
-                    invoices={filteredInvoices}
-                    isLoading={isLoadingInvoices}
-                    onInvoiceDeleted={handleInvoiceDeleted}
-                    onViewDetails={handleViewInvoiceDetails}
-                    isCompact={isLaptop}
-                    isAdmin={true}
-                  />
-
-                  {!fortnoxConnected && (
-                    <div className={`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md ${isLaptop ? 'text-xs' : 'text-sm'}`}>
-                      <p className="text-yellow-800">
-                        Fortnox integration is not connected. {
-                          role === 'admin' 
-                            ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
-                            : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
-                        }
-                      </p>
+                  
+                  <div className={`flex flex-wrap gap-${isLaptop ? '3' : '4'} items-end`}>
+                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by user</p>
+                      <UserSelect
+                        value={selectedUser}
+                        onChange={setSelectedUser}
+                      />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by client</p>
+                      <ClientSelect
+                        value={selectedClient}
+                        onChange={setSelectedClient}
+                      />
+                    </div>
+                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Date filter</p>
+                      <div className="flex items-center space-x-2">
+                        <AllTimeToggle
+                          isAllTime={isAllTime}
+                          onAllTimeChange={setIsAllTime}
+                        />
+                        {!isAllTime && (
+                          <MonthYearPicker
+                            selectedMonth={selectedMonth}
+                            selectedYear={selectedYear}
+                            onMonthChange={setSelectedMonth}
+                            onYearChange={setSelectedYear}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <TimeEntriesTable 
+                  clientId={selectedClient || undefined}
+                  userId={selectedUser === "all" ? undefined : selectedUser}
+                  fromDate={fromDate}
+                  toDate={toDate}
+                  searchTerm={searchTerm || undefined}
+                  bulkDeleteMode={bulkDeleteMode}
+                  selectedItems={selectedItems}
+                  onItemSelect={handleItemSelect}
+                  onSelectAll={handleSelectAll}
+                  onBulkDelete={handleBulkDelete}
+                  isCompact={isLaptop}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="invoices" className="m-0">
+              <div className={isLaptop ? "p-3" : "p-6"}>
+                <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
+                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Invoices</h2>
+                </div>
+                
+                <InvoicesTable
+                  invoices={filteredInvoices}
+                  isLoading={isLoadingInvoices}
+                  onInvoiceDeleted={handleInvoiceDeleted}
+                  onViewDetails={handleViewInvoiceDetails}
+                  isCompact={isLaptop}
+                  isAdmin={true}
+                />
+
+                {!fortnoxConnected && (
+                  <div className={`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md ${isLaptop ? 'text-xs' : 'text-sm'}`}>
+                    <p className="text-yellow-800">
+                      Fortnox integration is not connected. {
+                        role === 'admin' 
+                          ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
+                          : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
       

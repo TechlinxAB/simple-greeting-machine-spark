@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -155,7 +156,7 @@ export function InvoicesTable({
               <TableHead isCompact={compact}>Due Date</TableHead>
               <TableHead isCompact={compact}>Status</TableHead>
               <TableHead className="text-right" isCompact={compact}>Amount</TableHead>
-              <TableHead isCompact={compact}>Actions</TableHead>
+              <TableHead className="text-center" isCompact={compact}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -206,7 +207,7 @@ export function InvoicesTable({
                     }).format(invoice.total_amount || 0)}
                   </TableCell>
                   <TableCell isCompact={compact}>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center space-x-2">
                       <Button
                         variant="ghost"
                         size="icon"
