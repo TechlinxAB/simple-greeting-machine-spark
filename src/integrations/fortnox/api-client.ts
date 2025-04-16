@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
@@ -31,18 +32,35 @@ export async function fortnoxApiRequest(
       endpoint = `/${endpoint}`;
     }
     
+    // Get authentication token for supabase user to pass to edge function
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    
+    const token = session?.access_token;
+    
+    if (!token) {
+      throw new Error("User authentication required");
+    }
+    
     // Prepare the request options with proper content type for UTF-8 support
     const options: RequestInit = {
       method,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Accept": "application/json",
+        "Authorization": `Bearer ${token}`,
       },
     };
     
     // Add request body for non-GET requests
     if (method !== "GET" && data) {
       options.body = JSON.stringify(data);
+    }
+    
+    console.log(`Making ${method} request to Fortnox proxy: /api/fortnox-proxy${endpoint}`);
+    if (data) {
+      console.log("Request data:", JSON.stringify(data, null, 2));
     }
     
     // Make the request to our Edge Function
