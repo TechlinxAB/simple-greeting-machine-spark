@@ -130,7 +130,7 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
   // Calculate total number of entries
   const totalEntries = timeEntries.length;
 
-  // Prepare data for client distribution chart
+  // Prepare data for client distribution chart - ensure we show the BEGINNING of client names
   const prepareClientData = () => {
     const clientMap = new Map();
     
@@ -148,13 +148,20 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
       }
     });
     
-    return Array.from(clientMap.entries()).map(([name, hours]) => ({ 
-      name, 
-      hours: parseFloat(Number(hours).toFixed(1))
-    }));
+    // Prepare the data with truncated names that show the beginning of client names
+    return Array.from(clientMap.entries()).map(([name, hours]) => {
+      // If name is longer than 20 characters, truncate it and add ellipsis at the end
+      const displayName = name.length > 20 ? `${name.substring(0, 20)}...` : name;
+      
+      return { 
+        name: displayName, 
+        fullName: name, // Keep the full name for tooltips
+        hours: parseFloat(Number(hours).toFixed(1))
+      };
+    });
   };
 
-  // Prepare data for activity type chart
+  // Prepare data for activity type chart - ensure we show the BEGINNING of activity names
   const prepareActivityData = () => {
     const activityMap = new Map();
     
@@ -173,10 +180,17 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
       }
     });
     
-    return Array.from(activityMap.entries()).map(([name, hours]) => ({ 
-      name, 
-      hours: parseFloat(Number(hours).toFixed(1))
-    }));
+    // Prepare the data with truncated names that show the beginning of activity names
+    return Array.from(activityMap.entries()).map(([name, hours]) => {
+      // If name is longer than 20 characters, truncate it and add ellipsis at the end
+      const displayName = name.length > 20 ? `${name.substring(0, 20)}...` : name;
+      
+      return { 
+        name: displayName, 
+        fullName: name, // Keep the full name for tooltips
+        hours: parseFloat(Number(hours).toFixed(1))
+      };
+    });
   };
 
   // Prepare data for daily activity chart
@@ -365,9 +379,10 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                   <PieChart
                     data={clientData}
                     dataKey="hours"
+                    nameKey="name"
                     colors={COLORS}
                     tooltip={{
-                      formatter: (value) => [`${value} hours`, 'Time Spent']
+                      formatter: (value, name, entry) => [`${value} hours`, entry.payload.fullName || name]
                     }}
                   />
                 </div>
@@ -385,9 +400,10 @@ export function UserStats({ userId, onBack, isCompact }: UserStatsProps) {
                   <PieChart
                     data={activityData}
                     dataKey="hours"
+                    nameKey="name"
                     colors={COLORS.slice().reverse()}
                     tooltip={{
-                      formatter: (value) => [`${value} hours`, 'Time Spent']
+                      formatter: (value, name, entry) => [`${value} hours`, entry.payload.fullName || name]
                     }}
                   />
                 </div>
