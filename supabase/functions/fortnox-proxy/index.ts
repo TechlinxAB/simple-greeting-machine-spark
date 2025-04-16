@@ -30,7 +30,11 @@ serve(async (req) => {
   try {
     // Parse URL to get Fortnox endpoint from the request path
     const url = new URL(req.url);
-    let fortnoxEndpoint = url.pathname.replace("/fortnox-proxy", "");
+    const pathParts = url.pathname.split('/');
+    const fortnoxEndpointParts = pathParts.slice(pathParts.indexOf('fortnox-proxy') + 1);
+    const fortnoxEndpoint = '/' + fortnoxEndpointParts.join('/');
+    
+    console.log(`Fortnox endpoint: ${fortnoxEndpoint}`);
     
     // Get auth header from the request
     const authHeader = req.headers.get("Authorization");
@@ -53,6 +57,21 @@ serve(async (req) => {
     // Get Fortnox API credentials from our system settings table
     const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = Deno.env.toObject();
     
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+    
+    console.log("Fetching Fortnox credentials from system_settings");
     const credentialsResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/system_settings?id=eq.fortnox_credentials&select=settings`,
       {
@@ -64,12 +83,26 @@ serve(async (req) => {
       }
     );
     
+    if (!credentialsResponse.ok) {
+      console.error("Failed to fetch Fortnox credentials:", await credentialsResponse.text());
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch Fortnox credentials" }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+    
     const credentialsData = await credentialsResponse.json();
     
     if (!credentialsData || !credentialsData[0] || !credentialsData[0].settings || !credentialsData[0].settings.accessToken) {
-      console.error("Failed to retrieve Fortnox credentials");
+      console.error("Invalid Fortnox credentials format:", credentialsData);
       return new Response(
-        JSON.stringify({ error: "Fortnox API credentials not found" }),
+        JSON.stringify({ error: "Fortnox API credentials not found or invalid" }),
         {
           status: 400,
           headers: {
@@ -80,7 +113,7 @@ serve(async (req) => {
       );
     }
     
-    const { accessToken } = credentialsData[0].settings;
+    const { accessToken, clientSecret } = credentialsData[0].settings;
     
     // Configure Fortnox API request
     const FORTNOX_API_URL = "https://api.fortnox.se/3";
@@ -93,90 +126,108 @@ serve(async (req) => {
       fortnoxUrl.searchParams.append(key, value);
     });
     
+    console.log(`Proxying ${req.method} request to Fortnox: ${fortnoxUrl.toString()}`);
+    
     // Extract request body for POST/PUT methods
     let requestBody = null;
     if (req.method !== "GET" && req.method !== "OPTIONS") {
       const contentType = req.headers.get("Content-Type") || "";
       if (contentType.includes("application/json")) {
         requestBody = await req.json();
+        console.log("Request body:", JSON.stringify(requestBody, null, 2));
       } else {
         requestBody = await req.text();
       }
     }
     
-    // Log the request information for debugging
-    console.log(`Proxying ${req.method} request to Fortnox: ${fortnoxUrl.toString()}`);
-    if (requestBody) {
-      console.log("Request body:", JSON.stringify(requestBody));
-    }
-    
     // Forward the request to Fortnox API
+    const fortnoxHeaders = {
+      "Content-Type": "application/json; charset=utf-8",
+      "Accept": "application/json",
+      "Access-Token": accessToken,
+      "Client-Secret": clientSecret,
+    };
+    
+    console.log("Fortnox request headers:", JSON.stringify(fortnoxHeaders, null, 2));
+    
     const fortnoxResponse = await fetch(fortnoxUrl.toString(), {
       method: req.method,
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Access-Token": accessToken,
-        "Client-Secret": credentialsData[0].settings.clientSecret,
-      },
+      headers: fortnoxHeaders,
       body: requestBody ? (typeof requestBody === "string" ? requestBody : JSON.stringify(requestBody)) : undefined,
     });
     
+    console.log(`Fortnox response status: ${fortnoxResponse.status}`);
+    
     // For article not found errors, prepare helpful error response
     if (fortnoxResponse.status === 400) {
-      const errorData = await fortnoxResponse.json();
+      const errorText = await fortnoxResponse.text();
+      console.log("Fortnox error response:", errorText);
       
-      // Check if this is an article not found error
-      if (
-        errorData?.ErrorInformation?.error &&
-        errorData.ErrorInformation.error === 2000422 &&
-        requestBody?.Invoice?.InvoiceRows
-      ) {
-        console.log("Article not found error detected, providing helpful error");
+      try {
+        const errorData = JSON.parse(errorText);
         
-        // Find the article info to help auto-creation
-        const errorMessage = errorData.ErrorInformation.message || "";
-        const articleNumberMatch = errorMessage.match(/ArticleNumber:([^,]+)/);
-        const articleNumber = articleNumberMatch ? articleNumberMatch[1].trim() : null;
-        
-        if (articleNumber) {
-          // Find the corresponding row in the invoice data
-          const row = requestBody.Invoice.InvoiceRows.find(
-            (row: any) => row.ArticleNumber === articleNumber
-          );
+        // Check if this is an article not found error
+        if (
+          errorData?.ErrorInformation?.error &&
+          errorData.ErrorInformation.error === 2000422 &&
+          requestBody?.Invoice?.InvoiceRows
+        ) {
+          console.log("Article not found error detected, providing helpful error");
           
-          if (row) {
-            return new Response(
-              JSON.stringify({
-                error: "article_not_found",
-                message: "Article not found in Fortnox",
-                articleDetails: {
-                  articleNumber: articleNumber,
-                  description: row.Description,
-                  accountNumber: row.AccountNumber,
-                  vat: row.VAT,
-                },
-              }),
-              {
-                status: 404,
-                headers: {
-                  ...corsHeaders,
-                  "Content-Type": "application/json",
-                },
-              }
+          // Find the article info to help auto-creation
+          const errorMessage = errorData.ErrorInformation.message || "";
+          const articleNumberMatch = errorMessage.match(/ArticleNumber:([^,]+)/);
+          const articleNumber = articleNumberMatch ? articleNumberMatch[1].trim() : null;
+          
+          if (articleNumber) {
+            // Find the corresponding row in the invoice data
+            const row = requestBody.Invoice.InvoiceRows.find(
+              (row: any) => row.ArticleNumber === articleNumber
             );
+            
+            if (row) {
+              return new Response(
+                JSON.stringify({
+                  error: "article_not_found",
+                  message: "Article not found in Fortnox",
+                  articleDetails: {
+                    articleNumber: articleNumber,
+                    description: row.Description,
+                    accountNumber: row.AccountNumber,
+                    vat: row.VAT,
+                  },
+                }),
+                {
+                  status: 404,
+                  headers: {
+                    ...corsHeaders,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+            }
           }
         }
+        
+        // Return the original error if not handled specifically
+        return new Response(JSON.stringify(errorData), {
+          status: fortnoxResponse.status,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (parseError) {
+        console.error("Error parsing Fortnox error response:", parseError);
+        // If we can't parse the error, return it as-is
+        return new Response(errorText, {
+          status: fortnoxResponse.status,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/plain",
+          },
+        });
       }
-      
-      // Return the original error if not handled specifically
-      return new Response(JSON.stringify(errorData), {
-        status: fortnoxResponse.status,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      });
     }
     
     // Handle successful response
@@ -184,9 +235,17 @@ serve(async (req) => {
     const contentType = fortnoxResponse.headers.get("Content-Type") || "";
     
     if (contentType.includes("application/json")) {
-      responseData = await fortnoxResponse.json();
+      const jsonText = await fortnoxResponse.text();
+      console.log("Fortnox JSON response:", jsonText);
+      try {
+        responseData = JSON.parse(jsonText);
+      } catch (e) {
+        console.error("Error parsing JSON response:", e);
+        responseData = jsonText;
+      }
     } else {
       responseData = await fortnoxResponse.text();
+      console.log("Fortnox text response:", responseData);
     }
     
     return new Response(
@@ -195,7 +254,7 @@ serve(async (req) => {
         status: fortnoxResponse.status,
         headers: {
           ...corsHeaders,
-          "Content-Type": contentType,
+          "Content-Type": contentType || "application/json",
         },
       }
     );
