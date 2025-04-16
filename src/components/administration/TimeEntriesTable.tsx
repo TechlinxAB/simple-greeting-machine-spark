@@ -74,6 +74,8 @@ export function TimeEntriesTable({
     queryKey: ["time-entries", clientId, userId, fromDate, toDate, searchTerm],
     queryFn: async () => {
       try {
+        console.log("Fetching time entries with filters:", { clientId, userId, fromDate, toDate, searchTerm });
+        
         let query = supabase
           .from("time_entries")
           .select(`
@@ -89,8 +91,7 @@ export function TimeEntriesTable({
             updated_at,
             invoiced,
             products(id, name, type, price),
-            clients(id, name),
-            profiles(id, name)
+            clients(id, name)
           `);
         
         // Apply filters if provided
@@ -116,10 +117,45 @@ export function TimeEntriesTable({
         
         const { data, error } = await query.order('created_at', { ascending: false });
         
-        if (error) throw error;
-        return data || [];
+        if (error) {
+          console.error("Error fetching time entries:", error);
+          throw error;
+        }
+        
+        console.log(`Found ${data?.length || 0} time entries`);
+        
+        // Add username to each entry by fetching from profiles table separately
+        const entriesWithUsernames = await Promise.all(
+          (data || []).map(async (entry) => {
+            let username = "Unknown";
+            
+            if (entry.user_id) {
+              // Fetch username separately from profiles
+              try {
+                const { data: userData } = await supabase
+                  .from("profiles")
+                  .select("name")
+                  .eq("id", entry.user_id)
+                  .single();
+                  
+                if (userData && userData.name) {
+                  username = userData.name;
+                }
+              } catch (err) {
+                console.error("Error fetching username:", err);
+              }
+            }
+            
+            return {
+              ...entry,
+              username
+            };
+          })
+        );
+        
+        return entriesWithUsernames || [];
       } catch (error) {
-        console.error("Error fetching time entries:", error);
+        console.error("Error in time entries query:", error);
         return [];
       }
     },
@@ -320,7 +356,7 @@ export function TimeEntriesTable({
                   {entry.clients?.name || "Unknown client"}
                 </TableCell>
                 <TableCell>
-                  {entry.profiles?.name || "Unknown user"}
+                  {entry.username || "Unknown user"}
                 </TableCell>
                 <TableCell>{entry.products?.name || "Unknown product"}</TableCell>
                 <TableCell>
