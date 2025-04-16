@@ -202,8 +202,9 @@ function sanitizeFortnoxDescription(description: string): string {
   // Replace multiple spaces/hyphens with single ones
   sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
   
-  // Replace other potentially problematic characters
-  sanitized = sanitized.replace(/[^\w\s\-,.()]/g, '');
+  // Only remove truly problematic characters while preserving Swedish characters
+  // This regex keeps letters (including å, ä, ö), numbers, spaces, and common punctuation
+  sanitized = sanitized.replace(/[^\w\såäöÅÄÖ\-,.()]/g, '');
   
   // Trim the description to avoid having spaces or hyphens at start/end
   sanitized = sanitized.trim();
