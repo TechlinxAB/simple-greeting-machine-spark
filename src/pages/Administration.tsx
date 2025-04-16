@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -674,8 +675,8 @@ export default function Invoices() {
                                         <TooltipContent>
                                           <p>A new article number will be generated and created in Fortnox</p>
                                         </TooltipContent>
-                                      </TooltipProvider>
-                                    )
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   )}
                                 </TableCell>
                                 <TableCell className={`text-right ${isExcluded ? "text-muted-foreground" : ""}`}>
