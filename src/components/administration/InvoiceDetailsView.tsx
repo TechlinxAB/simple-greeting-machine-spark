@@ -121,14 +121,19 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
     return '0.00';
   };
 
-  const copyToClipboard = (text: string, entryId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(entryId);
-    toast.success("Description copied to clipboard");
-    
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
+  const copyToClipboard = async (text: string, entryId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(entryId);
+      toast.success("Description copied to clipboard");
+      
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
