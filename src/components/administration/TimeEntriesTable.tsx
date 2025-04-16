@@ -1,4 +1,3 @@
-
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +14,7 @@ import { TimeEntry } from "@/types";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 
 interface TimeEntriesTableProps {
   timeEntries?: TimeEntry[];
@@ -65,8 +65,8 @@ export function TimeEntriesTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
   const [pendingInvoicedId, setPendingInvoicedId] = useState<string | null>(null);
+  const [pendingSelectAll, setPendingSelectAll] = useState<boolean>(false);
   
-  // If external time entries and loading state are not provided, fetch them internally
   const {
     data: fetchedTimeEntries = [],
     isLoading: isFetchingTimeEntries,
@@ -94,7 +94,6 @@ export function TimeEntriesTable({
             clients(id, name)
           `);
         
-        // Apply filters if provided
         if (clientId) {
           query = query.eq("client_id", clientId);
         }
@@ -124,13 +123,11 @@ export function TimeEntriesTable({
         
         console.log(`Found ${data?.length || 0} time entries`);
         
-        // Add username to each entry by fetching from profiles table separately
         const entriesWithUsernames = await Promise.all(
           (data || []).map(async (entry) => {
             let username = "Unknown";
             
             if (entry.user_id) {
-              // Fetch username separately from profiles
               try {
                 const { data: userData } = await supabase
                   .from("profiles")
@@ -162,24 +159,24 @@ export function TimeEntriesTable({
     enabled: !externalTimeEntries,
   });
 
-  // Use either external or fetched time entries
   const timeEntries = externalTimeEntries || fetchedTimeEntries;
   const isLoading = externalIsLoading !== undefined ? externalIsLoading : isFetchingTimeEntries;
 
   useEffect(() => {
-    if (!deleteDialogOpen) {
+    if (!deleteDialogOpen && !invoicedWarningOpen) {
       setIsDeleting(false);
     }
-  }, [deleteDialogOpen]);
+  }, [deleteDialogOpen, invoicedWarningOpen]);
 
   const handleDeleteClick = (entry: TimeEntry) => {
     if (entry.invoiced) {
-      toast.error("Cannot delete an invoiced time entry");
-      return;
+      setSelectedEntry(entry);
+      setInvoicedWarningOpen(true);
+    } else {
+      setSelectedEntry(entry);
+      setDeleteDialogOpen(true);
     }
     
-    setSelectedEntry(entry);
-    setDeleteDialogOpen(true);
     setIsDeleting(false);
   };
 
@@ -193,27 +190,27 @@ export function TimeEntriesTable({
     setEditDialogOpen(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (forceDelete = false) => {
     if (!selectedEntry) return;
     
     setIsDeleting(true);
     
     try {
-      const { error } = await supabase
-        .from("time_entries")
-        .delete()
-        .eq("id", selectedEntry.id);
+      const success = await deleteTimeEntry(selectedEntry.id, forceDelete);
       
-      if (error) {
-        console.error("Error deleting time entry:", error);
-        toast.error("Failed to delete time entry");
+      if (success) {
+        if (invoicedWarningOpen) {
+          setInvoicedWarningOpen(false);
+        } else {
+          setDeleteDialogOpen(false);
+        }
+        
+        setSelectedEntry(null);
+        onEntryDeleted();
+        toast.success("Time entry deleted successfully");
+      } else {
         setIsDeleting(false);
-        return;
       }
-      
-      setDeleteDialogOpen(false);
-      setSelectedEntry(null);
-      onEntryDeleted();
     } catch (error) {
       console.error("Error in delete operation:", error);
       toast.error("An unexpected error occurred");
@@ -278,7 +275,6 @@ export function TimeEntriesTable({
   };
 
   const handleSelectAll = (checked: boolean) => {
-    // Safely check if timeEntries is defined and has entries before proceeding
     if (!timeEntries || timeEntries.length === 0) {
       return;
     }
@@ -286,10 +282,28 @@ export function TimeEntriesTable({
     const hasInvoicedEntries = timeEntries.some(entry => entry.invoiced);
     
     if (checked && hasInvoicedEntries) {
+      setPendingSelectAll(checked);
       setInvoicedWarningOpen(true);
       setPendingInvoicedId('all');
     } else {
       onSelectAll(checked);
+    }
+  };
+
+  const confirmSelectAll = () => {
+    if (pendingInvoicedId === 'all') {
+      const allIds = timeEntries.map(entry => entry.id);
+      
+      if (pendingSelectAll) {
+        allIds.forEach(id => {
+          if (!selectedItems.includes(id)) {
+            onItemSelect(id);
+          }
+        });
+      }
+      
+      setInvoicedWarningOpen(false);
+      setPendingInvoicedId(null);
     }
   };
 
@@ -301,7 +315,6 @@ export function TimeEntriesTable({
     );
   }
 
-  // Make sure timeEntries is defined before checking its length
   if (!timeEntries || timeEntries.length === 0) {
     return (
       <div className="text-center py-8">
@@ -426,7 +439,6 @@ export function TimeEntriesTable({
                       size="icon"
                       onClick={() => handleDeleteClick(entry)}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      disabled={entry.invoiced}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -453,7 +465,7 @@ export function TimeEntriesTable({
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                confirmDelete();
+                confirmDelete(false);
               }}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -476,15 +488,15 @@ export function TimeEntriesTable({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
               <AlertCircle className="h-5 w-5" />
-              <span>Warning: Invoiced Time Entries</span>
+              <span>Warning: {pendingInvoicedId === 'all' ? 'Multiple' : 'Single'} Invoiced {pendingInvoicedId === 'all' ? 'Entries' : 'Entry'}</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               <div>
                 <p className="mb-2">
-                  You are about to select {pendingInvoicedId === 'all' ? 'multiple' : 'an'} invoiced time {pendingInvoicedId === 'all' ? 'entries' : 'entry'}.
+                  You are about to {pendingInvoicedId === 'all' ? 'select' : 'delete'} {pendingInvoicedId === 'all' ? 'multiple' : 'an'} invoiced time {pendingInvoicedId === 'all' ? 'entries' : 'entry'}.
                 </p>
                 <p className="mb-2">
-                  <strong>Important:</strong> Deleting invoiced time entries may cause inconsistencies between your app's data and Fortnox.
+                  <strong>Important:</strong> {pendingInvoicedId === 'all' ? 'Deleting' : 'Deleting'} invoiced time entries may cause inconsistencies between your app's data and Fortnox.
                 </p>
                 <p>
                   If these entries have been exported to Fortnox, the deletion will only happen in your database, not in Fortnox.
@@ -494,20 +506,31 @@ export function TimeEntriesTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingInvoicedId(null)}>
+            <AlertDialogCancel onClick={() => {
+              setPendingInvoicedId(null);
+              setPendingSelectAll(false);
+            }}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (pendingInvoicedId === 'all') {
-                  onSelectAll(true);
+                  confirmSelectAll();
                 } else {
-                  confirmInvoicedSelection();
+                  confirmDelete(true);
                 }
               }}
               className="bg-amber-500 hover:bg-amber-600 text-white border-none"
+              disabled={isDeleting}
             >
-              I understand, continue anyway
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "I understand, continue anyway"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

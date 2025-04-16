@@ -2,12 +2,12 @@
 import { supabase } from "./supabase";
 import { toast } from "sonner";
 
-export async function deleteTimeEntry(entryId: string): Promise<boolean> {
+export async function deleteTimeEntry(entryId: string, forceDelete: boolean = false): Promise<boolean> {
   try {
-    // First check if entry exists and is not invoiced
+    // First check if entry exists and is not invoiced (unless forceDelete is true)
     const { data: entry, error: checkError } = await supabase
       .from("time_entries")
-      .select("id, invoiced")
+      .select("id, invoiced, invoice_id")
       .eq("id", entryId)
       .single();
     
@@ -22,8 +22,8 @@ export async function deleteTimeEntry(entryId: string): Promise<boolean> {
       return false;
     }
     
-    if (entry.invoiced) {
-      toast.error("Cannot delete an invoiced time entry");
+    // If the entry is invoiced and we're not forcing deletion, return false
+    if (entry.invoiced && !forceDelete) {
       return false;
     }
     

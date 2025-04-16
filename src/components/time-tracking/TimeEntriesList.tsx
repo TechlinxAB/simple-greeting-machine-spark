@@ -11,7 +11,8 @@ import {
   ClipboardList, 
   Edit, 
   Trash,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const queryClient = useQueryClient();
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -128,10 +130,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   });
 
   useEffect(() => {
-    if (!deleteDialogOpen) {
+    if (!deleteDialogOpen && !invoicedWarningOpen) {
       setIsDeleting(false);
     }
-  }, [deleteDialogOpen]);
+  }, [deleteDialogOpen, invoicedWarningOpen]);
 
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
@@ -173,11 +175,17 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const handleDeleteClick = (entry: any) => {
     console.log("Delete clicked for entry:", entry);
     setSelectedEntry(entry);
-    setDeleteDialogOpen(true);
+    
+    if (entry.invoiced) {
+      setInvoicedWarningOpen(true);
+    } else {
+      setDeleteDialogOpen(true);
+    }
+    
     setIsDeleting(false);
   };
   
-  const confirmDelete = async () => {
+  const confirmDelete = async (forceDelete = false) => {
     if (!selectedEntry || !selectedEntry.id) {
       toast.error("No time entry selected for deletion");
       return;
@@ -186,10 +194,15 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     setIsDeleting(true);
     
     try {
-      const success = await deleteTimeEntry(selectedEntry.id);
+      const success = await deleteTimeEntry(selectedEntry.id, forceDelete);
       
       if (success) {
-        setDeleteDialogOpen(false);
+        if (invoicedWarningOpen) {
+          setInvoicedWarningOpen(false);
+        } else {
+          setDeleteDialogOpen(false);
+        }
+        
         setSelectedEntry(null);
         
         queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
@@ -203,7 +216,12 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
         await refetch();
         toast.success("Time entry deleted successfully");
       } else {
-        setIsDeleting(false);
+        if (!forceDelete && selectedEntry.invoiced) {
+          setInvoicedWarningOpen(true);
+          setDeleteDialogOpen(false);
+        } else {
+          setIsDeleting(false);
+        }
       }
     } catch (error: any) {
       setIsDeleting(false);
@@ -346,7 +364,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
             <AlertDialogAction 
               onClick={(e) => {
                 e.preventDefault(); // Prevent form submission
-                confirmDelete();
+                confirmDelete(false);
               }} 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
@@ -358,6 +376,46 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                 </>
               ) : (
                 "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={invoicedWarningOpen} onOpenChange={setInvoicedWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
+              <AlertCircle className="h-5 w-5" />
+              <span>Warning: Invoiced Time Entry</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <p className="mb-2">
+                You are about to delete an invoiced time entry. This may cause inconsistencies between your app's data and Fortnox.
+              </p>
+              <p>
+                If this entry has been exported to Fortnox, the deletion will only happen in your database, not in Fortnox.
+                This action cannot be reversed.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete(true);
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Anyway"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

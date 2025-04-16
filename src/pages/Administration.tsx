@@ -199,15 +199,22 @@ export default function Administration() {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    // This would be populated with time entry IDs when needed
-    setSelectedItems(checked ? [] : []);
+    if (checked) {
+      // This will be populated with time entry IDs by the TimeEntriesTable component
+      // when the user confirms selection of invoiced entries
+      const timeEntriesData = document.querySelectorAll('[data-entry-id]');
+      const allIds = Array.from(timeEntriesData).map(el => (el as HTMLElement).dataset.entryId || '');
+      setSelectedItems(allIds.filter(Boolean));
+    } else {
+      setSelectedItems([]);
+    }
   };
 
   const handleBulkDelete = async () => {
     if (selectedItems.length === 0) return;
     
     try {
-      const promises = selectedItems.map(id => deleteTimeEntry(id));
+      const promises = selectedItems.map(id => deleteTimeEntry(id, true));
       await Promise.all(promises);
       
       toast.success(`Successfully deleted ${selectedItems.length} time entries`);
