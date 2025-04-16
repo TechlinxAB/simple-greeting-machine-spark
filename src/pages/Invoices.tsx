@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
 import { FilePlus2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO, differenceInHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,6 +24,21 @@ import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
+
+// Utility functions for calculating and formatting duration
+const calculateDuration = (startTime: string, endTime: string): number => {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diffHours = differenceInHours(end, start);
+  const diffMinutes = differenceInMinutes(end, start) % 60;
+  return parseFloat((diffHours + diffMinutes / 60).toFixed(2));
+};
+
+const formatDuration = (hours: number): string => {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes}m`;
+};
 
 type TimeEntryWithProfile = {
   id: string;
