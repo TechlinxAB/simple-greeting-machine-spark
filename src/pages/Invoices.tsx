@@ -1,10 +1,12 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle, FilePlus2 } from "lucide-react";
+import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { FilePlus2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
@@ -123,6 +125,7 @@ export default function Invoices() {
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
+      // Don't apply date filters if both dates are not set
       if (fromDate) {
         query = query.gte('start_time', fromDate.toISOString());
       }

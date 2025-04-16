@@ -9,26 +9,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface UserSelectProps {
+interface ClientSelectProps {
   value: string | null;
   onChange: (value: string | null) => void;
 }
 
-export function UserSelect({ value, onChange }: UserSelectProps) {
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ["users"],
+export function ClientSelect({ value, onChange }: ClientSelectProps) {
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ["clients"],
     queryFn: async () => {
       try {
-        // Directly query the profiles table which contains user information
         const { data, error } = await supabase
-          .from("profiles")
+          .from("clients")
           .select("id, name")
           .order("name");
           
         if (error) throw error;
         return data || [];
       } catch (error) {
-        console.error("Error fetching users:", error);
+        console.error("Error fetching clients:", error);
         return [];
       }
     },
@@ -36,19 +35,19 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
 
   return (
     <div className="min-w-[200px]">
-      <label className="text-sm font-medium block mb-2">Filter by user</label>
+      <label className="text-sm font-medium block mb-2">Filter by client</label>
       <Select
-        value={value || "all-users"} 
-        onValueChange={(val) => onChange(val === "all-users" ? null : val)}
+        value={value || "all-clients"} 
+        onValueChange={(val) => onChange(val === "all-clients" ? null : val)}
       >
         <SelectTrigger className="bg-background">
-          <SelectValue placeholder="Select user" />
+          <SelectValue placeholder="Select client" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all-users">All Users</SelectItem>
-          {users.map((user) => (
-            <SelectItem key={user.id} value={user.id}>
-              {user.name || 'Unnamed User'}
+          <SelectItem value="all-clients">All Clients</SelectItem>
+          {clients.map((client) => (
+            <SelectItem key={client.id} value={client.id}>
+              {client.name}
             </SelectItem>
           ))}
         </SelectContent>

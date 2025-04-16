@@ -18,95 +18,84 @@ export function DateRangeSelector({
   toDate, 
   onDateChange 
 }: DateRangeSelectorProps) {
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [currentSelection, setCurrentSelection] = useState<'from' | 'to'>('from');
-  const [tempFromDate, setTempFromDate] = useState<Date | undefined>(fromDate);
-  const [tempToDate, setTempToDate] = useState<Date | undefined>(toDate);
+  // Create a two-stage selection in a single dialog
+  const [fromPickerOpen, setFromPickerOpen] = useState(false);
+  const [toPickerOpen, setToPickerOpen] = useState(false);
+  const [localFromDate, setLocalFromDate] = useState<Date | undefined>(fromDate);
+  const [localToDate, setLocalToDate] = useState<Date | undefined>(toDate);
 
-  // Reset temp dates when props change
   useEffect(() => {
-    setTempFromDate(fromDate);
-    setTempToDate(toDate);
+    setLocalFromDate(fromDate);
+    setLocalToDate(toDate);
   }, [fromDate, toDate]);
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (currentSelection === 'from') {
-      setTempFromDate(date);
-      setCurrentSelection('to');
-    } else {
-      setTempToDate(date);
-      
-      // Apply dates and close the picker
-      onDateChange(tempFromDate, date);
-      setDatePickerOpen(false);
-      setCurrentSelection('from');
-    }
+  const handleFromDateSelect = (date: Date | undefined) => {
+    setLocalFromDate(date);
+    onDateChange(date, localToDate);
+    setFromPickerOpen(false);
   };
 
-  const handleTriggerClick = () => {
-    setDatePickerOpen(true);
-    setCurrentSelection('from');
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    setDatePickerOpen(open);
-    if (!open) {
-      // Reset to initial state when closing without completing
-      setCurrentSelection('from');
-    }
-  };
-
-  const formatDateRange = () => {
-    if (fromDate && toDate) {
-      return `${format(fromDate, 'MMM dd, yyyy')} - ${format(toDate, 'MMM dd, yyyy')}`;
-    }
-    
-    if (fromDate) {
-      return `From: ${format(fromDate, 'MMM dd, yyyy')}`;
-    }
-    
-    if (toDate) {
-      return `To: ${format(toDate, 'MMM dd, yyyy')}`;
-    }
-    
-    return "Select date range";
+  const handleToDateSelect = (date: Date | undefined) => {
+    setLocalToDate(date);
+    onDateChange(localFromDate, date);
+    setToPickerOpen(false);
   };
 
   return (
-    <Popover open={datePickerOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          onClick={handleTriggerClick}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            "border border-input h-10",
-            !fromDate && !toDate && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {formatDateRange()}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="p-3 border-b">
-          <div className="text-sm font-medium">
-            {currentSelection === 'from' ? 'Select start date' : 'Select end date'}
-          </div>
-          {tempFromDate && currentSelection === 'to' && (
-            <div className="text-xs text-muted-foreground mt-1">
-              Start date: {format(tempFromDate, 'MMM dd, yyyy')}
-            </div>
-          )}
-        </div>
-        <Calendar
-          mode="single"
-          selected={currentSelection === 'from' ? tempFromDate : tempToDate}
-          onSelect={handleDateSelect}
-          initialFocus
-          className="pointer-events-auto"
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="flex flex-wrap gap-3">
+      <div>
+        <label className="text-sm font-medium block mb-2">From date</label>
+        <Popover open={fromPickerOpen} onOpenChange={setFromPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-[150px] justify-start text-left font-normal",
+                !localFromDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {localFromDate ? format(localFromDate, 'MMM dd, yyyy') : "Select date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={localFromDate}
+              onSelect={handleFromDateSelect}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium block mb-2">To date</label>
+        <Popover open={toPickerOpen} onOpenChange={setToPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-[150px] justify-start text-left font-normal",
+                !localToDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {localToDate ? format(localToDate, 'MMM dd, yyyy') : "Select date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={localToDate}
+              onSelect={handleToDateSelect}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
   );
 }

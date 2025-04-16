@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
+import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -25,15 +26,17 @@ import { Loader2, Trash2, AlertCircle } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { UserSelect } from "@/components/administration/UserSelect";
+import { ClientSelect } from "@/components/administration/ClientSelect";
 import { toast } from "sonner";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
-import { TimeEntry } from "@/types";
+import { TimeEntry, Invoice } from "@/types";
 
 export default function Administration() {
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedEntriesIds, setSelectedEntriesIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -48,6 +51,10 @@ export default function Administration() {
 
   const handleUserChange = (userId: string | null) => {
     setSelectedUserId(userId);
+  };
+
+  const handleClientChange = (clientId: string | null) => {
+    setSelectedClientId(clientId);
   };
 
   const startDate = allTimeEnabled ? undefined : startOfMonth(new Date(selectedYear, selectedMonth));
@@ -119,7 +126,7 @@ export default function Administration() {
     }
   };
 
-  // Modified query to fix the relationship issue
+  // Modified query to fix the relationship issue and include items
   let query = supabase
     .from("time_entries")
     .select(`
@@ -141,6 +148,10 @@ export default function Administration() {
   if (selectedUserId) {
     query = query.eq("user_id", selectedUserId);
   }
+
+  if (selectedClientId) {
+    query = query.eq("client_id", selectedClientId);
+  }
   
   if (startDate) {
     query = query.gte("start_time", startDate.toISOString());
@@ -155,12 +166,13 @@ export default function Administration() {
   }
 
   const { data: rawTimeEntries = [], isLoading } = useQuery({
-    queryKey: ["time-entries", selectedMonth, selectedYear, selectedUserId, sortField, sortDirection, allTimeEnabled],
+    queryKey: ["time-entries", selectedMonth, selectedYear, selectedUserId, selectedClientId, sortField, sortDirection, allTimeEnabled],
     queryFn: async () => {
       console.log("Fetching time entries with params:", {
         month: selectedMonth,
         year: selectedYear,
         user: selectedUserId,
+        client: selectedClientId,
         sort: sortField,
         direction: sortDirection,
         allTime: allTimeEnabled
@@ -218,8 +230,37 @@ export default function Administration() {
     } : undefined
   }));
 
+  // Fetch invoices for the Invoices tab
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useQuery({
+    queryKey: ["invoices-admin"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(`
+          id,
+          client_id,
+          invoice_number,
+          status,
+          issue_date,
+          due_date,
+          total_amount,
+          exported_to_fortnox,
+          fortnox_invoice_id,
+          clients:client_id (id, name)
+        `)
+        .order("issue_date", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const handleEntryDeleted = async () => {
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+  };
+
+  const handleInvoiceDeleted = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["invoices-admin"] });
   };
 
   return (
@@ -231,6 +272,7 @@ export default function Administration() {
       <Tabs defaultValue="time-entries" className="space-y-6">
         <TabsList>
           <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
         </TabsList>
         
         <TabsContent value="time-entries" className="space-y-6">
@@ -244,6 +286,13 @@ export default function Administration() {
                   <UserSelect 
                     value={selectedUserId} 
                     onChange={handleUserChange} 
+                  />
+                </div>
+
+                <div className="grid gap-2 flex-1">
+                  <ClientSelect 
+                    value={selectedClientId} 
+                    onChange={handleClientChange} 
                   />
                 </div>
                 
@@ -291,6 +340,21 @@ export default function Administration() {
                 onSort={handleSort}
                 sortField={sortField}
                 sortDirection={sortDirection}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InvoicesTable 
+                invoices={invoices} 
+                isLoading={isLoadingInvoices}
+                onInvoiceDeleted={handleInvoiceDeleted}
               />
             </CardContent>
           </Card>
