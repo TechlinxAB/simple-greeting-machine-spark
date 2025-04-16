@@ -283,7 +283,7 @@ export function TimeEntriesTable({
               {bulkDeleteMode && (
                 <TableHead className="w-[40px]">
                   <Checkbox 
-                    checked={timeEntries.length > 0 && selectedItems.length === timeEntries.length}
+                    checked={selectedItems.length > 0 && selectedItems.length === timeEntries.length}
                     onCheckedChange={(checked) => handleSelectAll(!!checked)}
                     aria-label="Select all"
                   />
