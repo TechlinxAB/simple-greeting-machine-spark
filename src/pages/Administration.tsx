@@ -31,6 +31,7 @@ import { ClientSelect } from "@/components/administration/ClientSelect";
 import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -239,7 +240,7 @@ export default function Administration() {
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
-              placeholder={activeTab === "invoices" ? "Search invoices..." : "Search time entries..."} 
+              placeholder={activeTab === "invoices" ? "Search invoices..." : "Search..."} 
               className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -260,25 +261,27 @@ export default function Administration() {
       </div>
       
       <div className="bg-card rounded-md shadow-sm">
-        <div className="flex border-b">
-          <button
-            className={`px-5 py-4 text-sm font-medium ${activeTab === "time-entries" ? "border-b-2 border-primary" : ""}`}
-            onClick={() => setActiveTab("time-entries")}
-          >
-            Time Entries
-          </button>
-          <button
-            className={`px-5 py-4 text-sm font-medium ${activeTab === "invoices" ? "border-b-2 border-primary" : ""}`}
-            onClick={() => setActiveTab("invoices")}
-          >
-            Invoices
-          </button>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-muted/50 border-b w-full rounded-none justify-start h-auto p-0">
+            <TabsTrigger 
+              value="time-entries" 
+              className="data-[state=active]:bg-background rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3 px-4"
+            >
+              Time Entries
+            </TabsTrigger>
+            <TabsTrigger 
+              value="invoices" 
+              className="data-[state=active]:bg-background rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3 px-4"
+            >
+              Invoices
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         
         {activeTab === "time-entries" && (
           <div className="p-6">
             <Card className="shadow-none">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between px-6 py-4">
                 <CardTitle>Time Entries</CardTitle>
                 <div className="flex items-center gap-2">
                   {bulkDeleteMode ? (
@@ -317,7 +320,7 @@ export default function Administration() {
                         onClick={toggleBulkDeleteMode}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        <span>Delete Selected (0)</span>
+                        <span>Bulk Delete</span>
                       </Button>
                     </>
                   )}
@@ -325,38 +328,36 @@ export default function Administration() {
               </CardHeader>
               
               <CardContent>
-                <div className="grid grid-cols-1 gap-4 mb-6">
-                  <div className="flex flex-wrap items-center gap-4 w-full">
-                    <div>
-                      <p className="text-sm font-medium mb-2">Filter by user</p>
-                      <UserSelect
-                        value={selectedUser}
-                        onChange={setSelectedUser}
+                <div className="flex flex-wrap items-center gap-4 w-full mb-6">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Filter by user</p>
+                    <UserSelect
+                      value={selectedUser}
+                      onChange={setSelectedUser}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-2">Filter by client</p>
+                    <ClientSelect
+                      value={selectedClient}
+                      onChange={setSelectedClient}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-2">Date filter</p>
+                    <div className="flex items-center space-x-2">
+                      <AllTimeToggle
+                        isAllTime={isAllTime}
+                        onAllTimeChange={setIsAllTime}
                       />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium mb-2">Filter by client</p>
-                      <ClientSelect
-                        value={selectedClient}
-                        onChange={setSelectedClient}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium mb-2">Date filter</p>
-                      <div className="flex items-center space-x-2">
-                        <AllTimeToggle
-                          isAllTime={isAllTime}
-                          onAllTimeChange={setIsAllTime}
+                      {!isAllTime && (
+                        <MonthYearPicker
+                          selectedMonth={selectedMonth}
+                          selectedYear={selectedYear}
+                          onMonthChange={setSelectedMonth}
+                          onYearChange={setSelectedYear}
                         />
-                        {!isAllTime && (
-                          <MonthYearPicker
-                            selectedMonth={selectedMonth}
-                            selectedYear={selectedYear}
-                            onMonthChange={setSelectedMonth}
-                            onYearChange={setSelectedYear}
-                          />
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>

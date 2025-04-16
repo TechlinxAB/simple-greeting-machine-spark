@@ -88,9 +88,9 @@ export function TimeEntriesTable({
             created_at,
             updated_at,
             invoiced,
-            products:product_id (id, name, type, price),
-            clients:client_id (id, name),
-            profiles:user_id (id, name)
+            products(id, name, type, price),
+            clients(id, name),
+            profiles(id, name)
           `);
         
         // Apply filters if provided
@@ -123,7 +123,7 @@ export function TimeEntriesTable({
         return [];
       }
     },
-    enabled: !externalTimeEntries && (clientId !== undefined || userId !== undefined),
+    enabled: !externalTimeEntries,
   });
 
   // Use either external or fetched time entries
