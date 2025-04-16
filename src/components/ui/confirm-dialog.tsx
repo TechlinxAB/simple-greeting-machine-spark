@@ -19,6 +19,7 @@ interface ConfirmDialogProps {
   actionLabel: string;
   onAction: () => void;
   variant?: "default" | "destructive";
+  disabled?: boolean;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -29,6 +30,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   actionLabel,
   onAction,
   variant = "default",
+  disabled = false,
 }) => {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -44,6 +46,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <AlertDialogAction
             onClick={onAction}
             className={variant === "destructive" ? "bg-destructive hover:bg-destructive/90" : ""}
+            disabled={disabled}
           >
             {actionLabel}
           </AlertDialogAction>

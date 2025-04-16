@@ -23,6 +23,7 @@ import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
 import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
+import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
 
 const calculateDuration = (startTime: string, endTime: string): number => {
   const start = new Date(startTime);

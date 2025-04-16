@@ -15,9 +15,18 @@ interface InvoicesTableProps {
   isLoading: boolean;
   onInvoiceDeleted: () => void;
   onViewDetails: (invoice: Invoice) => void;
+  bulkDeleteMode?: boolean;
+  onBulkDelete?: () => void;
 }
 
-export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted, onViewDetails }: InvoicesTableProps) {
+export function InvoicesTable({ 
+  invoices, 
+  isLoading, 
+  onInvoiceDeleted, 
+  onViewDetails,
+  bulkDeleteMode = false,
+  onBulkDelete
+}: InvoicesTableProps) {
   const { toast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
