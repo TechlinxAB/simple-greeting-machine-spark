@@ -10,6 +10,7 @@ import { Calendar, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
+import { useIsSmallScreen } from "@/hooks/use-mobile";
 
 const Profile = () => {
   const { user, updateProfile, role } = useAuth();
@@ -18,6 +19,7 @@ const Profile = () => {
   const [dob, setDob] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const isSmallScreen = useIsSmallScreen();
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -138,52 +140,63 @@ const Profile = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Your Profile</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">Your Profile</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your personal information</CardDescription>
+          <CardHeader className="small-card-header">
+            <CardTitle className="text-lg">Profile Information</CardTitle>
+            <CardDescription className="text-xs">Update your personal information</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+            <CardContent className="space-y-3 small-card-content">
+              <div className="space-y-1">
+                <Label htmlFor="name" className="text-xs">Full Name</Label>
                 <Input
                   id="name"
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  className="h-8 text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" value={user?.email || ""} disabled />
-                <p className="text-sm text-muted-foreground">Email cannot be changed</p>
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-xs">Email</Label>
+                <Input 
+                  id="email" 
+                  value={user?.email || ""} 
+                  disabled 
+                  className="h-8 text-xs bg-muted/50"
+                />
+                <p className="text-[10px] text-muted-foreground">Email cannot be changed</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth (Optional)</Label>
+              <div className="space-y-1">
+                <Label htmlFor="dob" className="text-xs">Date of Birth (Optional)</Label>
                 <Input
                   id="dob"
                   type="date"
                   value={dob}
                   onChange={(e) => setDob(e.target.value)}
+                  className="h-8 text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Profile Picture</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Profile Picture</Label>
                 <ProfileImageUpload 
                   avatarUrl={avatarUrl} 
                   onImageUploaded={handleImageUploaded} 
                 />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isLoading}>
+            <CardFooter className="small-card-footer">
+              <Button 
+                type="submit" 
+                disabled={isLoading} 
+                className="h-8 text-xs"
+              >
                 {isLoading ? (
                   <>
-                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1.5"></div>
                     Saving...
                   </>
                 ) : (
@@ -194,29 +207,29 @@ const Profile = () => {
           </form>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Profile Overview</CardTitle>
+            <CardHeader className="small-card-header">
+              <CardTitle className="text-base">Profile Overview</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <Avatar className="h-24 w-24 mb-4 bg-primary/10">
+            <CardContent className="flex flex-col items-center small-card-content">
+              <Avatar className="h-16 w-16 mb-3 bg-primary/10">
                 <AvatarImage src={avatarUrl} alt={name} />
-                <AvatarFallback className="text-xl bg-primary/10 text-primary-foreground">
+                <AvatarFallback className="text-sm bg-primary/10 text-primary-foreground">
                   {getInitials(name || "")}
                 </AvatarFallback>
               </Avatar>
-              <h3 className="text-xl font-medium">{name || "User"}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{user?.email}</p>
-              <div className="w-full space-y-2">
-                <div className="flex items-center text-sm">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
+              <h3 className="text-base font-medium">{name || "User"}</h3>
+              <p className="text-xs text-muted-foreground mb-3 break-all">{user?.email}</p>
+              <div className="w-full space-y-1.5">
+                <div className="flex items-center text-xs">
+                  <User className="h-3 w-3 mr-1.5 text-muted-foreground" />
                   <span>Role: </span>
                   <span className="ml-1 font-medium capitalize">{role || "User"}</span>
                 </div>
                 {dob && (
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <div className="flex items-center text-xs">
+                    <Calendar className="h-3 w-3 mr-1.5 text-muted-foreground" />
                     <span>Birthday: </span>
                     <span className="ml-1 font-medium">{new Date(dob).toLocaleDateString()}</span>
                   </div>

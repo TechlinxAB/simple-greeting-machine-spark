@@ -44,7 +44,6 @@ const Login = () => {
     setError(null);
     
     try {
-      console.log("Attempting login with:", values.email);
       await signIn(values.email, values.password);
       toast.success("Signed in successfully!");
       navigate("/");
@@ -65,39 +64,39 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-3">
+      <Card className="w-full max-w-[340px] sm:max-w-md">
+        <CardHeader className="space-y-3 text-center">
           <div className="mx-auto flex justify-center">
             {logoLoading ? (
-              <div className="h-16 w-16 bg-gray-200 animate-pulse rounded-sm"></div>
+              <div className="h-14 w-14 bg-gray-200 animate-pulse rounded-sm"></div>
             ) : logoError ? (
               <img
                 src={DEFAULT_LOGO_PATH}
                 alt="Time Tracker Logo"
-                className="h-16 w-auto"
+                className="h-14 w-auto"
               />
             ) : (
               <img
                 src={logoUrl}
                 alt="Time Tracker Logo"
-                className="h-16 w-auto"
+                className="h-14 w-auto"
                 onError={handleLogoError}
               />
             )}
           </div>
-          <CardTitle className="text-2xl font-bold">Time Tracker</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl sm:text-2xl font-bold">Time Tracker</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Enter your email and password to access your account
           </CardDescription>
         </CardHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="text-xs">{error}</AlertDescription>
                 </Alert>
               )}
             
@@ -105,18 +104,18 @@ const Login = () => {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs">Email</FormLabel>
                     <FormControl>
                       <Input 
                         type="email" 
                         placeholder="name@example.com" 
                         {...field} 
-                        className="w-full"
+                        className="w-full text-xs h-8 sm:h-9"
                         autoComplete="email"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
@@ -125,27 +124,27 @@ const Login = () => {
                 control={form.control}
                 name="password"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs">Password</FormLabel>
                     <FormControl>
                       <Input 
                         type="password" 
                         {...field} 
-                        className="w-full"
+                        className="w-full text-xs h-8 sm:h-9"
                         autoComplete="current-password"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
             </CardContent>
             
-            <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+            <CardFooter className="flex flex-col space-y-3 pt-2">
+              <Button type="submit" className="w-full h-8 sm:h-9 text-xs" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                     Signing in...
                   </>
                 ) : (

@@ -9,9 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, RefreshCw, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState, role } = useAuth();
@@ -124,20 +123,21 @@ export function AppLayout() {
       { title: "Clients", href: "/clients" },
       { title: "Products", href: "/products", showIf: isManagerOrAdmin },
       { title: "Invoices", href: "/invoices", showIf: isManagerOrAdmin },
+      { title: "Reports", href: "/reports" },
       { title: "Administration", href: "/administration", showIf: isManagerOrAdmin },
       { title: "Settings", href: "/settings", showIf: isAdmin },
       { title: "Profile", href: "/profile" },
     ];
     
     return (
-      <div className="flex flex-col p-4 space-y-2">
+      <div className="flex flex-col p-3 space-y-1">
         {links
           .filter(link => link.showIf !== false)
           .map((link) => (
             <Button 
               key={link.title}
               variant="ghost" 
-              className="justify-start text-left w-full py-6 text-base"
+              className="justify-start text-left w-full py-4 sm:py-5 text-sm"
               onClick={() => {
                 navigate(link.href);
                 setMobileSidebarOpen(false);
@@ -146,7 +146,7 @@ export function AppLayout() {
               {link.title}
             </Button>
           ))}
-        <div className="pt-4 border-t mt-4">
+        <div className="pt-3 border-t mt-3">
           <Button 
             variant="destructive" 
             className="w-full" 
@@ -175,7 +175,7 @@ export function AppLayout() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+              className="md:hidden fixed top-3 left-3 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
               aria-label="Open navigation menu"
             >
               <Menu />
@@ -183,7 +183,7 @@ export function AppLayout() {
             </Button>
           </DrawerTrigger>
           <DrawerContent className="h-[85vh]">
-            <DrawerTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</DrawerTitle>
+            <DrawerTitle className="px-3 pt-3 pb-1 text-base font-semibold">Navigation Menu</DrawerTitle>
             <MobileMenu />
           </DrawerContent>
         </Drawer>
@@ -197,7 +197,7 @@ export function AppLayout() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+            className="md:hidden fixed top-3 left-3 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
             aria-label="Open navigation menu"
           >
             <Menu />
@@ -208,7 +208,7 @@ export function AppLayout() {
           side="left" 
           className="p-0 w-[80vw] sm:w-[300px] z-50"
         >
-          <SheetTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</SheetTitle>
+          <SheetTitle className="px-3 pt-3 pb-1 text-base font-semibold">Navigation Menu</SheetTitle>
           <MobileMenu />
         </SheetContent>
       </Sheet>
@@ -222,7 +222,7 @@ export function AppLayout() {
         
         <div className="flex-1 flex flex-col relative z-0 max-w-full overflow-x-hidden">
           <Header className="sticky top-0 z-30 left-0 right-0 w-full max-w-full" />
-          <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-x-hidden overflow-y-auto">
+          <main className="flex-1 p-1 sm:p-3 md:p-4 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>

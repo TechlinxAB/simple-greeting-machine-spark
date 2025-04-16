@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -121,8 +122,8 @@
 
   /* Mobile optimizations */
   input, select, textarea {
-    @apply text-base md:text-sm;
-    font-size: 16px; /* Prevent zoom on focus in iOS */
+    @apply text-xs md:text-sm;
+    font-size: 14px; /* Prevent zoom on focus in iOS */
   }
   
   /* Improve touch targets on mobile */
@@ -145,6 +146,25 @@
   /* Ensure tables have space for scrolling */
   table {
     min-width: max-content;
+  }
+  
+  /* Optimize for small screens like 13" laptops */
+  @media (max-width: 1280px) {
+    h1 { @apply text-xl; }
+    h2 { @apply text-lg; }
+    h3 { @apply text-base; }
+    
+    .card-title { @apply text-base; }
+    .card-description { @apply text-xs; }
+    
+    .container {
+      @apply px-2 py-3;
+    }
+    
+    .table-compact th,
+    .table-compact td {
+      @apply p-1 text-xs;
+    }
   }
 }
 
@@ -179,22 +199,69 @@
   
   /* Make mobile tables more user-friendly */
   .mobile-table {
-    @apply w-full grid gap-4;
+    @apply w-full grid gap-2 sm:gap-3;
   }
   
   .mobile-table-row {
-    @apply bg-card border rounded-lg p-4 shadow-sm;
+    @apply bg-card border rounded-lg p-2 sm:p-3 shadow-sm;
   }
   
   /* Responsive container classes */
   .container {
-    @apply px-2 sm:px-4 md:px-6 w-full max-w-[1400px];
+    @apply px-2 sm:px-3 md:px-4 w-full max-w-[1400px];
   }
   
   /* Responsive table container with horizontal scrolling */
   .table-container {
-    @apply w-full overflow-x-auto -mx-2 sm:-mx-4 px-2 sm:px-4 pb-2;
+    @apply w-full overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2;
     -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Small-screen optimized cards */
+  .small-card {
+    @apply p-2 sm:p-3;
+  }
+  
+  .small-card-header {
+    @apply p-2 sm:p-3 space-y-1;
+  }
+  
+  .small-card-content {
+    @apply p-2 sm:p-3;
+  }
+  
+  .small-card-footer {
+    @apply p-2 sm:p-3 pt-0;
+  }
+  
+  /* Optimize tables for small screens */
+  .table-compact th {
+    @apply p-1 text-[0.65rem] sm:text-xs whitespace-nowrap;
+  }
+  
+  .table-compact td {
+    @apply p-1 text-[0.7rem] sm:text-xs;
+  }
+  
+  /* Optimized form elements */
+  .form-row {
+    @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3;
+  }
+  
+  .small-form-field label {
+    @apply text-xs mb-0.5;
+  }
+  
+  .small-form-field input,
+  .small-form-field select,
+  .small-form-field textarea {
+    @apply text-xs p-1.5 sm:p-2;
+    min-height: 2rem;
+  }
+  
+  /* Small-screen optimized buttons */
+  .btn-small {
+    @apply h-7 px-2 text-xs;
   }
 }
 
@@ -236,4 +303,32 @@
 
 .dark .overflow-x-auto::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Added visualization for horizontal scrolling */
+.scroll-shadow-horizontal {
+  background: 
+    linear-gradient(to right, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 5%, rgba(255,255,255,0) 95%, rgba(255,255,255,0.8) 100%);
+}
+
+.dark .scroll-shadow-horizontal {
+  background: 
+    linear-gradient(to right, rgba(20,20,30,0.8) 0%, rgba(20,20,30,0) 5%, rgba(20,20,30,0) 95%, rgba(20,20,30,0.8) 100%);
+}
+
+/* Optimized popover and dialog sizes */
+.small-popover {
+  max-width: 95vw;
+  width: auto;
+}
+
+@media (max-width: 1280px) {
+  .rdp-month {
+    width: auto;
+  }
+  
+  .rdp-table {
+    width: 100%;
+    max-width: 270px;
+  }
 }
