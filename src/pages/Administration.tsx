@@ -259,14 +259,18 @@ export default function Administration() {
         </div>
       </div>
       
-      <div className="bg-card rounded-md shadow-sm overflow-hidden">
+      <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4">
+            <TabsTrigger value="time-entries" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+              Time Entries
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+              Invoices
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="time-entries">
+          <TabsContent value="time-entries" className="bg-card rounded-md shadow-sm overflow-hidden">
             <div className="p-6">
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-6">
@@ -315,22 +319,22 @@ export default function Administration() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
                     <p className="text-sm font-medium mb-2">Filter by user</p>
                     <UserSelect
                       value={selectedUser}
                       onChange={setSelectedUser}
                     />
                   </div>
-                  <div>
+                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
                     <p className="text-sm font-medium mb-2">Filter by client</p>
                     <ClientSelect
                       value={selectedClient}
                       onChange={setSelectedClient}
                     />
                   </div>
-                  <div>
+                  <div className="w-full md:w-auto flex-1 min-w-[200px]">
                     <p className="text-sm font-medium mb-2">Date filter</p>
                     <div className="flex items-center space-x-2">
                       <AllTimeToggle
@@ -366,7 +370,7 @@ export default function Administration() {
             </div>
           </TabsContent>
           
-          <TabsContent value="invoices">
+          <TabsContent value="invoices" className="bg-card rounded-md shadow-sm overflow-hidden">
             <div className="p-6">
               <Card className="shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between">
