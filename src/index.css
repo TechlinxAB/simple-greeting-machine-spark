@@ -93,49 +93,26 @@
     @apply bg-background text-foreground;
   }
   
-  /* Update cursor styles to ensure buttons are clickable */
+  /* Restore default cursor for most elements, but keep specific interactions clickable */
+  [data-hoverable]:not([data-description-toggle]),
+  :not([data-description-toggle]) {
+    @apply cursor-default;
+  }
+  
+  /* Specific clickable elements */
   button,
   [role="button"],
   a,
   .interactive,
   .clickable,
-  input[type="submit"],
-  input[type="button"],
-  input[type="reset"],
-  summary,
-  select,
-  [data-description-toggle],
-  [data-state] {
+  [data-description-toggle] {
     @apply cursor-pointer;
-  }
-  
-  /* Default cursor for most elements */
-  html, 
-  body, 
-  div:not([role="button"]):not(.interactive):not(.clickable):not([data-description-toggle]),
-  span:not([role="button"]):not(.interactive):not(.clickable):not([data-description-toggle]),
-  p, 
-  h1, 
-  h2, 
-  h3, 
-  h4, 
-  h5, 
-  h6, 
-  label:not([for]) {
-    @apply cursor-default;
-  }
-  
-  /* Input cursors */
-  input:not([type="submit"]):not([type="button"]):not([type="reset"]),
-  textarea {
-    @apply cursor-text;
   }
   
   /* Calendar styles - specifically targeting hover and selected states */
   .rdp-day:hover:not(.rdp-day_selected) {
     color: hsl(var(--primary-foreground)) !important;
     background-color: hsl(var(--primary)) !important;
-    @apply cursor-pointer;
   }
   
   /* Selected day styling reinforcement */
@@ -144,21 +121,18 @@
   .rdp-day_selected:focus {
     color: hsl(var(--primary-foreground)) !important;
     background-color: hsl(var(--primary)) !important;
-    @apply cursor-pointer;
   }
   
   /* Today styling when not selected */
   .rdp-day_today:not(.rdp-day_selected) {
     background-color: hsl(var(--primary)/0.2) !important;
     color: hsl(var(--primary)) !important;
-    @apply cursor-pointer;
   }
   
   /* Reset any hover effects to maintain selected appearance */
   .rdp-day_selected.rdp-day_today {
     background-color: hsl(var(--primary)) !important;
     color: hsl(var(--primary-foreground)) !important;
-    @apply cursor-pointer;
   }
 
   /* Mobile optimizations */
@@ -167,21 +141,13 @@
     font-size: 16px; /* Prevent zoom on focus in iOS */
   }
   
-  /* Remove the focus outline that might be confusing users */
-  button:focus, 
-  [role="button"]:focus,
-  a:focus {
+  /* Improve touch targets on mobile */
+  button, 
+  [role="button"],
+  a {
     @apply outline-none;
   }
   
-  /* Ensure all buttons have pointer cursor */
-  .btn,
-  .button,
-  [class*="btn-"],
-  [class*="button-"] {
-    @apply cursor-pointer;
-  }
-
   /* Laptop optimization */
   @media (min-width: 768px) and (max-width: 1366px) {
     .compact-text {
@@ -419,29 +385,12 @@
   color: white !important;
 }
 
-/* Ensuring all interactive elements look clickable */
+/* Ensuring popover triggers look clickable */
 [data-radix-popper-content-wrapper] {
   z-index: 50 !important;
 }
 
-/* Ensure all tab items, dropdown items, and radix elements are clickable */
-[data-state],
-[role="tabpanel"], 
-[role="tab"],
-[role="menu"],
-[role="menuitem"],
-[role="dialog"],
-[role="alert"],
-[data-radix-collection-item] {
-  cursor: pointer !important;
-}
-
-/* Ensure shadcn components are clickable */
-.shadcn-button,
-.shadcn-dropdown,
-.shadcn-menuitem,
-.shadcn-toggle,
-.shadcn-switch,
-.shadcn-tabs {
-  cursor: pointer !important;
+/* Popover trigger elements are always clickable */
+[data-state] {
+  cursor: pointer;
 }
