@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
@@ -256,11 +257,11 @@ const Sidebar = React.forwardRef<
     if (collapsible === "none") {
       return (
         <div
+          ref={ref}
           className={cn(
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
             className
           )}
-          ref={ref}
           {...props}
         >
           {children}
@@ -293,7 +294,7 @@ const Sidebar = React.forwardRef<
         ref={ref}
         className={cn(
           "group peer hidden md:block text-sidebar-foreground",
-          "cursor-default",
+          "cursor-default", // Explicitly set cursor to default for the entire sidebar
           className
         )}
         data-state={state}
