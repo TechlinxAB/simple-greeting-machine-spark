@@ -22,9 +22,6 @@ serve(async (req) => {
   }
 
   try {
-    // Log headers for debugging
-    console.log("Request headers:", JSON.stringify(Object.fromEntries([...req.headers])));
-    
     // Extract the JWT token from Authorization header
     const authHeader = req.headers.get('Authorization');
     

@@ -1,6 +1,9 @@
 
 project_id = "xojrleypudfrbmvejpow"
 
+[functions.get-all-users]
+verify_jwt = true
+
 [functions.fortnox-proxy]
 verify_jwt = false
 
