@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -109,9 +110,9 @@ export function DateRangeSelector({
                 nav_button_next: "absolute right-1"
               }}
               components={{
-                Caption: ({ label }) => (
+                Caption: ({ displayMonth }) => (
                   <div className="flex items-center justify-center">
-                    <span>{label}</span>
+                    <span>{format(displayMonth, 'MMMM yyyy')}</span>
                   </div>
                 )
               }}
@@ -156,9 +157,9 @@ export function DateRangeSelector({
                 nav_button_next: "absolute right-1"
               }}
               components={{
-                Caption: ({ label }) => (
+                Caption: ({ displayMonth }) => (
                   <div className="flex items-center justify-center">
-                    <span>{label}</span>
+                    <span>{format(displayMonth, 'MMMM yyyy')}</span>
                   </div>
                 )
               }}
