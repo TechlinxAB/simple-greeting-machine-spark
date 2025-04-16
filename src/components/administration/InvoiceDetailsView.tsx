@@ -10,12 +10,11 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, Copy, Check } from "lucide-react";
+import { X, Copy, Check, Clock, Package, Loader2, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Package, Loader2, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -123,22 +122,48 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
   };
 
   const copyToClipboard = (text: string, entryId: string) => {
-    // Create a temporary textarea element
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'absolute';
-    textarea.style.left = '-9999px'; // Move off-screen
-    textarea.setAttribute('readonly', ''); // Make it readonly to maintain original line breaks
-    document.body.appendChild(textarea);
+    try {
+      // Modern clipboard API (more reliable)
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            setCopiedId(entryId);
+            toast.success("Description copied to clipboard");
+            
+            setTimeout(() => {
+              setCopiedId(null);
+            }, 2000);
+          })
+          .catch(err => {
+            console.error("Failed to copy using Clipboard API:", err);
+            // Fall back to the older method if the Clipboard API fails
+            fallbackCopyToClipboard(text, entryId);
+          });
+      } else {
+        // Fall back to the older method for non-secure contexts
+        fallbackCopyToClipboard(text, entryId);
+      }
+    } catch (err) {
+      console.error("Copy failed:", err);
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+  
+  // Fallback copy method using document.execCommand
+  const fallbackCopyToClipboard = (text: string, entryId: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // Make the textarea out of viewport
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
     
     try {
-      // Select the text in the textarea
-      textarea.select();
-      textarea.setSelectionRange(0, textarea.value.length); // For mobile devices
-      
-      // Execute the copy command
       const successful = document.execCommand('copy');
-      
       if (successful) {
         setCopiedId(entryId);
         toast.success("Description copied to clipboard");
@@ -146,17 +171,16 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
         toast.error("Failed to copy to clipboard");
       }
     } catch (err) {
-      console.error("Failed to copy text: ", err);
+      console.error("Fallback copy failed:", err);
       toast.error("Failed to copy to clipboard");
-    } finally {
-      // Clean up
-      document.body.removeChild(textarea);
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => {
-        setCopiedId(null);
-      }, 2000);
     }
+    
+    document.body.removeChild(textArea);
+    
+    // Reset the copied state after 2 seconds
+    setTimeout(() => {
+      setCopiedId(null);
+    }, 2000);
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
@@ -315,8 +339,12 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => copyToClipboard(entry.description || '', entry.id)}
-                                        className="h-8 px-2 cursor-pointer hover:bg-primary/10"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          copyToClipboard(entry.description || '', entry.id);
+                                        }}
+                                        className="h-8 px-2 cursor-pointer hover:bg-primary/10 transition-colors"
                                       >
                                         {copiedId === entry.id ? (
                                           <Check className="h-4 w-4 text-green-500 mr-1" />
