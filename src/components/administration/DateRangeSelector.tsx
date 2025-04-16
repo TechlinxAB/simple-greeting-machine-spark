@@ -90,6 +90,27 @@ export function DateRangeSelector({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-2 border-b flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handlePreviousMonth(true)}
+                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium">
+                {format(fromMonth, 'MMMM yyyy')}
+              </span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handleNextMonth(true)}
+                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
             <Calendar
               mode="single"
               selected={localFromDate}
@@ -98,23 +119,9 @@ export function DateRangeSelector({
               onMonthChange={setFromMonth}
               initialFocus
               className="pointer-events-auto"
-              classNames={{
-                caption: "flex items-center justify-between p-2 border-b",
-                caption_label: "text-sm font-medium",
-                nav: "space-x-1 flex items-center",
-                nav_button: cn(
-                  "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100",
-                  "rounded-full hover:bg-accent"
-                ),
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1"
-              }}
               components={{
-                Caption: ({ displayMonth }) => (
-                  <div className="flex items-center justify-center">
-                    <span>{format(displayMonth, 'MMMM yyyy')}</span>
-                  </div>
-                )
+                IconLeft: () => null,
+                IconRight: () => null,
               }}
             />
           </PopoverContent>
@@ -137,6 +144,27 @@ export function DateRangeSelector({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-2 border-b flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handlePreviousMonth(false)}
+                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium">
+                {format(toMonth, 'MMMM yyyy')}
+              </span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handleNextMonth(false)}
+                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
             <Calendar
               mode="single"
               selected={localToDate}
@@ -145,23 +173,9 @@ export function DateRangeSelector({
               onMonthChange={setToMonth}
               initialFocus
               className="pointer-events-auto"
-              classNames={{
-                caption: "flex items-center justify-between p-2 border-b",
-                caption_label: "text-sm font-medium",
-                nav: "space-x-1 flex items-center",
-                nav_button: cn(
-                  "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100",
-                  "rounded-full hover:bg-accent"
-                ),
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1"
-              }}
               components={{
-                Caption: ({ displayMonth }) => (
-                  <div className="flex items-center justify-center">
-                    <span>{format(displayMonth, 'MMMM yyyy')}</span>
-                  </div>
-                )
+                IconLeft: () => null,
+                IconRight: () => null,
               }}
             />
           </PopoverContent>
