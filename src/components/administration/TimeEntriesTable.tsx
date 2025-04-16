@@ -1,3 +1,4 @@
+
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarClock, Clock, Loader2, Package, Trash2, ArrowUpDown, Check, AlertCircle, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +34,7 @@ interface TimeEntriesTableProps {
   fromDate?: Date;
   toDate?: Date;
   searchTerm?: string;
+  isCompact?: boolean;
 }
 
 interface SortableHeaderProps {
@@ -57,7 +59,8 @@ export function TimeEntriesTable({
   userId,
   fromDate,
   toDate,
-  searchTerm
+  searchTerm,
+  isCompact = false
 }: TimeEntriesTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -326,11 +329,11 @@ export function TimeEntriesTable({
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table>
+        <Table isCompact={isCompact}>
           <TableHeader>
-            <TableRow>
+            <TableRow isCompact={isCompact}>
               {bulkDeleteMode && (
-                <TableHead className="w-[40px]">
+                <TableHead className="w-[40px]" isCompact={isCompact}>
                   <Checkbox 
                     checked={selectedItems.length > 0 && selectedItems.length === timeEntries.length}
                     onCheckedChange={(checked) => handleSelectAll(!!checked)}
@@ -338,23 +341,23 @@ export function TimeEntriesTable({
                   />
                 </TableHead>
               )}
-              <SortableHeader field="clients.name" className="w-[250px] max-w-[250px] truncate">Client</SortableHeader>
-              <TableHead>User</TableHead>
+              <SortableHeader field="clients.name" className={`w-[250px] max-w-[250px] truncate ${isCompact ? 'text-xs' : ''}`}>Client</SortableHeader>
+              <TableHead isCompact={isCompact}>User</TableHead>
               <SortableHeader field="products.name">Product</SortableHeader>
-              <TableHead>Type</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead isCompact={isCompact}>Type</TableHead>
+              <TableHead isCompact={isCompact}>Description</TableHead>
               <SortableHeader field="start_time">Date</SortableHeader>
-              <TableHead>Duration/Quantity</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead isCompact={isCompact}>Duration/Quantity</TableHead>
+              <TableHead isCompact={isCompact}>Amount</TableHead>
+              <TableHead isCompact={isCompact}>Status</TableHead>
+              <TableHead isCompact={isCompact}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {timeEntries.map((entry) => (
-              <TableRow key={entry.id} className={entry.invoiced ? "bg-muted/20" : ""}>
+              <TableRow key={entry.id} className={entry.invoiced ? "bg-muted/20" : ""} isCompact={isCompact} data-entry-id={entry.id}>
                 {bulkDeleteMode && (
-                  <TableCell>
+                  <TableCell isCompact={isCompact}>
                     <Checkbox 
                       checked={selectedItems.includes(entry.id)}
                       onCheckedChange={() => handleItemSelect(entry.id, !!entry.invoiced)}
@@ -363,32 +366,33 @@ export function TimeEntriesTable({
                   </TableCell>
                 )}
                 <TableCell 
-                  className="w-[250px] max-w-[250px] truncate font-medium" 
+                  className={`w-[250px] max-w-[250px] truncate font-medium ${isCompact ? 'text-xs' : ''}`}
                   title={entry.clients?.name || "Unknown client"}
+                  isCompact={isCompact}
                 >
                   {entry.clients?.name || "Unknown client"}
                 </TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>
                   {entry.username || "Unknown user"}
                 </TableCell>
-                <TableCell>{entry.products?.name || "Unknown product"}</TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>{entry.products?.name || "Unknown product"}</TableCell>
+                <TableCell isCompact={isCompact}>
                   <div className="flex items-center gap-1">
                     {entry.products?.type === "activity" ? (
-                      <Clock className="h-4 w-4 text-blue-500" />
+                      <Clock className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-blue-500`} />
                     ) : (
-                      <Package className="h-4 w-4 text-primary" />
+                      <Package className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-primary`} />
                     )}
                     <span className="capitalize">{entry.products?.type || "Unknown"}</span>
                   </div>
                 </TableCell>
-                <TableCell className="max-w-[200px]">
+                <TableCell className="max-w-[200px]" isCompact={isCompact}>
                   {entry.description ? (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger className="text-left truncate block w-full">
                           <div className="flex items-center gap-1">
-                            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <FileText className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground shrink-0`} />
                             <span className="truncate">{entry.description}</span>
                           </div>
                         </TooltipTrigger>
@@ -402,32 +406,32 @@ export function TimeEntriesTable({
                     <span className="text-muted-foreground text-sm italic">No description</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>
                   {entry.products?.type === "activity" && entry.start_time ? 
                     format(new Date(entry.start_time), "MMM d, yyyy") :
                     entry.created_at ? format(new Date(entry.created_at), "MMM d, yyyy") : "Unknown date"}
                 </TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>
                   {entry.products?.type === "activity" && entry.start_time && entry.end_time
                     ? `${calculateDuration(entry.start_time, entry.end_time)} hours`
                     : entry.quantity ? `${entry.quantity} units` : "N/A"}
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell className="font-medium" isCompact={isCompact}>
                   {new Intl.NumberFormat('sv-SE', { 
                     style: 'currency', 
                     currency: 'SEK'
                   }).format(parseFloat(getItemTotal(entry)))}
                 </TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>
                   <Badge variant={entry.invoiced ? "default" : "outline"}>
                     {entry.invoiced ? "Invoiced" : "Pending"}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell isCompact={isCompact}>
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size={isCompact ? "sm" : "default"}
                       onClick={() => handleEditClick(entry)}
                       disabled={entry.invoiced}
                       className={entry.invoiced ? "opacity-50 cursor-not-allowed" : ""}
@@ -440,7 +444,7 @@ export function TimeEntriesTable({
                       onClick={() => handleDeleteClick(entry)}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className={`${isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
                     </Button>
                   </div>
                 </TableCell>
@@ -547,6 +551,7 @@ export function TimeEntriesTable({
             timeEntry={selectedEntry} 
             onSuccess={handleEditSuccess} 
             onCancel={() => setEditDialogOpen(false)}
+            isCompact={isCompact}
           />
         )}
       </DialogWrapper>
