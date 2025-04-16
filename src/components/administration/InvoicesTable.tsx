@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -12,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useIsLaptop } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { createFortnoxInvoice } from '@/integrations/fortnox';
+import { fortnoxApiRequest } from '@/integrations/fortnox/api-client';
 
 interface InvoicesTableProps {
   invoices: Invoice[];
@@ -106,8 +106,41 @@ export function InvoicesTable({
     try {
       toast.loading("Resending invoice to Fortnox...");
       
-      // We reuse the createFortnoxInvoice function but pass the existing invoice data
-      const result = await createFortnoxInvoice(invoice.client_id, []);
+      // Get the invoice details from Fortnox if available
+      if (invoice.fortnox_invoice_id) {
+        try {
+          // Use the existing invoice number from Fortnox to resend
+          const response = await fortnoxApiRequest(`/invoices/${invoice.fortnox_invoice_id}`);
+          
+          if (response && response.Invoice) {
+            toast.success(`Invoice #${invoice.invoice_number} was successfully resent to Fortnox`);
+            return;
+          }
+        } catch (error) {
+          console.log("Could not find the invoice in Fortnox, creating a new one instead");
+        }
+      }
+      
+      // If the invoice doesn't exist in Fortnox or we couldn't fetch it,
+      // Get all time entries associated with this invoice
+      const { data: timeEntries, error: timeEntriesError } = await supabase
+        .from("time_entries")
+        .select("id")
+        .eq("invoice_id", invoice.id);
+      
+      if (timeEntriesError) {
+        throw new Error(`Error fetching time entries: ${timeEntriesError.message}`);
+      }
+      
+      if (!timeEntries || timeEntries.length === 0) {
+        throw new Error("No time entries found for this invoice");
+      }
+      
+      // Extract the time entry IDs
+      const timeEntryIds = timeEntries.map(entry => entry.id);
+      
+      // Pass the existing time entry IDs to createFortnoxInvoice
+      const result = await createFortnoxInvoice(invoice.client_id, timeEntryIds, true);
       
       toast.success(`Invoice #${result.invoiceNumber} was successfully resent to Fortnox`);
       onInvoiceDeleted(); // Refresh the list

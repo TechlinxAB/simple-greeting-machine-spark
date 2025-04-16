@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -61,7 +60,8 @@ const VALID_ACCOUNTS = {
  */
 export async function formatTimeEntriesForFortnox(
   clientId: string,
-  timeEntryIds: string[]
+  timeEntryIds: string[],
+  isResend = false
 ): Promise<FortnoxInvoiceData | null> {
   try {
     // Get client data with complete details
@@ -75,15 +75,22 @@ export async function formatTimeEntriesForFortnox(
     if (!client) throw new Error("Client not found");
     
     // Get time entries including product details
-    const { data: timeEntries, error: entriesError } = await supabase
+    // If this is a resend, we want all time entries regardless of invoiced status
+    const query = supabase
       .from("time_entries")
       .select(`
         *,
         products:product_id (*)
       `)
       .in("id", timeEntryIds)
-      .eq("client_id", clientId)
-      .eq("invoiced", false);
+      .eq("client_id", clientId);
+    
+    // Only filter by invoiced status if this is not a resend
+    if (!isResend) {
+      query.eq("invoiced", false);
+    }
+      
+    const { data: timeEntries, error: entriesError } = await query;
       
     if (entriesError) throw entriesError;
     if (!timeEntries || timeEntries.length === 0) {
@@ -469,7 +476,8 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
  */
 export async function createFortnoxInvoice(
   clientId: string,
-  timeEntryIds: string[]
+  timeEntryIds: string[],
+  isResend = false
 ): Promise<{ invoiceNumber: string; invoiceId: string }> {
   try {
     // Get client data for customer check
@@ -558,8 +566,8 @@ export async function createFortnoxInvoice(
       }
     }
     
-    // Format time entries for Fortnox
-    const invoiceData = await formatTimeEntriesForFortnox(clientId, timeEntryIds);
+    // Format time entries for Fortnox, passing the isResend flag
+    const invoiceData = await formatTimeEntriesForFortnox(clientId, timeEntryIds, isResend);
     
     if (!invoiceData) {
       throw new Error("Failed to format invoice data");
@@ -599,16 +607,19 @@ export async function createFortnoxInvoice(
         
       if (invoiceError) throw invoiceError;
       
-      // Update time entries to mark as invoiced
-      const { error: updateError } = await supabase
-        .from("time_entries")
-        .update({
-          invoiced: true,
-          invoice_id: invoice.id
-        })
-        .in("id", timeEntryIds);
-        
-      if (updateError) throw updateError;
+      // Only update the time entries if this is not a resend (avoid double-marking)
+      if (!isResend) {
+        // Update time entries to mark as invoiced
+        const { error: updateError } = await supabase
+          .from("time_entries")
+          .update({
+            invoiced: true,
+            invoice_id: invoice.id
+          })
+          .in("id", timeEntryIds);
+          
+        if (updateError) throw updateError;
+      }
       
       return {
         invoiceNumber: fortnoxInvoice.DocumentNumber,
@@ -630,7 +641,7 @@ export async function createFortnoxInvoice(
             console.log(`Successfully created article: ${createdArticleNumber}, retrying invoice creation...`);
             
             // Retry the invoice creation now that the article has been created
-            return await createFortnoxInvoice(clientId, timeEntryIds);
+            return await createFortnoxInvoice(clientId, timeEntryIds, isResend);
           }
         }
       }
