@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -108,7 +107,7 @@ export function InvoicesTable({
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className={`rounded-md border overflow-x-auto ${compact ? 'max-w-[calc(100vw-32px)]' : ''}`}>
         <Table isCompact={compact}>
           <TableHeader>
             <TableRow isCompact={compact}>

@@ -167,16 +167,50 @@
       @apply px-3 py-2;
     }
     
-    .compact-calendar .rdp-cell {
-      @apply h-7 w-7;
+    /* Calendar specific optimizations for laptop mode */
+    .rdp-caption {
+      @apply text-sm;
     }
     
-    .compact-calendar .rdp-head_cell {
-      @apply text-xs;
+    .rdp-head_cell {
+      @apply text-xs font-normal;
     }
     
-    .compact-calendar .rdp-day {
-      @apply h-7 w-7 text-xs;
+    .rdp-button {
+      @apply text-xs w-8 h-8;
+    }
+    
+    .rdp-nav_button {
+      @apply h-6 w-6;
+    }
+    
+    /* Administration page optimizations */
+    .admin-container {
+      @apply max-w-full overflow-x-auto px-2;
+    }
+    
+    .admin-table {
+      @apply w-full text-xs;
+    }
+    
+    .admin-cell {
+      @apply p-2;
+    }
+    
+    .admin-button {
+      @apply h-8 text-xs px-3;
+    }
+    
+    .admin-icon {
+      @apply h-3.5 w-3.5;
+    }
+    
+    .admin-heading {
+      @apply text-lg;
+    }
+    
+    .admin-subheading {
+      @apply text-base;
     }
   }
 }
@@ -235,6 +269,21 @@
   
   .laptop-compact-padding {
     @apply p-2;
+  }
+  
+  /* When in laptop mode, fix the width of the tab container to prevent horizontal scroll */
+  .laptop-admin-tabs {
+    @apply max-w-full;
+  }
+  
+  /* Fix table overflow issues in laptop mode */
+  .laptop-table-container {
+    @apply overflow-x-auto max-w-full;
+  }
+  
+  /* Optimize buttons for laptop mode */
+  .laptop-button {
+    @apply h-8 text-xs px-2.5;
   }
   
   @keyframes slideIn {

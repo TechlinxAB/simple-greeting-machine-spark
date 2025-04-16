@@ -38,17 +38,17 @@ function Calendar({
         head_row: "flex w-full justify-between mb-2",
         head_cell: cn(
           "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] uppercase",
-          isLaptop ? "w-7 text-[0.7rem]" : "w-9 text-[0.8rem]"
+          isLaptop ? "w-8 text-[0.7rem]" : "w-9 text-[0.8rem]"
         ),
         row: "flex w-full mt-2 justify-between",
         cell: cn(
-          "relative h-9 w-9 p-0 text-center text-sm focus-within:relative focus-within:z-20",
-          isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
+          isLaptop ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-          isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
+          "p-0 font-normal rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+          isLaptop ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm"
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -63,8 +63,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ..._props }) => <ChevronLeft className={isLaptop ? "h-3 w-3" : "h-4 w-4"} />,
-        IconRight: ({ ..._props }) => <ChevronRight className={isLaptop ? "h-3 w-3" : "h-4 w-4"} />,
+        IconLeft: ({ ..._props }) => <ChevronLeft className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />,
+        IconRight: ({ ..._props }) => <ChevronRight className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />,
       }}
       {...props}
     />

@@ -27,6 +27,7 @@ import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -48,6 +49,7 @@ export default function Administration() {
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const { role } = useAuth();
+  const isLaptop = useIsLaptop();
 
   const fromDate = isAllTime ? undefined : startOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
   const toDate = isAllTime ? undefined : endOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
@@ -233,16 +235,16 @@ export default function Administration() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className={`container mx-auto py-6 space-y-6 ${isLaptop ? 'px-2 max-w-full overflow-x-auto' : 'px-4'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Administration</h1>
+        <h1 className={`${isLaptop ? 'text-xl' : 'text-2xl'} font-bold`}>Administration</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className={`absolute left-2.5 top-2.5 ${isLaptop ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground`} />
             <input
               placeholder={activeTab === "invoices" ? "Search invoices..." : "Search..."} 
-              className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`pl-8 ${isLaptop ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -250,11 +252,11 @@ export default function Administration() {
           
           {activeTab === "invoices" && (
             <Button 
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isLaptop ? 'text-xs h-9 px-3' : ''}`}
               onClick={() => setIsCreatingInvoice(true)}
               disabled={!fortnoxConnected}
             >
-              <FilePlus2 className="h-4 w-4" />
+              <FilePlus2 className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />
               <span>New Invoice</span>
             </Button>
           )}
@@ -263,35 +265,37 @@ export default function Administration() {
       
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4">
-            <TabsTrigger value="time-entries" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+          <TabsList className={`inline-flex ${isLaptop ? 'h-8 text-xs' : 'h-9 text-sm'} items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4`}>
+            <TabsTrigger value="time-entries" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
               Time Entries
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
+            <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
               Invoices
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="time-entries" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Time Entries</h2>
+            <div className={isLaptop ? "p-3" : "p-6"}>
+              <div className={isLaptop ? "mb-4" : "mb-6"}>
+                <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
+                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>Time Entries</h2>
                   <div className="flex items-center gap-2">
                     {bulkDeleteMode ? (
                       <>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size={isLaptop ? "sm" : "default"}
                           onClick={toggleBulkDeleteMode}
+                          className={isLaptop ? "text-xs h-8 px-2" : ""}
                         >
                           Cancel
                         </Button>
                         <Button
                           variant="destructive"
-                          size="sm"
+                          size={isLaptop ? "sm" : "default"}
                           onClick={handleBulkDelete}
                           disabled={selectedItems.length === 0}
+                          className={isLaptop ? "text-xs h-8 px-2" : ""}
                         >
                           Delete Selected ({selectedItems.length})
                         </Button>
@@ -299,34 +303,34 @@ export default function Administration() {
                     ) : (
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2"
+                        size={isLaptop ? "sm" : "default"}
+                        className={`flex items-center gap-2 ${isLaptop ? "text-xs h-8 px-2" : ""}`}
                         onClick={toggleBulkDeleteMode}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className={isLaptop ? "h-3 w-3" : "h-3.5 w-3.5"} />
                         <span>Bulk Delete</span>
                       </Button>
                     )}
                   </div>
                 </div>
                 
-                <div className="flex flex-wrap gap-4 items-end">
+                <div className={`flex flex-wrap gap-${isLaptop ? '3' : '4'} items-end`}>
                   <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Filter by user</p>
+                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by user</p>
                     <UserSelect
                       value={selectedUser}
                       onChange={setSelectedUser}
                     />
                   </div>
                   <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Filter by client</p>
+                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by client</p>
                     <ClientSelect
                       value={selectedClient}
                       onChange={setSelectedClient}
                     />
                   </div>
                   <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2">Date filter</p>
+                    <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Date filter</p>
                     <div className="flex items-center space-x-2">
                       <AllTimeToggle
                         isAllTime={isAllTime}
@@ -356,15 +360,16 @@ export default function Administration() {
                 onItemSelect={handleItemSelect}
                 onSelectAll={handleSelectAll}
                 onBulkDelete={handleBulkDelete}
+                isCompact={isLaptop}
               />
             </div>
           </TabsContent>
           
           <TabsContent value="invoices" className="bg-card rounded-md shadow-sm overflow-hidden">
-            <div className="p-6">
+            <div className={isLaptop ? "p-3" : "p-6"}>
               <Card className="shadow-none">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>All Invoices</CardTitle>
+                <CardHeader className={`flex flex-row items-center justify-between ${isLaptop ? 'py-3 px-4' : ''}`}>
+                  <CardTitle className={isLaptop ? "text-base" : ""}>All Invoices</CardTitle>
                 </CardHeader>
                 
                 <CardContent>
@@ -373,11 +378,12 @@ export default function Administration() {
                     isLoading={isLoadingInvoices}
                     onInvoiceDeleted={handleInvoiceDeleted}
                     onViewDetails={handleViewInvoiceDetails}
+                    isCompact={isLaptop}
                   />
 
                   {!fortnoxConnected && (
-                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800">
+                    <div className={`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md ${isLaptop ? 'text-xs' : 'text-sm'}`}>
+                      <p className="text-yellow-800">
                         Fortnox integration is not connected. {
                           role === 'admin' 
                             ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
@@ -394,17 +400,17 @@ export default function Administration() {
       </div>
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className={`max-w-lg ${isLaptop ? 'p-4 text-sm' : ''}`}>
           <DialogHeader>
-            <DialogTitle>Create New Invoice</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className={isLaptop ? "text-base" : ""}>Create New Invoice</DialogTitle>
+            <DialogDescription className={isLaptop ? "text-xs" : ""}>
               Create and export a new invoice to Fortnox for a selected client.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Client</label>
+              <label className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium`}>Select Client</label>
               <ClientSelect 
                 value={selectedClient}
                 onChange={setSelectedClient}
@@ -413,8 +419,8 @@ export default function Administration() {
             
             {errorMessage && (
               <Alert variant="destructive">
-                <AlertTitle>Error creating invoice</AlertTitle>
-                <AlertDescription>
+                <AlertTitle className={isLaptop ? "text-xs" : ""}>Error creating invoice</AlertTitle>
+                <AlertDescription className={isLaptop ? "text-xs" : ""}>
                   {errorMessage}
                 </AlertDescription>
               </Alert>
@@ -422,22 +428,26 @@ export default function Administration() {
           </div>
           
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsCreatingInvoice(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreatingInvoice(false)}
+              className={isLaptop ? "text-xs h-8 px-3" : ""}
+            >
               Cancel
             </Button>
             <Button 
               onClick={handleCreateInvoice} 
               disabled={!selectedClient || isExportingInvoice}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isLaptop ? "text-xs h-8 px-3" : ""}`}
             >
               {isExportingInvoice ? (
                 <>
-                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  <div className={`animate-spin ${isLaptop ? 'h-3 w-3' : 'h-4 w-4'} border-2 border-current border-t-transparent rounded-full`} />
                   <span>Processing...</span>
                 </>
               ) : (
                 <>
-                  <Upload className="h-4 w-4" />
+                  <Upload className={isLaptop ? "h-3 w-3" : "h-4 w-4"} />
                   <span>Create & Export</span>
                 </>
               )}

@@ -52,7 +52,7 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
   const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}`;
 
   return (
-    <Card className={`border border-primary/20 shadow-md overflow-hidden w-full ${isCompact ? 'max-h-[275px]' : ''}`}>
+    <Card className={`border border-primary/20 shadow-md overflow-hidden w-full ${isCompact ? 'max-h-[290px]' : ''}`}>
       <CardHeader className={`${isCompact ? 'pb-1 pt-2 px-3' : 'pb-2 pt-4 px-4'} border-b border-primary/20`}>
         <CardTitle className="flex items-center justify-between text-base font-medium">
           <div className="flex items-center">
@@ -78,7 +78,7 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className={`p-0 ${isCompact ? 'scale-[0.85] origin-top' : ''}`}>
+      <CardContent className={`p-0 ${isCompact ? 'scale-[0.92] origin-top' : ''}`}>
         <div className="flex justify-center">
           <Calendar
             key={renderKey} 
@@ -87,7 +87,7 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
             onSelect={handleSelectDate}
             month={currentMonth}
             onMonthChange={setCurrentMonth}
-            className={`w-full border-none ${isCompact ? '-mt-2 -mb-2' : ''}`}
+            className={`w-full border-none ${isCompact ? '-mt-1 -mb-1' : ''}`}
             showOutsideDays={true}
             modifiers={{
               selected: (date) => date.toDateString() === selectedDate.toDateString(),
