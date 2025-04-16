@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -107,7 +106,7 @@ export function InvoicesTable({
       toast.loading("Resending invoice to Fortnox...");
       
       // We reuse the createFortnoxInvoice function but pass the existing invoice data
-      const result = await createFortnoxInvoice(invoice.client_id, [], invoice);
+      const result = await createFortnoxInvoice(invoice.client_id, []);
       
       toast.success(`Invoice #${result.invoiceNumber} was successfully resent to Fortnox`);
       onInvoiceDeleted(); // Refresh the list
