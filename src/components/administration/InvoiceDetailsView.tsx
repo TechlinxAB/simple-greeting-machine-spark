@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { format } from 'date-fns';
 import { Invoice, TimeEntry } from '@/types';
 import { 
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Clock, Package, Loader2, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/lib/supabase";
 
 interface InvoiceDetailsViewProps {
   invoice: Invoice;

@@ -1,309 +1,88 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
-import { InvoicesTable } from "@/components/administration/InvoicesTable";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, AlertCircle, FileSearch } from "lucide-react";
-import { startOfMonth, endOfMonth } from "date-fns";
-import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
-import { UserSelect } from "@/components/administration/UserSelect";
-import { ClientSelect } from "@/components/administration/ClientSelect";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { FilePlus2 } from "lucide-react";
+import { format, startOfMonth, endOfMonth, parseISO, differenceInHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
-import { TimeEntry, Invoice } from "@/types";
+import { isFortnoxConnected } from "@/integrations/fortnox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { createFortnoxInvoice } from "@/integrations/fortnox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InvoicesTable } from "@/components/administration/InvoicesTable";
+import { type Invoice } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
+import { DialogWrapper } from "@/components/ui/dialog-wrapper";
+import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
+import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
 
-export default function Administration() {
-  const queryClient = useQueryClient();
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedEntriesIds, setSelectedEntriesIds] = useState<string[]>([]);
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+const calculateDuration = (startTime: string, endTime: string): number => {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diffHours = differenceInHours(end, start);
+  const diffMinutes = differenceInMinutes(end, start) % 60;
+  return parseFloat((diffHours + diffMinutes / 60).toFixed(2));
+};
+
+const formatDuration = (hours: number): string => {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes}m`;
+};
+
+type TimeEntryWithProfile = {
+  id: string;
+  user_id: string;
+  start_time?: string;
+  end_time?: string;
+  quantity?: number;
+  description?: string;
+  created_at?: string;
+  products?: {
+    id: string;
+    name: string;
+    type: string;
+    price: number;
+    vat_percentage: number;
+    article_number?: string;
+    account_number?: string;
+  };
+  user_profile?: {
+    id?: string;
+    name?: string;
+  };
+};
+
+export default function Invoices() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
+  const [isExportingInvoice, setIsExportingInvoice] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [fromDate, setFromDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [toDate, setToDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [sortField, setSortField] = useState<string | null>("start_time");
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [allTimeEnabled, setAllTimeEnabled] = useState(false);
-  const [timeEntriesBulkMode, setTimeEntriesBulkMode] = useState(false);
-  const [invoicesBulkMode, setInvoicesBulkMode] = useState(false);
-  const [isInvoiceDeleteDialogOpen, setIsInvoiceDeleteDialogOpen] = useState(false);
-  const [isDeletingInvoices, setIsDeletingInvoices] = useState(false);
+  const [timeEntryToEdit, setTimeEntryToEdit] = useState<TimeEntryWithProfile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [excludedEntries, setExcludedEntries] = useState<string[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const { role } = useAuth();
 
-  const handleMonthYearChange = (month: number, year: number) => {
-    setSelectedMonth(month);
-    setSelectedYear(year);
-  };
-
-  const handleUserChange = (userId: string | null) => {
-    setSelectedUserId(userId);
-  };
-
-  const handleClientChange = (clientId: string | null) => {
-    setSelectedClientId(clientId);
-  };
-
-  const startDate = allTimeEnabled ? undefined : startOfMonth(new Date(selectedYear, selectedMonth));
-  const endDate = allTimeEnabled ? undefined : endOfMonth(new Date(selectedYear, selectedMonth));
-
-  const toggleAllTime = (enabled: boolean) => {
-    setAllTimeEnabled(enabled);
-  };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleSelectEntry = (id: string) => {
-    setSelectedEntriesIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectInvoice = (id: string) => {
-    setSelectedInvoiceIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAllEntries = (checked: boolean) => {
-    if (checked) {
-      setSelectedEntriesIds(timeEntries.map(entry => entry.id));
-    } else {
-      setSelectedEntriesIds([]);
-    }
-  };
-
-  const handleSelectAllInvoices = (checked: boolean) => {
-    if (checked) {
-      setSelectedInvoiceIds(invoices.map(invoice => invoice.id));
-    } else {
-      setSelectedInvoiceIds([]);
-    }
-  };
-
-  const handleDeleteSelectedEntries = () => {
-    if (selectedEntriesIds.length === 0) {
-      toast.error("No time entries selected");
-      return;
-    }
-    
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteSelectedInvoices = () => {
-    if (selectedInvoiceIds.length === 0) {
-      toast.error("No invoices selected");
-      return;
-    }
-    
-    setIsInvoiceDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteSelectedEntries = async () => {
-    if (selectedEntriesIds.length === 0) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      const { error } = await supabase
-        .from("time_entries")
-        .delete()
-        .in("id", selectedEntriesIds);
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast.success(`${selectedEntriesIds.length} time ${selectedEntriesIds.length === 1 ? 'entry' : 'entries'} deleted successfully`);
-      setSelectedEntriesIds([]);
-      
-      // Invalidate and refetch data
-      await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-      
-    } catch (error: any) {
-      console.error("Error deleting time entries:", error);
-      toast.error(`Failed to delete time entries: ${error.message || "Unknown error"}`);
-    } finally {
-      setIsDeleting(false);
-      setIsDeleteDialogOpen(false);
-    }
-  };
-
-  const confirmDeleteSelectedInvoices = async () => {
-    if (selectedInvoiceIds.length === 0) return;
-    
-    setIsDeletingInvoices(true);
-    
-    try {
-      // First update any time entries associated with these invoices
-      const { data: timeEntries, error: fetchError } = await supabase
-        .from("time_entries")
-        .select("id")
-        .in("invoice_id", selectedInvoiceIds);
-      
-      if (fetchError) throw fetchError;
-      
-      if (timeEntries && timeEntries.length > 0) {
-        const { error: updateError } = await supabase
-          .from("time_entries")
-          .update({ 
-            invoice_id: null,
-            invoiced: false 
-          })
-          .in("invoice_id", selectedInvoiceIds);
-        
-        if (updateError) throw updateError;
-      }
-      
-      // Now delete the invoices
-      const { error } = await supabase
-        .from("invoices")
-        .delete()
-        .in("id", selectedInvoiceIds);
-      
-      if (error) throw error;
-      
-      toast.success(`${selectedInvoiceIds.length} ${selectedInvoiceIds.length === 1 ? 'invoice' : 'invoices'} deleted successfully`);
-      setSelectedInvoiceIds([]);
-      
-      // Invalidate and refetch data
-      await queryClient.invalidateQueries({ queryKey: ["invoices-admin"] });
-      
-    } catch (error: any) {
-      console.error("Error deleting invoices:", error);
-      toast.error(`Failed to delete invoices: ${error.message || "Unknown error"}`);
-    } finally {
-      setIsDeletingInvoices(false);
-      setIsInvoiceDeleteDialogOpen(false);
-    }
-  };
-
-  let query = supabase
-    .from("time_entries")
-    .select(`
-      id, 
-      user_id,
-      client_id,
-      product_id,
-      start_time, 
-      end_time, 
-      quantity, 
-      description, 
-      created_at, 
-      updated_at,
-      invoiced,
-      products (id, name, type, price),
-      clients (name)
-    `);
-  
-  if (selectedUserId) {
-    query = query.eq("user_id", selectedUserId);
-  }
-
-  if (selectedClientId) {
-    query = query.eq("client_id", selectedClientId);
-  }
-  
-  if (!allTimeEnabled) {
-    if (startDate && endDate) {
-      query = query.or(`start_time.gte.${startDate.toISOString()},and(start_time.is.null,created_at.gte.${startDate.toISOString()})`);
-      query = query.or(`start_time.lte.${endDate.toISOString()},and(start_time.is.null,created_at.lte.${endDate.toISOString()})`);
-    }
-  }
-  
-  if (sortField) {
-    query = query.order(sortField, { ascending: sortDirection === 'asc' });
-  }
-
-  const { data: rawTimeEntries = [], isLoading } = useQuery({
-    queryKey: ["time-entries", selectedMonth, selectedYear, selectedUserId, selectedClientId, sortField, sortDirection, allTimeEnabled],
-    queryFn: async () => {
-      console.log("Fetching time entries with params:", {
-        month: selectedMonth,
-        year: selectedYear,
-        user: selectedUserId,
-        client: selectedClientId,
-        sort: sortField,
-        direction: sortDirection,
-        allTime: allTimeEnabled
-      });
-      
-      try {
-        const { data, error } = await query;
-        
-        if (error) {
-          console.error("Error fetching time entries:", error);
-          throw error;
-        }
-        
-        const enhancedData = await Promise.all((data || []).map(async (entry) => {
-          let profileName = "Unknown";
-          
-          if (entry.user_id) {
-            try {
-              const { data: profileData } = await supabase
-                .from("profiles")
-                .select("name")
-                .eq("id", entry.user_id)
-                .single();
-                
-              if (profileData && profileData.name) {
-                profileName = profileData.name;
-              }
-            } catch (err) {
-              console.error("Error fetching profile name:", err);
-            }
-          }
-          
-          return {
-            ...entry,
-            profiles: { name: profileName }
-          };
-        }));
-        
-        console.log(`Found ${enhancedData?.length || 0} time entries`);
-        return enhancedData || [];
-      } catch (error) {
-        console.error("Error fetching time entries:", error);
-        return [];
-      }
-    },
-  });
-  
-  const timeEntries: TimeEntry[] = rawTimeEntries.map((entry: any) => ({
-    ...entry,
-    products: entry.products ? {
-      ...entry.products,
-      type: entry.products.type as 'activity' | 'item'
-    } : undefined
-  }));
-
-  const { data: invoices = [], isLoading: isLoadingInvoices } = useQuery({
-    queryKey: ["invoices-admin"],
+  const { data: invoicesData = [], isLoading, refetch } = useQuery({
+    queryKey: ["invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
@@ -326,239 +105,703 @@ export default function Administration() {
     },
   });
 
-  const handleEntryDeleted = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+  const invoices: Invoice[] = invoicesData.map(invoice => ({
+    ...invoice,
+    client_id: invoice.client_id
+  }));
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: unbilledEntries = [], refetch: refetchUnbilled } = useQuery<TimeEntryWithProfile[]>({
+    queryKey: ["unbilled-entries", selectedClient, fromDate, toDate],
+    queryFn: async () => {
+      if (!selectedClient) return [];
+      
+      let query = supabase
+        .from("time_entries")
+        .select(`
+          id, 
+          user_id,
+          start_time, 
+          end_time, 
+          quantity, 
+          description,
+          created_at,
+          products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
+        `)
+        .eq("client_id", selectedClient)
+        .eq("invoiced", false);
+      
+      if (fromDate) {
+        query = query.or(`start_time.gte.${fromDate.toISOString()},and(start_time.is.null,created_at.gte.${fromDate.toISOString()})`);
+      }
+      
+      if (toDate) {
+        query = query.or(`start_time.lte.${toDate.toISOString()},and(start_time.is.null,created_at.lte.${toDate.toISOString()})`);
+      }
+      
+      const { data: entriesData, error: entriesError } = await query;
+      
+      if (entriesError) throw entriesError;
+      
+      if (entriesData && entriesData.length > 0) {
+        const userIds = entriesData.map(entry => entry.user_id);
+        
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", userIds);
+        
+        if (profilesError) throw profilesError;
+        
+        const userProfileMap = new Map();
+        if (profiles) {
+          profiles.forEach(profile => {
+            userProfileMap.set(profile.id, profile);
+          });
+        }
+        
+        return entriesData.map(entry => ({
+          ...entry,
+          user_profile: userProfileMap.get(entry.user_id) || { name: 'Unknown User' }
+        }));
+      }
+      
+      return entriesData || [];
+    },
+    enabled: !!selectedClient,
+  });
+
+  const { data: fortnoxConnected = false } = useQuery({
+    queryKey: ["fortnox-connected"],
+    queryFn: async () => {
+      return await isFortnoxConnected();
+    },
+  });
+
+  const handleDeleteTimeEntry = async () => {
+    if (!timeEntryToDelete) return;
+    
+    const success = await deleteTimeEntry(timeEntryToDelete);
+    
+    if (success) {
+      toast.success("Time entry deleted successfully");
+      refetchUnbilled();
+    }
+    
+    setTimeEntryToDelete(null);
+    setIsDeleteDialogOpen(false);
   };
 
-  const handleInvoiceDeleted = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["invoices-admin"] });
+  const confirmDeleteTimeEntry = (entryId: string) => {
+    setTimeEntryToDelete(entryId);
+    setIsDeleteDialogOpen(true);
   };
 
-  const toggleTimeEntriesBulkMode = () => {
-    setTimeEntriesBulkMode(prev => !prev);
-    if (timeEntriesBulkMode) {
-      setSelectedEntriesIds([]);
+  const toggleExcludeEntry = (entryId: string) => {
+    setExcludedEntries(prev => 
+      prev.includes(entryId) 
+        ? prev.filter(id => id !== entryId) 
+        : [...prev, entryId]
+    );
+  };
+
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "default" as const;
+      case "sent":
+        return "secondary" as const;
+      case "overdue":
+        return "destructive" as const;
+      default:
+        return "outline" as const;
     }
   };
 
-  const toggleInvoicesBulkMode = () => {
-    setInvoicesBulkMode(prev => !prev);
-    if (invoicesBulkMode) {
-      setSelectedInvoiceIds([]);
+  const handleExportToFortnox = async (invoiceId: string) => {
+    setExportingInvoiceId(invoiceId);
+    
+    try {
+      const { error } = await supabase
+        .from("invoices")
+        .update({ exported_to_fortnox: true })
+        .eq("id", invoiceId);
+        
+      if (error) throw error;
+      
+      toast.success("Invoice exported to Fortnox successfully");
+      refetch();
+    } catch (error) {
+      console.error("Error exporting invoice to Fortnox:", error);
+      toast.error("Failed to export invoice to Fortnox");
+    } finally {
+      setExportingInvoiceId(null);
     }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!selectedClient || unbilledEntries.length === 0) {
+      toast.error("Please select a client with unbilled time entries");
+      return;
+    }
+
+    setIsExportingInvoice(true);
+    setErrorMessage(null);
+    setProcessingStatus("Creating invoice...");
+    
+    try {
+      const includedEntries = unbilledEntries.filter(entry => !excludedEntries.includes(entry.id));
+      
+      if (includedEntries.length === 0) {
+        toast.error("All entries have been excluded. Cannot create an empty invoice.");
+        setIsExportingInvoice(false);
+        return;
+      }
+      
+      const timeEntryIds = includedEntries.map(entry => entry.id);
+      
+      setProcessingStatus("Checking and creating products in Fortnox...");
+      const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
+      
+      toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`, {
+        description: "Any missing products were automatically created"
+      });
+      
+      setIsCreatingInvoice(false);
+      setSelectedClient("");
+      setExcludedEntries([]);
+      refetch();
+      refetchUnbilled();
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMsg.includes("Edge Function")) {
+        setErrorMessage("Error connecting to Fortnox API. Please check your Fortnox connection in Settings.");
+      } else {
+        setErrorMessage(errorMsg);
+      }
+      
+      toast.error(`Failed to create invoice`, {
+        description: "Please check the error details in the dialog."
+      });
+    } finally {
+      setIsExportingInvoice(false);
+      setProcessingStatus("");
+    }
+  };
+
+  const handleDateRangeChange = (from: Date | undefined, to: Date | undefined) => {
+    setFromDate(from);
+    setToDate(to);
+  };
+
+  const calculateTotal = () => {
+    let total = 0;
+    
+    unbilledEntries
+      .filter(entry => !excludedEntries.includes(entry.id))
+      .forEach(entry => {
+        if (entry.products) {
+          let quantity = 1;
+          
+          if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
+            const start = new Date(entry.start_time);
+            const end = new Date(entry.end_time);
+            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            quantity = parseFloat(diffHours.toFixed(2));
+          } else if (entry.products.type === 'item' && entry.quantity) {
+            quantity = entry.quantity;
+          }
+          
+          total += entry.products.price * quantity;
+        }
+      });
+    
+    return total.toFixed(2);
+  };
+
+  const filteredInvoices = searchTerm
+    ? invoices.filter(invoice => 
+        invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.clients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.status.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : invoices;
+
+  const hasInvalidArticleNumbers = unbilledEntries
+    .filter(entry => !excludedEntries.includes(entry.id))
+    .some(entry => 
+      entry.products?.article_number && 
+      !/^\d+$/.test(entry.products.article_number)
+    );
+
+  const missingArticleNumbers = unbilledEntries
+    .filter(entry => !excludedEntries.includes(entry.id))
+    .some(entry => 
+      !entry.products?.article_number
+    );
+
+  const handleInvoiceDeleted = () => {
+    refetch();
+  };
+
+  const handleEditTimeEntry = (entry: TimeEntryWithProfile) => {
+    setTimeEntryToEdit(entry);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setTimeEntryToEdit(null);
+    refetchUnbilled();
+    toast.success("Time entry updated successfully");
+  };
+
+  const resetExclusions = () => {
+    setExcludedEntries([]);
+    toast.success("All entries are now included");
+  };
+
+  const getItemAmount = (entry: any) => {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
+      const hours = calculateDuration(entry.start_time, entry.end_time);
+      return formatDuration(hours);
+    } else if (entry.products?.type === "item" && entry.quantity) {
+      return `${entry.quantity} units`;
+    }
+    return "-";
+  };
+
+  const getEntryDate = (entry: TimeEntryWithProfile): string => {
+    if (entry.start_time) {
+      return format(parseISO(entry.start_time), 'yyyy-MM-dd');
+    } else if (entry.created_at) {
+      return format(parseISO(entry.created_at), 'yyyy-MM-dd');
+    }
+    return 'N/A';
+  };
+
+  const handleViewInvoiceDetails = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsDetailsOpen(true);
   };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <h1 className="text-2xl font-bold">Administration</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold">Invoices</h1>
+        
+        <div className="flex w-full sm:w-auto gap-2">
+          <div className="relative flex-grow">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              placeholder="Search invoices..." 
+              className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Button 
+            className="flex items-center gap-2"
+            onClick={() => setIsCreatingInvoice(true)}
+            disabled={!fortnoxConnected}
+          >
+            <FilePlus2 className="h-4 w-4" />
+            <span>New Invoice</span>
+          </Button>
+        </div>
       </div>
       
-      <Tabs defaultValue="time-entries" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="time-entries">Time Entries</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="time-entries" className="space-y-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Time Entries</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-                <div className="grid gap-2 flex-1">
-                  <UserSelect 
-                    value={selectedUserId} 
-                    onChange={handleUserChange} 
-                  />
-                </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>All Invoices</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            className="flex items-center gap-2"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            <span>Refresh</span>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <InvoicesTable
+            invoices={filteredInvoices}
+            isLoading={isLoading}
+            onInvoiceDeleted={handleInvoiceDeleted}
+            onViewDetails={handleViewInvoiceDetails}
+          />
 
-                <div className="grid gap-2 flex-1">
-                  <ClientSelect 
-                    value={selectedClientId} 
-                    onChange={handleClientChange} 
+          {!fortnoxConnected && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                Fortnox integration is not connected. {
+                  role === 'admin' 
+                    ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
+                    : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                }
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {selectedInvoice && (
+        <InvoiceDetailsView 
+          invoice={selectedInvoice} 
+          open={isDetailsOpen} 
+          onClose={() => setIsDetailsOpen(false)} 
+        />
+      )}
+      
+      <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Create New Invoice</DialogTitle>
+            <DialogDescription>
+              Create and export a new invoice to Fortnox for a selected client.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-5 flex-1 overflow-hidden">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Client</label>
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedClient && (
+              <div className="flex flex-col md:flex-row gap-4 mb-2">
+                <div className="w-full">
+                  <label className="text-sm font-medium block mb-2">Time span</label>
+                  <DateRangeSelector 
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    onDateChange={handleDateRangeChange}
                   />
                 </div>
-                
-                <div className="grid gap-2 flex-1">
-                  <label className="text-sm font-medium">Date filter</label>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <AllTimeToggle 
-                      allTimeEnabled={allTimeEnabled} 
-                      onToggleAllTime={toggleAllTime}
-                    />
-                    
-                    {!allTimeEnabled && (
-                      <MonthYearSelector
-                        selectedMonth={selectedMonth}
-                        selectedYear={selectedYear}
-                        onMonthYearChange={handleMonthYearChange}
-                      />
+              </div>
+            )}
+            
+            {(hasInvalidArticleNumbers || missingArticleNumbers) && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-800" />
+                <AlertTitle className="text-blue-800">Automatic product creation</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  {hasInvalidArticleNumbers && 
+                    "Some products have non-numeric article numbers. "}
+                  {missingArticleNumbers && 
+                    "Some products don't have article numbers. "}
+                  The system will automatically create these products in Fortnox during invoice creation.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error creating invoice</AlertTitle>
+                <AlertDescription>
+                  {errorMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {processingStatus && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <div className="animate-spin h-4 w-4 mr-2 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <AlertTitle className="text-blue-800">{processingStatus}</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  This may take a moment if products need to be created in Fortnox.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {selectedClient && (
+              <div className="space-y-3 flex-1 overflow-hidden">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
+                  <div className="flex items-center gap-2">
+                    {excludedEntries.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={resetExclusions}
+                        className="h-8 text-xs"
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Include All ({excludedEntries.length} excluded)
+                      </Button>
                     )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => refetchUnbilled()}
+                      className="h-8"
+                    >
+                      <RefreshCcw className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 self-end">
-                  <Button
-                    variant={timeEntriesBulkMode ? "default" : "outline"}
-                    size="sm"
-                    onClick={toggleTimeEntriesBulkMode}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    {timeEntriesBulkMode ? "Cancel Bulk Delete" : "Bulk Delete"}
-                  </Button>
-
-                  {timeEntriesBulkMode && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDeleteSelectedEntries}
-                      disabled={selectedEntriesIds.length === 0}
-                    >
-                      Delete Selected ({selectedEntriesIds.length})
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              <TimeEntriesTable 
-                timeEntries={timeEntries}
-                isLoading={isLoading}
-                onEntryDeleted={handleEntryDeleted}
-                bulkDeleteMode={timeEntriesBulkMode}
-                selectedItems={selectedEntriesIds}
-                onItemSelect={handleSelectEntry}
-                onSelectAll={handleSelectAllEntries}
-                onBulkDelete={handleDeleteSelectedEntries}
-                onSort={handleSort}
-                sortField={sortField}
-                sortDirection={sortDirection}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invoices" className="space-y-6">
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle>Invoices</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  variant={invoicesBulkMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={toggleInvoicesBulkMode}
-                >
-                  <Trash2 className="mr-1 h-4 w-4" />
-                  {invoicesBulkMode ? "Cancel Bulk Delete" : "Bulk Delete"}
-                </Button>
-
-                {invoicesBulkMode && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteSelectedInvoices}
-                    disabled={selectedInvoiceIds.length === 0}
-                  >
-                    Delete Selected ({selectedInvoiceIds.length})
-                  </Button>
+                {unbilledEntries.length === 0 ? (
+                  <div className="text-center py-4 border rounded-md bg-muted/20">
+                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected time span.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[400px]">
+                    <div className="overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>Art. Number</TableHead>
+                            <TableHead className="text-right">Amount (SEK)</TableHead>
+                            <TableHead className="w-[100px]">Include</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {unbilledEntries.map((entry) => {
+                            let quantity = 1;
+                            
+                            if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+                              const start = new Date(entry.start_time);
+                              const end = new Date(entry.end_time);
+                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                              quantity = parseFloat(diffHours.toFixed(2));
+                            } else if (entry.products?.type === 'item' && entry.quantity) {
+                              quantity = entry.quantity;
+                            }
+                            
+                            const amount = entry.products ? entry.products.price * quantity : 0;
+                            
+                            const hasValidArticleNumber = 
+                              entry.products?.article_number && 
+                              /^\d+$/.test(entry.products.article_number);
+                            
+                            const unit = entry.products?.type === 'activity' ? 't' : 'st';
+                            
+                            const entryDate = getEntryDate(entry);
+                              
+                            const isExcluded = excludedEntries.includes(entry.id);
+                            
+                            return (
+                              <TableRow key={entry.id} className={isExcluded ? "bg-muted/30" : ""}>
+                                <TableCell className="font-medium max-w-[200px]">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger className="text-left truncate block w-full">
+                                        <span className={`truncate block ${isExcluded ? "text-muted-foreground line-through" : ""}`}>
+                                          {entry.description || 'No description'}
+                                        </span>
+                                      </TooltipTrigger>
+                                      {entry.description && (
+                                        <TooltipContent side="bottom" className="max-w-[300px] p-3">
+                                          <p className="font-medium mb-1">Description:</p>
+                                          <p className="text-sm">{entry.description}</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entry.user_profile?.name || 'Unknown'}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entry.products?.name || 'Unknown Product'}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entryDate}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {quantity} {unit}
+                                </TableCell>
+                                <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
+                                  {entry.products?.article_number ? (
+                                    hasValidArticleNumber ? (
+                                      entry.products.article_number
+                                    ) : (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="text-blue-600 font-medium cursor-help">
+                                              {entry.products.article_number}*
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>This article number will be created in Fortnox</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )
+                                  ) : (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-blue-600 italic cursor-help">
+                                            Auto-generate
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>A new article number will be generated and created in Fortnox</p>
+                                        </TooltipContent>
+                                      </TooltipProvider>
+                                    )
+                                  )}
+                                </TableCell>
+                                <TableCell className={`text-right ${isExcluded ? "text-muted-foreground" : ""}`}>
+                                  {amount.toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => toggleExcludeEntry(entry.id)}
+                                    className={`h-8 w-8 ${isExcluded ? "text-primary hover:text-primary/80" : "text-destructive hover:text-destructive/80"}`}
+                                    title={isExcluded ? "Include in invoice" : "Exclude from invoice"}
+                                  >
+                                    {isExcluded ? (
+                                      <CheckCircle className="h-4 w-4" />
+                                    ) : (
+                                      <XCircle className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => handleEditTimeEntry(entry)}
+                                      className="h-8 w-8 text-primary hover:text-primary/80"
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => confirmDeleteTimeEntry(entry.id)}
+                                      className="h-8 w-8 text-destructive hover:text-destructive/80"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow>
+                            <TableCell colSpan={6} className="font-bold text-right">Total:</TableCell>
+                            <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
+                            <TableCell colSpan={2}></TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <InvoicesTable 
-                invoices={invoices} 
-                isLoading={isLoadingInvoices}
-                onInvoiceDeleted={handleInvoiceDeleted}
-                bulkDeleteMode={invoicesBulkMode}
-                selectedItems={selectedInvoiceIds}
-                onItemSelect={handleSelectInvoice}
-                onSelectAll={handleSelectAllInvoices}
-                onBulkDelete={handleDeleteSelectedInvoices}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-      
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-destructive mr-2" />
-              Delete {selectedEntriesIds.length} Time {selectedEntriesIds.length === 1 ? 'Entry' : 'Entries'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedEntriesIds.length} time {selectedEntriesIds.length === 1 ? 'entry' : 'entries'}? This action cannot be undone.
-              {timeEntries.some(entry => selectedEntriesIds.includes(entry.id) && entry.invoiced) && (
-                <div className="mt-2 p-2 border border-yellow-300 bg-yellow-50 rounded text-yellow-800">
-                  <strong>Warning:</strong> Some selected entries have already been invoiced. Deleting them may cause inconsistencies with your Fortnox data.
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                confirmDeleteSelectedEntries();
-              }}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            )}
+          </div>
+          
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setIsCreatingInvoice(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateInvoice} 
+              disabled={
+                !selectedClient || 
+                unbilledEntries.length === 0 || 
+                isExportingInvoice || 
+                unbilledEntries.every(entry => excludedEntries.includes(entry.id))
+              }
+              className="flex items-center gap-2"
             >
-              {isDeleting ? (
+              {isExportingInvoice ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  <span>Processing...</span>
                 </>
               ) : (
-                "Delete"
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>Create & Export</span>
+                </>
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <AlertDialog open={isInvoiceDeleteDialogOpen} onOpenChange={setIsInvoiceDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-destructive mr-2" />
-              Delete {selectedInvoiceIds.length} {selectedInvoiceIds.length === 1 ? 'Invoice' : 'Invoices'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedInvoiceIds.length} {selectedInvoiceIds.length === 1 ? 'invoice' : 'invoices'}? This action cannot be undone.
-              
-              {invoices.some(invoice => selectedInvoiceIds.includes(invoice.id) && invoice.exported_to_fortnox) && (
-                <div className="mt-2 p-2 border border-yellow-300 bg-yellow-50 rounded text-yellow-800">
-                  <strong>Warning:</strong> Some selected invoices have been exported to Fortnox. Deleting them will only remove them from your database, not from Fortnox.
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingInvoices}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                confirmDeleteSelectedInvoices();
-              }}
-              disabled={isDeletingInvoices}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeletingInvoices ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Time Entry"
+        description="Are you sure you want to delete this time entry? This action cannot be undone."
+        actionLabel="Delete"
+        onAction={handleDeleteTimeEntry}
+        variant="destructive"
+      />
+
+      {timeEntryToEdit && (
+        <DialogWrapper
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          title="Edit Time Entry"
+          description="Make changes to this time entry."
+        >
+          <TimeEntryEditForm
+            timeEntry={{
+              id: timeEntryToEdit.id,
+              user_id: timeEntryToEdit.user_id,
+              client_id: selectedClient || "",
+              product_id: timeEntryToEdit.products?.id || "",
+              start_time: timeEntryToEdit.start_time,
+              end_time: timeEntryToEdit.end_time,
+              quantity: timeEntryToEdit.quantity,
+              description: timeEntryToEdit.description,
+              created_at: "",
+              updated_at: "",
+              invoiced: false,
+              products: timeEntryToEdit.products,
+              clients: { name: "" },
+              profiles: { name: timeEntryToEdit.user_profile?.name || "" }
+            }}
+            onSuccess={handleEditSuccess}
+            onCancel={() => setIsEditDialogOpen(false)}
+          />
+        </DialogWrapper>
+      )}
     </div>
   );
 }
