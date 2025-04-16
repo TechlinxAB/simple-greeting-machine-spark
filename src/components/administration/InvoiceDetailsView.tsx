@@ -121,19 +121,33 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
     return '0.00';
   };
 
-  const copyToClipboard = async (text: string, entryId: string) => {
+  const copyToClipboard = (text: string, entryId: string) => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed'; // Prevent scrolling to bottom
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(entryId);
-      toast.success("Description copied to clipboard");
-      
-      setTimeout(() => {
-        setCopiedId(null);
-      }, 2000);
+      const successful = document.execCommand('copy');
+      if (successful) {
+        setCopiedId(entryId);
+        toast.success("Description copied to clipboard");
+      } else {
+        toast.error("Failed to copy to clipboard");
+      }
     } catch (err) {
       console.error("Failed to copy text: ", err);
       toast.error("Failed to copy to clipboard");
     }
+
+    document.body.removeChild(textarea);
+    
+    setTimeout(() => {
+      setCopiedId(null);
+    }, 2000);
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
