@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import Administration from "./pages/Administration";
+import UserStats from "./pages/UserStats";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -44,6 +45,13 @@ const App = () => (
                 <Route path="/administration" element={
                   <ProtectedRoute allowedRoles={['admin', 'manager']}>
                     <Administration />
+                  </ProtectedRoute>
+                } />
+                
+                {/* User stats page - requires admin or manager role */}
+                <Route path="/user-stats/:userId" element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <UserStats />
                   </ProtectedRoute>
                 } />
                 
