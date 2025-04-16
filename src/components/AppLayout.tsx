@@ -218,7 +218,7 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full overflow-x-hidden">
-        {!isMobile && <AppSidebar className="z-50" />}
+        {!isMobile && <AppSidebar />}
         
         <div className="flex-1 flex flex-col relative z-0 max-w-full overflow-x-hidden">
           <Header className="sticky top-0 z-30 left-0 right-0 w-full max-w-full" />
