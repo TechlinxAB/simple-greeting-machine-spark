@@ -29,7 +29,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsLaptop } from "@/hooks/use-mobile";
 
-// Form schema with validation
 const formSchema = z.object({
   clientId: z.string().uuid("Please select a client"),
   productId: z.string().uuid("Please select a product or activity"),
@@ -55,14 +54,11 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
   const endTimeRef = useRef<HTMLInputElement>(null);
   const autoIsLaptop = useIsLaptop();
   
-  // Use explicit prop if provided, otherwise use the hook
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
-  // Create state to store Date objects for TimePicker
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
 
-  // Form setup with react-hook-form and zod validation
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -79,14 +75,12 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     },
   });
 
-  // Convert string time to Date objects when form values change
   useEffect(() => {
     const startTimeValue = form.watch("startTime");
     const endTimeValue = form.watch("endTime");
     
     if (startTimeValue) {
       try {
-        // Create a date object for today with the specified time
         const today = new Date();
         const [hours, minutes] = startTimeValue.split(":");
         const startDate = new Date(
@@ -107,7 +101,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     
     if (endTimeValue) {
       try {
-        // Create a date object for today with the specified time
         const today = new Date();
         const [hours, minutes] = endTimeValue.split(":");
         const endDate = new Date(
@@ -127,7 +120,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     }
   }, [form.watch("startTime"), form.watch("endTime")]);
 
-  // Fetch clients for dropdown
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -141,7 +133,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     },
   });
 
-  // Fetch products for dropdown
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
@@ -155,7 +146,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     },
   });
 
-  // Set the product type when the form values change
   useEffect(() => {
     const productId = form.watch("productId");
     if (productId) {
@@ -168,10 +158,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     }
   }, [form.watch("productId"), products, timeEntry]);
 
-  // Handle time change from TimePicker component
   const handleTimeChange = (field: string, value: Date | null) => {
     if (value) {
-      // Convert Date to string in HH:mm format for form values
       const timeString = format(value, "HH:mm");
       form.setValue(field as "startTime" | "endTime", timeString);
     } else {
@@ -179,18 +167,15 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     }
   };
 
-  // Function to handle form submission
   const onSubmit = async (values: FormValues) => {
     console.log("Form values:", values);
     
     try {
       setLoading(true);
       
-      // Extract time strings
       let startTimeString = values.startTime;
       let endTimeString = values.endTime;
       
-      // For time picker components that use refs
       if (startTimeRef.current?.value) {
         startTimeString = startTimeRef.current.value;
       }
@@ -202,14 +187,12 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       console.log("Start time:", startTimeString);
       console.log("End time:", endTimeString);
       
-      // Prepare date objects for time entries if available
       const timeEntryDate = timeEntry.created_at 
         ? new Date(timeEntry.created_at) 
         : new Date();
         
       const datePart = format(timeEntryDate, "yyyy-MM-dd");
       
-      // Construct full ISO datetime strings if time values are provided
       let startTime = null;
       let endTime = null;
       
@@ -221,21 +204,19 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         endTime = `${datePart}T${endTimeString}:00`;
       }
       
-      // Build the update data object
       const timeEntryData: any = {
         client_id: values.clientId,
         product_id: values.productId,
         description: values.description,
       };
       
-      // Add time-specific fields based on product type
       if (selectedProductType === "activity") {
         timeEntryData.start_time = startTime;
         timeEntryData.end_time = endTime;
-        timeEntryData.quantity = null; // Clear quantity for activity
+        timeEntryData.quantity = null;
       } else if (selectedProductType === "item") {
         timeEntryData.quantity = values.quantity;
-        timeEntryData.start_time = null; // Clear times for item
+        timeEntryData.start_time = null;
         timeEntryData.end_time = null;
       }
       
@@ -254,7 +235,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       
       console.log("Update successful");
       
-      // Call onSuccess to close the dialog and refresh the list
       toast.success("Time entry updated successfully");
       onSuccess(); 
     } catch (error: any) {
@@ -302,7 +282,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           name="productId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product or Activity</FormLabel>
+              <FormLabel className={compact ? "text-sm" : ""}>Product or Activity</FormLabel>
               <Select 
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -315,19 +295,19 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
                 disabled={loading}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
                     <SelectValue placeholder="Select a product" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
+                    <SelectItem key={product.id} value={product.id} className={compact ? "text-xs" : ""}>
                       {product.name} ({product.type}) - {product.price} SEK
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <FormMessage />
+              <FormMessage className={compact ? "text-xs" : ""} />
             </FormItem>
           )}
         />
@@ -403,16 +383,16 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
+              <FormLabel className={compact ? "text-sm" : ""}>Description (Optional)</FormLabel>
               <FormControl>
                 <Textarea 
                   placeholder="Enter a description..."
-                  className="resize-none"
+                  className={cn("resize-none", compact ? "text-xs" : "")}
                   {...field} 
                   disabled={loading}
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage className={compact ? "text-xs" : ""} />
             </FormItem>
           )}
         />

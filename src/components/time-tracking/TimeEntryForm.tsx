@@ -372,12 +372,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                             defaultValue={field.value}
                             value={field.value}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
                               <SelectValue placeholder="Select a client" />
                             </SelectTrigger>
                             <SelectContent>
                               {clients.map((client) => (
-                                <SelectItem key={client.id} value={client.id}>
+                                <SelectItem key={client.id} value={client.id} className={compact ? "text-xs" : ""}>
                                   {client.name}
                                 </SelectItem>
                               ))}
@@ -396,12 +396,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     value={selectedProductType}
                     onValueChange={setSelectedProductType}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="activity">Activity</SelectItem>
-                      <SelectItem value="item">Item</SelectItem>
+                      <SelectItem value="activity" className={compact ? "text-xs" : ""}>Activity</SelectItem>
+                      <SelectItem value="item" className={compact ? "text-xs" : ""}>Item</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -463,7 +463,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                       <FormControl>
                         <Textarea
                           placeholder="Enter description here..."
-                          className="min-h-[100px]"
+                          className={cn("min-h-[100px]", compact ? "text-xs" : "")}
                           {...field}
                           value={field.value || ""}
                         />

@@ -40,6 +40,12 @@ import { TimeEntry } from "@/types";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { useIsLaptop } from "@/hooks/use-mobile";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -297,10 +303,19 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                         {entry.clients?.name || 'Unknown client'}
                       </TableCell>
                       <TableCell className={compact ? "max-w-[180px]" : "max-w-[250px]"} isCompact={compact}>
-                        <div className="line-clamp-2">
-                          {entry.description || 
-                            (entry.products?.name || 'No description')}
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="line-clamp-2 cursor-help">
+                                {entry.description || 
+                                  (entry.products?.name || 'No description')}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[300px] p-4 text-wrap break-words">
+                              <p>{entry.description || (entry.products?.name || 'No description')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="whitespace-nowrap" isCompact={compact}>
                         <div className="flex items-center gap-1">
