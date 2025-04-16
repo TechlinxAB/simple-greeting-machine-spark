@@ -1,13 +1,11 @@
 
 import { Toaster as SonnerToaster } from "sonner";
-import { X } from "lucide-react";
 
 export function Toaster() {
   return (
     <SonnerToaster 
       position="top-right"
       closeButton={true}
-      richColors
       toastOptions={{
         style: {
           background: "#ffffff",
@@ -16,9 +14,8 @@ export function Toaster() {
           cursor: "pointer", 
         },
         className: "toaster group",
-        descriptionClassName: "text-sm text-gray-700",
+        descriptionClassName: "text-sm text-gray-800",
         duration: 3000,
-        closeButton: true
       }}
     />
   );
