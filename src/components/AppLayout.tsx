@@ -1,3 +1,4 @@
+
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
@@ -219,8 +220,8 @@ export function AppLayout() {
       <div className="min-h-screen flex w-full">
         {!isMobile && <AppSidebar />}
         
-        <div className="flex-1 flex flex-col">
-          <Header />
+        <div className="flex-1 flex flex-col relative">
+          <Header className="sticky top-0 z-40" /> {/* Ensure header is below sidebar z-index */}
           <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
