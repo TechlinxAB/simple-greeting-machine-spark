@@ -30,7 +30,6 @@ import { MonthYearPicker } from "@/components/administration/MonthYearPicker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsLaptop } from "@/hooks/use-mobile";
 import { UsersTable } from "@/components/administration/UsersTable";
-import { UserStats } from "@/components/administration/UserStats";
 
 export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
@@ -51,7 +50,6 @@ export default function Administration() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [selectedViewUser, setSelectedViewUser] = useState<string | null>(null);
   const { role } = useAuth();
   const isLaptop = useIsLaptop();
 
@@ -238,14 +236,6 @@ export default function Administration() {
     setSelectedItems([]);
   };
 
-  const handleUserSelect = (userId: string) => {
-    setSelectedViewUser(userId);
-  };
-
-  const handleBackToUserList = () => {
-    setSelectedViewUser(null);
-  };
-
   return (
     <div className={`container mx-auto py-6 space-y-6 ${isLaptop ? 'px-2 max-w-full overflow-x-auto' : 'px-4'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -401,24 +391,13 @@ export default function Administration() {
             
             <TabsContent value="users" className="m-0">
               <div className={isLaptop ? "p-3" : "p-6"}>
-                {!selectedViewUser ? (
-                  <>
-                    <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                      <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Users</h2>
-                    </div>
-                    <UsersTable 
-                      searchTerm={searchTerm}
-                      isCompact={isLaptop}
-                      onUserSelect={handleUserSelect}
-                    />
-                  </>
-                ) : (
-                  <UserStats 
-                    userId={selectedViewUser}
-                    onBack={handleBackToUserList}
-                    isCompact={isLaptop}
-                  />
-                )}
+                <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
+                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Users</h2>
+                </div>
+                <UsersTable 
+                  searchTerm={searchTerm}
+                  isCompact={isLaptop}
+                />
               </div>
             </TabsContent>
           </div>
