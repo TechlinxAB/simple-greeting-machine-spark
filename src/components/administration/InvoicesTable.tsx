@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { useIsLaptop } from '@/hooks/use-mobile';
 
 interface InvoicesTableProps {
   invoices: Invoice[];
@@ -20,6 +21,7 @@ interface InvoicesTableProps {
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
+  isCompact?: boolean;
 }
 
 export function InvoicesTable({ 
@@ -31,11 +33,16 @@ export function InvoicesTable({
   onBulkDelete,
   selectedItems = [],
   onItemSelect,
-  onSelectAll
+  onSelectAll,
+  isCompact
 }: InvoicesTableProps) {
   const { toast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const autoIsLaptop = useIsLaptop();
+  
+  // Use explicit prop if provided, otherwise use the hook
+  const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
 
   const handleDeleteClick = (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
@@ -102,92 +109,92 @@ export function InvoicesTable({
   return (
     <>
       <div className="rounded-md border">
-        <Table>
+        <Table isCompact={compact}>
           <TableHeader>
-            <TableRow>
+            <TableRow isCompact={compact}>
               {bulkDeleteMode && (
-                <TableHead className="w-[50px]">
+                <TableHead className="w-[50px]" isCompact={compact}>
                   <input 
                     type="checkbox" 
-                    className="h-4 w-4 rounded border-gray-300"
+                    className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300`}
                     checked={invoices.length > 0 && selectedItems.length === invoices.length}
                     onChange={(e) => onSelectAll?.(e.target.checked)}
                   />
                 </TableHead>
               )}
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Issue Date</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead isCompact={compact}>Invoice #</TableHead>
+              <TableHead isCompact={compact}>Client</TableHead>
+              <TableHead isCompact={compact}>Issue Date</TableHead>
+              <TableHead isCompact={compact}>Due Date</TableHead>
+              <TableHead isCompact={compact}>Status</TableHead>
+              <TableHead className="text-right" isCompact={compact}>Amount</TableHead>
+              <TableHead isCompact={compact}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className="h-24 text-center">
+              <TableRow isCompact={compact}>
+                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className="h-24 text-center" isCompact={compact}>
                   <div className="flex justify-center items-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <Loader2 className={`${compact ? 'h-5 w-5' : 'h-6 w-6'} animate-spin text-primary`} />
                   </div>
                 </TableCell>
               </TableRow>
             ) : invoices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className="h-24 text-center text-muted-foreground">
+              <TableRow isCompact={compact}>
+                <TableCell colSpan={bulkDeleteMode ? 8 : 7} className={`${compact ? 'h-20' : 'h-24'} text-center text-muted-foreground`} isCompact={compact}>
                   No invoices found
                 </TableCell>
               </TableRow>
             ) : (
               invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
+                <TableRow key={invoice.id} isCompact={compact}>
                   {bulkDeleteMode && (
-                    <TableCell>
+                    <TableCell isCompact={compact}>
                       <input 
                         type="checkbox" 
-                        className="h-4 w-4 rounded border-gray-300"
+                        className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} rounded border-gray-300`}
                         checked={selectedItems.includes(invoice.id)}
                         onChange={() => onItemSelect?.(invoice.id)}
                       />
                     </TableCell>
                   )}
-                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                  <TableCell>{invoice.clients?.name}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium" isCompact={compact}>{invoice.invoice_number}</TableCell>
+                  <TableCell isCompact={compact}>{invoice.clients?.name}</TableCell>
+                  <TableCell isCompact={compact}>
                     {invoice.issue_date ? format(new Date(invoice.issue_date), 'MMM d, yyyy') : 'N/A'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell isCompact={compact}>
                     {invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'N/A'}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={getBadgeVariant(invoice.status || 'draft')}>
+                  <TableCell isCompact={compact}>
+                    <Badge variant={getBadgeVariant(invoice.status || 'draft')} className={compact ? "text-xs py-0.5" : ""}>
                       {invoice.status || 'draft'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" isCompact={compact}>
                     {new Intl.NumberFormat('sv-SE', { 
                       style: 'currency', 
                       currency: 'SEK'
                     }).format(invoice.total_amount || 0)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell isCompact={compact}>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => onViewDetails(invoice)}
-                        className="h-8 w-8"
+                        className={compact ? "h-6 w-6" : "h-8 w-8"}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className={compact ? "h-3 w-3" : "h-4 w-4"} />
                       </Button>
                       <Button
                         variant="ghost" 
                         size="icon"
                         onClick={() => handleDeleteClick(invoice)}
-                        className="h-8 w-8 text-destructive"
+                        className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-destructive`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
                       </Button>
                     </div>
                   </TableCell>

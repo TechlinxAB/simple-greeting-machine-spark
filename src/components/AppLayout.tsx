@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, RefreshCw, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState, role } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const isLaptop = useIsLaptop();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleForceReload = () => {
@@ -137,7 +138,10 @@ export function AppLayout() {
             <Button 
               key={link.title}
               variant="ghost" 
-              className="justify-start text-left w-full py-6 text-base"
+              className={cn(
+                "justify-start text-left w-full py-6 text-base",
+                isLaptop && "py-5 text-sm"
+              )}
               onClick={() => {
                 navigate(link.href);
                 setMobileSidebarOpen(false);
@@ -155,7 +159,7 @@ export function AppLayout() {
               setMobileSidebarOpen(false);
             }}
           >
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut className={isLaptop ? "mr-1.5 h-3.5 w-3.5" : "mr-2 h-4 w-4"} />
             Sign Out
           </Button>
         </div>
@@ -222,7 +226,10 @@ export function AppLayout() {
         
         <div className="flex-1 flex flex-col relative z-0"> {/* Added z-0 to ensure it's below sidebar */}
           <Header className="sticky top-0 z-30 left-0 right-0" /> {/* Reduced z-index and made sure it spans full width */}
-          <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
+          <main className={cn(
+            "flex-1 overflow-x-hidden overflow-y-auto",
+            isLaptop ? "p-3 md:p-4" : "p-4 md:p-6"
+          )}>
             <Outlet />
           </main>
         </div>

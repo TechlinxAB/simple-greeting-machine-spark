@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -38,15 +39,21 @@ import { toast } from "sonner";
 import { TimeEntry } from "@/types";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
   formattedDate: string;
+  isCompact?: boolean;
 }
 
-export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesListProps) {
+export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: TimeEntriesListProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const autoIsLaptop = useIsLaptop();
+  
+  // Use explicit prop if provided, otherwise use the hook
+  const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
@@ -253,8 +260,8 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
-          <CardTitle className="text-base font-medium">
+        <CardHeader className={`flex flex-row items-center justify-between ${compact ? 'pb-1 pt-3' : 'pb-2 pt-4'}`}>
+          <CardTitle className={`${compact ? 'text-sm' : 'text-base'} font-medium`}>
             Activities for <span className="text-primary">{formattedDate}</span>
           </CardTitle>
         </CardHeader>
@@ -264,81 +271,84 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             </div>
           ) : timeEntries.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
+            <div className={`text-center ${compact ? 'py-8' : 'py-12'} text-muted-foreground`}>
+              <ClipboardList className={`mx-auto ${compact ? 'h-10 w-10 mb-3' : 'h-12 w-12 mb-4'} text-muted-foreground/60`} />
               <p>No activities recorded for this day.</p>
-              <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
+              <p className={`${compact ? 'text-xs' : 'text-sm'} mt-2`}>Click "Save time entry" to add your first activity.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table isCompact={compact}>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[180px]">Client</TableHead>
-                    <TableHead className="w-[250px]">Description</TableHead>
-                    <TableHead className="w-[100px]">Type</TableHead>
-                    <TableHead className="w-[120px]">Amount</TableHead>
-                    <TableHead className="w-[100px]">Total</TableHead>
-                    <TableHead className="w-[100px]">Status</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
+                  <TableRow isCompact={compact}>
+                    <TableHead className={compact ? "w-[140px]" : "w-[180px]"} isCompact={compact}>Client</TableHead>
+                    <TableHead className={compact ? "w-[180px]" : "w-[250px]"} isCompact={compact}>Description</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Type</TableHead>
+                    <TableHead className={compact ? "w-[100px]" : "w-[120px]"} isCompact={compact}>Amount</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Total</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Status</TableHead>
+                    <TableHead className={compact ? "w-[90px]" : "w-[120px]"} isCompact={compact}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {timeEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium whitespace-nowrap">
+                    <TableRow key={entry.id} isCompact={compact}>
+                      <TableCell className="font-medium whitespace-nowrap" isCompact={compact}>
                         {entry.clients?.name || 'Unknown client'}
                       </TableCell>
-                      <TableCell className="max-w-[250px]">
+                      <TableCell className={compact ? "max-w-[180px]" : "max-w-[250px]"} isCompact={compact}>
                         <div className="line-clamp-2">
                           {entry.description || 
                             (entry.products?.name || 'No description')}
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap" isCompact={compact}>
                         <div className="flex items-center gap-1">
                           {entry.products ? (
                             entry.products.type === 'activity' ? (
-                              <Clock className="h-4 w-4 text-blue-500" />
+                              <Clock className={compact ? "h-3 w-3 text-blue-500" : "h-4 w-4 text-blue-500"} />
                             ) : (
-                              <Package className="h-4 w-4 text-primary" />
+                              <Package className={compact ? "h-3 w-3 text-primary" : "h-4 w-4 text-primary"} />
                             )
                           ) : (
-                            <Package className="h-4 w-4 text-amber-600" />
+                            <Package className={compact ? "h-3 w-3 text-amber-600" : "h-4 w-4 text-amber-600"} />
                           )}
                           <span className="capitalize">
                             {entry.products?.type || 'Deleted product'}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{getItemAmount(entry)}</TableCell>
-                      <TableCell className="font-semibold whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap" isCompact={compact}>{getItemAmount(entry)}</TableCell>
+                      <TableCell className="font-semibold whitespace-nowrap" isCompact={compact}>
                         {getItemTotal(entry)}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Badge variant={entry.invoiced ? "default" : "outline"}>
+                      <TableCell className="whitespace-nowrap" isCompact={compact}>
+                        <Badge variant={entry.invoiced ? "default" : "outline"} className={compact ? "text-xs py-0.5" : ""}>
                           {entry.invoiced ? "Invoiced" : "Pending"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell isCompact={compact}>
                         <div className="flex items-center space-x-2">
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8" 
+                            className={compact ? "h-6 w-6" : "h-8 w-8"} 
                             onClick={() => handleEditClick(entry)}
                             disabled={entry.invoiced}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className={compact ? "h-3 w-3" : "h-4 w-4"} />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                            className={compact 
+                              ? "h-6 w-6 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                              : "h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                            } 
                             onClick={() => handleDeleteClick(entry)}
                             disabled={entry.invoiced}
                           >
-                            <Trash className="h-4 w-4" />
+                            <Trash className={compact ? "h-3 w-3" : "h-4 w-4"} />
                           </Button>
                         </div>
                       </TableCell>
@@ -436,6 +446,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
               timeEntry={selectedEntry} 
               onSuccess={handleEditSuccess} 
               onCancel={() => setEditDialogOpen(false)}
+              isCompact={compact}
             />
           )}
         </DialogContent>

@@ -132,6 +132,53 @@
   a {
     @apply outline-none;
   }
+  
+  /* Laptop optimization */
+  @media (min-width: 768px) and (max-width: 1366px) {
+    .compact-text {
+      @apply text-xs;
+    }
+    
+    .compact-spacing {
+      @apply p-2;
+    }
+    
+    .compact-button {
+      @apply h-8 p-2;
+    }
+    
+    .compact-icon {
+      @apply h-4 w-4;
+    }
+    
+    .compact-input {
+      @apply text-xs h-8 py-1 px-2;
+    }
+    
+    .compact-card {
+      @apply p-3;
+    }
+    
+    .compact-heading {
+      @apply text-base;
+    }
+    
+    .compact-container {
+      @apply px-3 py-2;
+    }
+    
+    .compact-calendar .rdp-cell {
+      @apply h-7 w-7;
+    }
+    
+    .compact-calendar .rdp-head_cell {
+      @apply text-xs;
+    }
+    
+    .compact-calendar .rdp-day {
+      @apply h-7 w-7 text-xs;
+    }
+  }
 }
 
 @layer components {
@@ -171,6 +218,23 @@
   /* Responsive table container */
   .table-container {
     @apply w-full overflow-x-auto -mx-4 px-4;
+  }
+  
+  /* Laptop optimized classes */
+  .laptop-container {
+    @apply px-3 py-3;
+  }
+  
+  .laptop-compact-text {
+    @apply text-xs leading-tight;
+  }
+  
+  .laptop-compact-spacing {
+    @apply space-y-3;
+  }
+  
+  .laptop-compact-padding {
+    @apply p-2;
   }
   
   @keyframes slideIn {

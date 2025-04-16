@@ -9,9 +9,10 @@ import { format, isToday, addMonths, subMonths } from 'date-fns';
 interface DateSelectorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
+  isCompact?: boolean;
 }
 
-export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
+export function DateSelector({ selectedDate, onDateChange, isCompact = false }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
   const [forceRender, setForceRender] = useState(0);
   
@@ -51,8 +52,8 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}`;
 
   return (
-    <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
-      <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
+    <Card className={`border border-primary/20 shadow-md overflow-hidden w-full ${isCompact ? 'max-h-[275px]' : ''}`}>
+      <CardHeader className={`${isCompact ? 'pb-1 pt-2 px-3' : 'pb-2 pt-4 px-4'} border-b border-primary/20`}>
         <CardTitle className="flex items-center justify-between text-base font-medium">
           <div className="flex items-center">
             {format(currentMonth, 'MMMM, yyyy')}
@@ -61,23 +62,23 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full hover:bg-accent"
+              className={`${isCompact ? 'h-6 w-6' : 'h-7 w-7'} rounded-full hover:bg-accent`}
               onClick={handlePreviousMonth}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'}`} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full hover:bg-accent"
+              className={`${isCompact ? 'h-6 w-6' : 'h-7 w-7'} rounded-full hover:bg-accent`}
               onClick={handleNextMonth}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'}`} />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className={`p-0 ${isCompact ? 'scale-[0.85] origin-top' : ''}`}>
         <div className="flex justify-center">
           <Calendar
             key={renderKey} 
@@ -86,7 +87,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             onSelect={handleSelectDate}
             month={currentMonth}
             onMonthChange={setCurrentMonth}
-            className="w-full border-none"
+            className={`w-full border-none ${isCompact ? '-mt-2 -mb-2' : ''}`}
             showOutsideDays={true}
             modifiers={{
               selected: (date) => date.toDateString() === selectedDate.toDateString(),

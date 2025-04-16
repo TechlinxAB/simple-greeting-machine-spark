@@ -8,7 +8,7 @@ import { TimerWidget } from "@/components/time-tracking/TimerWidget";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
 
 export default function TimeTracking() {
   // Initialize with a stable Date object for today to prevent unnecessary rerenders
@@ -19,6 +19,7 @@ export default function TimeTracking() {
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const isLaptop = useIsLaptop();
 
   // Use a strong initialization approach that forces the calendar to update
   useEffect(() => {
@@ -75,25 +76,38 @@ export default function TimeTracking() {
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-12 gap-6'}`}>
-        <div className={isMobile ? 'space-y-6' : 'col-span-3 space-y-6 w-full max-w-[300px]'}>
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : isLaptop ? 'grid-cols-12 gap-4' : 'grid-cols-12 gap-6'}`}>
+        <div className={isMobile 
+          ? 'space-y-6' 
+          : isLaptop 
+            ? 'col-span-3 space-y-4 w-full max-w-[240px]' 
+            : 'col-span-3 space-y-6 w-full max-w-[300px]'
+        }>
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
+            isCompact={isLaptop}
           />
           
           <TimerWidget />
         </div>
         
-        <div className={isMobile ? 'space-y-6 mt-6' : 'col-span-9 space-y-6'}>
+        <div className={isMobile 
+          ? 'space-y-6 mt-6' 
+          : isLaptop 
+            ? 'col-span-9 space-y-4' 
+            : 'col-span-9 space-y-6'
+        }>
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}
+            isCompact={isLaptop}
           />
           
           <TimeEntriesList 
             selectedDate={selectedDate}
             formattedDate={formattedDate}
+            isCompact={isLaptop}
           />
         </div>
       </div>
