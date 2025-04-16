@@ -48,6 +48,8 @@ const Register = () => {
     setError(null);
     
     try {
+      console.log("Starting registration with values:", values.email, values.name);
+      
       // Signup with our enhanced helper function
       await signUpUser(values.email, values.password, values.name);
       
@@ -77,21 +79,21 @@ const Register = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-3">
-      <Card className="w-full max-w-[340px] sm:max-w-md">
-        <CardHeader className="space-y-1 small-card-header">
-          <CardTitle className="text-lg sm:text-xl">Create an account</CardTitle>
-          <CardDescription className="text-xs">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+          <CardDescription>
             Enter your information to create an account
           </CardDescription>
         </CardHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-3 small-card-content">
+            <CardContent className="space-y-4">
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription className="text-xs">{error}</AlertDescription>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
               
@@ -99,16 +101,12 @@ const Register = () => {
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Full Name</FormLabel>
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="John Doe" 
-                        {...field} 
-                        className="h-8 text-xs"
-                      />
+                      <Input placeholder="John Doe" {...field} />
                     </FormControl>
-                    <FormMessage className="text-xs" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -117,17 +115,12 @@ const Register = () => {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Email</FormLabel>
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="name@example.com" 
-                        {...field} 
-                        className="h-8 text-xs"
-                      />
+                      <Input type="email" placeholder="name@example.com" {...field} />
                     </FormControl>
-                    <FormMessage className="text-xs" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -136,16 +129,12 @@ const Register = () => {
                 control={form.control}
                 name="password"
                 render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Password</FormLabel>
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        {...field} 
-                        className="h-8 text-xs"
-                      />
+                      <Input type="password" {...field} />
                     </FormControl>
-                    <FormMessage className="text-xs" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -154,37 +143,29 @@ const Register = () => {
                 control={form.control}
                 name="confirmPassword"
                 render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Confirm Password</FormLabel>
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        {...field} 
-                        className="h-8 text-xs"
-                      />
+                      <Input type="password" {...field} />
                     </FormControl>
-                    <FormMessage className="text-xs" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </CardContent>
             
-            <CardFooter className="flex flex-col space-y-3 small-card-footer">
-              <Button 
-                type="submit" 
-                className="w-full h-8 text-xs" 
-                disabled={isLoading}
-              >
+            <CardFooter className="flex flex-col space-y-4">
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating account...
                   </>
                 ) : (
                   "Create account"
                 )}
               </Button>
-              <div className="text-center text-xs">
+              <div className="text-center text-sm">
                 Already have an account?{" "}
                 <Link to="/login" className="text-primary hover:underline">
                   Sign in

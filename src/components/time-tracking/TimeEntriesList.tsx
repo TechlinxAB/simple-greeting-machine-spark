@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,8 +12,7 @@ import {
   Edit, 
   Trash,
   Loader2,
-  AlertCircle,
-  MoreHorizontal
+  AlertCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,18 +33,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TimeEntryEditForm } from "./TimeEntryEditForm";
 import { toast } from "sonner";
 import { TimeEntry } from "@/types";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { formatCurrency } from "@/lib/formatCurrency";
-import { useIsMobile, useIsSmallScreen } from "@/hooks/use-mobile";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -56,8 +47,6 @@ interface TimeEntriesListProps {
 export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesListProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const isSmallScreen = useIsSmallScreen();
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoicedWarningOpen, setInvoicedWarningOpen] = useState(false);
@@ -157,9 +146,9 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
   const formatDuration = (hours: number) => {
     if (hours < 1) {
       const minutes = Math.round(hours * 60);
-      return `${minutes}m`;
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
     } else {
-      return `${hours.toFixed(1)}h`;
+      return `${hours.toFixed(2)} hour${hours !== 1 ? 's' : ''}`;
     }
   };
 
@@ -168,7 +157,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       const hours = calculateDuration(entry.start_time, entry.end_time);
       return formatDuration(hours);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return `${entry.quantity}`;
+      return `${entry.quantity} units`;
     }
     return "-";
   };
@@ -261,103 +250,37 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
     toast.success("Time entry updated successfully");
   };
 
-  const MobileTableRow = ({ entry }: { entry: any }) => (
-    <div className="border-b p-3 space-y-2 last:border-b-0">
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="font-medium">{entry.clients?.name || 'Unknown client'}</div>
-          <div className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-1">
-            {entry.description || (entry.products?.name || 'No description')}
-          </div>
-        </div>
-        <Badge variant={entry.invoiced ? "default" : "outline"} className="ml-2">
-          {entry.invoiced ? "Invoiced" : "Pending"}
-        </Badge>
-      </div>
-      
-      <div className="flex justify-between text-sm">
-        <div className="flex items-center gap-1">
-          {entry.products ? (
-            entry.products.type === 'activity' ? (
-              <Clock className="h-4 w-4 text-blue-500" />
-            ) : (
-              <Package className="h-4 w-4 text-primary" />
-            )
-          ) : (
-            <Package className="h-4 w-4 text-amber-600" />
-          )}
-          <span className="capitalize">
-            {entry.products?.type || 'Deleted product'}
-          </span>
-        </div>
-        <div className="text-right">
-          <div>{getItemAmount(entry)}</div>
-          <div className="font-semibold">{getItemTotal(entry)}</div>
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-1 pt-1">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="h-8 w-8 p-0" 
-          onClick={() => handleEditClick(entry)}
-          disabled={entry.invoiced}
-        >
-          <Edit className="h-4 w-4" />
-          <span className="sr-only">Edit</span>
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="h-8 w-8 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
-          onClick={() => handleDeleteClick(entry)}
-          disabled={entry.invoiced}
-        >
-          <Trash className="h-4 w-4" />
-          <span className="sr-only">Delete</span>
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-medium">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4">
+          <CardTitle className="text-base font-medium">
             Activities for <span className="text-primary">{formattedDate}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             </div>
           ) : timeEntries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <ClipboardList className="mx-auto h-10 w-10 mb-3 text-muted-foreground/60" />
-              <p className="text-sm">No activities recorded for this day.</p>
-              <p className="text-xs mt-2">Click "Save time entry" to add your first activity.</p>
-            </div>
-          ) : isMobile ? (
-            <div className="divide-y">
-              {timeEntries.map((entry) => (
-                <MobileTableRow key={entry.id} entry={entry} />
-              ))}
+            <div className="text-center py-12 text-muted-foreground">
+              <ClipboardList className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
+              <p>No activities recorded for this day.</p>
+              <p className="text-sm mt-2">Click "Save time entry" to add your first activity.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[150px]">Client</TableHead>
-                    <TableHead className="w-[200px]">Description</TableHead>
-                    <TableHead className="w-[80px]">Type</TableHead>
-                    <TableHead className="w-[60px]">Amount</TableHead>
-                    <TableHead className="w-[80px]">Total</TableHead>
-                    <TableHead className="w-[80px]">Status</TableHead>
-                    <TableHead className="w-[80px]">Actions</TableHead>
+                    <TableHead className="w-[180px]">Client</TableHead>
+                    <TableHead className="w-[250px]">Description</TableHead>
+                    <TableHead className="w-[100px]">Type</TableHead>
+                    <TableHead className="w-[120px]">Amount</TableHead>
+                    <TableHead className="w-[100px]">Total</TableHead>
+                    <TableHead className="w-[100px]">Status</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -366,8 +289,8 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                       <TableCell className="font-medium whitespace-nowrap">
                         {entry.clients?.name || 'Unknown client'}
                       </TableCell>
-                      <TableCell className="max-w-[180px]">
-                        <div className="line-clamp-1">
+                      <TableCell className="max-w-[250px]">
+                        <div className="line-clamp-2">
                           {entry.description || 
                             (entry.products?.name || 'No description')}
                         </div>
@@ -383,13 +306,13 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                           ) : (
                             <Package className="h-4 w-4 text-amber-600" />
                           )}
-                          <span className="capitalize text-xs">
+                          <span className="capitalize">
                             {entry.products?.type || 'Deleted product'}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{getItemAmount(entry)}</TableCell>
-                      <TableCell className="font-semibold whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap">{getItemAmount(entry)}</TableCell>
+                      <TableCell className="font-semibold whitespace-nowrap">
                         {getItemTotal(entry)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
@@ -398,7 +321,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-2">
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -429,7 +352,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       </Card>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
             <AlertDialogDescription>
@@ -460,10 +383,10 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       </AlertDialog>
       
       <AlertDialog open={invoicedWarningOpen} onOpenChange={setInvoicedWarningOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-5 w-5" />
               <span>Warning: Invoiced Time Entry</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -500,7 +423,7 @@ export function TimeEntriesList({ selectedDate, formattedDate }: TimeEntriesList
       </AlertDialog>
       
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] md:max-w-[625px]">
+        <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Edit Time Entry</DialogTitle>
             <DialogDescription>

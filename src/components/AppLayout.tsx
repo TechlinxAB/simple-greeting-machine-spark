@@ -8,15 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, RefreshCw, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useIsMobile, useIsSmallScreen } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { cn } from "@/lib/utils";
 
 export function AppLayout() {
   const { user, isLoading, loadingTimeout, signOut, resetLoadingState, role } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const isSmallScreen = useIsSmallScreen();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleForceReload = () => {
@@ -102,7 +102,7 @@ export function AppLayout() {
         ) : (
           <div className="flex flex-col items-center">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
-            <p className="text-sm text-muted-foreground">Loading your workspace...</p>
+            <p className="text-muted-foreground">Loading your workspace...</p>
           </div>
         )}
       </div>
@@ -124,21 +124,20 @@ export function AppLayout() {
       { title: "Clients", href: "/clients" },
       { title: "Products", href: "/products", showIf: isManagerOrAdmin },
       { title: "Invoices", href: "/invoices", showIf: isManagerOrAdmin },
-      { title: "Reports", href: "/reports" },
       { title: "Administration", href: "/administration", showIf: isManagerOrAdmin },
       { title: "Settings", href: "/settings", showIf: isAdmin },
       { title: "Profile", href: "/profile" },
     ];
     
     return (
-      <div className="flex flex-col p-3 space-y-1">
+      <div className="flex flex-col p-4 space-y-2">
         {links
           .filter(link => link.showIf !== false)
           .map((link) => (
             <Button 
               key={link.title}
               variant="ghost" 
-              className="justify-start text-left w-full py-3"
+              className="justify-start text-left w-full py-6 text-base"
               onClick={() => {
                 navigate(link.href);
                 setMobileSidebarOpen(false);
@@ -147,7 +146,7 @@ export function AppLayout() {
               {link.title}
             </Button>
           ))}
-        <div className="pt-3 border-t mt-3">
+        <div className="pt-4 border-t mt-4">
           <Button 
             variant="destructive" 
             className="w-full" 
@@ -176,15 +175,15 @@ export function AppLayout() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden fixed top-2 left-2 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+              className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
               aria-label="Open navigation menu"
             >
-              <Menu className="h-4 w-4" />
+              <Menu />
               <span className="sr-only">Open menu</span>
             </Button>
           </DrawerTrigger>
           <DrawerContent className="h-[85vh]">
-            <DrawerTitle className="px-3 pt-3 pb-1">Navigation Menu</DrawerTitle>
+            <DrawerTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</DrawerTitle>
             <MobileMenu />
           </DrawerContent>
         </Drawer>
@@ -198,10 +197,10 @@ export function AppLayout() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden fixed top-2 left-2 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
+            className="md:hidden fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border"
             aria-label="Open navigation menu"
           >
-            <Menu className="h-4 w-4" />
+            <Menu />
             <span className="sr-only">Open menu</span>
           </Button>
         </SheetTrigger>
@@ -209,7 +208,7 @@ export function AppLayout() {
           side="left" 
           className="p-0 w-[80vw] sm:w-[300px] z-50"
         >
-          <SheetTitle className="px-3 pt-3 pb-1">Navigation Menu</SheetTitle>
+          <SheetTitle className="px-4 pt-4 pb-2 text-lg font-semibold">Navigation Menu</SheetTitle>
           <MobileMenu />
         </SheetContent>
       </Sheet>
@@ -218,12 +217,12 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full overflow-x-hidden">
+      <div className="min-h-screen flex w-full">
         {!isMobile && <AppSidebar />}
         
-        <div className="flex-1 flex flex-col relative z-0 max-w-full overflow-x-hidden">
-          <Header />
-          <main className="flex-1 p-0 overflow-x-hidden overflow-y-auto">
+        <div className="flex-1 flex flex-col relative z-0"> {/* Added z-0 to ensure it's below sidebar */}
+          <Header className="sticky top-0 z-30 left-0 right-0" /> {/* Reduced z-index and made sure it spans full width */}
+          <main className="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>

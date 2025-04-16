@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isToday, addMonths, subMonths } from 'date-fns';
-import { useIsMobile, useIsSmallScreen } from '@/hooks/use-mobile';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -15,8 +14,6 @@ interface DateSelectorProps {
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
   const [forceRender, setForceRender] = useState(0);
-  const isMobile = useIsMobile();
-  const isSmallScreen = useIsSmallScreen();
   
   useEffect(() => {
     // Force multiple re-renders to ensure the calendar updates correctly
@@ -55,8 +52,8 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
 
   return (
     <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
-      <CardHeader className={isMobile ? "pb-1 pt-2 px-2 border-b border-primary/20" : "pb-2 pt-3 px-4 border-b border-primary/20"}>
-        <CardTitle className="flex items-center justify-between font-medium">
+      <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
+        <CardTitle className="flex items-center justify-between text-base font-medium">
           <div className="flex items-center">
             {format(currentMonth, 'MMMM, yyyy')}
           </div>
@@ -64,24 +61,24 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
             <Button
               variant="ghost"
               size="icon"
-              className={isMobile ? "h-6 w-6 rounded-full hover:bg-accent" : "h-8 w-8 rounded-full hover:bg-accent"}
+              className="h-7 w-7 rounded-full hover:bg-accent"
               onClick={handlePreviousMonth}
             >
-              <ChevronLeft className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className={isMobile ? "h-6 w-6 rounded-full hover:bg-accent" : "h-8 w-8 rounded-full hover:bg-accent"}
+              className="h-7 w-7 rounded-full hover:bg-accent"
               onClick={handleNextMonth}
             >
-              <ChevronRight className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="flex justify-center transform-none">
+        <div className="flex justify-center">
           <Calendar
             key={renderKey} 
             mode="single"
