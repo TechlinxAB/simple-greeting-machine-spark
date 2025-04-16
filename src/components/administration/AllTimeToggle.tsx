@@ -1,8 +1,6 @@
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useState } from "react";
-import { CalendarRange, Clock } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
+import { Clock } from "lucide-react";
 
 interface AllTimeToggleProps {
   allTimeEnabled: boolean;

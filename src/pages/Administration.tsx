@@ -27,6 +27,8 @@ import { MonthYearSelector } from "@/components/administration/MonthYearSelector
 import { UserSelect } from "@/components/administration/UserSelect";
 import { toast } from "sonner";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
+import { TimeEntry } from "@/types";
+import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 
 export default function Administration() {
   const queryClient = useQueryClient();
@@ -153,7 +155,7 @@ export default function Administration() {
     query = query.order(sortField, { ascending: sortDirection === 'asc' });
   }
 
-  const { data: timeEntries = [], isLoading } = useQuery({
+  const { data: rawTimeEntries = [], isLoading } = useQuery({
     queryKey: ["time-entries", selectedMonth, selectedYear, selectedUserId, sortField, sortDirection, allTimeEnabled],
     queryFn: async () => {
       console.log("Fetching time entries with params:", {
@@ -176,6 +178,15 @@ export default function Administration() {
       return data || [];
     },
   });
+  
+  // Transform raw data to match TimeEntry type
+  const timeEntries: TimeEntry[] = rawTimeEntries.map((entry: any) => ({
+    ...entry,
+    products: entry.products ? {
+      ...entry.products,
+      type: entry.products.type as 'activity' | 'item'
+    } : undefined
+  }));
 
   const handleEntryDeleted = async () => {
     await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
@@ -202,7 +213,7 @@ export default function Administration() {
                 <div className="grid gap-2 flex-1">
                   <UserSelect 
                     selectedUserId={selectedUserId} 
-                    onChange={handleUserChange} 
+                    onUserChange={handleUserChange} 
                     label="Filter by user"
                   />
                 </div>
@@ -220,7 +231,6 @@ export default function Administration() {
                         selectedMonth={selectedMonth}
                         selectedYear={selectedYear}
                         onMonthYearChange={handleMonthYearChange}
-                        className="flex-1"
                       />
                     )}
                   </div>

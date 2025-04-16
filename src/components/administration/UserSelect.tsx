@@ -15,9 +15,10 @@ interface UserSelectProps {
   onUserChange: (value: string | null) => void;
   includeAllOption?: boolean;
   className?: string;
+  label?: string;
 }
 
-export function UserSelect({ selectedUserId, onUserChange, includeAllOption = false, className }: UserSelectProps) {
+export function UserSelect({ selectedUserId, onUserChange, includeAllOption = false, className, label }: UserSelectProps) {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
@@ -39,6 +40,7 @@ export function UserSelect({ selectedUserId, onUserChange, includeAllOption = fa
 
   return (
     <div className={className || ""}>
+      {label && <label className="text-sm font-medium mb-2 block">{label}</label>}
       <Select
         value={selectedUserId || "all-users"} 
         onValueChange={(val) => onUserChange(val === "all-users" ? null : val)}

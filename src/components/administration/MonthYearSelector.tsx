@@ -10,6 +10,7 @@ interface MonthYearSelectorProps {
   includeAllOption?: boolean;
   onAllSelected?: () => void;
   isAllSelected?: boolean;
+  className?: string;
 }
 
 export function MonthYearSelector({
@@ -18,7 +19,8 @@ export function MonthYearSelector({
   onMonthYearChange,
   includeAllOption = false,
   onAllSelected,
-  isAllSelected = false
+  isAllSelected = false,
+  className
 }: MonthYearSelectorProps) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -34,7 +36,7 @@ export function MonthYearSelector({
   };
   
   return (
-    <div className="flex items-center space-x-2">
+    <div className={`flex items-center space-x-2 ${className || ""}`}>
       <div className="flex items-center space-x-1">
         <Select value={selectedMonth.toString()} onValueChange={value => onMonthYearChange(parseInt(value), selectedYear)}>
           <SelectTrigger className="w-[120px]">
