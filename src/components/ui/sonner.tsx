@@ -13,7 +13,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       closeButton={true}
       richColors
-      pauseWhenHoverPause
       onClick={() => {}} // This allows clicking to dismiss
       toastOptions={{
         classNames: {
@@ -32,4 +31,3 @@ const Toaster = ({ ...props }: ToasterProps) => {
 }
 
 export { Toaster }
-
