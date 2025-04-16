@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Search, 
-  RefreshCcw, 
   Trash2, 
-  CheckCircle, 
-  XCircle, 
-  Edit2, 
   Upload,
   FilePlus2
 } from "lucide-react";
@@ -295,26 +290,15 @@ export default function Administration() {
                         </Button>
                       </>
                     ) : (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex items-center gap-2"
-                          onClick={refetchTimeEntries}
-                        >
-                          <RefreshCcw className="h-3.5 w-3.5" />
-                          <span>Refresh</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-2"
-                          onClick={toggleBulkDeleteMode}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Bulk Delete</span>
-                        </Button>
-                      </>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                        onClick={toggleBulkDeleteMode}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Bulk Delete</span>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -365,7 +349,6 @@ export default function Administration() {
                 onItemSelect={handleItemSelect}
                 onSelectAll={handleSelectAll}
                 onBulkDelete={handleBulkDelete}
-                onEntryDeleted={refetchTimeEntries}
               />
             </div>
           </TabsContent>
@@ -375,15 +358,6 @@ export default function Administration() {
               <Card className="shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>All Invoices</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => refetchInvoices()}
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                    <span>Refresh</span>
-                  </Button>
                 </CardHeader>
                 
                 <CardContent>
