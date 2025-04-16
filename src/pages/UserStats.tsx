@@ -32,6 +32,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useIsLaptop } from "@/hooks/use-mobile";
+import { type ProductType } from "@/types";
 
 // Define interfaces for the stats data structures
 interface ClientStat {
@@ -62,7 +63,7 @@ interface UserTimeEntry {
   products?: {
     id: string;
     name: string;
-    type: 'activity' | 'item';
+    type: ProductType; // Using the ProductType from types
     price: number;
   };
 }
@@ -95,7 +96,7 @@ export default function UserStats() {
   const currentMonthEnd = endOfMonth(currentDate);
   
   // Get time entries for the current month
-  const { data: currentMonthEntries = [], isLoading: isLoadingCurrentMonth } = useQuery({
+  const { data: currentMonthTimeEntries = [], isLoading: isLoadingCurrentMonth } = useQuery({
     queryKey: ["user-time-entries", userId, "current-month", format(currentMonthStart, "yyyy-MM")],
     queryFn: async () => {
       if (!userId) return [];
@@ -112,7 +113,7 @@ export default function UserStats() {
         .lte("end_time", currentMonthEnd.toISOString());
         
       if (error) throw error;
-      return data || [];
+      return data as unknown as UserTimeEntry[];
     },
     enabled: !!userId
   });
@@ -133,7 +134,7 @@ export default function UserStats() {
         .eq("user_id", userId);
         
       if (error) throw error;
-      return data || [];
+      return data as unknown as UserTimeEntry[];
     },
     enabled: !!userId
   });
@@ -256,15 +257,15 @@ export default function UserStats() {
   };
 
   // Stats for current month and all time
-  const currentMonthHours = calculateHours(currentMonthEntries);
-  const currentMonthRevenue = calculateRevenue(currentMonthEntries);
+  const currentMonthHours = calculateHours(currentMonthTimeEntries);
+  const currentMonthRevenue = calculateRevenue(currentMonthTimeEntries);
   const allTimeHours = calculateHours(allTimeEntries);
   const allTimeRevenue = calculateRevenue(allTimeEntries);
   
-  const currentMonthClientStats = getClientStats(currentMonthEntries);
+  const currentMonthClientStats = getClientStats(currentMonthTimeEntries);
   const allTimeClientStats = getClientStats(allTimeEntries);
   
-  const currentMonthProductStats = getProductStats(currentMonthEntries);
+  const currentMonthProductStats = getProductStats(currentMonthTimeEntries);
   const allTimeProductStats = getProductStats(allTimeEntries);
 
   if (isLoadingProfile) {
@@ -330,7 +331,7 @@ export default function UserStats() {
                 </AvatarFallback>
               </Avatar>
               <CardTitle className="mt-2">{profile.name}</CardTitle>
-              <Badge variant={roleBadgeVariants[profile.role] as any || "secondary"} className="mt-2">
+              <Badge variant={roleBadgeVariants[profile.role as keyof typeof roleBadgeVariants] as any || "secondary"} className="mt-2">
                 <span className="capitalize">{profile.role}</span>
               </Badge>
             </div>
@@ -412,7 +413,7 @@ export default function UserStats() {
                   <div className="flex justify-center items-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                ) : currentMonthEntries.length === 0 ? (
+                ) : currentMonthTimeEntries.length === 0 ? (
                   <Alert className="mb-6">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>No data for this month</AlertTitle>
