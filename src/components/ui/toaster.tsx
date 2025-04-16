@@ -1,10 +1,12 @@
 
 import { Toaster as SonnerToaster } from "sonner";
+import { X } from "lucide-react";
 
 export function Toaster() {
   return (
     <SonnerToaster 
       position="top-right"
+      closeButton={true}
       toastOptions={{
         style: {
           background: "hsl(var(--background))",
