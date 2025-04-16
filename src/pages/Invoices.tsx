@@ -3,23 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CalendarRange, FilePlus2, Search, FileText, RefreshCcw, Upload, X, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { environment } from "@/config/environment";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { UserSelect } from "@/components/dashboard/UserSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
@@ -520,7 +517,7 @@ export default function Invoices() {
                 
                 {unbilledEntries.length === 0 ? (
                   <div className="text-center py-4 border rounded-md bg-muted/20">
-                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected month/year.</p>
+                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected time span.</p>
                   </div>
                 ) : (
                   <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[400px]">

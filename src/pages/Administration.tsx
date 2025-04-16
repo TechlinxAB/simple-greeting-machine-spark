@@ -22,13 +22,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Trash2, AlertCircle } from "lucide-react";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { UserSelect } from "@/components/administration/UserSelect";
 import { toast } from "sonner";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { TimeEntry } from "@/types";
-import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 
 export default function Administration() {
   const queryClient = useQueryClient();
@@ -167,15 +166,20 @@ export default function Administration() {
         allTime: allTimeEnabled
       });
       
-      const { data, error } = await query;
-      
-      if (error) {
+      try {
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching time entries:", error);
+          throw error;
+        }
+        
+        console.log(`Found ${data?.length || 0} time entries`);
+        return data || [];
+      } catch (error) {
         console.error("Error fetching time entries:", error);
-        throw error;
+        return [];
       }
-      
-      console.log(`Found ${data?.length || 0} time entries`);
-      return data || [];
     },
   });
   
