@@ -76,6 +76,8 @@ export default function Invoices() {
   const [timeEntryToEdit, setTimeEntryToEdit] = useState<TimeEntryWithProfile | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [excludedEntries, setExcludedEntries] = useState<string[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { role } = useAuth();
 
   const { data: invoicesData = [], isLoading, refetch } = useQuery({
@@ -391,6 +393,11 @@ export default function Invoices() {
     return 'N/A';
   };
 
+  const handleViewInvoiceDetails = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsDetailsOpen(true);
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -436,6 +443,7 @@ export default function Invoices() {
             invoices={filteredInvoices}
             isLoading={isLoading}
             onInvoiceDeleted={handleInvoiceDeleted}
+            onViewDetails={handleViewInvoiceDetails}
           />
 
           {!fortnoxConnected && (
@@ -451,6 +459,14 @@ export default function Invoices() {
           )}
         </CardContent>
       </Card>
+      
+      {selectedInvoice && (
+        <InvoiceDetailsView 
+          invoice={selectedInvoice} 
+          open={isDetailsOpen} 
+          onClose={() => setIsDetailsOpen(false)} 
+        />
+      )}
       
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
         <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">

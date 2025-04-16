@@ -1,160 +1,88 @@
 
-import React, { useState } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency } from "@/lib/formatCurrency";
-import { type Invoice } from "@/types";
-import { format } from "date-fns";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
-import { Badge } from "@/components/ui/badge";
-import { Icons } from "@/components/icons";
-import { DialogWrapper } from "@/components/ui/dialog-wrapper";
-import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
+import React from 'react';
+import { format } from 'date-fns';
+import { Invoice } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Trash2, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
-export interface InvoicesTableProps {
+interface InvoicesTableProps {
   invoices: Invoice[];
   isLoading: boolean;
   onInvoiceDeleted: () => void;
-  bulkDeleteMode?: boolean;
-  selectedItems?: string[];
-  onItemSelect?: (id: string) => void;
-  onSelectAll?: (checked: boolean) => void;
-  onBulkDelete?: () => void;
-  onSort?: (field: string) => void;
-  sortField?: string | null;
-  sortDirection?: 'asc' | 'desc';
+  onViewDetails: (invoice: Invoice) => void;
 }
 
-export function InvoicesTable({
-  invoices,
-  isLoading,
-  onInvoiceDeleted,
-  bulkDeleteMode = false,
-  selectedItems = [],
-  onItemSelect = () => {},
-  onSelectAll = () => {},
-  onBulkDelete = () => {},
-  onSort = () => {},
-  sortField = null,
-  sortDirection = 'desc'
-}: InvoicesTableProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [hasTimeEntries, setHasTimeEntries] = useState(false);
-  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+export function InvoicesTable({ invoices, isLoading, onInvoiceDeleted, onViewDetails }: InvoicesTableProps) {
+  const { toast } = useToast();
+  const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const handleDeleteClick = async (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    
-    try {
-      const { data, error } = await supabase
-        .from("time_entries")
-        .select("id")
-        .eq("invoice_id", invoice.id)
-        .limit(1);
-      
-      if (error) {
-        console.error("Error checking invoice references:", error);
-        toast.error("Failed to check if invoice can be deleted");
-        return;
-      }
-      
-      setHasTimeEntries(data && data.length > 0);
-      setDeleteDialogOpen(true);
-    } catch (error) {
-      console.error("Error checking time entries:", error);
-      toast.error("An unexpected error occurred");
-    }
+  const handleDeleteClick = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
   };
 
-  const handleDelete = async () => {
-    if (!selectedInvoice) return;
+  const handleDeleteConfirm = async () => {
+    if (!invoiceToDelete) return;
     
     setIsDeleting(true);
     
     try {
-      if (hasTimeEntries) {
-        const { error: updateError } = await supabase
-          .from("time_entries")
-          .update({ 
-            invoice_id: null,
-            invoiced: false 
-          })
-          .eq("invoice_id", selectedInvoice.id);
-        
-        if (updateError) {
-          console.error("Error updating time entries:", updateError);
-          toast.error("Failed to update related time entries");
-          return;
-        }
+      // First update related time entries to remove invoice_id
+      const { error: timeEntriesError } = await supabase
+        .from('time_entries')
+        .update({ invoice_id: null, invoiced: false })
+        .eq('invoice_id', invoiceToDelete.id);
+      
+      if (timeEntriesError) {
+        throw timeEntriesError;
       }
       
-      const { error } = await supabase
-        .from("invoices")
+      // Then delete the invoice
+      const { error: invoiceError } = await supabase
+        .from('invoices')
         .delete()
-        .eq("id", selectedInvoice.id);
+        .eq('id', invoiceToDelete.id);
       
-      if (error) {
-        console.error("Error deleting invoice:", error);
-        toast.error("Failed to delete invoice");
-        return;
+      if (invoiceError) {
+        throw invoiceError;
       }
+      
+      toast({
+        title: "Invoice deleted",
+        description: `Invoice #${invoiceToDelete.invoice_number} has been deleted.`,
+      });
       
       onInvoiceDeleted();
-      toast.success("Invoice deleted successfully");
-      setDeleteDialogOpen(false);
     } catch (error) {
-      console.error("Error in delete operation:", error);
-      toast.error("An unexpected error occurred");
+      console.error('Error deleting invoice:', error);
+      toast({
+        variant: "destructive",
+        title: "Error deleting invoice",
+        description: "There was an error deleting the invoice. Please try again.",
+      });
     } finally {
       setIsDeleting(false);
+      setInvoiceToDelete(null);
     }
   };
 
-  const handleViewDetails = (invoice: Invoice) => {
-    setViewingInvoice(invoice);
-    setViewDetailsOpen(true);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'draft':
-        return <Badge variant="outline">Draft</Badge>;
-      case 'sent':
-        return <Badge variant="secondary">Sent</Badge>;
-      case 'paid':
-        return <Badge className="bg-green-500 hover:bg-green-600">Paid</Badge>;
-      case 'overdue':
-        return <Badge variant="destructive">Overdue</Badge>;
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "default" as const;
+      case "sent":
+        return "secondary" as const;
+      case "overdue":
+        return "destructive" as const;
       default:
-        return <Badge variant="outline">{status || 'Unknown'}</Badge>;
+        return "outline" as const;
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (invoices.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-4">
-        <Icons.fileText className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium">No invoices found</h3>
-        <p className="text-muted-foreground mt-1">
-          No invoices match your current filters.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -162,161 +90,89 @@ export function InvoicesTable({
         <Table>
           <TableHeader>
             <TableRow>
-              {bulkDeleteMode && (
-                <TableHead className="w-[40px]">
-                  <Checkbox 
-                    checked={invoices.length > 0 && selectedItems.length === invoices.length}
-                    onCheckedChange={(checked) => onSelectAll(!!checked)}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-              )}
-              <TableHead>Invoice Number</TableHead>
+              <TableHead>Invoice #</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Issue Date</TableHead>
               <TableHead>Due Date</TableHead>
-              <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[100px] text-right">Actions</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
-                {bulkDeleteMode && (
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedItems.includes(invoice.id)}
-                      onCheckedChange={() => onItemSelect(invoice.id)}
-                      aria-label={`Select invoice ${invoice.id}`}
-                    />
-                  </TableCell>
-                )}
-                <TableCell>
-                  <div className="font-medium">
-                    {invoice.invoice_number || "N/A"}
-                  </div>
-                  {invoice.exported_to_fortnox && (
-                    <div className="text-xs text-blue-500">
-                      Exported to Fortnox {invoice.fortnox_invoice_id ? `#${invoice.fortnox_invoice_id}` : ""}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {invoice.clients?.name || "Unknown client"}
-                </TableCell>
-                <TableCell>
-                  {invoice.issue_date ? format(new Date(invoice.issue_date), "MMM d, yyyy") : "N/A"}
-                </TableCell>
-                <TableCell>
-                  {invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "N/A"}
-                </TableCell>
-                <TableCell>
-                  {new Intl.NumberFormat('sv-SE', { 
-                    style: 'currency', 
-                    currency: 'SEK'
-                  }).format(invoice.total_amount || 0)}
-                </TableCell>
-                <TableCell>
-                  {getStatusBadge(invoice.status || '')}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end">
-                    {invoice.exported_to_fortnox && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewDetails(invoice)}
-                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                        title="View invoice details"
-                      >
-                        <Icons.fileText className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteClick(invoice)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      title={
-                        invoice.exported_to_fortnox
-                          ? "Warning: This will only delete from database, not from Fortnox"
-                          : "Delete invoice"
-                      }
-                    >
-                      <Icons.trash className="h-4 w-4" />
-                    </Button>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  <div className="flex justify-center items-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  No invoices found
+                </TableCell>
+              </TableRow>
+            ) : (
+              invoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                  <TableCell>{invoice.clients?.name}</TableCell>
+                  <TableCell>
+                    {invoice.issue_date ? format(new Date(invoice.issue_date), 'MMM d, yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getBadgeVariant(invoice.status || 'draft')}>
+                      {invoice.status || 'draft'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {new Intl.NumberFormat('sv-SE', { 
+                      style: 'currency', 
+                      currency: 'SEK'
+                    }).format(invoice.total_amount || 0)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onViewDetails(invoice)}
+                        className="h-8 w-8"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleDeleteClick(invoice)}
+                        className="h-8 w-8 text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
-            <AlertDialogDescription>
-              {selectedInvoice?.exported_to_fortnox && (
-                <div className="text-amber-500 mb-2">
-                  <div className="flex items-start gap-2">
-                    <Icons.alertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                    <span>
-                      <span className="font-medium">Warning: This invoice has been exported to Fortnox</span>
-                      <br />
-                      Deleting this invoice will only remove it from your database. It will <strong>not</strong> be deleted from Fortnox. This may cause data inconsistency.
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              {hasTimeEntries ? (
-                <div className="mt-2">
-                  <div className="flex items-start gap-2">
-                    <Icons.alertCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span>
-                      <span className="font-medium text-amber-500">This invoice has time entries attached</span>
-                      <br />
-                      Deleting this invoice will remove the invoice association from these time entries, 
-                      making them available for invoicing again.
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-2">
-                  Are you sure you want to delete this invoice? This action is irreversible.
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <DialogWrapper
-        open={viewDetailsOpen}
-        onOpenChange={setViewDetailsOpen}
-        title="Invoice Details"
-        description="View details of this invoice and related time entries."
-      >
-        {viewingInvoice && (
-          <InvoiceDetailsView invoice={viewingInvoice} />
-        )}
-      </DialogWrapper>
+      <ConfirmDialog
+        open={!!invoiceToDelete}
+        onOpenChange={() => setInvoiceToDelete(null)}
+        title="Delete Invoice"
+        description={`Are you sure you want to delete invoice #${invoiceToDelete?.invoice_number}? This will also mark all related time entries as unbilled.`}
+        actionLabel={isDeleting ? "Deleting..." : "Delete"}
+        onAction={handleDeleteConfirm}
+        disabled={isDeleting}
+        variant="destructive"
+      />
     </>
   );
 }

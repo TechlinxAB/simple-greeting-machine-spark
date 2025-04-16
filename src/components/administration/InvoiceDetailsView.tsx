@@ -6,15 +6,19 @@ import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, Package, Loader2, FileText } from 'lucide-react';
+import { Clock, Package, Loader2, FileText, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 interface InvoiceDetailsViewProps {
   invoice: Invoice;
+  open: boolean;
+  onClose: () => void;
 }
 
-export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
+export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsViewProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -88,8 +92,10 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
       }
     };
 
-    fetchTimeEntries();
-  }, [invoice.id]);
+    if (open && invoice.id) {
+      fetchTimeEntries();
+    }
+  }, [invoice.id, open]);
 
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
@@ -114,161 +120,181 @@ export function InvoiceDetailsView({ invoice }: InvoiceDetailsViewProps) {
   const itemCount = timeEntries.filter(entry => entry.products?.type === 'item').length;
 
   return (
-    <div className="space-y-6 max-w-[900px] mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Invoice Information</CardTitle>
-            <CardDescription>Details about this invoice</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
-              <div className="font-medium text-muted-foreground">Invoice Number:</div>
-              <div>{invoice.invoice_number}</div>
-              
-              <div className="font-medium text-muted-foreground">Fortnox Invoice ID:</div>
-              <div>{invoice.fortnox_invoice_id || 'N/A'}</div>
-              
-              <div className="font-medium text-muted-foreground">Client:</div>
-              <div>{invoice.clients?.name}</div>
-              
-              <div className="font-medium text-muted-foreground">Issue Date:</div>
-              <div>{invoice.issue_date ? format(new Date(invoice.issue_date), 'MMM d, yyyy') : 'N/A'}</div>
-              
-              <div className="font-medium text-muted-foreground">Due Date:</div>
-              <div>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'N/A'}</div>
-              
-              <div className="font-medium text-muted-foreground">Status:</div>
-              <div>
-                <Badge variant="outline" className={`${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}>
-                  {invoice.status || 'draft'}
-                </Badge>
-              </div>
-              
-              <div className="font-medium text-muted-foreground">Total Amount:</div>
-              <div className="font-bold">
-                {new Intl.NumberFormat('sv-SE', { 
-                  style: 'currency', 
-                  currency: 'SEK'
-                }).format(invoice.total_amount || 0)}
-              </div>
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent className="w-full max-w-5xl p-0 sm:max-w-5xl overflow-hidden">
+        <div className="h-full flex flex-col">
+          {/* Header section */}
+          <div className="p-6 border-b">
+            <div className="flex items-center justify-between mb-2">
+              <SheetTitle className="text-xl font-semibold">Invoice Details</SheetTitle>
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Summary</CardTitle>
-            <CardDescription>Invoice line items summary</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-24">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-[150px_1fr] gap-y-2 text-sm">
-                  <span className="text-muted-foreground">Time entries:</span>
-                  <span className="text-right">{timeEntries.length}</span>
-                  
-                  <span className="text-muted-foreground">Activities:</span>
-                  <span className="text-right">{activityCount}</span>
-                  
-                  <span className="text-muted-foreground">Items:</span>
-                  <span className="text-right">{itemCount}</span>
-                </div>
-                
-                <Separator className="my-2" />
-                
-                <div className="grid grid-cols-[150px_1fr] gap-y-2 text-sm">
-                  <span className="font-medium">Total:</span>
-                  <span className="text-right font-bold">
-                    {new Intl.NumberFormat('sv-SE', { 
-                      style: 'currency', 
-                      currency: 'SEK'
-                    }).format(invoice.total_amount || 0)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <CardTitle className="text-xl">Time Entries</CardTitle>
+            <SheetDescription>
+              View details of this invoice and related time entries.
+            </SheetDescription>
           </div>
-          <CardDescription>Time entries and items included in this invoice</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-24">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          
+          {/* Content section */}
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <Card className="border shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Invoice Information</CardTitle>
+                  <CardDescription>Details about this invoice</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-[140px_1fr] gap-y-3 text-sm">
+                    <div className="font-medium text-muted-foreground">Invoice Number:</div>
+                    <div>{invoice.invoice_number}</div>
+                    
+                    <div className="font-medium text-muted-foreground">Fortnox Invoice ID:</div>
+                    <div>{invoice.fortnox_invoice_id || 'N/A'}</div>
+                    
+                    <div className="font-medium text-muted-foreground">Client:</div>
+                    <div>{invoice.clients?.name}</div>
+                    
+                    <div className="font-medium text-muted-foreground">Issue Date:</div>
+                    <div>{invoice.issue_date ? format(new Date(invoice.issue_date), 'MMM d, yyyy') : 'N/A'}</div>
+                    
+                    <div className="font-medium text-muted-foreground">Due Date:</div>
+                    <div>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'N/A'}</div>
+                    
+                    <div className="font-medium text-muted-foreground">Status:</div>
+                    <div>
+                      <Badge variant="outline" className={`${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}>
+                        {invoice.status || 'draft'}
+                      </Badge>
+                    </div>
+                    
+                    <div className="font-medium text-muted-foreground">Total Amount:</div>
+                    <div className="font-bold">
+                      {new Intl.NumberFormat('sv-SE', { 
+                        style: 'currency', 
+                        currency: 'SEK'
+                      }).format(invoice.total_amount || 0)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Summary</CardTitle>
+                  <CardDescription>Invoice line items summary</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-24">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-[140px_1fr] gap-y-3 text-sm">
+                        <span className="text-muted-foreground">Time entries:</span>
+                        <span className="text-right">{timeEntries.length}</span>
+                        
+                        <span className="text-muted-foreground">Activities:</span>
+                        <span className="text-right">{activityCount}</span>
+                        
+                        <span className="text-muted-foreground">Items:</span>
+                        <span className="text-right">{itemCount}</span>
+                      </div>
+                      
+                      <Separator className="my-2" />
+                      
+                      <div className="grid grid-cols-[140px_1fr] gap-y-3 text-sm">
+                        <span className="font-medium">Total:</span>
+                        <span className="text-right font-bold">
+                          {new Intl.NumberFormat('sv-SE', { 
+                            style: 'currency', 
+                            currency: 'SEK'
+                          }).format(invoice.total_amount || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          ) : timeEntries.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              No time entries found for this invoice.
-            </div>
-          ) : (
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-[180px]">Product</TableHead>
-                    <TableHead className="w-[100px]">Type</TableHead>
-                    <TableHead className="w-[150px]">User</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[100px]">Date</TableHead>
-                    <TableHead className="w-[130px]">Duration/Quantity</TableHead>
-                    <TableHead className="w-[120px] text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {timeEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium">{entry.products?.name || 'Unknown'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {entry.products?.type === 'activity' ? (
-                            <Clock className="h-4 w-4 text-blue-500" />
-                          ) : (
-                            <Package className="h-4 w-4 text-primary" />
-                          )}
-                          <span className="text-xs capitalize">{entry.products?.type || 'Unknown'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {entry.products?.type === 'activity' && entry.start_time ? 
-                          format(new Date(entry.start_time), 'MMM d, yyyy') :
-                          entry.created_at ? format(new Date(entry.created_at), 'MMM d, yyyy') : 'Unknown date'}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                          ? `${calculateDuration(entry.start_time, entry.end_time)} hours`
-                          : entry.quantity ? `${entry.quantity} units` : 'N/A'}
-                      </TableCell>
-                      <TableCell className="font-medium text-right">
-                        {new Intl.NumberFormat('sv-SE', { 
-                          style: 'currency', 
-                          currency: 'SEK'
-                        }).format(parseFloat(getItemTotal(entry)))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            
+            <Card className="border shadow-sm mb-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Time Entries</CardTitle>
+                </div>
+                <CardDescription>Time entries and items included in this invoice</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-24">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : timeEntries.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground px-6">
+                    No time entries found for this invoice.
+                  </div>
+                ) : (
+                  <div className="overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>Product</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>User</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Duration/Quantity</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {timeEntries.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="font-medium">{entry.products?.name || 'Unknown'}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {entry.products?.type === 'activity' ? (
+                                  <Clock className="h-4 w-4 text-blue-500" />
+                                ) : (
+                                  <Package className="h-4 w-4 text-primary" />
+                                )}
+                                <span className="text-xs capitalize">{entry.products?.type || 'Unknown'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{entry.profiles?.name || 'Unknown'}</TableCell>
+                            <TableCell className="max-w-[150px] truncate">
+                              {entry.description || <span className="text-muted-foreground italic text-xs">No description</span>}
+                            </TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">
+                              {entry.products?.type === 'activity' && entry.start_time ? 
+                                format(new Date(entry.start_time), 'MMM d, yyyy') :
+                                entry.created_at ? format(new Date(entry.created_at), 'MMM d, yyyy') : 'Unknown date'}
+                            </TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">
+                              {entry.products?.type === 'activity' && entry.start_time && entry.end_time
+                                ? `${calculateDuration(entry.start_time, entry.end_time)} hours`
+                                : entry.quantity ? `${entry.quantity} units` : 'N/A'}
+                            </TableCell>
+                            <TableCell className="font-medium text-right whitespace-nowrap">
+                              {new Intl.NumberFormat('sv-SE', { 
+                                style: 'currency', 
+                                currency: 'SEK'
+                              }).format(parseFloat(getItemTotal(entry)))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </ScrollArea>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
