@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
@@ -429,7 +428,8 @@ const SidebarHeader = React.forwardRef<
       ref={ref}
       data-sidebar="header"
       className={cn(
-        "flex h-14 shrink-0 items-center border-b border-sidebar-border px-4 cursor-default",
+        "flex h-14 shrink-0 items-center px-4 cursor-default",
+        "border-b-0", // Remove border
         className
       )}
       {...props}
@@ -448,7 +448,8 @@ const SidebarFooter = React.forwardRef<
       ref={ref}
       data-sidebar="footer"
       className={cn(
-        "flex shrink-0 items-center border-t border-sidebar-border px-2 py-2 cursor-default",
+        "flex shrink-0 items-center px-2 py-2 cursor-default",
+        "border-t-0", // Remove border
         className
       )}
       {...props}
