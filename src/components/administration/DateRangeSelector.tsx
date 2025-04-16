@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,7 +17,6 @@ export function DateRangeSelector({
   toDate, 
   onDateChange 
 }: DateRangeSelectorProps) {
-  // Create a two-stage selection in a single dialog
   const [fromPickerOpen, setFromPickerOpen] = useState(false);
   const [toPickerOpen, setToPickerOpen] = useState(false);
   const [localFromDate, setLocalFromDate] = useState<Date | undefined>(fromDate);
@@ -34,8 +32,6 @@ export function DateRangeSelector({
   }, [fromDate, toDate]);
 
   const handleFromDateSelect = (date: Date | undefined) => {
-    // We want to prevent unselection - if date is undefined, keep the previous date
-    // Also, if they click the same date again, don't treat it as an unselection
     if (!date) {
       return;
     }
@@ -44,15 +40,12 @@ export function DateRangeSelector({
     onDateChange(date, localToDate);
     setFromPickerOpen(false);
     
-    // Automatically open To date picker if From date was selected and To date is not set
     if (date && !localToDate) {
       setTimeout(() => setToPickerOpen(true), 100);
     }
   };
 
   const handleToDateSelect = (date: Date | undefined) => {
-    // We want to prevent unselection - if date is undefined, keep the previous date
-    // Also, if they click the same date again, don't treat it as an unselection
     if (!date) {
       return;
     }
@@ -96,27 +89,6 @@ export function DateRangeSelector({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <div className="flex items-center justify-between p-2 border-b">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePreviousMonth(true)}
-                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-sm font-medium">
-                {format(fromMonth, 'MMMM yyyy')}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleNextMonth(true)}
-                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
             <Calendar
               mode="single"
               selected={localFromDate}
@@ -125,6 +97,24 @@ export function DateRangeSelector({
               onMonthChange={setFromMonth}
               initialFocus
               className="pointer-events-auto"
+              classNames={{
+                caption: "flex items-center justify-between p-2 border-b",
+                caption_label: "text-sm font-medium",
+                nav: "space-x-1 flex items-center",
+                nav_button: cn(
+                  "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100",
+                  "rounded-full hover:bg-accent"
+                ),
+                nav_button_previous: "absolute left-1",
+                nav_button_next: "absolute right-1"
+              }}
+              components={{
+                Caption: ({ label }) => (
+                  <div className="flex items-center justify-center">
+                    <span>{label}</span>
+                  </div>
+                )
+              }}
             />
           </PopoverContent>
         </Popover>
@@ -146,27 +136,6 @@ export function DateRangeSelector({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <div className="flex items-center justify-between p-2 border-b">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePreviousMonth(false)}
-                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-sm font-medium">
-                {format(toMonth, 'MMMM yyyy')}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleNextMonth(false)}
-                className="h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
             <Calendar
               mode="single"
               selected={localToDate}
@@ -175,6 +144,24 @@ export function DateRangeSelector({
               onMonthChange={setToMonth}
               initialFocus
               className="pointer-events-auto"
+              classNames={{
+                caption: "flex items-center justify-between p-2 border-b",
+                caption_label: "text-sm font-medium",
+                nav: "space-x-1 flex items-center",
+                nav_button: cn(
+                  "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100",
+                  "rounded-full hover:bg-accent"
+                ),
+                nav_button_previous: "absolute left-1",
+                nav_button_next: "absolute right-1"
+              }}
+              components={{
+                Caption: ({ label }) => (
+                  <div className="flex items-center justify-center">
+                    <span>{label}</span>
+                  </div>
+                )
+              }}
             />
           </PopoverContent>
         </Popover>
