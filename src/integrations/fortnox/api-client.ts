@@ -58,13 +58,17 @@ export async function fortnoxApiRequest(
       options.body = JSON.stringify(data);
     }
     
-    console.log(`Making ${method} request to Fortnox proxy: /api/fortnox-proxy${endpoint}`);
+    // Get the full URL to the edge function
+    const { origin } = window.location;
+    const edgeFunctionUrl = `${origin}/api/fortnox-proxy${endpoint}`;
+    
+    console.log(`Making ${method} request to Fortnox proxy: ${edgeFunctionUrl}`);
     if (data) {
       console.log("Request data:", JSON.stringify(data, null, 2));
     }
     
-    // Make the request to our Edge Function
-    const response = await fetch(`/api/fortnox-proxy${endpoint}`, options);
+    // Make the request to our Edge Function with complete URL
+    const response = await fetch(edgeFunctionUrl, options);
     
     // Handle various response types
     const contentType = response.headers.get("content-type");

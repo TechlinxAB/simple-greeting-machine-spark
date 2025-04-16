@@ -23,15 +23,39 @@ function handleCors(req: Request): Response | null {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
-  
   try {
+    console.log("Received request to fortnox-proxy function", req.url);
+    
+    // Handle CORS preflight requests
+    const corsResponse = handleCors(req);
+    if (corsResponse) return corsResponse;
+    
     // Parse URL to get Fortnox endpoint from the request path
     const url = new URL(req.url);
+    console.log("Full request URL:", url.toString());
+    
+    // The path should contain /fortnox-proxy/{fortnox-endpoint}
     const pathParts = url.pathname.split('/');
-    const fortnoxEndpointParts = pathParts.slice(pathParts.indexOf('fortnox-proxy') + 1);
+    
+    // Find the index of 'fortnox-proxy' in the path
+    const proxyIndex = pathParts.findIndex(part => part === 'fortnox-proxy');
+    
+    if (proxyIndex === -1) {
+      console.error("Invalid URL path, 'fortnox-proxy' not found:", url.pathname);
+      return new Response(
+        JSON.stringify({ error: "Invalid URL path" }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+    
+    // Get the Fortnox endpoint by taking everything after 'fortnox-proxy'
+    const fortnoxEndpointParts = pathParts.slice(proxyIndex + 1);
     const fortnoxEndpoint = '/' + fortnoxEndpointParts.join('/');
     
     console.log(`Fortnox endpoint: ${fortnoxEndpoint}`);
@@ -148,7 +172,12 @@ serve(async (req) => {
       "Client-Secret": clientSecret,
     };
     
-    console.log("Fortnox request headers:", JSON.stringify(fortnoxHeaders, null, 2));
+    console.log("Fortnox request headers:", JSON.stringify({
+      "Content-Type": fortnoxHeaders["Content-Type"],
+      "Accept": fortnoxHeaders["Accept"],
+      "Access-Token": "********", // Masked for security
+      "Client-Secret": "********", // Masked for security
+    }, null, 2));
     
     const fortnoxResponse = await fetch(fortnoxUrl.toString(), {
       method: req.method,
