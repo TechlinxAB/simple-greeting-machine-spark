@@ -78,8 +78,8 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className={`p-0 ${isCompact ? 'scale-[0.92] origin-top' : ''}`}>
-        <div className="flex justify-center">
+      <CardContent className={`p-0 ${isCompact ? '' : ''}`}>
+        <div className="flex justify-center overflow-hidden">
           <Calendar
             key={renderKey} 
             mode="single"
@@ -87,8 +87,11 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
             onSelect={handleSelectDate}
             month={currentMonth}
             onMonthChange={setCurrentMonth}
-            className={`w-full border-none ${isCompact ? '-mt-1 -mb-1' : ''}`}
+            className={`w-full border-none`}
             showOutsideDays={true}
+            hideHead={false}
+            hideCaptionLabel={true}
+            hideNav={true}
             modifiers={{
               selected: (date) => date.toDateString() === selectedDate.toDateString(),
               today: (date) => isToday(date) && date.toDateString() !== selectedDate.toDateString()
