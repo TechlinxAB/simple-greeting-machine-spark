@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -37,9 +38,6 @@ const translations = {
     searchUsers: "Search users...",
     searchTimeEntries: "Search time entries...",
     allClients: "All Clients",
-    filterByClient: "Filter by Client",
-    filterByUser: "Filter by User",
-    dateFilter: "Date Filter",
     allTime: "All Time",
     errorCreatingInvoice: "Error Creating Invoice",
     processing: "Processing...",
@@ -116,6 +114,7 @@ const translations = {
     clientNumber: "Client #",
     orgNumber: "Org. #",
     deleting: "Deleting...",
+    // Consolidated filter keys to avoid duplicates
     filterByClient: "Filter by Client",
     filterByUser: "Filter by User",
     dateFilter: "Date Filter"
@@ -359,7 +358,10 @@ const translations = {
     vat: "VAT",
     total: "Total",
     notes: "Notes",
-    termsAndConditions: "Terms and Conditions"
+    termsAndConditions: "Terms and Conditions",
+    allInvoices: "All Invoices",
+    confirmDelete: "Are you sure you want to delete this invoice?",
+    issueDate: "Issue Date"
   },
   reports: {
     title: "Reports",
@@ -423,7 +425,9 @@ const translations = {
     connectFortnox: "Connect to Fortnox",
     disconnectFortnox: "Disconnect from Fortnox",
     fortnoxConnected: "Connected to Fortnox",
-    fortnoxDisconnected: "Not connected to Fortnox"
+    fortnoxDisconnected: "Not connected to Fortnox",
+    connectFortnoxAdmin: "Go to Settings to connect your Fortnox account.",
+    connectFortnoxUser: "Ask your administrator to connect a Fortnox account."
   },
   profile: {
     title: "Your Profile",
