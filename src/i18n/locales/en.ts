@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -80,7 +81,6 @@ const translations = {
     phone: "Phone",
     clientNumber: "Client Number",
     organizationNumber: "Organization Number",
-    clientList: "Client List",
     manageClients: "Manage your clients and their information",
     refresh: "Refresh",
     refreshList: "Refresh list",
@@ -90,9 +90,6 @@ const translations = {
     clientDetails: "Client Details",
     checking: "Checking",
     close: "Close",
-    filterByUser: "Filter by User",
-    filterByClient: "Filter by Client",
-    dateFilter: "Date Filter",
     noTimeEntriesFilter: "No time entries found for the selected filter.",
     selectAllEntries: "Select all",
     deleteSelected: "Delete selected",
@@ -114,13 +111,12 @@ const translations = {
     noDescription: "No description",
     clientContactInfo: "Client Contact Information",
     clientList: "Client List",
-    manageClients: "Manage clients",
     clientLocation: "Location",
     clientOrganization: "Organization",
+    clientContact: "Contact",
     clientNumber: "Client #",
     orgNumber: "Org. #",
-    searchClients: "Search clients...",
-    newClient: "New Client"
+    deleting: "Deleting..."
   },
   auth: {
     email: "Email",
@@ -239,10 +235,11 @@ const translations = {
     clientLocation: "Location",
     clientContact: "Contact",
     clientOrganization: "Organization",
-    clientNumber: "Client #",
-    orgNumber: "Org. #",
     name: "Name",
-    actions: "Actions"
+    actions: "Actions",
+    cannotDelete: "Cannot delete client {name}",
+    hasTimeEntries: "Client has {count} time entries. You must delete or reassign these entries before deleting the client.",
+    manageInAdmin: "You can manage time entries in the Administration section."
   },
   products: {
     title: "Products",
@@ -452,7 +449,8 @@ const translations = {
     tryAgain: "Try again",
     sessionExpired: "Your session has expired. Please sign in again.",
     unauthorized: "You are not authorized to access this page",
-    serverError: "Server error. Please try again later."
+    serverError: "Server error. Please try again later.",
+    loadingFailed: "Failed to load data"
   }
 };
 
