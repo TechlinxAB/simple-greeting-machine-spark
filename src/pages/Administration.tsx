@@ -1,9 +1,9 @@
+
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Search, 
   Trash2, 
@@ -264,19 +264,28 @@ export default function Administration() {
       
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className={`inline-flex ${isLaptop ? 'h-8 text-xs' : 'h-9 text-sm'} items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4`}>
-            <TabsTrigger value="time-entries">
+          <TabsList className={`inline-flex ${isLaptop ? 'h-8 text-xs' : 'h-9 text-sm'} items-center justify-center rounded-lg bg-transparent p-1 text-muted-foreground w-auto mb-4`}>
+            <TabsTrigger 
+              value="time-entries" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+            >
               {t('common.timeEntries')}
             </TabsTrigger>
-            <TabsTrigger value="invoices">
+            <TabsTrigger 
+              value="invoices"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+            >
               {t('common.invoices')}
             </TabsTrigger>
-            <TabsTrigger value="users">
+            <TabsTrigger 
+              value="users"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+            >
               {t('common.users')}
             </TabsTrigger>
           </TabsList>
           
-          <div className="bg-card rounded-md shadow-sm border overflow-hidden">
+          <div className="bg-transparent rounded-md">
             <TabsContent value="time-entries" className="m-0">
               <div className={isLaptop ? "p-3" : "p-6"}>
                 <div className={isLaptop ? "mb-4" : "mb-6"}>
