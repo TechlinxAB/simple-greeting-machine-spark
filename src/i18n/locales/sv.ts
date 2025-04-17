@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Laddar...",
@@ -67,7 +66,7 @@ const translations = {
     clientNumber: "Kundnummer",
     organizationNumber: "Organisationsnummer",
     clientList: "Kundlista",
-    manageClients: "Hantera dina kunder och deras information",
+    manageClients: "Hantera dina kunder",
     refresh: "Uppdatera",
     refreshList: "Uppdatera lista",
     addClient: "Lägg till kund",
@@ -89,8 +88,8 @@ const translations = {
     amount: "Belopp",
     user: "Användare",
     product: "Produkt",
-    allClients: "Alla kunder",
     allUsers: "Alla användare",
+    allClients: "Alla kunder",
     allTime: "All tid",
     pending: "Väntande",
     invoiced: "Fakturerad",
@@ -104,7 +103,12 @@ const translations = {
     searchInvoices: "Sök fakturor...",
     searchUsers: "Sök användare...",
     units: "enheter",
-    noDescription: "Ingen beskrivning"
+    noDescription: "Ingen beskrivning",
+    createInvoice: "Skapa faktura",
+    createAndExport: "Skapa & exportera",
+    errorCreatingInvoice: "Fel vid skapande av faktura",
+    administration: "Administration",
+    users: "Användare"
   },
   auth: {
     email: "E-post",
@@ -187,6 +191,7 @@ const translations = {
     generateInvoicesDesc: "Skapa fakturor baserat på dina tidrapporter och produktförsäljning.",
     goToTimeTracking: "Gå till tidsredovisning",
     preparingWorkspace: "Förbereder din arbetsyta...",
+    entries: "Rapporter"
   },
   clients: {
     title: "Kunder",
@@ -221,7 +226,14 @@ const translations = {
     allClients: "Alla kunder",
     cannotDelete: "Kan inte radera {name}",
     hasTimeEntries: "Denna kund har {count} tidsposter kopplade till sig och kan inte raderas.",
-    manageInAdmin: "Du kan hantera tidsposter på administrationssidan."
+    manageInAdmin: "Du kan hantera tidsposter på administrationssidan.",
+    clientList: "Kundlista",
+    manageClients: "Hantera kunder",
+    clientLocation: "Plats",
+    clientContact: "Kontakt",
+    clientOrganization: "Organisation",
+    name: "Namn",
+    actions: "Åtgärder"
   },
   products: {
     title: "Produkter",
@@ -452,7 +464,7 @@ const translations = {
     sessionExpired: "Din session har gått ut. Vänligen logga in igen.",
     unauthorized: "Du har inte behörighet att komma åt denna sida",
     serverError: "Serverfel. Försök igen senare.",
-    loadingFailed: "Fel vid inläsning. Försök igen."
+    loadingFailed: "Fel vid inl��sning. Försök igen."
   }
 };
 

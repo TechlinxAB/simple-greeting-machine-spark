@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { DeleteClientDialog } from "@/components/clients/DeleteClientDialog";
-import { Plus, Search, Users, Mail, Phone, RefreshCw, Pencil } from "lucide-react";
+import { Plus, Search, RefreshCw, Pencil, Mail, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,11 +53,11 @@ export default function Clients() {
   });
 
   const handleRefresh = () => {
-    toast.info("Refreshing client list...");
+    toast.info(t("common.checking") + "...");
     refetch().then(() => {
-      toast.success("Client list refreshed");
+      toast.success(t("clients.clientList") + " " + t("common.refresh").toLowerCase() + "ed");
     }).catch(error => {
-      toast.error("Failed to refresh: " + error.message);
+      toast.error(t("error.loadingFailed") + ": " + error.message);
     });
   };
 
@@ -91,7 +91,7 @@ export default function Clients() {
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={t("common.searchClients")}
+              placeholder={t("clients.searchClients")}
               className="pl-8 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -113,16 +113,16 @@ export default function Clients() {
             className="flex items-center gap-2 whitespace-nowrap"
           >
             <Plus className="h-4 w-4" />
-            <span>{t("common.newClient")}</span>
+            <span>{t("clients.newClient")}</span>
           </Button>
         </div>
       </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>{t("common.clientList")}</CardTitle>
+          <CardTitle>{t("clients.clientList")}</CardTitle>
           <CardDescription>
-            {t("common.manageClients")}
+            {t("clients.manageClients")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,7 +150,6 @@ export default function Clients() {
             </div>
           ) : clients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Users className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
               <p>{t("clients.noClientsFound")}</p>
               <Button 
                 variant="outline" 
@@ -166,12 +165,12 @@ export default function Clients() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("common.name")}</TableHead>
-                    {!isMobile && <TableHead>{t("common.organizationNumber")}</TableHead>}
-                    {!isMobile && <TableHead>{t("common.clientNumber")}</TableHead>}
-                    {!isMobile && <TableHead>{t("common.location")}</TableHead>}
-                    <TableHead>{t("common.contact")}</TableHead>
-                    <TableHead className="text-right">{t("common.actions")}</TableHead>
+                    <TableHead>{t("clients.name")}</TableHead>
+                    {!isMobile && <TableHead>{t("clients.clientOrganization")}</TableHead>}
+                    {!isMobile && <TableHead>{t("clients.clientNumber")}</TableHead>}
+                    {!isMobile && <TableHead>{t("clients.clientLocation")}</TableHead>}
+                    <TableHead>{t("clients.clientContact")}</TableHead>
+                    <TableHead className="text-right">{t("clients.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -218,7 +217,7 @@ export default function Clients() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>{t("common.editClient")}</p>
+                                <p>{t("clients.editClient")}</p>
                               </TooltipContent>
                             </Tooltip>
                             
