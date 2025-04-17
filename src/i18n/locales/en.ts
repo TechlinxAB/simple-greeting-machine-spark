@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -116,7 +115,10 @@ const translations = {
     clientContact: "Contact",
     clientNumber: "Client #",
     orgNumber: "Org. #",
-    deleting: "Deleting..."
+    deleting: "Deleting...",
+    filterByClient: "Filter by Client",
+    filterByUser: "Filter by User",
+    dateFilter: "Date Filter"
   },
   auth: {
     email: "Email",
