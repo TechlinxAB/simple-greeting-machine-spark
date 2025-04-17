@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { environment } from "@/config/environment";
 
 interface FortnoxCallbackHandlerProps {
@@ -32,12 +32,14 @@ export function FortnoxCallbackHandler({
   const [redirectUri, setRedirectUri] = useState("");
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch stored credentials from database
   const { data: storedCredentials, isLoading: isLoadingCredentials } = useQuery({
     queryKey: ["fortnox-credentials"],
     queryFn: async () => {
       const credentials = await getFortnoxCredentials();
+      console.log("Retrieved stored credentials:", credentials ? "Found" : "Not found");
       return credentials as FortnoxCredentials;
     },
     retry: 2,
@@ -52,6 +54,10 @@ export function FortnoxCallbackHandler({
   }, []);
 
   useEffect(() => {
+    // Debugging info
+    console.log("FortnoxCallbackHandler activated with URL:", window.location.href);
+    console.log("Search params:", Object.fromEntries(searchParams.entries()));
+    
     // Check if user is logged in
     if (!user) {
       console.error("User not authenticated in callback handler");
@@ -66,9 +72,6 @@ export function FortnoxCallbackHandler({
       return;
     }
     
-    // Log the full URL to debug
-    console.log("Current URL in callback handler:", window.location.href);
-    
     // Extract parameters from the URL
     const code = searchParams.get('code');
     const errorParam = searchParams.get('error');
@@ -78,6 +81,7 @@ export function FortnoxCallbackHandler({
 
     // Detailed logging for debugging
     console.log("Fortnox callback processing with params:", { 
+      code: code ? "present" : "missing", 
       codeLength: code ? code.length : 0, 
       error: errorParam,
       errorDesc: errorDescription,
@@ -119,8 +123,7 @@ export function FortnoxCallbackHandler({
 
     // Check if we don't have a saved state (warn but proceed anyway)
     if (!savedState && state) {
-      console.warn("No saved state found in session storage - possible security risk");
-      // Continue anyway since we have the code - this is just a warning
+      console.warn("No saved state found in session storage - possible security risk, but continuing");
     }
 
     // Clean up the state from session storage
@@ -168,14 +171,19 @@ export function FortnoxCallbackHandler({
       }
 
       // Exchange the code for tokens
+      console.log("Calling exchangeCodeForTokens...");
       const tokenData = await exchangeCodeForTokens(
         code,
         clientId,
         clientSecret,
         redirectUri
       );
-
-      console.log("Token exchange successful, saving credentials");
+      
+      console.log("Token exchange successful, received token data:", {
+        accessTokenPresent: !!tokenData.accessToken,
+        refreshTokenPresent: !!tokenData.refreshToken,
+        expiresAt: tokenData.expiresAt
+      });
 
       // Verify we got the tokens
       if (!tokenData.accessToken || !tokenData.refreshToken) {
@@ -183,6 +191,7 @@ export function FortnoxCallbackHandler({
       }
 
       // Save the credentials in the database
+      console.log("Saving credentials to database...");
       await saveFortnoxCredentials({
         clientId,
         clientSecret,
@@ -190,6 +199,12 @@ export function FortnoxCallbackHandler({
         refreshToken: tokenData.refreshToken,
         expiresAt: tokenData.expiresAt,
       });
+      
+      console.log("Credentials saved successfully");
+      
+      // Force refresh queries to make sure we get the latest data
+      queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+      queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
 
       setStatus('success');
       toast.success("Successfully connected to Fortnox");

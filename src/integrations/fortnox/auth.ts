@@ -2,10 +2,7 @@
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials } from "./types";
-
-// API endpoints for Fortnox
-const FORTNOX_AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
-const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
+import { environment } from "@/config/environment";
 
 /**
  * Exchange the authorization code for access and refresh tokens
@@ -66,17 +63,12 @@ export async function exchangeCodeForTokens(
     console.log("Making token exchange request via Edge Function");
     
     try {
-      // First, try to call the test endpoint to verify the function is accessible
+      // Make sure the function URL is correctly configured
+      console.log("Using edge function URL from environment:", environment.supabase.url);
       console.log("Testing Edge Function connectivity");
-      const { data: testData, error: testError } = await supabase.functions.invoke('fortnox-token-exchange/test');
-      
-      if (testError) {
-        console.error("Test endpoint error:", testError);
-      } else {
-        console.log("Test endpoint response:", testData);
-      }
       
       // Now call the actual token exchange endpoint
+      console.log("Calling token exchange edge function...");
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
         body: JSON.stringify(tokenExchangeData)
       });
@@ -211,7 +203,7 @@ export async function refreshAccessToken(
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
     
-    // Similar approach as the token exchange - using the same edge function with refresh_token grant type
+    // Similar approach as the token exchange - using the token-refresh edge function
     const refreshData = {
       grant_type: 'refresh_token',
       client_id: clientId,
@@ -219,11 +211,11 @@ export async function refreshAccessToken(
       refresh_token: refreshToken,
     };
     
-    // Use the token-exchange edge function for refresh too
+    // Use the token-refresh edge function
     try {
       console.log("Attempting to use Supabase Edge Function for token refresh");
       
-      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
+      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
         body: JSON.stringify(refreshData)
       });
       

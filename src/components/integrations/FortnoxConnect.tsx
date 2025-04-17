@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { 
@@ -30,6 +30,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [showToken, setShowToken] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Set the redirect URI when component mounts
   useEffect(() => {
@@ -60,20 +61,28 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   }, [clientId, clientSecret]);
 
   // Get connection status
-  const { data: connected = false, refetch: refetchStatus } = useQuery({
+  const { data: connected = false, refetch: refetchStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["fortnox-connection-status"],
     queryFn: async () => {
       if (!clientId || !clientSecret) return false;
-      return await isFortnoxConnected();
+      const result = await isFortnoxConnected();
+      console.log("Fortnox connection status:", result);
+      return result;
     },
     enabled: !!clientId && !!clientSecret,
+    staleTime: 10000,
   });
 
   // Get credentials for display
-  const { data: credentials } = useQuery({
+  const { data: credentials, isLoading: isLoadingCredentials } = useQuery({
     queryKey: ["fortnox-credentials"],
-    queryFn: getFortnoxCredentials,
+    queryFn: async () => {
+      const creds = await getFortnoxCredentials();
+      console.log("Retrieved Fortnox credentials:", creds ? "Found" : "Not found");
+      return creds;
+    },
     enabled: connected,
+    staleTime: 10000,
   });
 
   useEffect(() => {
@@ -114,12 +123,14 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       setIsConnecting(true);
       
       // First, save the credentials to the database
+      console.log("Saving credentials to database before OAuth flow");
       await saveFortnoxCredentials({
         clientId,
         clientSecret
       });
       
-      console.log("Saved credentials to database before OAuth flow");
+      // Force refresh credentials query
+      queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
       
       // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = environment.fortnox.authUrl;
@@ -177,7 +188,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       setIsDisconnecting(true);
       await disconnectFortnox();
       toast.success("Successfully disconnected from Fortnox");
-      refetchStatus();
+      queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
+      queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
     } catch (error) {
       toast.error("Failed to disconnect from Fortnox");
       console.error(error);
@@ -196,12 +208,23 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     toast.success(`${type} copied to clipboard`);
   };
 
+  const handleRefreshStatus = () => {
+    queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
+    queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+    refetchStatus();
+    toast.info("Refreshing Fortnox connection status...");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-medium">Fortnox Connection</h3>
-          {connected ? (
+          {isLoadingStatus ? (
+            <Badge variant="outline" className="bg-gray-100">
+              <RefreshCcw className="mr-1 h-3 w-3 animate-spin" /> Checking...
+            </Badge>
+          ) : connected ? (
             <Badge variant="default" className="bg-green-600">
               <Check className="mr-1 h-3 w-3" /> Connected
             </Badge>
@@ -210,6 +233,15 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               <X className="mr-1 h-3 w-3" /> Not connected
             </Badge>
           )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="ml-2" 
+            onClick={handleRefreshStatus}
+            disabled={isLoadingStatus}
+          >
+            <RefreshCcw className={`h-4 w-4 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
 
@@ -280,6 +312,9 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                     ...(credentials || {})
                   });
                   toast.success("Credentials updated successfully");
+                  // Force refresh status and credentials
+                  queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
+                  queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
                 } catch (error) {
                   toast.error("Failed to update credentials");
                   console.error(error);
@@ -299,9 +334,15 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               You'll be redirected to Fortnox to authorize this application.
             </p>
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">
-                Important: Make sure to register this exact redirect URI in your Fortnox Developer settings:
-              </p>
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
+                <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <span>Important: Redirect URI must be exactly correct</span>
+                </p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Make sure to register this exact redirect URI in your Fortnox Developer Portal, with no additional characters or trailing slashes:
+                </p>
+              </div>
               <div className="flex items-center mt-1">
                 <code className="flex-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
                   {redirectUri || "Loading redirect URI..."}

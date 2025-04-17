@@ -83,11 +83,18 @@ export default function Settings() {
     return null;
   }
 
-  const isFortnoxCallback = location.pathname.includes('/settings/fortnox-callback');
+  const searchParams = new URLSearchParams(location.search);
+  const tabParam = searchParams.get('tab');
   
-  if (isFortnoxCallback) {
-    return <FortnoxCallbackHandler />;
-  }
+  useEffect(() => {
+    if (tabParam === 'fortnox' && isAdmin) {
+      setActiveTab("integrations");
+    } else if (tabParam && ["appearance", "integrations"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, isAdmin]);
+  
+  const isFortnoxCallback = searchParams.has('code') || searchParams.has('error');
   
   const { data: appLogo, refetch: refetchLogo, isLoading: isLogoLoading } = useQuery({
     queryKey: ["app-logo-settings"],
@@ -766,6 +773,22 @@ export default function Settings() {
                 <CardDescription>Configure integration with Fortnox accounting software</CardDescription>
               </CardHeader>
               <CardContent>
+                {isFortnoxCallback && (
+                  <div className="mb-8">
+                    <FortnoxCallbackHandler 
+                      onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+                        queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
+                        
+                        navigate("/settings?tab=integrations", { replace: true });
+                      }}
+                      onError={(error) => {
+                        console.error("Fortnox connection error:", error);
+                      }}
+                    />
+                  </div>
+                )}
+                
                 <Form {...fortnoxSettingsForm}>
                   <form onSubmit={fortnoxSettingsForm.handleSubmit(onSubmitFortnoxSettings)} className="space-y-6">
                     <FormField
@@ -775,7 +798,11 @@ export default function Settings() {
                         <FormItem>
                           <FormLabel>Client ID</FormLabel>
                           <FormControl>
-                            <Input placeholder="Fortnox Client ID" {...field} />
+                            <Input 
+                              name="fortnoxClientId"
+                              placeholder="Fortnox Client ID" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormDescription>
                             The client ID from your Fortnox developer account.
@@ -828,17 +855,19 @@ export default function Settings() {
                     />
                     
                     <div className="flex justify-between pt-6">
-                      {fortnoxSettings && (
-                        <FortnoxConnect 
-                          clientId={fortnoxSettings.clientId}
-                          clientSecret={fortnoxSettings.clientSecret}
-                        />
-                      )}
+                      <div className="w-full">
+                        {fortnoxSettings && (
+                          <FortnoxConnect 
+                            clientId={fortnoxSettings.clientId}
+                            clientSecret={fortnoxSettings.clientSecret}
+                          />
+                        )}
+                      </div>
                       
                       <Button 
                         type="submit" 
                         disabled={!isAdmin || !fortnoxSettingsForm.formState.isDirty}
-                        className="flex items-center gap-2"
+                        className="ml-4 flex items-center gap-2"
                       >
                         <Save className="h-4 w-4" />
                         <span>Save Settings</span>

@@ -14,19 +14,23 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
     console.log("Saving Fortnox credentials to database");
     
     // Use upsert with type safety
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('system_settings')
       .upsert({
         id: 'fortnox_credentials',
         settings: credentialsObj
-      });
+      }, {
+        // Specify the unique key
+        onConflict: 'id'
+      })
+      .select();
       
     if (error) {
       console.error("Error saving Fortnox credentials:", error);
       throw error;
     }
     
-    console.log("Fortnox credentials saved successfully");
+    console.log("Fortnox credentials saved successfully:", data ? "Data returned" : "No data returned");
   } catch (error) {
     console.error('Error saving Fortnox credentials:', error);
     throw error;
@@ -67,6 +71,8 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     // Handle the data properly with type checking
     const settingsData = data.settings;
     
+    console.log("Fortnox credentials retrieved successfully, data type:", typeof settingsData);
+    
     // Proper type checking before casting to FortnoxCredentials
     if (
       typeof settingsData === 'object' && 
@@ -78,16 +84,26 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       typeof settingsData.clientSecret === 'string'
     ) {
       // After thorough type checking, we can safely cast
-      return {
+      const result = {
         clientId: settingsData.clientId,
         clientSecret: settingsData.clientSecret,
         accessToken: typeof settingsData.accessToken === 'string' ? settingsData.accessToken : undefined,
         refreshToken: typeof settingsData.refreshToken === 'string' ? settingsData.refreshToken : undefined,
         expiresAt: typeof settingsData.expiresAt === 'number' ? settingsData.expiresAt : undefined
       };
+      
+      console.log("Successfully parsed Fortnox credentials:", {
+        clientIdLength: result.clientId ? result.clientId.length : 0,
+        clientSecretLength: result.clientSecret ? result.clientSecret.length : 0,
+        hasAccessToken: !!result.accessToken,
+        hasRefreshToken: !!result.refreshToken,
+        hasExpiresAt: !!result.expiresAt
+      });
+      
+      return result;
     }
     
-    console.log("Invalid credentials format found in settings");
+    console.log("Invalid credentials format found in settings:", settingsData);
     return null;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
@@ -104,8 +120,13 @@ export async function isFortnoxConnected(): Promise<boolean> {
     console.log("Checking Fortnox connection status");
     const credentials = await getFortnoxCredentials();
     
-    if (!credentials || !credentials.accessToken) {
-      console.log("Fortnox not connected: No credentials or access token");
+    if (!credentials) {
+      console.log("Fortnox not connected: No credentials found");
+      return false;
+    }
+    
+    if (!credentials.accessToken) {
+      console.log("Fortnox not connected: No access token");
       return false;
     }
     
