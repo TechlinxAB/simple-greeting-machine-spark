@@ -3,13 +3,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import '@/i18n'; // Import i18n configuration
+import '@/i18n'; 
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -26,7 +25,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <LanguageProvider>
         <ThemeProvider>
           <App />
-          <Toaster position="top-right" />
+          <Toaster 
+            position="bottom-right" 
+            richColors 
+            closeButton 
+            duration={3000} 
+          />
         </ThemeProvider>
       </LanguageProvider>
     </QueryClientProvider>
