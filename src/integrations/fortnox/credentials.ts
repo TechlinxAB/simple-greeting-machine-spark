@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
 import { refreshAccessToken } from "./auth";
@@ -63,7 +64,9 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    const settingsData = data.settings as FortnoxCredentials;
+    // Fix for TypeScript error - properly type-cast the JSON data to FortnoxCredentials
+    // First cast to unknown, then to FortnoxCredentials to avoid type errors
+    const settingsData = data.settings as unknown as FortnoxCredentials;
     
     // Check if we have valid credentials
     if (!settingsData.clientId || !settingsData.clientSecret) {
