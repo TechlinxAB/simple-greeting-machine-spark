@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -264,7 +263,7 @@ export default function Administration() {
       
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-transparent p-1 text-muted-foreground w-auto mb-4">
+          <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4">
             <TabsTrigger 
               value="time-entries" 
               className="px-4 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
