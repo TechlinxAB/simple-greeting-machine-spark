@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 // Interface for Fortnox OAuth config
@@ -8,6 +7,7 @@ export interface FortnoxCredentials {
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: number;
+  refreshTokenExpiresAt?: number; // New field for refresh token expiration
 }
 
 // Interface for storing system settings

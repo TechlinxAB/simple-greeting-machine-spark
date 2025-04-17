@@ -1,6 +1,7 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
+import { refreshAccessToken } from "./auth";
+import { toast } from "sonner";
 
 /**
  * Save Fortnox credentials to the database
@@ -11,26 +12,28 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
     // Convert credentials to a plain object to ensure it can be stored in JSON
     const credentialsObj = { ...credentials };
     
+    // Set a long expiration time for refresh tokens (350 days to be safe)
+    if (credentials.refreshToken) {
+      credentialsObj.refreshTokenExpiresAt = Date.now() + (350 * 24 * 60 * 60 * 1000);
+    }
+    
     console.log("Saving Fortnox credentials to database");
     
-    // Use upsert with type safety
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('system_settings')
       .upsert({
         id: 'fortnox_credentials',
         settings: credentialsObj
       }, {
-        // Specify the unique key
         onConflict: 'id'
-      })
-      .select();
+      });
       
     if (error) {
       console.error("Error saving Fortnox credentials:", error);
       throw error;
     }
     
-    console.log("Fortnox credentials saved successfully:", data ? "Data returned" : "No data returned");
+    console.log("Fortnox credentials saved successfully");
   } catch (error) {
     console.error('Error saving Fortnox credentials:', error);
     throw error;
@@ -38,14 +41,12 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
 }
 
 /**
- * Get stored Fortnox credentials
- * This function is accessible to both admins and managers
+ * Get stored Fortnox credentials with automatic refresh if needed
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
     console.log("Fetching Fortnox credentials from database");
     
-    // Direct query to get system settings
     const { data, error } = await supabase
       .from('system_settings')
       .select('settings')
@@ -53,13 +54,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       .maybeSingle();
       
     if (error) {
-      // Enhanced error logging for debugging permission issues
-      if (error.code === 'PGRST116' || error.code === '42501') {
-        console.error('Permission error fetching Fortnox credentials:', error);
-        console.log('User may not have proper permissions to read system_settings');
-      } else {
-        console.error('Error fetching Fortnox credentials:', error);
-      }
+      console.error('Error fetching Fortnox credentials:', error);
       return null;
     }
     
@@ -68,43 +63,66 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Handle the data properly with type checking
-    const settingsData = data.settings;
+    const settingsData = data.settings as FortnoxCredentials;
     
-    console.log("Fortnox credentials retrieved successfully, data type:", typeof settingsData);
-    
-    // Proper type checking before casting to FortnoxCredentials
-    if (
-      typeof settingsData === 'object' && 
-      settingsData !== null && 
-      !Array.isArray(settingsData) &&
-      'clientId' in settingsData && 
-      typeof settingsData.clientId === 'string' &&
-      'clientSecret' in settingsData &&
-      typeof settingsData.clientSecret === 'string'
-    ) {
-      // After thorough type checking, we can safely cast
-      const result = {
-        clientId: settingsData.clientId,
-        clientSecret: settingsData.clientSecret,
-        accessToken: typeof settingsData.accessToken === 'string' ? settingsData.accessToken : undefined,
-        refreshToken: typeof settingsData.refreshToken === 'string' ? settingsData.refreshToken : undefined,
-        expiresAt: typeof settingsData.expiresAt === 'number' ? settingsData.expiresAt : undefined
-      };
-      
-      console.log("Successfully parsed Fortnox credentials:", {
-        clientIdLength: result.clientId ? result.clientId.length : 0,
-        clientSecretLength: result.clientSecret ? result.clientSecret.length : 0,
-        hasAccessToken: !!result.accessToken,
-        hasRefreshToken: !!result.refreshToken,
-        hasExpiresAt: !!result.expiresAt
-      });
-      
-      return result;
+    // Check if we have valid credentials
+    if (!settingsData.clientId || !settingsData.clientSecret) {
+      console.log("Invalid credentials format - missing client ID or secret");
+      return null;
     }
     
-    console.log("Invalid credentials format found in settings:", settingsData);
-    return null;
+    // If we have a refresh token, check its expiration
+    if (settingsData.refreshToken && settingsData.refreshTokenExpiresAt) {
+      const refreshTokenExpired = Date.now() > settingsData.refreshTokenExpiresAt;
+      
+      if (refreshTokenExpired) {
+        console.log("Refresh token has expired - user needs to reconnect");
+        toast.error("Fortnox connection has expired. Please reconnect.");
+        return settingsData; // Return credentials so UI can show reconnect state
+      }
+    }
+    
+    // If access token is expired or close to expiring (within 5 minutes), refresh it
+    if (settingsData.accessToken && settingsData.expiresAt) {
+      const expiresInMinutes = (settingsData.expiresAt - Date.now()) / (1000 * 60);
+      
+      if (expiresInMinutes < 5) {
+        console.log("Access token expired or expiring soon, attempting refresh");
+        
+        try {
+          const refreshed = await refreshAccessToken(
+            settingsData.clientId,
+            settingsData.clientSecret,
+            settingsData.refreshToken!
+          );
+          
+          // Update credentials with new tokens
+          const updatedCredentials = {
+            ...settingsData,
+            ...refreshed,
+          };
+          
+          // Save the refreshed credentials
+          await saveFortnoxCredentials(updatedCredentials);
+          
+          console.log("Successfully refreshed and saved new access token");
+          return updatedCredentials;
+        } catch (refreshError) {
+          console.error("Error refreshing access token:", refreshError);
+          
+          // If refresh fails but tokens aren't expired yet, return existing credentials
+          if (expiresInMinutes > 0) {
+            console.log("Using existing credentials as fallback");
+            return settingsData;
+          }
+          
+          // If tokens are actually expired, return null to trigger reconnect
+          return null;
+        }
+      }
+    }
+    
+    return settingsData;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;
@@ -192,6 +210,3 @@ export async function disconnectFortnox(): Promise<void> {
     throw error;
   }
 }
-
-// Import from auth.ts to avoid circular dependencies
-import { refreshAccessToken } from "./auth";
