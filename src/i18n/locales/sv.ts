@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Laddar...",
@@ -57,7 +56,22 @@ const translations = {
     timeEntriesTitle: "Tidrapporter",
     noClientsTitle: "Inga kunder",
     noClientsDescription: "Du har inte lagt till några kunder än. Lägg till din första kund för att börja spåra tid.",
-    addFirstClient: "Lägg till din första kund"
+    addFirstClient: "Lägg till din första kund",
+    yourTimeRecords: "Dina tidrapporter",
+    filterBy: "Filtrera efter",
+    teamTimeRecords: "Teamets tidrapporter",
+    selectClient: "Välj kund",
+    allClients: "Alla kunder",
+    selectYear: "Välj år",
+    selectMonth: "Välj månad",
+    companyNews: "Företagsnyheter",
+    companyNewsAndAnnouncements: "Företagsnyheter & Meddelanden",
+    latestUpdates: "Senaste uppdateringarna",
+    addNewsPost: "Lägg till nyhet",
+    noNewsAvailable: "Inga nyheter tillgängliga",
+    myTimeJournal: "Min tidrapport",
+    teamJournal: "Teamets tidrapport",
+    news: "Nyheter"
   },
   clients: {
     title: "Kunder",
@@ -221,7 +235,7 @@ const translations = {
     pending: "Ej fakturerad",
     invoicedWarningTitle: "Varning: Fakturerad tidsrapport",
     invoicedWarningDesc1: "Du håller på att radera en fakturerad tidsrapport. Detta kan orsaka inkonsekvenser mellan din app's data och Fortnox.",
-    invoicedWarningDesc2: "Om denna tidsrapport har exporterats till Fortnox kommer raderingen endast att ske i din databas, inte i Fortnox. Denna åtgärd kan inte ångras.",
+    invoicedWarningDesc2: "Om denna tidsrapport har exporterats till Fortnox kommer raderingen endast ske i din databas, inte i Fortnox. Denna åtgärd kan inte ångras.",
     deleteAnyway: "Radera ändå"
   },
   reports: {

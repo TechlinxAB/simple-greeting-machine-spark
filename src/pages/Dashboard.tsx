@@ -185,38 +185,38 @@ export default function Dashboard() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="my-journal" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            <span>My Time Journal</span>
+            <span>{t("dashboard.myTimeJournal")}</span>
           </TabsTrigger>
           
           {canViewTeamJournal && (
             <TabsTrigger value="team-journal" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <span>Team Time Journal</span>
+              <span>{t("dashboard.teamJournal")}</span>
             </TabsTrigger>
           )}
           
           <TabsTrigger value="news" className="flex items-center gap-2">
             <Megaphone className="h-4 w-4" />
-            <span>Company News</span>
+            <span>{t("dashboard.news")}</span>
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="my-journal" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Your Time Records</h2>
+            <h2 className="text-xl font-semibold">{t("dashboard.yourTimeRecords")}</h2>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
-                  <span>Filter by</span>
+                  <span>{t("dashboard.filterBy")}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-background">
