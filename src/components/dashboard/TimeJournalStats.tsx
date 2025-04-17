@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useTranslation } from "react-i18next";
 
 interface TimeJournalStatsProps {
   userId?: string;
@@ -30,6 +31,8 @@ export function TimeJournalStats({
   showUserColumn = false,
   simplifiedView = false
 }: TimeJournalStatsProps) {
+  const { t } = useTranslation();
+  
   // Calculate date range based on filters
   const startDate = useMemo(() => {
     return startOfMonth(new Date(selectedYear, selectedMonth, 1));
@@ -197,7 +200,7 @@ export function TimeJournalStats({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium">Total Hours</CardTitle>
+                <CardTitle className="text-lg font-medium">{t("common.totalHours")}</CardTitle>
                 <CardDescription>
                   {format(startDate, "MMMM yyyy")}
                 </CardDescription>
@@ -208,7 +211,7 @@ export function TimeJournalStats({
                     <Clock className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Hours Logged</p>
+                    <p className="text-sm text-muted-foreground">{t("common.hoursLogged")}</p>
                     <p className="text-2xl font-bold">{calculateTotalHours()}</p>
                   </div>
                 </div>
@@ -217,7 +220,7 @@ export function TimeJournalStats({
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium">Entries</CardTitle>
+                <CardTitle className="text-lg font-medium">{t("dashboard.entries")}</CardTitle>
                 <CardDescription>
                   {format(startDate, "MMMM yyyy")}
                 </CardDescription>
@@ -228,7 +231,7 @@ export function TimeJournalStats({
                     <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Entries</p>
+                    <p className="text-sm text-muted-foreground">{t("common.totalEntries")}</p>
                     <p className="text-2xl font-bold">{timeEntries.length}</p>
                   </div>
                 </div>
@@ -238,7 +241,7 @@ export function TimeJournalStats({
           
           <Card>
             <CardHeader>
-              <CardTitle>Time Entries</CardTitle>
+              <CardTitle>{t("common.timeEntries")}</CardTitle>
               <CardDescription>
                 {format(startDate, "MMMM yyyy")}
               </CardDescription>
@@ -248,36 +251,36 @@ export function TimeJournalStats({
                 <TableHeader>
                   <TableRow>
                     {showUserColumn && <TableHead>User</TableHead>}
-                    <TableHead>Client</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Duration / Qty</TableHead>
+                    <TableHead>{t("common.client")}</TableHead>
+                    <TableHead>{t("common.description")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead>{t("common.durationQty")}</TableHead>
                     {!simplifiedView && <TableHead>Revenue</TableHead>}
-                    <TableHead>Date</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {timeEntries.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={showUserColumn ? (simplifiedView ? 6 : 7) : (simplifiedView ? 5 : 6)} className="text-center py-8 text-muted-foreground">
-                        No time entries found for the selected period.
+                        {t("common.noTimeEntriesFound")}
                       </TableCell>
                     </TableRow>
                   ) : (
                     timeEntries.map((entry) => (
                       <TableRow key={entry.id}>
                         {showUserColumn && <TableCell>{entry.username || 'Unknown'}</TableCell>}
-                        <TableCell>{entry.clients?.name || 'Unknown client'}</TableCell>
+                        <TableCell>{entry.clients?.name || t("common.unknownClient")}</TableCell>
                         <TableCell className="max-w-[200px] truncate">
-                          {entry.description || (entry.products?.name || 'No description')}
+                          {entry.description || (entry.products?.name || t("timeTracking.noDescription"))}
                         </TableCell>
                         <TableCell className="capitalize">
-                          {entry.products?.type || 'Unknown'}
+                          {entry.products?.type === 'activity' ? t("common.activity") : t("common.item")}
                         </TableCell>
                         <TableCell>
                           {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                            ? `${calculateDuration(entry.start_time, entry.end_time)} hrs`
-                            : entry.quantity ? `${entry.quantity} items` : '-'}
+                            ? `${calculateDuration(entry.start_time, entry.end_time)} ${t("common.hours")}`
+                            : entry.quantity ? `${entry.quantity} ${t("common.items")}` : '-'}
                         </TableCell>
                         {!simplifiedView && (
                           <TableCell>

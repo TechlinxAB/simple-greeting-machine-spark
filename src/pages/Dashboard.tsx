@@ -218,7 +218,7 @@ export default function Dashboard() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
-                  <span>{t("dashboard.filterBy")}</span>
+                  <span>{t("common.filter")}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-background">
@@ -333,7 +333,7 @@ export default function Dashboard() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
-                      <span>{t("dashboard.filterBy")}</span>
+                      <span>{t("common.filter")}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-background">
