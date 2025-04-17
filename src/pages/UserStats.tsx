@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -91,11 +90,9 @@ export default function UserStats() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'this-month' | 'all-time'>('this-month');
   
-  // Get current month and year
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
   
-  // Fetch user profile data
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
@@ -111,11 +108,9 @@ export default function UserStats() {
     enabled: !!userId
   });
 
-  // Calculate date ranges
   const currentMonthStart = startOfMonth(currentDate);
   const currentMonthEnd = endOfMonth(currentDate);
   
-  // Fetch current month time entries
   const { data: currentMonthTimeEntries = [], isLoading: isLoadingCurrentMonth } = useQuery({
     queryKey: ["user-time-entries", userId, "month", format(currentMonthStart, "yyyy-MM")],
     queryFn: async () => {
@@ -138,7 +133,6 @@ export default function UserStats() {
     enabled: !!userId
   });
   
-  // Fetch all time entries
   const { data: allTimeEntries = [], isLoading: isLoadingAllTime } = useQuery({
     queryKey: ["user-time-entries", userId, "all-time"],
     queryFn: async () => {
@@ -159,7 +153,6 @@ export default function UserStats() {
     enabled: !!userId
   });
 
-  // Calculate hours from time entries
   const calculateHours = (entries: UserTimeEntry[]) => {
     return entries
       .filter(entry => entry.products?.type === 'activity' && entry.start_time && entry.end_time)
@@ -171,7 +164,6 @@ export default function UserStats() {
       }, 0).toFixed(1);
   };
 
-  // Calculate revenue from time entries
   const calculateRevenue = (entries: UserTimeEntry[]) => {
     return entries
       .reduce((total, entry) => {
@@ -187,7 +179,6 @@ export default function UserStats() {
       }, 0).toFixed(0);
   };
 
-  // Get client statistics from time entries
   const getClientStats = (entries: UserTimeEntry[]): ClientStat[] => {
     if (entries.length === 0) return [];
     
@@ -221,14 +212,12 @@ export default function UserStats() {
       }));
   };
 
-  // Get activity statistics (services)
   const getActivityStats = (entries: UserTimeEntry[]): ProductStat[] => {
     if (entries.length === 0) return [];
     
     const activityStats: Record<string, Partial<ProductStat>> = {};
     let totalHours = 0;
     
-    // First pass to collect all activities and their hours
     entries.forEach(entry => {
       if (!entry.products || entry.products.type !== 'activity' || !entry.start_time || !entry.end_time) return;
       
@@ -238,7 +227,7 @@ export default function UserStats() {
       if (!activityStats[productId]) {
         activityStats[productId] = { 
           name: productName, 
-          type: 'activity',
+          type: 'activity' as const,
           units: 0,
           unitLabel: 'hours',
           revenue: 0 
@@ -254,11 +243,10 @@ export default function UserStats() {
       totalHours += hours;
     });
     
-    // Second pass to calculate percentages and format values
     return Object.values(activityStats)
       .map(stat => ({
         name: stat.name || '',
-        type: 'activity',
+        type: 'activity' as const,
         units: parseFloat((stat.units || 0).toFixed(1)),
         unitLabel: 'hours',
         revenue: Math.round(stat.revenue || 0),
@@ -268,14 +256,12 @@ export default function UserStats() {
       .sort((a, b) => b.units - a.units);
   };
   
-  // Get product statistics (items)
   const getItemStats = (entries: UserTimeEntry[]): ProductStat[] => {
     if (entries.length === 0) return [];
     
     const itemStats: Record<string, Partial<ProductStat>> = {};
     let totalUnits = 0;
     
-    // First pass to collect all items and their quantities
     entries.forEach(entry => {
       if (!entry.products || entry.products.type !== 'item' || !entry.quantity) return;
       
@@ -285,7 +271,7 @@ export default function UserStats() {
       if (!itemStats[productId]) {
         itemStats[productId] = { 
           name: productName, 
-          type: 'item',
+          type: 'item' as const,
           units: 0,
           unitLabel: 'units',
           revenue: 0 
@@ -297,11 +283,10 @@ export default function UserStats() {
       totalUnits += entry.quantity;
     });
     
-    // Second pass to calculate percentages and format values
     return Object.values(itemStats)
       .map(stat => ({
         name: stat.name || '',
-        type: 'item',
+        type: 'item' as const,
         units: Math.round(stat.units || 0),
         unitLabel: 'units',
         revenue: Math.round(stat.revenue || 0),
@@ -311,14 +296,12 @@ export default function UserStats() {
       .sort((a, b) => b.units - a.units);
   };
   
-  // Get product statistics from time entries (both activities and items)
   const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
     const activityStats = getActivityStats(entries);
     const itemStats = getItemStats(entries);
     return [...activityStats, ...itemStats];
   };
 
-  // Month navigation handlers
   const goToPreviousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
   };
@@ -331,18 +314,15 @@ export default function UserStats() {
     navigate('/administration?tab=users');
   };
 
-  // Handle month and year change
   const handleMonthYearChange = (month: number, year: number) => {
     setCurrentDate(new Date(year, month, 1));
   };
 
-  // Toggle between current month and all time views
   const handleAllTimeToggle = (enabled: boolean) => {
     setIsAllTime(enabled);
     setActiveTab(enabled ? 'all-time' : 'this-month');
   };
 
-  // Calculate statistics for active view
   const currentMonthHours = calculateHours(currentMonthTimeEntries);
   const currentMonthRevenue = calculateRevenue(currentMonthTimeEntries);
   const allTimeHours = calculateHours(allTimeEntries);
@@ -356,17 +336,14 @@ export default function UserStats() {
   const allTimeActivityStats = getActivityStats(allTimeEntries);
   const allTimeItemStats = getItemStats(allTimeEntries);
 
-  // Get top 5 clients by hours
   const getTopClients = (clientStats: ClientStat[]) => {
     return clientStats.slice(0, 5);
   };
 
-  // Get top 5 products by revenue
   const getTopRevenueProducts = (productStats: ProductStat[]) => {
     return [...productStats].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   };
 
-  // Loading state
   if (isLoadingProfile) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -375,7 +352,6 @@ export default function UserStats() {
     );
   }
 
-  // Error state
   if (!profile) {
     return (
       <div className="container mx-auto py-6">
@@ -393,14 +369,12 @@ export default function UserStats() {
     );
   }
 
-  // Define role badge variants
   const roleBadgeVariants = {
     admin: "destructive",
     manager: "blue",
     user: "secondary",
   };
   
-  // Choose active statistics based on view
   const activeStats = isAllTime 
     ? { 
         clientStats: allTimeClientStats,
@@ -423,7 +397,6 @@ export default function UserStats() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Top Navigation Bar */}
       <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b shadow-sm p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button 
@@ -471,9 +444,7 @@ export default function UserStats() {
       </div>
       
       <div className="container mx-auto py-6 px-4">
-        {/* Main Content */}
         <div className="grid grid-cols-12 gap-6">
-          {/* User Profile Sidebar */}
           <div className="col-span-12 md:col-span-3">
             <Card className="overflow-hidden">
               <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-32 flex items-center justify-center">
@@ -496,7 +467,6 @@ export default function UserStats() {
                 </div>
                 
                 <div className="space-y-4 mt-4">
-                  {/* Key summary stats */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
                       <p className="text-sm text-muted-foreground">Total Hours</p>
@@ -537,9 +507,7 @@ export default function UserStats() {
             </Card>
           </div>
           
-          {/* Main Stats Area */}
           <div className="col-span-12 md:col-span-9 space-y-6">
-            {/* Performance Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
                 <CardContent className="p-6 flex justify-between items-center">
@@ -603,7 +571,6 @@ export default function UserStats() {
               </Alert>
             ) : (
               <>
-                {/* Client Work Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <BarChartCard
                     title="Hours per Client"
@@ -634,9 +601,7 @@ export default function UserStats() {
                   />
                 </div>
                 
-                {/* Services and Products Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Activity/Services Chart */}
                   <Card className="overflow-hidden">
                     <CardHeader className="border-b pb-3">
                       <CardTitle>Service Distribution</CardTitle>
@@ -647,7 +612,8 @@ export default function UserStats() {
                     <CardContent className="pt-6">
                       <div className="h-[350px]">
                         {activeStats.activityStats.length > 0 ? (
-                          <PieChart
+                          <PieChartCard
+                            title=""
                             data={activeStats.activityStats.map(item => ({...item, value: item.units}))}
                             height={350}
                             dataKey="value"
@@ -672,7 +638,6 @@ export default function UserStats() {
                     </CardContent>
                   </Card>
                   
-                  {/* Products Chart */}
                   <Card className="overflow-hidden">
                     <CardHeader className="border-b pb-3">
                       <CardTitle>Product Distribution</CardTitle>
@@ -683,7 +648,8 @@ export default function UserStats() {
                     <CardContent className="pt-6">
                       <div className="h-[350px]">
                         {activeStats.itemStats.length > 0 ? (
-                          <PieChart
+                          <PieChartCard
+                            title=""
                             data={activeStats.itemStats.map(item => ({...item, value: item.units}))}
                             height={350}
                             dataKey="value"
@@ -709,9 +675,7 @@ export default function UserStats() {
                   </Card>
                 </div>
                 
-                {/* Tables for detailed data */}
                 <div className="grid grid-cols-1 gap-6">
-                  {/* Top Clients */}
                   <Card>
                     <CardHeader className="pb-2 border-b">
                       <div className="flex items-center">
@@ -751,7 +715,6 @@ export default function UserStats() {
                     </CardContent>
                   </Card>
                   
-                  {/* Top Revenue Products */}
                   <Card>
                     <CardHeader className="pb-2 border-b">
                       <div className="flex items-center">
