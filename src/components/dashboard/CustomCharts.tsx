@@ -46,7 +46,15 @@ export const BarChart: React.FC<BarChartProps> = ({
           <RechartsXAxis dataKey={nameKey} />
           <RechartsYAxis />
           <Tooltip 
-            formatter={tooltip?.formatter || ((value) => [`${value}`, ''])}
+            formatter={(value, name, entry) => {
+              if (tooltip?.formatter) {
+                const [formattedValue, formattedName] = tooltip.formatter(value);
+                // If the formatter doesn't provide a name, use the one from the data
+                const displayName = formattedName || entry.payload[nameKey]?.split(' ')[0] || name;
+                return [formattedValue, displayName];
+              }
+              return [`${value}`, entry.payload[nameKey]?.split(' ')[0] || name];
+            }}
             labelFormatter={tooltip?.labelFormatter || ((label) => `${label}`)}
           />
           <Legend />
@@ -110,7 +118,14 @@ export const PieChart: React.FC<PieChartProps> = ({
             ))}
           </RechartsPie>
           <Tooltip 
-            formatter={tooltip?.formatter || ((value) => [String(value), ''])}
+            formatter={(value, name, entry) => {
+              if (tooltip?.formatter) {
+                const [formattedValue, formattedName] = tooltip.formatter(value);
+                // If the formatter doesn't provide a name, use the one from the data
+                return [formattedValue, formattedName || entry.name || name];
+              }
+              return [String(value), entry.name || name];
+            }}
           />
         </RechartsPieChart>
       </ResponsiveContainer>
