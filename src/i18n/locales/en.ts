@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -114,7 +113,6 @@ const translations = {
     clientNumber: "Client #",
     orgNumber: "Org. #",
     deleting: "Deleting...",
-    // Filter keys
     filterByClient: "Filter by Client",
     filterByUser: "Filter by User",
     dateFilter: "Date Filter"
@@ -458,6 +456,31 @@ const translations = {
     unauthorized: "You are not authorized to access this page",
     serverError: "Server error. Please try again later.",
     loadingFailed: "Failed to load data"
+  },
+  userStats: {
+    title: "User Performance",
+    subtitle: "Track and analyze user activity",
+    overview: "Overview",
+    timeTracking: "Time Tracking",
+    revenue: "Revenue",
+    totalHours: "Total Hours",
+    totalRevenue: "Total Revenue",
+    monthlyStats: "Monthly Statistics",
+    activityBreakdown: "Activity Breakdown",
+    clientDistribution: "Client Distribution",
+    performanceMetrics: "Performance Metrics",
+    hoursPerClient: "Hours per Client",
+    revenuePerClient: "Revenue per Client",
+    mostActiveClients: "Most Active Clients",
+    topActivities: "Top Activities",
+    periodComparison: "Period Comparison",
+    currentPeriod: "Current Period",
+    previousPeriod: "Previous Period",
+    efficiency: "Efficiency",
+    utilization: "Utilization",
+    productivityScore: "Productivity Score",
+    averageHoursPerDay: "Average Hours per Day",
+    filterByDate: "Filter by Date"
   }
 };
 

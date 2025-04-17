@@ -465,6 +465,31 @@ const translations = {
     unauthorized: "Du har inte behörighet att komma åt denna sida",
     serverError: "Serverfel. Försök igen senare.",
     loadingFailed: "Fel vid inl��sning. Försök igen."
+  },
+  userStats: {
+    title: "Användarprestation",
+    subtitle: "Spåra och analysera användaraktivitet",
+    overview: "Översikt",
+    timeTracking: "Tidsredovisning",
+    revenue: "Intäkter",
+    totalHours: "Totalt antal timmar",
+    totalRevenue: "Totala intäkter",
+    monthlyStats: "Månadsstatistik",
+    activityBreakdown: "Aktivitetsfördelning",
+    clientDistribution: "Kundfördelning",
+    performanceMetrics: "Prestationsmått",
+    hoursPerClient: "Timmar per kund",
+    revenuePerClient: "Intäkt per kund",
+    mostActiveClients: "Mest aktiva kunder",
+    topActivities: "Toppaktiviteter",
+    periodComparison: "Periodsjämförelse",
+    currentPeriod: "Nuvarande period",
+    previousPeriod: "Föregående period",
+    efficiency: "Effektivitet",
+    utilization: "Utnyttjande",
+    productivityScore: "Produktivitetspoäng",
+    averageHoursPerDay: "Genomsnittliga timmar per dag",
+    filterByDate: "Filtrera efter datum"
   }
 };
 
