@@ -71,6 +71,7 @@ interface UserTimeEntry {
   start_time: string;
   end_time: string;
   quantity: number;
+  created_at: string;
   clients?: {
     id: string;
     name: string;
@@ -119,15 +120,16 @@ export default function UserStats() {
       const { data, error } = await supabase
         .from("time_entries")
         .select(`
-          id, client_id, product_id, start_time, end_time, quantity,
+          id, client_id, product_id, start_time, end_time, quantity, created_at,
           products:product_id (id, name, type, price),
           clients:client_id (id, name)
         `)
         .eq("user_id", userId)
-        .gte("start_time", currentMonthStart.toISOString())
-        .lte("end_time", currentMonthEnd.toISOString());
+        .gte("created_at", currentMonthStart.toISOString())
+        .lte("created_at", currentMonthEnd.toISOString());
         
       if (error) throw error;
+      console.log("Current month entries:", data);
       return data as unknown as UserTimeEntry[];
     },
     enabled: !!userId
@@ -141,13 +143,14 @@ export default function UserStats() {
       const { data, error } = await supabase
         .from("time_entries")
         .select(`
-          id, client_id, product_id, start_time, end_time, quantity,
+          id, client_id, product_id, start_time, end_time, quantity, created_at,
           products:product_id (id, name, type, price),
           clients:client_id (id, name)
         `)
         .eq("user_id", userId);
         
       if (error) throw error;
+      console.log("All time entries:", data);
       return data as unknown as UserTimeEntry[];
     },
     enabled: !!userId
@@ -263,7 +266,10 @@ export default function UserStats() {
     let totalUnits = 0;
     
     entries.forEach(entry => {
-      if (!entry.products || entry.products.type !== 'item' || !entry.quantity) return;
+      if (!entry.products || entry.products.type !== 'item') return;
+      
+      const quantity = entry.quantity || 0;
+      if (quantity <= 0) return;
       
       const productId = entry.product_id;
       const productName = entry.products.name || 'Unknown Product';
@@ -278,10 +284,12 @@ export default function UserStats() {
         };
       }
       
-      itemStats[productId].units = (itemStats[productId].units || 0) + entry.quantity;
-      itemStats[productId].revenue = (itemStats[productId].revenue || 0) + entry.quantity * (entry.products.price || 0);
-      totalUnits += entry.quantity;
+      itemStats[productId].units = (itemStats[productId].units || 0) + quantity;
+      itemStats[productId].revenue = (itemStats[productId].revenue || 0) + quantity * (entry.products.price || 0);
+      totalUnits += quantity;
     });
+    
+    console.log("Item stats before processing:", itemStats);
     
     return Object.values(itemStats)
       .map(stat => ({
@@ -335,6 +343,9 @@ export default function UserStats() {
   const currentMonthItemStats = getItemStats(currentMonthTimeEntries);
   const allTimeActivityStats = getActivityStats(allTimeEntries);
   const allTimeItemStats = getItemStats(allTimeEntries);
+
+  console.log("Current month item stats:", currentMonthItemStats);
+  console.log("All time item stats:", allTimeItemStats);
 
   const getTopClients = (clientStats: ClientStat[]) => {
     return clientStats.slice(0, 5);

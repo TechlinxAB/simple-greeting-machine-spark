@@ -168,6 +168,10 @@ export const PieChart: React.FC<PieChartProps> = ({
     );
   }
 
+  const enhancedColors = colors.map(color => {
+    return color;
+  });
+
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
@@ -178,8 +182,8 @@ export const PieChart: React.FC<PieChartProps> = ({
             cy="50%"
             labelLine={showLabels && !hideOuterLabels ? {
               stroke: '#555',
-              strokeWidth: 1,
-              strokeOpacity: 0.8,
+              strokeWidth: 1.5,
+              strokeOpacity: 0.9,
               ...labelLineProps
             } : false}
             label={showLabels && !hideOuterLabels ? 
@@ -191,7 +195,7 @@ export const PieChart: React.FC<PieChartProps> = ({
             fill="#8884d8"
             dataKey={dataKey}
             nameKey={nameKey}
-            paddingAngle={3}
+            paddingAngle={4}
             activeIndex={activeIndex !== undefined ? activeIndex : activeIdx}
             activeShape={renderActiveShape}
             onMouseEnter={handlePieEnter}
@@ -201,7 +205,7 @@ export const PieChart: React.FC<PieChartProps> = ({
                 key={`cell-${index}`} 
                 fill={colors[index % colors.length]} 
                 stroke="#fff"
-                strokeWidth={1}
+                strokeWidth={2}
               />
             ))}
             {showLabels && hideOuterLabels && (
@@ -210,9 +214,9 @@ export const PieChart: React.FC<PieChartProps> = ({
                 position="inside"
                 fill="#fff"
                 style={{ 
-                  fontSize: '11px', 
+                  fontSize: '12px',
                   fontWeight: 'bold', 
-                  textShadow: '0 0 3px rgba(0,0,0,0.5)',
+                  textShadow: '0 0 4px rgba(0,0,0,0.7)',
                   letterSpacing: '0.5px'
                 }}
                 formatter={(value: string) => truncateName(value)}
@@ -223,7 +227,6 @@ export const PieChart: React.FC<PieChartProps> = ({
             formatter={(value, name, entry) => {
               if (tooltip?.formatter) {
                 const [formattedValue, formattedName] = tooltip.formatter(value);
-                // If the formatter doesn't provide a name, use the one from the data
                 return [formattedValue, formattedName || entry.name || name];
               }
               return [String(value), entry.name || name];
@@ -232,8 +235,9 @@ export const PieChart: React.FC<PieChartProps> = ({
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
               border: '1px solid #e2e8f0',
               borderRadius: '6px',
-              padding: '8px 12px',
+              padding: '10px 14px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              fontSize: '14px'
             }}
           />
         </RechartsPieChart>
