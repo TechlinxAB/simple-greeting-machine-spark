@@ -16,8 +16,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { deleteWithRetry } from "@/hooks/useSupabaseQuery";
+import { useTranslation } from "react-i18next";
 
 export default function Products() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | ProductType>("all");
   const [showProductForm, setShowProductForm] = useState(false);
@@ -85,7 +87,7 @@ export default function Products() {
         
         console.log("Time entries using this product:", timeEntryCount);
         if (timeEntryCount && timeEntryCount > 0) {
-          throw new Error(`Cannot delete product that is used in ${timeEntryCount} time entries`);
+          throw new Error(`${t("products.deleteError", { count: timeEntryCount })}`);
         }
         
         // Also check invoice items
@@ -102,7 +104,7 @@ export default function Products() {
         
         console.log("Invoice items using this product:", invoiceItemCount);
         if (invoiceItemCount && invoiceItemCount > 0) {
-          throw new Error(`Cannot delete product that is used in ${invoiceItemCount} invoice items`);
+          throw new Error(`${t("products.deleteInvoiceError", { count: invoiceItemCount })}`);
         }
         
         console.log("No dependencies found, proceeding with deletion...");
@@ -111,7 +113,7 @@ export default function Products() {
         const deleteResult = await deleteWithRetry("products", productId);
         
         if (!deleteResult.success) {
-          throw new Error(deleteResult.error || "Failed to delete product");
+          throw new Error(deleteResult.error || t("products.deleteFailed"));
         }
         
         console.log("Product successfully deleted!");
@@ -135,12 +137,12 @@ export default function Products() {
         refetch();
       }, 300);
       
-      toast.success("Product deleted successfully");
+      toast.success(t("products.productDeleted"));
       setProductToDelete(null);
     },
     onError: (error) => {
       console.error("Error deleting product:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete product");
+      toast.error(error instanceof Error ? error.message : t("products.deleteFailed"));
       setProductToDelete(null);
     },
   });
@@ -185,13 +187,13 @@ export default function Products() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Products</h1>
+        <h1 className="text-2xl font-bold">{t("products.title")}</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search products..." 
+              placeholder={t("products.searchProducts")}
               className="pl-8 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -206,14 +208,14 @@ export default function Products() {
                 className="flex items-center gap-1"
               >
                 <Clock className="h-4 w-4" />
-                <span>New Activity</span>
+                <span>{t("products.newActivity")}</span>
               </Button>
               <Button 
                 onClick={() => handleAddProduct("item")}
                 className="flex items-center gap-1"
               >
                 <Package className="h-4 w-4" />
-                <span>New Item</span>
+                <span>{t("products.newItem")}</span>
               </Button>
             </div>
           )}
@@ -222,22 +224,22 @@ export default function Products() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Product List</CardTitle>
+          <CardTitle>{t("products.productList")}</CardTitle>
           <CardDescription>
-            Manage your activities and items
+            {t("products.manageProducts")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "activity" | "item")} className="mb-6">
             <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="all">{t("products.all")}</TabsTrigger>
               <TabsTrigger value="activity" className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                <span>Activities</span>
+                <span>{t("products.activities")}</span>
               </TabsTrigger>
               <TabsTrigger value="item" className="flex items-center gap-1">
                 <Package className="h-4 w-4" />
-                <span>Items</span>
+                <span>{t("products.items")}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -249,7 +251,7 @@ export default function Products() {
           ) : products.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>No products found.</p>
+              <p>{t("products.noProductsFound")}</p>
               {canManageProducts && (
                 <div className="flex justify-center gap-2 mt-4">
                   <Button 
@@ -258,7 +260,7 @@ export default function Products() {
                     className="flex items-center"
                   >
                     <Clock className="mr-2 h-4 w-4" />
-                    Add Activity
+                    {t("products.addProduct")}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -266,7 +268,7 @@ export default function Products() {
                     className="flex items-center"
                   >
                     <Package className="mr-2 h-4 w-4" />
-                    Add Item
+                    {t("products.addProduct")}
                   </Button>
                 </div>
               )}
@@ -276,13 +278,13 @@ export default function Products() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Price (SEK)</TableHead>
-                    <TableHead>VAT (%)</TableHead>
-                    <TableHead>Account #</TableHead>
-                    <TableHead>Article #</TableHead>
-                    {canManageProducts && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead>{t("products.productName")}</TableHead>
+                    <TableHead>{t("products.productType")}</TableHead>
+                    <TableHead>{t("products.price")}</TableHead>
+                    <TableHead>{t("products.vat")}</TableHead>
+                    <TableHead>{t("products.accountNumber")}</TableHead>
+                    <TableHead>{t("products.articleNumber")}</TableHead>
+                    {canManageProducts && <TableHead className="text-right">{t("administration.actions")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -296,7 +298,7 @@ export default function Products() {
                           ) : (
                             <Package className="mr-1 h-3 w-3 inline" />
                           )}
-                          {product.type}
+                          {t(product.type === "activity" ? "products.activity" : "products.item")}
                         </Badge>
                       </TableCell>
                       <TableCell>{product.price}</TableCell>
@@ -318,7 +320,7 @@ export default function Products() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Edit product</p>
+                                  <p>{t("products.editProduct")}</p>
                                 </TooltipContent>
                               </Tooltip>
                               
@@ -334,7 +336,7 @@ export default function Products() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Delete product</p>
+                                  <p>{t("products.deleteProduct")}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
@@ -367,15 +369,15 @@ export default function Products() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete Product
+              {t("products.deleteProduct")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{productToDelete?.name}"? 
-              This action cannot be undone, and any time entries using this product may become invalid.
+              {t("products.deleteConfirmation")} "{productToDelete?.name}"? 
+              {t("products.deleteWarning")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteProduct}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -384,9 +386,9 @@ export default function Products() {
               {isDeleting ? (
                 <>
                   <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                  Deleting...
+                  {t("common.deleting")}
                 </>
-              ) : "Delete"}
+              ) : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

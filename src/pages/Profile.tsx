@@ -10,8 +10,10 @@ import { Calendar, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
+import { useTranslation } from "react-i18next";
 
 const Profile = () => {
+  const { t } = useTranslation();
   const { user, updateProfile, role } = useAuth();
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -92,10 +94,10 @@ const Profile = () => {
       // Force refresh of profile data
       setRefreshKey(prev => prev + 1);
       
-      toast.success("Profile updated successfully");
+      toast.success(t("profile.profileUpdated"));
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error(t("profile.profileUpdateFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +122,7 @@ const Profile = () => {
         // Toast is already shown in the upload/delete handlers
       } catch (error) {
         console.error("Error updating profile with new image:", error);
-        toast.error("Failed to update profile with new image");
+        toast.error(t("profile.profileUpdateFailed"));
       }
     };
     
@@ -139,31 +141,31 @@ const Profile = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Your Profile</h2>
+      <h2 className="text-2xl font-bold">{t("profile.title")}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your personal information</CardDescription>
+            <CardTitle>{t("profile.profileInformation")}</CardTitle>
+            <CardDescription>{t("profile.updateProfileInfo")}</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t("profile.fullName")}</Label>
                 <Input
                   id="name"
-                  placeholder="Your name"
+                  placeholder={t("auth.fullName")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("profile.email")}</Label>
                 <Input id="email" value={user?.email || ""} disabled />
-                <p className="text-sm text-muted-foreground">Email cannot be changed</p>
+                <p className="text-sm text-muted-foreground">{t("profile.emailCannotBeChanged")}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth (Optional)</Label>
+                <Label htmlFor="dob">{t("profile.dateOfBirth")}</Label>
                 <Input
                   id="dob"
                   type="date"
@@ -172,7 +174,7 @@ const Profile = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Profile Picture</Label>
+                <Label>{t("profile.profilePicture")}</Label>
                 <ProfileImageUpload 
                   avatarUrl={avatarUrl} 
                   onImageUploaded={handleImageUploaded} 
@@ -184,10 +186,10 @@ const Profile = () => {
                 {isLoading ? (
                   <>
                     <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Saving...
+                    {t("profile.saving")}
                   </>
                 ) : (
-                  "Save Changes"
+                  t("profile.saveChanges")
                 )}
               </Button>
             </CardFooter>
@@ -197,7 +199,7 @@ const Profile = () => {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Overview</CardTitle>
+              <CardTitle>{t("profile.profileOverview")}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
               <Avatar className="h-24 w-24 mb-4 bg-primary/10">
@@ -206,18 +208,18 @@ const Profile = () => {
                   {getInitials(name || "")}
                 </AvatarFallback>
               </Avatar>
-              <h3 className="text-xl font-medium">{name || "User"}</h3>
+              <h3 className="text-xl font-medium">{name || t("administration.user")}</h3>
               <p className="text-sm text-muted-foreground mb-4">{user?.email}</p>
               <div className="w-full space-y-2">
                 <div className="flex items-center text-sm">
                   <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span>Role: </span>
-                  <span className="ml-1 font-medium capitalize">{role || "User"}</span>
+                  <span>{t("profile.role")}: </span>
+                  <span className="ml-1 font-medium capitalize">{role || t("administration.user")}</span>
                 </div>
                 {dob && (
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>Birthday: </span>
+                    <span>{t("profile.birthday")}: </span>
                     <span className="ml-1 font-medium">{new Date(dob).toLocaleDateString()}</span>
                   </div>
                 )}

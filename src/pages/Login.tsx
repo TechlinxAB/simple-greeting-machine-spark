@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,22 +14,25 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { useCachedLogo } from "@/hooks/useCachedLogo";
 import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
-
-// Define schema for form validation
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import LanguageSelector from "@/components/LanguageSelector";
+import { useTranslation } from "react-i18next";
 
 const Login = () => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { logoUrl, isLoading: logoLoading, refreshLogo } = useCachedLogo();
+
+  // Define schema for form validation
+  const loginSchema = z.object({
+    email: z.string().email(t("auth.invalidCredentials")),
+    password: z.string().min(1, t("auth.passwordRequired")),
+  });
+
+  type LoginFormValues = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -46,11 +49,11 @@ const Login = () => {
     try {
       console.log("Attempting login with:", values.email);
       await signIn(values.email, values.password);
-      toast.success("Signed in successfully!");
+      toast.success(t("auth.signInSuccessful"));
       navigate("/");
     } catch (error: any) {
       console.error("Login error:", error);
-      setError(error.message || "Invalid email or password");
+      setError(error.message || t("auth.invalidCredentials"));
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +69,10 @@ const Login = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSelector />
+      </div>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex justify-center">
@@ -88,7 +95,7 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Time Tracker</CardTitle>
           <CardDescription>
-            Enter your email and password to access your account
+            {t("auth.signInDescription")}
           </CardDescription>
         </CardHeader>
         
@@ -106,7 +113,7 @@ const Login = () => {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("auth.email")}</FormLabel>
                     <FormControl>
                       <Input 
                         type="email" 
@@ -126,7 +133,7 @@ const Login = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("auth.password")}</FormLabel>
                     <FormControl>
                       <Input 
                         type="password" 
@@ -146,12 +153,19 @@ const Login = () => {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
+                    {t("auth.signingIn")}
                   </>
                 ) : (
-                  "Sign in"
+                  t("auth.signIn")
                 )}
               </Button>
+              
+              <div className="text-center text-sm">
+                {t("auth.createAccount")}{" "}
+                <Link to="/register" className="text-primary hover:underline">
+                  {t("auth.createAccountTitle")}
+                </Link>
+              </div>
             </CardFooter>
           </form>
         </Form>

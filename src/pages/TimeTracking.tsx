@@ -9,8 +9,14 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
 import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { sv } from "date-fns/locale";
 
 export default function TimeTracking() {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
+  
   // Initialize with a stable Date object for today to prevent unnecessary rerenders
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const today = new Date();
@@ -56,18 +62,22 @@ export default function TimeTracking() {
     // Invalidate the clients query to force refresh
     queryClient.invalidateQueries({ queryKey: ["clients"] });
     queryClient.invalidateQueries({ queryKey: ["all-clients"] });
-    toast.success("Client created successfully. Client list refreshed.");
+    toast.success(t("clients.clientAdded"));
   };
 
   const handleTimeEntryCreated = () => {
     // Invalidate the time entries query to force refresh
     queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    toast.success("Time entry recorded successfully.");
+    toast.success(t("timeTracking.timeEntryAdded"));
   };
 
   const formattedDate = isToday(selectedDate) 
-    ? "today" 
-    : format(selectedDate, "d MMMM yyyy");
+    ? t("timeTracking.today")
+    : format(
+        selectedDate, 
+        'd MMMM yyyy', 
+        { locale: language === 'sv' ? sv : undefined }
+      );
 
   // Log selected date for debugging
   useEffect(() => {
