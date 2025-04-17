@@ -10,7 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   PieChart as RechartsPieChart,
-  Pie,
+  Pie as RechartsPie,
   Cell,
   LabelList,
   Sector
@@ -163,7 +163,7 @@ export const PieChart: React.FC<PieChartProps> = ({
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsPieChart>
-          <Pie
+          <RechartsPie
             data={data}
             cx="50%"
             cy="50%"
@@ -193,7 +193,7 @@ export const PieChart: React.FC<PieChartProps> = ({
                 style={{ fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 2px #000' }}
               />
             )}
-          </Pie>
+          </RechartsPie>
           <Tooltip 
             formatter={(value, name, entry) => {
               if (tooltip?.formatter) {
