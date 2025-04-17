@@ -89,6 +89,7 @@ export default function UserStats() {
   const navigate = useNavigate();
   const [isAllTime, setIsAllTime] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<'this-month' | 'all-time'>('this-month');
   
   // Get current month and year
   const currentMonth = currentDate.getMonth();
@@ -155,7 +156,7 @@ export default function UserStats() {
       if (error) throw error;
       return data as unknown as UserTimeEntry[];
     },
-    enabled: !!userId && isAllTime
+    enabled: !!userId
   });
 
   // Calculate hours from time entries
@@ -219,75 +220,102 @@ export default function UserStats() {
         revenue: Math.round(stat.revenue)
       }));
   };
-  
-  // Get product statistics from time entries
-  const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
+
+  // Get activity statistics (services)
+  const getActivityStats = (entries: UserTimeEntry[]): ProductStat[] => {
     if (entries.length === 0) return [];
     
-    const productStats: Record<string, Partial<ProductStat>> = {};
-    let totalActivityUnits = 0;
-    let totalItemUnits = 0;
+    const activityStats: Record<string, Partial<ProductStat>> = {};
+    let totalHours = 0;
     
+    // First pass to collect all activities and their hours
     entries.forEach(entry => {
-      if (!entry.products) return;
+      if (!entry.products || entry.products.type !== 'activity' || !entry.start_time || !entry.end_time) return;
       
-      const productId = entry.product_id || '';
-      const productName = entry.products.name || 'Unknown Product';
+      const productId = entry.product_id;
+      const productName = entry.products.name || 'Unknown Service';
       
-      if (!productStats[productId]) {
-        productStats[productId] = { 
+      if (!activityStats[productId]) {
+        activityStats[productId] = { 
           name: productName, 
-          type: entry.products.type as 'activity' | 'item',
+          type: 'activity',
           units: 0,
-          unitLabel: entry.products.type === 'activity' ? 'hours' : 'units',
+          unitLabel: 'hours',
           revenue: 0 
         };
       }
       
-      if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        productStats[productId].units = (productStats[productId].units || 0) + hours;
-        productStats[productId].revenue = (productStats[productId].revenue || 0) + hours * (entry.products.price || 0);
-        totalActivityUnits += hours;
-      } else if (entry.products.type === 'item' && entry.quantity) {
-        productStats[productId].units = (productStats[productId].units || 0) + entry.quantity;
-        productStats[productId].revenue = (productStats[productId].revenue || 0) + entry.quantity * (entry.products.price || 0);
-        totalItemUnits += entry.quantity;
-      }
+      const start = new Date(entry.start_time);
+      const end = new Date(entry.end_time);
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      
+      activityStats[productId].units = (activityStats[productId].units || 0) + hours;
+      activityStats[productId].revenue = (activityStats[productId].revenue || 0) + hours * (entry.products.price || 0);
+      totalHours += hours;
     });
     
-    const result = Object.values(productStats).map(stat => {
-      const totalUnits = stat.type === 'activity' ? totalActivityUnits : totalItemUnits;
-      return {
+    // Second pass to calculate percentages and format values
+    return Object.values(activityStats)
+      .map(stat => ({
         name: stat.name || '',
-        type: stat.type || 'item',
-        units: stat.type === 'activity' ? parseFloat((stat.units || 0).toFixed(1)) : Math.round(stat.units || 0),
-        unitLabel: stat.unitLabel || 'units',
+        type: 'activity',
+        units: parseFloat((stat.units || 0).toFixed(1)),
+        unitLabel: 'hours',
+        revenue: Math.round(stat.revenue || 0),
+        percentage: totalHours > 0 ? Math.round(((stat.units || 0) / totalHours) * 100) : 0,
+        value: parseFloat((stat.units || 0).toFixed(1))
+      }))
+      .sort((a, b) => b.units - a.units);
+  };
+  
+  // Get product statistics (items)
+  const getItemStats = (entries: UserTimeEntry[]): ProductStat[] => {
+    if (entries.length === 0) return [];
+    
+    const itemStats: Record<string, Partial<ProductStat>> = {};
+    let totalUnits = 0;
+    
+    // First pass to collect all items and their quantities
+    entries.forEach(entry => {
+      if (!entry.products || entry.products.type !== 'item' || !entry.quantity) return;
+      
+      const productId = entry.product_id;
+      const productName = entry.products.name || 'Unknown Product';
+      
+      if (!itemStats[productId]) {
+        itemStats[productId] = { 
+          name: productName, 
+          type: 'item',
+          units: 0,
+          unitLabel: 'units',
+          revenue: 0 
+        };
+      }
+      
+      itemStats[productId].units = (itemStats[productId].units || 0) + entry.quantity;
+      itemStats[productId].revenue = (itemStats[productId].revenue || 0) + entry.quantity * (entry.products.price || 0);
+      totalUnits += entry.quantity;
+    });
+    
+    // Second pass to calculate percentages and format values
+    return Object.values(itemStats)
+      .map(stat => ({
+        name: stat.name || '',
+        type: 'item',
+        units: Math.round(stat.units || 0),
+        unitLabel: 'units',
         revenue: Math.round(stat.revenue || 0),
         percentage: totalUnits > 0 ? Math.round(((stat.units || 0) / totalUnits) * 100) : 0,
-        value: stat.units || 0
-      } as ProductStat;
-    });
-    
-    return result.sort((a, b) => b.units - a.units);
-  };
-
-  // Filter product statistics by type
-  const getProductStatsByType = (stats: ProductStat[], type: 'activity' | 'item'): ProductStat[] => {
-    const filteredStats = stats
-      .filter(stat => stat.type === type)
+        value: Math.round(stat.units || 0)
+      }))
       .sort((a, b) => b.units - a.units);
-    
-    const totalUnits = filteredStats.reduce((sum, stat) => sum + stat.units, 0);
-    
-    return filteredStats.map(stat => ({
-      ...stat,
-      units: type === 'activity' ? parseFloat(stat.units.toFixed(1)) : Math.round(stat.units),
-      value: stat.units,
-      percentage: totalUnits > 0 ? Math.round((stat.units / totalUnits) * 100) : 0
-    })) as ProductStat[];
+  };
+  
+  // Get product statistics from time entries (both activities and items)
+  const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
+    const activityStats = getActivityStats(entries);
+    const itemStats = getItemStats(entries);
+    return [...activityStats, ...itemStats];
   };
 
   // Month navigation handlers
@@ -311,6 +339,7 @@ export default function UserStats() {
   // Toggle between current month and all time views
   const handleAllTimeToggle = (enabled: boolean) => {
     setIsAllTime(enabled);
+    setActiveTab(enabled ? 'all-time' : 'this-month');
   };
 
   // Calculate statistics for active view
@@ -322,13 +351,10 @@ export default function UserStats() {
   const currentMonthClientStats = getClientStats(currentMonthTimeEntries);
   const allTimeClientStats = getClientStats(allTimeEntries);
   
-  const currentMonthProductStats = getProductStats(currentMonthTimeEntries);
-  const allTimeProductStats = getProductStats(allTimeEntries);
-
-  const currentMonthActivityStats = getProductStatsByType(currentMonthProductStats, 'activity');
-  const currentMonthItemStats = getProductStatsByType(currentMonthProductStats, 'item');
-  const allTimeActivityStats = getProductStatsByType(allTimeProductStats, 'activity');
-  const allTimeItemStats = getProductStatsByType(allTimeProductStats, 'item');
+  const currentMonthActivityStats = getActivityStats(currentMonthTimeEntries);
+  const currentMonthItemStats = getItemStats(currentMonthTimeEntries);
+  const allTimeActivityStats = getActivityStats(allTimeEntries);
+  const allTimeItemStats = getItemStats(allTimeEntries);
 
   // Get top 5 clients by hours
   const getTopClients = (clientStats: ClientStat[]) => {
@@ -380,7 +406,6 @@ export default function UserStats() {
         clientStats: allTimeClientStats,
         activityStats: allTimeActivityStats,
         itemStats: allTimeItemStats,
-        productStats: allTimeProductStats,
         hours: allTimeHours,
         revenue: allTimeRevenue,
         entries: allTimeEntries,
@@ -390,7 +415,6 @@ export default function UserStats() {
         clientStats: currentMonthClientStats,
         activityStats: currentMonthActivityStats,
         itemStats: currentMonthItemStats,
-        productStats: currentMonthProductStats,
         hours: currentMonthHours,
         revenue: currentMonthRevenue,
         entries: currentMonthTimeEntries,
@@ -613,50 +637,76 @@ export default function UserStats() {
                 {/* Services and Products Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Activity/Services Chart */}
-                  {activeStats.activityStats.length > 0 && (
-                    <PieChartCard
-                      title="Service Distribution"
-                      description={`Hours tracked per service type ${isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}`}
-                      data={activeStats.activityStats.map(item => ({...item, value: item.units}))}
-                      height={280}
-                      dataKey="value"
-                      colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
-                      tooltip={{
-                        formatter: (value) => {
-                          const stat = activeStats.activityStats.find(s => s.units === value);
-                          const percentage = stat ? `${stat.percentage}%` : '';
-                          return [`${value} hours (${percentage})`, ''];
-                        }
-                      }}
-                      showLabels={true}
-                      outerRadius={130}
-                      hideOuterLabels={true}
-                      className="col-span-1"
-                    />
-                  )}
+                  <Card className="overflow-hidden">
+                    <CardHeader className="border-b pb-3">
+                      <CardTitle>Service Distribution</CardTitle>
+                      <CardDescription>
+                        Hours tracked per service type {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="h-[350px]">
+                        {activeStats.activityStats.length > 0 ? (
+                          <PieChart
+                            data={activeStats.activityStats.map(item => ({...item, value: item.units}))}
+                            height={350}
+                            dataKey="value"
+                            colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
+                            tooltip={{
+                              formatter: (value) => {
+                                const stat = activeStats.activityStats.find(s => s.units === value);
+                                const percentage = stat ? `${stat.percentage}%` : '';
+                                return [`${value} hours (${percentage})`, ''];
+                              }
+                            }}
+                            showLabels={true}
+                            outerRadius={120}
+                            hideOuterLabels={false}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No service data available</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                   
                   {/* Products Chart */}
-                  {activeStats.itemStats.length > 0 && (
-                    <PieChartCard
-                      title="Product Distribution"
-                      description={`Units sold per product ${isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}`}
-                      data={activeStats.itemStats.map(item => ({...item, value: item.units}))}
-                      height={280}
-                      dataKey="value"
-                      colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
-                      tooltip={{
-                        formatter: (value) => {
-                          const stat = activeStats.itemStats.find(s => s.units === value);
-                          const percentage = stat ? `${stat.percentage}%` : '';
-                          return [`${value} units (${percentage})`, ''];
-                        }
-                      }}
-                      showLabels={true}
-                      outerRadius={130}
-                      hideOuterLabels={true}
-                      className="col-span-1"
-                    />
-                  )}
+                  <Card className="overflow-hidden">
+                    <CardHeader className="border-b pb-3">
+                      <CardTitle>Product Distribution</CardTitle>
+                      <CardDescription>
+                        Units sold per product {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="h-[350px]">
+                        {activeStats.itemStats.length > 0 ? (
+                          <PieChart
+                            data={activeStats.itemStats.map(item => ({...item, value: item.units}))}
+                            height={350}
+                            dataKey="value"
+                            colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
+                            tooltip={{
+                              formatter: (value) => {
+                                const stat = activeStats.itemStats.find(s => s.units === value);
+                                const percentage = stat ? `${stat.percentage}%` : '';
+                                return [`${value} units (${percentage})`, ''];
+                              }
+                            }}
+                            showLabels={true}
+                            outerRadius={120}
+                            hideOuterLabels={false}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-muted-foreground">No product data available</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
                 
                 {/* Tables for detailed data */}
@@ -723,7 +773,7 @@ export default function UserStats() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getTopRevenueProducts(activeStats.productStats).map((product, index) => (
+                          {getTopRevenueProducts([...activeStats.activityStats, ...activeStats.itemStats]).map((product, index) => (
                             <TableRow key={index} className="hover:bg-green-50/50 dark:hover:bg-green-950/20">
                               <TableCell className="font-medium">{product.name}</TableCell>
                               <TableCell>
@@ -735,7 +785,7 @@ export default function UserStats() {
                               <TableCell className="text-right font-medium text-green-600">{product.revenue.toLocaleString()}</TableCell>
                             </TableRow>
                           ))}
-                          {activeStats.productStats.length === 0 && (
+                          {activeStats.activityStats.length === 0 && activeStats.itemStats.length === 0 && (
                             <TableRow>
                               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
                                 No product data available for this period.

@@ -91,6 +91,7 @@ interface PieChartCardProps {
   };
   showLabels?: boolean;
   outerRadius?: number;
+  innerRadius?: number;
   hideOuterLabels?: boolean;
 }
 
@@ -105,6 +106,7 @@ export function PieChartCard({
   tooltip,
   showLabels = false,
   outerRadius,
+  innerRadius,
   hideOuterLabels
 }: PieChartCardProps) {
   return (
@@ -122,6 +124,7 @@ export function PieChartCard({
           tooltip={tooltip}
           showLabels={showLabels}
           outerRadius={outerRadius}
+          innerRadius={innerRadius}
           hideOuterLabels={hideOuterLabels}
         />
       </div>

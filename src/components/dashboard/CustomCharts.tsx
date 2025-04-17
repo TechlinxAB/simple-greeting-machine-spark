@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   BarChart as RechartsBarChart,
@@ -72,7 +71,6 @@ export const BarChart: React.FC<BarChartProps> = ({
   );
 };
 
-// Custom PieChart component
 interface PieChartProps {
   data: any[];
   className?: string;
@@ -136,7 +134,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   height = 300,
   dataKey,
   nameKey = "name",
-  colors = ['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#f59e0b', '#84cc16', '#22c55e'],
+  colors = ['#10b981', '#0d9488', '#0f766e', '#115e59', '#134e4a', '#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb'],
   tooltip,
   showLabels = false,
   outerRadius = 80,
@@ -154,20 +152,36 @@ export const PieChart: React.FC<PieChartProps> = ({
     if (onPieEnter) onPieEnter(_, index);
   };
 
-  // Only show the first 8 chars of a name to avoid overflow
   const truncateName = (name: string) => {
     return name.length > 12 ? `${name.substring(0, 10)}...` : name;
   };
+
+  const filteredData = data.filter(item => item[dataKey] > 0);
+
+  if (filteredData.length === 0) {
+    return (
+      <div className={`${className} flex items-center justify-center`}>
+        <div className="text-center text-gray-500">
+          <p>No data available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsPieChart>
           <RechartsPie
-            data={data}
+            data={filteredData}
             cx="50%"
             cy="50%"
-            labelLine={showLabels && !hideOuterLabels}
+            labelLine={showLabels && !hideOuterLabels ? {
+              stroke: '#555',
+              strokeWidth: 1,
+              strokeOpacity: 0.8,
+              ...labelLineProps
+            } : false}
             label={showLabels && !hideOuterLabels ? 
               ({ name, percent }) => `${truncateName(name)} (${(percent * 100).toFixed(0)}%)` : 
               false
@@ -177,20 +191,31 @@ export const PieChart: React.FC<PieChartProps> = ({
             fill="#8884d8"
             dataKey={dataKey}
             nameKey={nameKey}
-            paddingAngle={2}
+            paddingAngle={3}
             activeIndex={activeIndex !== undefined ? activeIndex : activeIdx}
             activeShape={renderActiveShape}
             onMouseEnter={handlePieEnter}
           >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            {filteredData.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={colors[index % colors.length]} 
+                stroke="#fff"
+                strokeWidth={1}
+              />
             ))}
             {showLabels && hideOuterLabels && (
               <LabelList 
                 dataKey={nameKey} 
                 position="inside"
                 fill="#fff"
-                style={{ fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 2px #000' }}
+                style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 'bold', 
+                  textShadow: '0 0 3px rgba(0,0,0,0.5)',
+                  letterSpacing: '0.5px'
+                }}
+                formatter={(value: string) => truncateName(value)}
               />
             )}
           </RechartsPie>
@@ -202,6 +227,13 @@ export const PieChart: React.FC<PieChartProps> = ({
                 return [formattedValue, formattedName || entry.name || name];
               }
               return [String(value), entry.name || name];
+            }}
+            contentStyle={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             }}
           />
         </RechartsPieChart>
