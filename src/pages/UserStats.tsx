@@ -47,6 +47,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
 import { type ProductType } from "@/types";
+import { useTranslation } from "react-i18next";
 
 interface ClientStat {
   name: string;
@@ -85,6 +86,7 @@ interface UserTimeEntry {
 }
 
 export default function UserStats() {
+  const { t } = useTranslation();
   const { userId } = useParams();
   const navigate = useNavigate();
   const [isAllTime, setIsAllTime] = useState(false);
@@ -368,13 +370,13 @@ export default function UserStats() {
       <div className="container mx-auto py-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t("error.somethingWentWrong")}</AlertTitle>
           <AlertDescription>
-            User not found or you don't have permission to view this user's data.
+            {t("error.unauthorized")}
           </AlertDescription>
         </Alert>
         <Button onClick={handleGoBack} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Administration
+          <ArrowLeft className="mr-2 h-4 w-4" /> {t("common.back")} {t("administration.title")}
         </Button>
       </div>
     );
@@ -418,7 +420,7 @@ export default function UserStats() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold">User Performance Dashboard</h1>
+          <h1 className="text-xl font-semibold">{t("userStats.title")}</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -480,12 +482,12 @@ export default function UserStats() {
                 <div className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                      <p className="text-sm text-muted-foreground">Total Hours</p>
+                      <p className="text-sm text-muted-foreground">{t("userStats.totalHours")}</p>
                       <p className="text-xl font-bold text-green-600">{allTimeHours}h</p>
                     </div>
                     
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                      <p className="text-sm text-muted-foreground">Revenue</p>
+                      <p className="text-sm text-muted-foreground">{t("userStats.revenue")}</p>
                       <p className="text-xl font-bold text-green-600">{Number(allTimeRevenue).toLocaleString()} kr</p>
                     </div>
                   </div>
@@ -493,7 +495,7 @@ export default function UserStats() {
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <h4 className="font-medium mb-2 flex items-center">
                       <Users className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Total Clients</span>
+                      <span>{t("clients.title")}</span>
                     </h4>
                     <p className="text-2xl font-bold text-green-600">{allTimeClientStats.length}</p>
                   </div>
@@ -501,7 +503,7 @@ export default function UserStats() {
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <h4 className="font-medium mb-2 flex items-center">
                       <Activity className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Services</span>
+                      <span>{t("products.activities")}</span>
                     </h4>
                     <p className="text-2xl font-bold text-green-600">{allTimeActivityStats.length}</p>
                   </div>
@@ -509,7 +511,7 @@ export default function UserStats() {
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <h4 className="font-medium mb-2 flex items-center">
                       <Package className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Products</span>
+                      <span>{t("products.items")}</span>
                     </h4>
                     <p className="text-2xl font-bold text-green-600">{allTimeItemStats.length}</p>
                   </div>
@@ -523,10 +525,10 @@ export default function UserStats() {
               <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
                 <CardContent className="p-6 flex justify-between items-center">
                   <div>
-                    <p className="text-green-100 mb-1">Hours Tracked</p>
+                    <p className="text-green-100 mb-1">{t("userStats.hoursPerClient")}</p>
                     <h3 className="text-3xl font-bold">{activeStats.hours}h</h3>
                     <p className="text-green-100 text-sm mt-1">
-                      {isAllTime ? 'All Time' : format(currentDate, 'MMMM yyyy')}
+                      {isAllTime ? t("common.allTime") : format(currentDate, 'MMMM yyyy')}
                     </p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-full">
@@ -538,10 +540,10 @@ export default function UserStats() {
               <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white">
                 <CardContent className="p-6 flex justify-between items-center">
                   <div>
-                    <p className="text-green-100 mb-1">Total Revenue</p>
+                    <p className="text-green-100 mb-1">{t("userStats.totalRevenue")}</p>
                     <h3 className="text-3xl font-bold">{Number(activeStats.revenue).toLocaleString()} kr</h3>
                     <p className="text-green-100 text-sm mt-1">
-                      {isAllTime ? 'All Time' : format(currentDate, 'MMMM yyyy')}
+                      {isAllTime ? t("common.allTime") : format(currentDate, 'MMMM yyyy')}
                     </p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-full">
@@ -553,10 +555,10 @@ export default function UserStats() {
               <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
                 <CardContent className="p-6 flex justify-between items-center">
                   <div>
-                    <p className="text-green-100 mb-1">Active Clients</p>
+                    <p className="text-green-100 mb-1">{t("userStats.mostActiveClients")}</p>
                     <h3 className="text-3xl font-bold">{activeStats.clientStats.length}</h3>
                     <p className="text-green-100 text-sm mt-1">
-                      {activeStats.clientStats.length > 0 ? `Top: ${activeStats.clientStats[0]?.name.substring(0, 15)}${activeStats.clientStats[0]?.name.length > 15 ? '...' : ''}` : 'No clients yet'}
+                      {activeStats.clientStats.length > 0 ? `${t("userStats.topClients")}: ${activeStats.clientStats[0]?.name.substring(0, 15)}${activeStats.clientStats[0]?.name.length > 15 ? '...' : ''}` : t("clients.noClientsFound")}
                     </p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-full">
@@ -573,37 +575,37 @@ export default function UserStats() {
             ) : activeStats.entries.length === 0 ? (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>No data available</AlertTitle>
+                <AlertTitle>{t("reports.noDataAvailable")}</AlertTitle>
                 <AlertDescription>
                   {isAllTime 
-                    ? 'No time entries found for this user.' 
-                    : `No time entries found for ${format(currentDate, 'MMMM yyyy')}.`}
+                    ? t("timeTracking.noTimeEntries") 
+                    : `${t("timeTracking.noTimeEntries")} ${format(currentDate, 'MMMM yyyy')}.`}
                 </AlertDescription>
               </Alert>
             ) : (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <BarChartCard
-                    title="Hours per Client"
-                    description={isAllTime ? "All time distribution" : `Distribution for ${format(currentDate, 'MMMM yyyy')}`}
+                    title={t("userStats.hoursPerClient")}
+                    description={isAllTime ? t("userStats.clientDistribution") : `${t("userStats.clientDistribution")} ${format(currentDate, 'MMMM yyyy')}`}
                     data={activeStats.clientStats}
                     height={320}
                     barKey="hours"
-                    barName="Hours Worked"
+                    barName={t("common.hours")}
                     barFill="#10b981"
                     tooltip={{
-                      formatter: (value) => [`${value} hours`, '']
+                      formatter: (value) => [`${value} ${t("common.hours")}`, '']
                     }}
                     className="col-span-1"
                   />
                   
                   <BarChartCard
-                    title="Revenue per Client"
-                    description={isAllTime ? "All time revenue" : `Revenue for ${format(currentDate, 'MMMM yyyy')}`}
+                    title={t("userStats.revenuePerClient")}
+                    description={isAllTime ? t("userStats.clientDistribution") : `${t("userStats.clientDistribution")} ${format(currentDate, 'MMMM yyyy')}`}
                     data={activeStats.clientStats}
                     height={320}
                     barKey="revenue"
-                    barName="Revenue (SEK)"
+                    barName={t("invoices.amount")}
                     barFill="#047857"
                     tooltip={{
                       formatter: (value) => [`${Number(value).toLocaleString()} kr`, '']
@@ -615,9 +617,9 @@ export default function UserStats() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="overflow-hidden">
                     <CardHeader className="border-b pb-3">
-                      <CardTitle>Service Distribution</CardTitle>
+                      <CardTitle>{t("userStats.activityBreakdown")}</CardTitle>
                       <CardDescription>
-                        Hours tracked per service type {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                        {isAllTime ? t("timeTracking.activitiesFor") + ' ' + t("common.allTime") : t("timeTracking.activitiesFor") + ' ' + format(currentDate, 'MMMM yyyy')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -633,7 +635,7 @@ export default function UserStats() {
                               formatter: (value) => {
                                 const stat = activeStats.activityStats.find(s => s.units === value);
                                 const percentage = stat ? `${stat.percentage}%` : '';
-                                return [`${value} hours (${percentage})`, ''];
+                                return [`${value} ${t("common.hours")} (${percentage})`, ''];
                               }
                             }}
                             showLabels={true}
@@ -642,7 +644,7 @@ export default function UserStats() {
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">No service data available</p>
+                            <p className="text-muted-foreground">{t("reports.noDataAvailable")}</p>
                           </div>
                         )}
                       </div>
@@ -651,9 +653,9 @@ export default function UserStats() {
                   
                   <Card className="overflow-hidden">
                     <CardHeader className="border-b pb-3">
-                      <CardTitle>Product Distribution</CardTitle>
+                      <CardTitle>{t("userStats.productDistribution")}</CardTitle>
                       <CardDescription>
-                        Units sold per product {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                        {isAllTime ? t("userStats.productDistribution") + ' ' + t("common.allTime") : t("userStats.productDistribution") + ' ' + format(currentDate, 'MMMM yyyy')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -669,7 +671,7 @@ export default function UserStats() {
                               formatter: (value) => {
                                 const stat = activeStats.itemStats.find(s => s.units === value);
                                 const percentage = stat ? `${stat.percentage}%` : '';
-                                return [`${value} units (${percentage})`, ''];
+                                return [`${value} ${t("common.units")} (${percentage})`, ''];
                               }
                             }}
                             showLabels={true}
@@ -678,7 +680,7 @@ export default function UserStats() {
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">No product data available</p>
+                            <p className="text-muted-foreground">{t("reports.noDataAvailable")}</p>
                           </div>
                         )}
                       </div>
@@ -691,19 +693,19 @@ export default function UserStats() {
                     <CardHeader className="pb-2 border-b">
                       <div className="flex items-center">
                         <Building className="h-5 w-5 text-green-600 mr-2" />
-                        <CardTitle>Top Clients</CardTitle>
+                        <CardTitle>{t("userStats.topClients")}</CardTitle>
                       </div>
                       <CardDescription>
-                        Clients with the most hours logged {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                        {isAllTime ? t("userStats.clientDistribution") + ' ' + t("common.allTime") : t("userStats.clientDistribution") + ' ' + format(currentDate, 'MMMM yyyy')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-4">
                       <Table>
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
-                            <TableHead>Client Name</TableHead>
-                            <TableHead className="text-right">Hours</TableHead>
-                            <TableHead className="text-right">Revenue (kr)</TableHead>
+                            <TableHead>{t("clients.clientName")}</TableHead>
+                            <TableHead className="text-right">{t("common.hours")}</TableHead>
+                            <TableHead className="text-right">{t("invoices.amount")} (kr)</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -717,7 +719,7 @@ export default function UserStats() {
                           {activeStats.clientStats.length === 0 && (
                             <TableRow>
                               <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
-                                No client data available for this period.
+                                {t("reports.noDataAvailable")}
                               </TableCell>
                             </TableRow>
                           )}
@@ -730,39 +732,39 @@ export default function UserStats() {
                     <CardHeader className="pb-2 border-b">
                       <div className="flex items-center">
                         <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
-                        <CardTitle>Top Revenue Generators</CardTitle>
+                        <CardTitle>{t("userStats.topActivities")}</CardTitle>
                       </div>
                       <CardDescription>
-                        Products and services generating the most revenue {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
+                        {isAllTime 
+                          ? t("userStats.performanceMetrics") + ' ' + t("common.allTime") 
+                          : t("userStats.performanceMetrics") + ' ' + format(currentDate, 'MMMM yyyy')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-4">
                       <Table>
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
-                            <TableHead>Name</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Units</TableHead>
-                            <TableHead className="text-right">Revenue (kr)</TableHead>
+                            <TableHead>{t("common.name")}</TableHead>
+                            <TableHead>{t("common.type")}</TableHead>
+                            <TableHead className="text-right">{t("common.quantity")}</TableHead>
+                            <TableHead className="text-right">{t("invoices.amount")} (kr)</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {getTopRevenueProducts([...activeStats.activityStats, ...activeStats.itemStats]).map((product, index) => (
                             <TableRow key={index} className="hover:bg-green-50/50 dark:hover:bg-green-950/20">
                               <TableCell className="font-medium">{product.name}</TableCell>
-                              <TableCell>
-                                <Badge variant={product.type === 'activity' ? "secondary" : "outline"} className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800">
-                                  {product.type === 'activity' ? 'Service' : 'Product'}
-                                </Badge>
+                              <TableCell>{product.type === 'activity' ? t("products.activity") : t("products.item")}</TableCell>
+                              <TableCell className="text-right">
+                                {product.units} {product.type === 'activity' ? t("common.hours") : t("common.units")}
                               </TableCell>
-                              <TableCell>{product.units} {product.unitLabel}</TableCell>
                               <TableCell className="text-right font-medium text-green-600">{product.revenue.toLocaleString()}</TableCell>
                             </TableRow>
                           ))}
-                          {activeStats.activityStats.length === 0 && activeStats.itemStats.length === 0 && (
+                          {[...activeStats.activityStats, ...activeStats.itemStats].length === 0 && (
                             <TableRow>
                               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                                No product data available for this period.
+                                {t("reports.noDataAvailable")}
                               </TableCell>
                             </TableRow>
                           )}

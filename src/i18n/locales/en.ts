@@ -75,7 +75,6 @@ const translations = {
     name: "Name",
     email: "Email",
     phone: "Phone",
-    clientNumber: "Client Number",
     organizationNumber: "Organization Number",
     manageClients: "Manage your clients and their information",
     refresh: "Refresh",

@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Laddar...",
@@ -467,7 +468,7 @@ const translations = {
     loadingFailed: "Fel vid inl��sning. Försök igen."
   },
   userStats: {
-    title: "Användarstatistik",
+    title: "Användarprestation",
     subtitle: "Spåra och analysera användaraktivitet",
     overview: "Översikt",
     timeTracking: "Tidsrapportering",
@@ -489,7 +490,9 @@ const translations = {
     utilization: "Utnyttjandegrad",
     productivityScore: "Produktivitetspoäng",
     averageHoursPerDay: "Genomsnittliga timmar per dag",
-    filterByDate: "Filtrera efter datum"
+    filterByDate: "Filtrera efter datum",
+    topClients: "Toppkunder",
+    productDistribution: "Produktfördelning"
   }
 };
 
