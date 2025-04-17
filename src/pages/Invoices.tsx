@@ -454,8 +454,8 @@ export default function Invoices() {
               <p className="text-sm text-yellow-800">
                 {t("settings.fortnoxDisconnected")} {
                   role === 'admin' 
-                    ? <span>{t("settings.connectFortnoxAdmin", { returnObjects: true })}</span>
-                    : <span>{t("settings.connectFortnoxUser")}</span>
+                    ? t("settings.connectFortnoxAdmin")
+                    : t("settings.connectFortnoxUser")
                 }
               </p>
             </div>
