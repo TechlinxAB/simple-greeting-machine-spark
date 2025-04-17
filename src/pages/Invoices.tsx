@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,7 @@ type TimeEntryWithProfile = {
 };
 
 export default function Invoices() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<string>("");
@@ -402,13 +404,13 @@ export default function Invoices() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Invoices</h1>
+        <h1 className="text-2xl font-bold">{t("invoices.title")}</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
-              placeholder="Search invoices..." 
+              placeholder={t("invoices.searchInvoices")}
               className="pl-8 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -421,14 +423,14 @@ export default function Invoices() {
             disabled={!fortnoxConnected}
           >
             <FilePlus2 className="h-4 w-4" />
-            <span>New Invoice</span>
+            <span>{t("invoices.newInvoice")}</span>
           </Button>
         </div>
       </div>
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>All Invoices</CardTitle>
+          <CardTitle>{t("invoices.allInvoices")}</CardTitle>
           <Button 
             variant="outline" 
             size="sm" 
@@ -436,7 +438,7 @@ export default function Invoices() {
             className="flex items-center gap-2"
           >
             <RefreshCcw className="h-3.5 w-3.5" />
-            <span>Refresh</span>
+            <span>{t("common.refresh")}</span>
           </Button>
         </CardHeader>
         <CardContent>
@@ -450,10 +452,10 @@ export default function Invoices() {
           {!fortnoxConnected && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-sm text-yellow-800">
-                Fortnox integration is not connected. {
+                {t("settings.fortnoxDisconnected")} {
                   role === 'admin' 
-                    ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
-                    : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
+                    ? <span>{t("settings.connectFortnoxAdmin", { returnObjects: true })}</span>
+                    : <span>{t("settings.connectFortnoxUser")}</span>
                 }
               </p>
             </div>

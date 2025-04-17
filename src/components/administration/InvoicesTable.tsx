@@ -12,6 +12,7 @@ import { useIsLaptop } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { createFortnoxInvoice } from '@/integrations/fortnox';
 import { fortnoxApiRequest } from '@/integrations/fortnox/api-client';
+import { useTranslation } from "react-i18next";
 
 interface InvoicesTableProps {
   invoices: Invoice[];
@@ -40,6 +41,7 @@ export function InvoicesTable({
   isCompact,
   isAdmin = false
 }: InvoicesTableProps) {
+  const { t } = useTranslation();
   const { toast: uiToast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -169,13 +171,13 @@ export function InvoicesTable({
                   />
                 </TableHead>
               )}
-              <TableHead isCompact={compact}>Invoice #</TableHead>
-              <TableHead isCompact={compact}>Client</TableHead>
-              <TableHead isCompact={compact}>Issue Date</TableHead>
-              <TableHead isCompact={compact}>Due Date</TableHead>
-              <TableHead isCompact={compact}>Status</TableHead>
-              <TableHead className="text-right" isCompact={compact}>Amount</TableHead>
-              <TableHead className="text-center" isCompact={compact}>Actions</TableHead>
+              <TableHead isCompact={compact}>{t("invoices.invoiceNumber")}</TableHead>
+              <TableHead isCompact={compact}>{t("invoices.clientName")}</TableHead>
+              <TableHead isCompact={compact}>{t("invoices.issueDate")}</TableHead>
+              <TableHead isCompact={compact}>{t("invoices.dueDate")}</TableHead>
+              <TableHead isCompact={compact}>{t("invoices.status")}</TableHead>
+              <TableHead className="text-right" isCompact={compact}>{t("invoices.amount")}</TableHead>
+              <TableHead className="text-center" isCompact={compact}>{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -274,9 +276,9 @@ export function InvoicesTable({
       <ConfirmDialog
         open={!!invoiceToDelete}
         onOpenChange={() => setInvoiceToDelete(null)}
-        title="Delete Invoice"
-        description={`Are you sure you want to delete invoice #${invoiceToDelete?.invoice_number}? This will also mark all related time entries as unbilled.`}
-        actionLabel={isDeleting ? "Deleting..." : "Delete"}
+        title={t("invoices.deleteInvoice")}
+        description={t("invoices.confirmDelete")}
+        actionLabel={isDeleting ? t("common.deleting") : t("common.delete")}
         onAction={handleDeleteConfirm}
         disabled={isDeleting}
         variant="destructive"
