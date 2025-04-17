@@ -15,6 +15,7 @@ import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery } from "@tanstack/react-query";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { useTranslation } from "react-i18next";
 
 interface TimeEntriesTableProps {
   timeEntries?: TimeEntry[];
@@ -61,6 +62,7 @@ export function TimeEntriesTable({
   searchTerm,
   isCompact = false
 }: TimeEntriesTableProps) {
+  const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
@@ -340,16 +342,16 @@ export function TimeEntriesTable({
                   />
                 </TableHead>
               )}
-              <SortableHeader field="clients.name" className={`w-[250px] max-w-[250px] truncate ${isCompact ? 'text-xs' : ''}`}>Client</SortableHeader>
-              <TableHead isCompact={isCompact}>User</TableHead>
-              <SortableHeader field="products.name">Product</SortableHeader>
-              <TableHead isCompact={isCompact}>Type</TableHead>
-              <TableHead isCompact={isCompact}>Description</TableHead>
-              <SortableHeader field="start_time">Date</SortableHeader>
-              <TableHead isCompact={isCompact}>Duration/Quantity</TableHead>
-              <TableHead isCompact={isCompact}>Amount</TableHead>
-              <TableHead isCompact={isCompact}>Status</TableHead>
-              <TableHead isCompact={isCompact}>Actions</TableHead>
+              <SortableHeader field="clients.name" className={`w-[250px] max-w-[250px] truncate ${isCompact ? 'text-xs' : ''}`}>{t('common.client')}</SortableHeader>
+              <TableHead isCompact={isCompact}>{t('administration.user')}</TableHead>
+              <SortableHeader field="products.name">{t('products.productType')}</SortableHeader>
+              <TableHead isCompact={isCompact}>{t('common.type')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('common.description')}</TableHead>
+              <SortableHeader field="start_time">{t('common.date')}</SortableHeader>
+              <TableHead isCompact={isCompact}>{t('common.durationQty')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('common.amount')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('common.status')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('administration.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
