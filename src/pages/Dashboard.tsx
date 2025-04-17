@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next"; // Import the translation hook
 import { 
   Clock, Users, Megaphone, Plus, ScrollText, Filter
 } from "lucide-react";
@@ -30,6 +31,7 @@ import { TimeJournalStats } from "@/components/dashboard/TimeJournalStats";
 import { UserSelect } from "@/components/dashboard/UserSelect";
 
 export default function Dashboard() {
+  const { t } = useTranslation(); // Initialize the translation hook
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("my-journal");
   const [creatingPost, setCreatingPost] = useState(false);

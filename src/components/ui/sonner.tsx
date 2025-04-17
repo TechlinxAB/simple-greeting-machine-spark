@@ -23,8 +23,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toast]:bg-black group-[.toast]:text-white",
           cancelButton:
             "group-[.toast]:bg-white group-[.toast]:text-black group-[.toast]:border-[1px] group-[.toast]:border-gray-200",
-          // Add custom styling for close button
-          close: "text-black hover:bg-gray-100 rounded-full p-1"
+          closeButton: "text-black hover:bg-gray-100 rounded-full p-1" // Updated to use closeButton instead of close
         },
         duration: 3000,
       }}
