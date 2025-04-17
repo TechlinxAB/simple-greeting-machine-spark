@@ -1,6 +1,7 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner"
+import { X } from "lucide-react"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
@@ -19,9 +20,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group toast group-[.toaster]:bg-white group-[.toaster]:text-black group-[.toaster]:border-border group-[.toaster]:shadow-lg cursor-pointer", 
           description: "group-[.toast]:text-gray-800",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group-[.toast]:bg-black group-[.toast]:text-white",
           cancelButton:
             "group-[.toast]:bg-white group-[.toast]:text-black group-[.toast]:border-[1px] group-[.toast]:border-gray-200",
+          // Add custom styling for close button
+          close: "text-black hover:bg-gray-100 rounded-full p-1"
         },
         duration: 3000,
       }}
