@@ -1,10 +1,10 @@
-
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
 interface MonthYearSelectorProps {
-  selectedMonth: number; // 0-11
+  selectedMonth: number;
   selectedYear: number;
   onMonthYearChange: (month: number, year: number) => void;
   includeAllOption?: boolean;
@@ -22,7 +22,22 @@ export function MonthYearSelector({
   isAllSelected = false,
   className
 }: MonthYearSelectorProps) {
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const { t } = useTranslation();
+  
+  const months = [
+    t('common.months.january'),
+    t('common.months.february'),
+    t('common.months.march'),
+    t('common.months.april'),
+    t('common.months.may'),
+    t('common.months.june'),
+    t('common.months.july'),
+    t('common.months.august'),
+    t('common.months.september'),
+    t('common.months.october'),
+    t('common.months.november'),
+    t('common.months.december')
+  ];
 
   // Generate a reasonable year range (5 years back, 3 years forward)
   const currentYear = new Date().getFullYear();
@@ -45,9 +60,11 @@ export function MonthYearSelector({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {months.map((month, index) => <SelectItem key={month} value={index.toString()}>
+            {months.map((month, index) => (
+              <SelectItem key={month} value={index.toString()}>
                 {month}
-              </SelectItem>)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         
@@ -58,9 +75,11 @@ export function MonthYearSelector({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {years.map(year => <SelectItem key={year} value={year.toString()}>
+            {years.map(year => (
+              <SelectItem key={year} value={year.toString()}>
                 {year}
-              </SelectItem>)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -72,7 +91,7 @@ export function MonthYearSelector({
           onClick={onAllSelected}
           className="w-auto"
         >
-          All Time
+          {t('common.allTime')}
         </Button>
       )}
     </div>

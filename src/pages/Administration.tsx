@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { useIsLaptop } from "@/hooks/use-mobile";
 import { UsersTable } from "@/components/administration/UsersTable";
 
 export default function Administration() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
@@ -239,13 +241,19 @@ export default function Administration() {
   return (
     <div className={`container mx-auto py-6 space-y-6 ${isLaptop ? 'px-2 max-w-full overflow-x-auto' : 'px-4'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className={`${isLaptop ? 'text-xl' : 'text-2xl'} font-bold`}>Administration</h1>
+        <h1 className={`${isLaptop ? 'text-xl' : 'text-2xl'} font-bold`}>{t('common.administration')}</h1>
         
         <div className="flex w-full sm:w-auto gap-2">
           <div className="relative flex-grow">
             <Search className={`absolute left-2.5 top-2.5 ${isLaptop ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground`} />
             <input
-              placeholder={activeTab === "invoices" ? "Search invoices..." : activeTab === "users" ? "Search users..." : "Search..."} 
+              placeholder={
+                activeTab === "invoices" 
+                  ? t('common.searchInvoices')
+                  : activeTab === "users" 
+                    ? t('common.searchUsers')
+                    : t('common.searchTimeEntries')
+              }
               className={`pl-8 ${isLaptop ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -257,14 +265,14 @@ export default function Administration() {
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={`inline-flex ${isLaptop ? 'h-8 text-xs' : 'h-9 text-sm'} items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-auto mb-4`}>
-            <TabsTrigger value="time-entries" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
-              Time Entries
+            <TabsTrigger value="time-entries">
+              {t('common.timeEntries')}
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
-              Invoices
+            <TabsTrigger value="invoices">
+              {t('common.invoices')}
             </TabsTrigger>
-            <TabsTrigger value="users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">
-              Users
+            <TabsTrigger value="users">
+              {t('common.users')}
             </TabsTrigger>
           </TabsList>
           
@@ -273,7 +281,7 @@ export default function Administration() {
               <div className={isLaptop ? "p-3" : "p-6"}>
                 <div className={isLaptop ? "mb-4" : "mb-6"}>
                   <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                    <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>Time Entries</h2>
+                    <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>{t('common.timeEntries')}</h2>
                     <div className="flex items-center gap-2">
                       {bulkDeleteMode ? (
                         <>
@@ -311,21 +319,21 @@ export default function Administration() {
                   
                   <div className={`flex flex-wrap gap-${isLaptop ? '3' : '4'} items-end`}>
                     <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by user</p>
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByUser')}</p>
                       <UserSelect
                         value={selectedUser}
                         onChange={setSelectedUser}
                       />
                     </div>
                     <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Filter by client</p>
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByClient')}</p>
                       <ClientSelect
                         value={selectedClient}
                         onChange={setSelectedClient}
                       />
                     </div>
                     <div className="w-full md:w-auto flex-1 min-w-[200px]">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>Date filter</p>
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.dateFilter')}</p>
                       <div className="flex items-center space-x-2">
                         <AllTimeToggle
                           isAllTime={isAllTime}
@@ -363,7 +371,7 @@ export default function Administration() {
             <TabsContent value="invoices" className="m-0">
               <div className={isLaptop ? "p-3" : "p-6"}>
                 <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Invoices</h2>
+                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>{t('common.invoices')}</h2>
                 </div>
                 
                 <InvoicesTable
@@ -392,7 +400,7 @@ export default function Administration() {
             <TabsContent value="users" className="m-0">
               <div className={isLaptop ? "p-3" : "p-6"}>
                 <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>All Users</h2>
+                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>{t('common.users')}</h2>
                 </div>
                 <UsersTable 
                   searchTerm={searchTerm}
@@ -407,7 +415,7 @@ export default function Administration() {
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
         <DialogContent className={`max-w-lg ${isLaptop ? 'p-4 text-sm' : ''}`}>
           <DialogHeader>
-            <DialogTitle className={isLaptop ? "text-base" : ""}>Create New Invoice</DialogTitle>
+            <DialogTitle className={isLaptop ? "text-base" : ""}>{t('common.createInvoice')}</DialogTitle>
             <DialogDescription className={isLaptop ? "text-xs" : ""}>
               Create and export a new invoice to Fortnox for a selected client.
             </DialogDescription>
@@ -415,7 +423,7 @@ export default function Administration() {
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium`}>Select Client</label>
+              <label className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium`}>{t('common.selectClient')}</label>
               <ClientSelect 
                 value={selectedClient}
                 onChange={setSelectedClient}
@@ -424,7 +432,7 @@ export default function Administration() {
             
             {errorMessage && (
               <Alert variant="destructive">
-                <AlertTitle className={isLaptop ? "text-xs" : ""}>Error creating invoice</AlertTitle>
+                <AlertTitle className={isLaptop ? "text-xs" : ""}>{t('common.errorCreatingInvoice')}</AlertTitle>
                 <AlertDescription className={isLaptop ? "text-xs" : ""}>
                   {errorMessage}
                 </AlertDescription>
@@ -438,7 +446,7 @@ export default function Administration() {
               onClick={() => setIsCreatingInvoice(false)}
               className={isLaptop ? "text-xs h-8 px-3" : ""}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleCreateInvoice} 
@@ -448,12 +456,12 @@ export default function Administration() {
               {isExportingInvoice ? (
                 <>
                   <div className={`animate-spin ${isLaptop ? 'h-3 w-3' : 'h-4 w-4'} border-2 border-current border-t-transparent rounded-full`} />
-                  <span>Processing...</span>
+                  <span>{t('common.processing')}</span>
                 </>
               ) : (
                 <>
                   <Upload className={isLaptop ? "h-3 w-3" : "h-4 w-4"} />
-                  <span>Create & Export</span>
+                  <span>{t('common.createAndExport')}</span>
                 </>
               )}
             </Button>
@@ -464,9 +472,9 @@ export default function Administration() {
       <ConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        title="Delete Time Entry"
-        description="Are you sure you want to delete this time entry? This action cannot be undone."
-        actionLabel="Delete"
+        title={t('common.deleteTimeEntry')}
+        description={t('common.confirmDeleteTimeEntry')}
+        actionLabel={t('common.delete')}
         onAction={handleDeleteTimeEntry}
         variant="destructive"
       />
