@@ -11,7 +11,8 @@ import {
   ResponsiveContainer,
   PieChart as RechartsPieChart,
   Pie as RechartsPie,
-  Cell
+  Cell,
+  LabelList
 } from 'recharts';
 
 interface BarChartProps {
@@ -81,6 +82,7 @@ interface PieChartProps {
   tooltip?: {
     formatter?: (value: any) => [string, string];
   };
+  showLabels?: boolean;
 }
 
 export const PieChart: React.FC<PieChartProps> = ({
@@ -90,13 +92,13 @@ export const PieChart: React.FC<PieChartProps> = ({
   dataKey,
   nameKey = "name",
   colors = ['#8BC34A', '#4CAF50', '#009688', '#2196F3', '#3F51B5', '#673AB7', '#9C27B0'],
-  label = true,
-  tooltip
+  label = false,
+  tooltip,
+  showLabels = false
 }) => {
-  const defaultLabel = ({ name, percent }: { name: string; percent: number }) => 
-    `${name}: ${(percent * 100).toFixed(0)}%`;
-    
-  const finalLabel = label === true ? defaultLabel : label;
+  // Simplified label function - just show the name with no percentages
+  // This helps with readability in small charts
+  const renderCustomizedLabel = ({ name }: { name: string }) => name;
 
   return (
     <div className={className}>
@@ -106,8 +108,8 @@ export const PieChart: React.FC<PieChartProps> = ({
             data={data}
             cx="50%"
             cy="50%"
-            labelLine={true}
-            label={finalLabel}
+            labelLine={showLabels}
+            label={showLabels ? renderCustomizedLabel : false}
             outerRadius={100}
             fill="#8884d8"
             dataKey={dataKey}
@@ -116,6 +118,13 @@ export const PieChart: React.FC<PieChartProps> = ({
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
+            {showLabels && (
+              <LabelList 
+                dataKey={nameKey} 
+                position="outside" 
+                style={{ fontSize: '12px', fill: '#333' }}
+              />
+            )}
           </RechartsPie>
           <Tooltip 
             formatter={(value, name, entry) => {

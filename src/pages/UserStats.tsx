@@ -45,6 +45,7 @@ interface ProductStat {
   units: number;
   unitLabel: string;
   revenue: number;
+  percentage?: number;
 }
 
 interface UserTimeEntry {
@@ -196,6 +197,8 @@ export default function UserStats() {
     if (entries.length === 0) return [];
     
     const productStats: Record<string, Partial<ProductStat>> = {};
+    let totalActivityUnits = 0;
+    let totalItemUnits = 0;
     
     entries.forEach(entry => {
       if (!entry.products) return;
@@ -218,20 +221,37 @@ export default function UserStats() {
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         productStats[productId].units = (productStats[productId].units || 0) + hours;
         productStats[productId].revenue = (productStats[productId].revenue || 0) + hours * (entry.products.price || 0);
+        totalActivityUnits += hours;
       } else if (entry.products.type === 'item' && entry.quantity) {
         productStats[productId].units = (productStats[productId].units || 0) + entry.quantity;
         productStats[productId].revenue = (productStats[productId].revenue || 0) + entry.quantity * (entry.products.price || 0);
+        totalItemUnits += entry.quantity;
       }
     });
     
-    return Object.values(productStats)
-      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
-      .map(stat => ({
+    const result = Object.values(productStats).map(stat => {
+      const totalUnits = stat.type === 'activity' ? totalActivityUnits : totalItemUnits;
+      return {
         name: stat.name || '',
         type: stat.type || 'item',
         units: stat.type === 'activity' ? parseFloat((stat.units || 0).toFixed(1)) : Math.round(stat.units || 0),
         unitLabel: stat.type === 'activity' ? 'hours' : 'units',
-        revenue: Math.round(stat.revenue || 0)
+        revenue: Math.round(stat.revenue || 0),
+        percentage: totalUnits > 0 ? Math.round(((stat.units || 0) / totalUnits) * 100) : 0
+      } as ProductStat;
+    });
+    
+    return result.sort((a, b) => b.units - a.units);
+  };
+
+  const getProductStatsByType = (stats: ProductStat[], type: 'activity' | 'item'): ProductStat[] => {
+    return stats
+      .filter(stat => stat.type === type)
+      .sort((a, b) => b.units - a.units)
+      .map(stat => ({
+        ...stat,
+        name: stat.name,
+        value: stat.percentage
       })) as ProductStat[];
   };
 
@@ -257,6 +277,11 @@ export default function UserStats() {
   
   const currentMonthProductStats = getProductStats(currentMonthTimeEntries);
   const allTimeProductStats = getProductStats(allTimeEntries);
+
+  const currentMonthActivityStats = getProductStatsByType(currentMonthProductStats, 'activity');
+  const currentMonthItemStats = getProductStatsByType(currentMonthProductStats, 'item');
+  const allTimeActivityStats = getProductStatsByType(allTimeProductStats, 'activity');
+  const allTimeItemStats = getProductStatsByType(allTimeProductStats, 'item');
 
   if (isLoadingProfile) {
     return (
@@ -440,31 +465,65 @@ export default function UserStats() {
                         <h3 className="text-lg font-medium">Top Products & Services</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Revenue by Product</h4>
-                          <PieChart
-                            data={currentMonthProductStats}
-                            height={200}
-                            dataKey="revenue"
-                            nameKey="name"
-                            colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
-                            tooltip={{
-                              formatter: (value: any): [string, string] => {
-                                return [`${value} SEK`, ''];
-                              }
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Top Products</h4>
-                          <div className="space-y-3 mt-4">
-                            {currentMonthProductStats.slice(0, 5).map((product, index) => (
-                              <div key={index} className="flex justify-between items-center">
+                        {currentMonthActivityStats.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Services by Hours</h4>
+                            <PieChart
+                              data={currentMonthActivityStats}
+                              height={200}
+                              dataKey="units"
+                              nameKey="name"
+                              colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
+                              tooltip={{
+                                formatter: (value: any): [string, string] => {
+                                  const stat = currentMonthActivityStats.find(s => s.units === value);
+                                  const percentage = stat ? `${stat.percentage}%` : '';
+                                  return [`${value} hours (${percentage})`, ''];
+                                }
+                              }}
+                              showLabels={true}
+                            />
+                          </div>
+                        )}
+                        
+                        {currentMonthItemStats.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Products by Units</h4>
+                            <PieChart
+                              data={currentMonthItemStats}
+                              height={200}
+                              dataKey="units"
+                              nameKey="name"
+                              colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
+                              tooltip={{
+                                formatter: (value: any): [string, string] => {
+                                  const stat = currentMonthItemStats.find(s => s.units === value);
+                                  const percentage = stat ? `${stat.percentage}%` : '';
+                                  return [`${value} units (${percentage})`, ''];
+                                }
+                              }}
+                              showLabels={true}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium mb-2">Top Products & Services</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                            {currentMonthProductStats.slice(0, 6).map((product, index) => (
+                              <div key={index} className="flex justify-between items-center border-b pb-2">
                                 <div>
-                                  <p className="font-medium">{product.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {product.units} {product.unitLabel}
+                                  <p className="font-medium truncate max-w-[150px]" title={product.name}>
+                                    {product.name}
                                   </p>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={product.type === 'activity' ? 'outline' : 'secondary'} className="text-xs">
+                                      {product.type === 'activity' ? 'Service' : 'Product'}
+                                    </Badge>
+                                    <p className="text-xs text-muted-foreground">
+                                      {product.units} {product.unitLabel}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div className="text-right">
                                   <p className="font-medium">{product.revenue} SEK</p>
@@ -523,31 +582,65 @@ export default function UserStats() {
                         <h3 className="text-lg font-medium">Top Products & Services (All Time)</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Revenue by Product</h4>
-                          <PieChart
-                            data={allTimeProductStats}
-                            height={200}
-                            dataKey="revenue"
-                            nameKey="name"
-                            colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
-                            tooltip={{
-                              formatter: (value: any): [string, string] => {
-                                return [`${value} SEK`, ''];
-                              }
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Top Products</h4>
-                          <div className="space-y-3 mt-4">
-                            {allTimeProductStats.slice(0, 5).map((product, index) => (
-                              <div key={index} className="flex justify-between items-center">
+                        {allTimeActivityStats.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Services by Hours</h4>
+                            <PieChart
+                              data={allTimeActivityStats}
+                              height={200}
+                              dataKey="units"
+                              nameKey="name"
+                              colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
+                              tooltip={{
+                                formatter: (value: any): [string, string] => {
+                                  const stat = allTimeActivityStats.find(s => s.units === value);
+                                  const percentage = stat ? `${stat.percentage}%` : '';
+                                  return [`${value} hours (${percentage})`, ''];
+                                }
+                              }}
+                              showLabels={true}
+                            />
+                          </div>
+                        )}
+                        
+                        {allTimeItemStats.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Products by Units</h4>
+                            <PieChart
+                              data={allTimeItemStats}
+                              height={200}
+                              dataKey="units"
+                              nameKey="name"
+                              colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
+                              tooltip={{
+                                formatter: (value: any): [string, string] => {
+                                  const stat = allTimeItemStats.find(s => s.units === value);
+                                  const percentage = stat ? `${stat.percentage}%` : '';
+                                  return [`${value} units (${percentage})`, ''];
+                                }
+                              }}
+                              showLabels={true}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium mb-2">Top Products & Services</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                            {allTimeProductStats.slice(0, 6).map((product, index) => (
+                              <div key={index} className="flex justify-between items-center border-b pb-2">
                                 <div>
-                                  <p className="font-medium">{product.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {product.units} {product.unitLabel}
+                                  <p className="font-medium truncate max-w-[150px]" title={product.name}>
+                                    {product.name}
                                   </p>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={product.type === 'activity' ? 'outline' : 'secondary'} className="text-xs">
+                                      {product.type === 'activity' ? 'Service' : 'Product'}
+                                    </Badge>
+                                    <p className="text-xs text-muted-foreground">
+                                      {product.units} {product.unitLabel}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div className="text-right">
                                   <p className="font-medium">{product.revenue} SEK</p>
