@@ -225,7 +225,7 @@ const translations = {
     unknownClient: "Okänd kund",
     allClients: "Alla kunder",
     cannotDelete: "Kan inte radera {name}",
-    hasTimeEntries: "Denna kund har {count} tidsposter kopplade till sig och kan inte raderas.",
+    hasTimeEntries: "Denna kund har {count} tidsposter kopplade till sig och kan inte radera.",
     manageInAdmin: "Du kan hantera tidsposter på administrationssidan.",
     clientList: "Kundlista",
     manageClients: "Hantera kunder",

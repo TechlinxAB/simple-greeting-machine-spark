@@ -114,7 +114,7 @@ const translations = {
     clientNumber: "Client #",
     orgNumber: "Org. #",
     deleting: "Deleting...",
-    // Consolidated filter keys to avoid duplicates
+    // Filter keys
     filterByClient: "Filter by Client",
     filterByUser: "Filter by User",
     dateFilter: "Date Filter"
@@ -361,7 +361,8 @@ const translations = {
     termsAndConditions: "Terms and Conditions",
     allInvoices: "All Invoices",
     confirmDelete: "Are you sure you want to delete this invoice?",
-    issueDate: "Issue Date"
+    issueDate: "Issue Date",
+    searchInvoices: "Search invoices..."
   },
   reports: {
     title: "Reports",
