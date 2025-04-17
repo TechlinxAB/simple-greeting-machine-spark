@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import type { Client } from "@/types";
 
 export default function Clients() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
@@ -83,13 +85,13 @@ export default function Clients() {
   return (
     <div className="container mx-auto py-6 space-y-6 px-4 md:px-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Clients</h1>
+        <h1 className="text-2xl font-bold">{t("common.clients")}</h1>
         
         <div className="flex w-full sm:w-auto gap-2 flex-wrap">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search clients..." 
+              placeholder={t("common.searchClients")}
               className="pl-8 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -101,7 +103,7 @@ export default function Clients() {
             size="icon"
             onClick={handleRefresh}
             disabled={isLoading}
-            title="Refresh client list"
+            title={t("common.refreshList")}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
@@ -111,16 +113,16 @@ export default function Clients() {
             className="flex items-center gap-2 whitespace-nowrap"
           >
             <Plus className="h-4 w-4" />
-            <span>New Client</span>
+            <span>{t("common.newClient")}</span>
           </Button>
         </div>
       </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>Client List</CardTitle>
+          <CardTitle>{t("common.clientList")}</CardTitle>
           <CardDescription>
-            Manage your clients and their information
+            {t("common.manageClients")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -136,27 +138,27 @@ export default function Clients() {
             </div>
           ) : isError ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p className="text-red-500">Error loading clients. Please try again.</p>
+              <p className="text-red-500">{t("error.loadingFailed")}</p>
               <Button 
                 variant="outline" 
                 className="mt-4"
                 onClick={handleRefresh}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Retry
+                {t("common.refresh")}
               </Button>
             </div>
           ) : clients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4 text-muted-foreground/60" />
-              <p>No clients found. Add your first client to get started!</p>
+              <p>{t("clients.noClientsFound")}</p>
               <Button 
                 variant="outline" 
                 className="mt-4"
                 onClick={handleAddClient}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Client
+                {t("common.addClient")}
               </Button>
             </div>
           ) : (
@@ -164,12 +166,12 @@ export default function Clients() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    {!isMobile && <TableHead>Organization #</TableHead>}
-                    {!isMobile && <TableHead>Client #</TableHead>}
-                    {!isMobile && <TableHead>Location</TableHead>}
-                    <TableHead>Contact</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("common.name")}</TableHead>
+                    {!isMobile && <TableHead>{t("common.organizationNumber")}</TableHead>}
+                    {!isMobile && <TableHead>{t("common.clientNumber")}</TableHead>}
+                    {!isMobile && <TableHead>{t("common.location")}</TableHead>}
+                    <TableHead>{t("common.contact")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -216,7 +218,7 @@ export default function Clients() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Edit client</p>
+                                <p>{t("common.editClient")}</p>
                               </TooltipContent>
                             </Tooltip>
                             

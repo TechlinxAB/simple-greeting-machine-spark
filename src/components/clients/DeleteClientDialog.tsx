@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
@@ -14,18 +14,17 @@ interface DeleteClientDialogProps {
 }
 
 export function DeleteClientDialog({ client, onClientDeleted }: DeleteClientDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasReferences, setHasReferences] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [timeEntriesCount, setTimeEntriesCount] = useState(0);
 
-  // Check if the client has any time entries before attempting deletion
   const checkForReferences = async () => {
     setIsChecking(true);
     
     try {
-      // Check if any time entries reference this client
       const { data, error, count } = await supabase
         .from("time_entries")
         .select("id", { count: 'exact' })
@@ -54,11 +53,9 @@ export function DeleteClientDialog({ client, onClientDeleted }: DeleteClientDial
     const canDelete = await checkForReferences();
     
     if (!canDelete) {
-      // The check has already set hasReferences to true if needed
       return;
     }
     
-    // If we can delete, proceed with deletion
     await handleDelete();
   };
 
@@ -95,7 +92,7 @@ export function DeleteClientDialog({ client, onClientDeleted }: DeleteClientDial
         size="icon" 
         onClick={() => setOpen(true)}
         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-        title="Delete client"
+        title={t("common.delete")}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -103,42 +100,39 @@ export function DeleteClientDialog({ client, onClientDeleted }: DeleteClientDial
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogTitle>{t("clients.deleteClient")}</AlertDialogTitle>
             <AlertDialogDescription>
               {hasReferences ? (
                 <div className="space-y-4">
                   <div className="text-destructive font-medium">
-                    Cannot delete "{client.name}"
+                    {t("clients.cannotDelete", { name: client.name })}
                   </div>
                   <p>
-                    This client has {timeEntriesCount} time {timeEntriesCount === 1 ? 'entry' : 'entries'} associated with it and cannot be deleted.
-                    You must first delete or reassign all time entries for this client.
+                    {t("clients.hasTimeEntries", { count: timeEntriesCount })}
                   </p>
                   <p>
-                    You can manage time entries in the Administration page.
+                    {t("clients.manageInAdmin")}
                   </p>
                 </div>
               ) : (
                 <>
-                  Are you sure you want to delete <strong>{client.name}</strong>?
+                  {t("clients.deleteConfirmation", { name: client.name })}
                   <br /><br />
-                  This action is irreversible and will remove all client information 
-                  from the system. Time entries or invoices associated with this client 
-                  will NOT be deleted.
+                  {t("clients.deleteWarning")}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting || isChecking}>
-              {hasReferences ? "Close" : "Cancel"}
+              {hasReferences ? t("common.close") : t("common.cancel")}
             </AlertDialogCancel>
             {hasReferences ? (
               <Button 
                 onClick={handleNavigateToAdmin}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                Go to Administration
+                {t("navigation.administration")}
               </Button>
             ) : (
               <AlertDialogAction
@@ -149,7 +143,7 @@ export function DeleteClientDialog({ client, onClientDeleted }: DeleteClientDial
                 disabled={isDeleting || isChecking}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isChecking ? "Checking..." : isDeleting ? "Deleting..." : "Delete"}
+                {isChecking ? t("common.checking") : isDeleting ? t("common.deleting") : t("common.delete")}
               </AlertDialogAction>
             )}
           </AlertDialogFooter>

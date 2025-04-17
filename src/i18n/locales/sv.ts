@@ -22,7 +22,7 @@ const translations = {
     totalHours: "Totalt antal timmar",
     hoursLogged: "Loggade timmar",
     totalEntries: "Totalt antal poster",
-    timeEntries: "Tidsposter",
+    timeEntries: "Tidsrapporter",
     client: "Kund",
     description: "Beskrivning",
     type: "Typ",
@@ -47,7 +47,34 @@ const translations = {
       october: "Oktober",
       november: "November",
       december: "December"
-    }
+    },
+    searchClients: "Sök kunder...",
+    noEntriesFound: "Inga rapporter hittades",
+    clients: "Kunder",
+    newClient: "Ny kund",
+    products: "Produkter",
+    invoices: "Fakturor",
+    profile: "Profil",
+    settings: "Inställningar",
+    organization: "Organisation",
+    contact: "Kontakt",
+    actions: "Åtgärder",
+    location: "Plats",
+    name: "Namn",
+    email: "E-post",
+    phone: "Telefon",
+    clientNumber: "Kundnummer",
+    organizationNumber: "Organisationsnummer",
+    clientList: "Kundlista",
+    manageClients: "Hantera dina kunder och deras information",
+    refresh: "Uppdatera",
+    refreshList: "Uppdatera lista",
+    addClient: "Lägg till kund",
+    editClient: "Redigera kund",
+    clientName: "Kundnamn",
+    clientDetails: "Kunduppgifter",
+    checking: "Kontrollerar",
+    close: "Stäng"
   },
   auth: {
     email: "E-post",
@@ -130,7 +157,7 @@ const translations = {
     generateInvoicesDesc: "Skapa fakturor baserat på dina tidrapporter och produktförsäljning.",
     goToTimeTracking: "Gå till tidsredovisning",
     preparingWorkspace: "Förbereder din arbetsyta...",
-    entries: "Poster"
+    entries: "Rapporter"
   },
   clients: {
     title: "Kunder",
@@ -162,7 +189,10 @@ const translations = {
     noClientsDesc: "Lägg till din första kund för att börja spåra tid",
     selectClient: "Välj en kund",
     unknownClient: "Okänd kund",
-    allClients: "Alla kunder"
+    allClients: "Alla kunder",
+    cannotDelete: "Kan inte radera {name}",
+    hasTimeEntries: "Denna kund har {count} tidsposter kopplade till sig och kan inte raderas.",
+    manageInAdmin: "Du kan hantera tidsposter på administrationssidan."
   },
   products: {
     title: "Produkter",
@@ -386,7 +416,8 @@ const translations = {
     tryAgain: "Försök igen",
     sessionExpired: "Din session har gått ut. Vänligen logga in igen.",
     unauthorized: "Du har inte behörighet att komma åt denna sida",
-    serverError: "Serverfel. Försök igen senare."
+    serverError: "Serverfel. Försök igen senare.",
+    loadingFailed: "Fel vid inläsning. Försök igen."
   }
 };
 
