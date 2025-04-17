@@ -89,6 +89,9 @@ interface PieChartCardProps {
   tooltip?: {
     formatter?: (value: any) => [string, string];
   };
+  showLabels?: boolean;
+  outerRadius?: number;
+  hideOuterLabels?: boolean;
 }
 
 export function PieChartCard({
@@ -99,7 +102,10 @@ export function PieChartCard({
   dataKey,
   colors,
   className,
-  tooltip
+  tooltip,
+  showLabels = false,
+  outerRadius,
+  hideOuterLabels
 }: PieChartCardProps) {
   return (
     <ChartCard 
@@ -114,6 +120,9 @@ export function PieChartCard({
           dataKey={dataKey}
           colors={colors}
           tooltip={tooltip}
+          showLabels={showLabels}
+          outerRadius={outerRadius}
+          hideOuterLabels={hideOuterLabels}
         />
       </div>
     </ChartCard>

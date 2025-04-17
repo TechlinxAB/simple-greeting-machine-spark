@@ -153,12 +153,6 @@ export const PieChart: React.FC<PieChartProps> = ({
     if (onPieEnter) onPieEnter(_, index);
   };
 
-  // Function to render simple labels rather than percentages
-  const renderCustomizedLabel = (entry: any) => {
-    const { name } = entry;
-    return name;
-  };
-
   // Only show the first 8 chars of a name to avoid overflow
   const truncateName = (name: string) => {
     return name.length > 12 ? `${name.substring(0, 10)}...` : name;
