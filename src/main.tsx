@@ -3,7 +3,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { BrowserRouter } from 'react-router-dom';
 import '@/i18n'; // Import i18n configuration
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -23,15 +22,13 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-            <App />
-            <Toaster position="top-right" />
-          </ThemeProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <ThemeProvider>
+          <App />
+          <Toaster position="top-right" />
+        </ThemeProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );
