@@ -28,7 +28,9 @@ import {
   BarChart,
   PieChart as PieChartIcon,
   AlertCircle,
-  Loader2
+  Loader2,
+  Tag,
+  Clock4
 } from "lucide-react";
 import { useIsLaptop } from "@/hooks/use-mobile";
 import { type ProductType } from "@/types";
@@ -211,6 +213,7 @@ export default function UserStats() {
           name: productName, 
           type: entry.products.type as 'activity' | 'item',
           units: 0,
+          unitLabel: 'hours',
           revenue: 0 
         };
       }
@@ -245,14 +248,19 @@ export default function UserStats() {
   };
 
   const getProductStatsByType = (stats: ProductStat[], type: 'activity' | 'item'): ProductStat[] => {
-    return stats
+    const filteredStats = stats
       .filter(stat => stat.type === type)
-      .sort((a, b) => b.units - a.units)
-      .map(stat => ({
-        ...stat,
-        name: stat.name,
-        value: stat.percentage
-      })) as ProductStat[];
+      .sort((a, b) => b.units - a.units);
+    
+    const totalUnits = filteredStats.reduce((sum, stat) => sum + stat.units, 0);
+    
+    return filteredStats.map(stat => ({
+      ...stat,
+      name: stat.name,
+      units: type === 'activity' ? parseFloat(stat.units.toFixed(1)) : Math.round(stat.units),
+      value: stat.units,
+      percentage: totalUnits > 0 ? Math.round((stat.units / totalUnits) * 100) : 0
+    })) as ProductStat[];
   };
 
   const goToPreviousMonth = () => {
@@ -449,9 +457,8 @@ export default function UserStats() {
                         nameKey="name"
                         barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value: any): [string, string] => {
-                            const hours = value;
-                            return [`${hours} hours`, ''];
+                          formatter: (value) => {
+                            return [`${value} hours`, ''];
                           }
                         }}
                       />
@@ -460,78 +467,139 @@ export default function UserStats() {
                     <Separator className="my-6" />
                     
                     <div>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-4">
                         <PieChartIcon className="h-5 w-5 text-primary" />
                         <h3 className="text-lg font-medium">Top Products & Services</h3>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {currentMonthActivityStats.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Services by Hours</h4>
-                            <PieChart
-                              data={currentMonthActivityStats}
-                              height={200}
-                              dataKey="units"
-                              nameKey="name"
-                              colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
-                              tooltip={{
-                                formatter: (value: any): [string, string] => {
-                                  const stat = currentMonthActivityStats.find(s => s.units === value);
-                                  const percentage = stat ? `${stat.percentage}%` : '';
-                                  return [`${value} hours (${percentage})`, ''];
-                                }
-                              }}
-                              showLabels={true}
-                            />
-                          </div>
+                          <Card className="border border-green-100 shadow-sm">
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center">
+                                <Clock4 className="h-4 w-4 text-green-600 mr-2" />
+                                <CardTitle className="text-base">Services by Hours</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[250px]">
+                                <PieChart
+                                  data={currentMonthActivityStats}
+                                  height={250}
+                                  dataKey="units"
+                                  nameKey="name"
+                                  colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
+                                  tooltip={{
+                                    formatter: (value) => {
+                                      const stat = currentMonthActivityStats.find(s => s.units === value);
+                                      const percentage = stat ? `${stat.percentage}%` : '';
+                                      return [`${value} hours (${percentage})`, ''];
+                                    }
+                                  }}
+                                  showLabels={true}
+                                  outerRadius={100}
+                                  hideOuterLabels={currentMonthActivityStats.length > 3}
+                                />
+                              </div>
+                              
+                              <div className="mt-4 grid gap-2">
+                                {currentMonthActivityStats.map((service, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-green-50">
+                                    <div className="flex items-center">
+                                      <div className="w-3 h-3 rounded-full mr-2" 
+                                           style={{ backgroundColor: ['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899'][idx % 5] }} />
+                                      <span className="font-medium text-sm">{service.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-500">{service.units} hrs</span>
+                                      <Badge variant="outline" className="ml-2">{service.percentage}%</Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )}
                         
                         {currentMonthItemStats.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Products by Units</h4>
-                            <PieChart
-                              data={currentMonthItemStats}
-                              height={200}
-                              dataKey="units"
-                              nameKey="name"
-                              colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
-                              tooltip={{
-                                formatter: (value: any): [string, string] => {
-                                  const stat = currentMonthItemStats.find(s => s.units === value);
-                                  const percentage = stat ? `${stat.percentage}%` : '';
-                                  return [`${value} units (${percentage})`, ''];
-                                }
-                              }}
-                              showLabels={true}
-                            />
-                          </div>
+                          <Card className="border border-blue-100 shadow-sm">
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center">
+                                <Tag className="h-4 w-4 text-blue-600 mr-2" />
+                                <CardTitle className="text-base">Products by Units</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[250px]">
+                                <PieChart
+                                  data={currentMonthItemStats}
+                                  height={250}
+                                  dataKey="units"
+                                  nameKey="name"
+                                  colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
+                                  tooltip={{
+                                    formatter: (value) => {
+                                      const stat = currentMonthItemStats.find(s => s.units === value);
+                                      const percentage = stat ? `${stat.percentage}%` : '';
+                                      return [`${value} units (${percentage})`, ''];
+                                    }
+                                  }}
+                                  showLabels={true}
+                                  outerRadius={100}
+                                  hideOuterLabels={currentMonthItemStats.length > 3}
+                                />
+                              </div>
+                              
+                              <div className="mt-4 grid gap-2">
+                                {currentMonthItemStats.map((product, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-blue-50">
+                                    <div className="flex items-center">
+                                      <div className="w-3 h-3 rounded-full mr-2" 
+                                           style={{ backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'][idx % 5] }} />
+                                      <span className="font-medium text-sm">{product.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-500">{product.units} units</span>
+                                      <Badge variant="outline" className="ml-2">{product.percentage}%</Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )}
-                        
-                        <div className="md:col-span-2">
-                          <h4 className="text-sm font-medium mb-2">Top Products & Services</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                            {currentMonthProductStats.slice(0, 6).map((product, index) => (
-                              <div key={index} className="flex justify-between items-center border-b pb-2">
-                                <div>
-                                  <p className="font-medium truncate max-w-[150px]" title={product.name}>
-                                    {product.name}
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant={product.type === 'activity' ? 'outline' : 'secondary'} className="text-xs">
-                                      {product.type === 'activity' ? 'Service' : 'Product'}
-                                    </Badge>
-                                    <p className="text-xs text-muted-foreground">
-                                      {product.units} {product.unitLabel}
+                      </div>
+                      
+                      <div className="mt-8">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Top Revenue Generators</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {currentMonthProductStats.slice(0, 6).map((product, index) => (
+                                <div key={index} className="flex justify-between items-center p-3 bg-muted/30 rounded-lg border">
+                                  <div>
+                                    <p className="font-medium" title={product.name}>
+                                      {product.name.length > 20 ? `${product.name.substring(0, 18)}...` : product.name}
                                     </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant={product.type === 'activity' ? 'secondary' : 'outline'} className="text-xs">
+                                        {product.type === 'activity' ? 'Service' : 'Product'}
+                                      </Badge>
+                                      <p className="text-xs text-muted-foreground">
+                                        {product.units} {product.unitLabel}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium">{product.revenue} SEK</p>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className="font-medium">{product.revenue} SEK</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
                     </div>
                   </div>
@@ -566,9 +634,8 @@ export default function UserStats() {
                         nameKey="name"
                         barFill="#4ba64b"
                         tooltip={{
-                          formatter: (value: any): [string, string] => {
-                            const hours = value;
-                            return [`${hours} hours`, ''];
+                          formatter: (value) => {
+                            return [`${value} hours`, ''];
                           }
                         }}
                       />
@@ -577,78 +644,139 @@ export default function UserStats() {
                     <Separator className="my-6" />
                     
                     <div>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-4">
                         <PieChartIcon className="h-5 w-5 text-primary" />
                         <h3 className="text-lg font-medium">Top Products & Services (All Time)</h3>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {allTimeActivityStats.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Services by Hours</h4>
-                            <PieChart
-                              data={allTimeActivityStats}
-                              height={200}
-                              dataKey="units"
-                              nameKey="name"
-                              colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
-                              tooltip={{
-                                formatter: (value: any): [string, string] => {
-                                  const stat = allTimeActivityStats.find(s => s.units === value);
-                                  const percentage = stat ? `${stat.percentage}%` : '';
-                                  return [`${value} hours (${percentage})`, ''];
-                                }
-                              }}
-                              showLabels={true}
-                            />
-                          </div>
+                          <Card className="border border-green-100 shadow-sm">
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center">
+                                <Clock4 className="h-4 w-4 text-green-600 mr-2" />
+                                <CardTitle className="text-base">Services by Hours</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[250px]">
+                                <PieChart
+                                  data={allTimeActivityStats}
+                                  height={250}
+                                  dataKey="units"
+                                  nameKey="name"
+                                  colors={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899']}
+                                  tooltip={{
+                                    formatter: (value) => {
+                                      const stat = allTimeActivityStats.find(s => s.units === value);
+                                      const percentage = stat ? `${stat.percentage}%` : '';
+                                      return [`${value} hours (${percentage})`, ''];
+                                    }
+                                  }}
+                                  showLabels={true}
+                                  outerRadius={100}
+                                  hideOuterLabels={allTimeActivityStats.length > 3}
+                                />
+                              </div>
+                              
+                              <div className="mt-4 grid gap-2">
+                                {allTimeActivityStats.map((service, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-green-50">
+                                    <div className="flex items-center">
+                                      <div className="w-3 h-3 rounded-full mr-2" 
+                                           style={{ backgroundColor: ['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899'][idx % 5] }} />
+                                      <span className="font-medium text-sm">{service.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-500">{service.units} hrs</span>
+                                      <Badge variant="outline" className="ml-2">{service.percentage}%</Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )}
                         
                         {allTimeItemStats.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Products by Units</h4>
-                            <PieChart
-                              data={allTimeItemStats}
-                              height={200}
-                              dataKey="units"
-                              nameKey="name"
-                              colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
-                              tooltip={{
-                                formatter: (value: any): [string, string] => {
-                                  const stat = allTimeItemStats.find(s => s.units === value);
-                                  const percentage = stat ? `${stat.percentage}%` : '';
-                                  return [`${value} units (${percentage})`, ''];
-                                }
-                              }}
-                              showLabels={true}
-                            />
-                          </div>
+                          <Card className="border border-blue-100 shadow-sm">
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center">
+                                <Tag className="h-4 w-4 text-blue-600 mr-2" />
+                                <CardTitle className="text-base">Products by Units</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[250px]">
+                                <PieChart
+                                  data={allTimeItemStats}
+                                  height={250}
+                                  dataKey="units"
+                                  nameKey="name"
+                                  colors={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']}
+                                  tooltip={{
+                                    formatter: (value) => {
+                                      const stat = allTimeItemStats.find(s => s.units === value);
+                                      const percentage = stat ? `${stat.percentage}%` : '';
+                                      return [`${value} units (${percentage})`, ''];
+                                    }
+                                  }}
+                                  showLabels={true}
+                                  outerRadius={100}
+                                  hideOuterLabels={allTimeItemStats.length > 3}
+                                />
+                              </div>
+                              
+                              <div className="mt-4 grid gap-2">
+                                {allTimeItemStats.map((product, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-blue-50">
+                                    <div className="flex items-center">
+                                      <div className="w-3 h-3 rounded-full mr-2" 
+                                           style={{ backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'][idx % 5] }} />
+                                      <span className="font-medium text-sm">{product.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-500">{product.units} units</span>
+                                      <Badge variant="outline" className="ml-2">{product.percentage}%</Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )}
-                        
-                        <div className="md:col-span-2">
-                          <h4 className="text-sm font-medium mb-2">Top Products & Services</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                            {allTimeProductStats.slice(0, 6).map((product, index) => (
-                              <div key={index} className="flex justify-between items-center border-b pb-2">
-                                <div>
-                                  <p className="font-medium truncate max-w-[150px]" title={product.name}>
-                                    {product.name}
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant={product.type === 'activity' ? 'outline' : 'secondary'} className="text-xs">
-                                      {product.type === 'activity' ? 'Service' : 'Product'}
-                                    </Badge>
-                                    <p className="text-xs text-muted-foreground">
-                                      {product.units} {product.unitLabel}
+                      </div>
+                      
+                      <div className="mt-8">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Top Revenue Generators</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {allTimeProductStats.slice(0, 6).map((product, index) => (
+                                <div key={index} className="flex justify-between items-center p-3 bg-muted/30 rounded-lg border">
+                                  <div>
+                                    <p className="font-medium" title={product.name}>
+                                      {product.name.length > 20 ? `${product.name.substring(0, 18)}...` : product.name}
                                     </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant={product.type === 'activity' ? 'secondary' : 'outline'} className="text-xs">
+                                        {product.type === 'activity' ? 'Service' : 'Product'}
+                                      </Badge>
+                                      <p className="text-xs text-muted-foreground">
+                                        {product.units} {product.unitLabel}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium">{product.revenue} SEK</p>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className="font-medium">{product.revenue} SEK</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
                     </div>
                   </div>
