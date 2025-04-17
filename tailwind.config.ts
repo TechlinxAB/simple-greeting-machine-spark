@@ -146,6 +146,26 @@ export default {
             }
           }
         },
+        // Improved button hover utilities for better contrast
+        '.hover-button': {
+          '&:hover': {
+            color: '#ffffff !important',
+            '& svg': {
+              color: '#ffffff !important',
+              stroke: '#ffffff !important'
+            }
+          }
+        },
+        '.hover-button-primary': {
+          '&:hover': {
+            backgroundColor: 'hsl(var(--primary)) !important',
+            color: 'hsl(var(--primary-foreground)) !important',
+            '& svg': {
+              color: 'hsl(var(--primary-foreground)) !important',
+              stroke: 'hsl(var(--primary-foreground)) !important'
+            }
+          }
+        },
         // Add utility to override focus ring color and prevent green line
         '.no-focus-ring': {
           '&:focus': {

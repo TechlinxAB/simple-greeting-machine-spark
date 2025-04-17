@@ -336,6 +336,22 @@
   .mobile-sidebar-exit {
     animation: slideOutRight 0.3s ease-out forwards;
   }
+  
+  .hover-text-white:hover {
+    color: white !important;
+  }
+  
+  .hover-text-white:hover svg {
+    color: white !important;
+  }
+  
+  .hover-fill-white:hover svg {
+    fill: white !important;
+  }
+  
+  .hover-stroke-white:hover svg {
+    stroke: white !important;
+  }
 }
 
 @supports(padding: max(0px)) {
