@@ -110,6 +110,7 @@ const translations = {
     clientLocation: "Location",
     clientOrganization: "Organization",
     clientContact: "Contact",
+    clientNumber: "Client #",
     orgNumber: "Org. #",
     deleting: "Deleting...",
     filterByClient: "Filter by Client",
