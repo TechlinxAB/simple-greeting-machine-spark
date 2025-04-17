@@ -28,7 +28,8 @@ i18n
     
     detection: {
       order: ['localStorage', 'navigator'],
-      caches: ['localStorage']
+      caches: ['localStorage'],
+      lookupLocalStorage: 'language' // Make sure it uses the same key as our context
     }
   });
 

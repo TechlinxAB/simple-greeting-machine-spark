@@ -43,7 +43,15 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   // Set initial language on mount
   useEffect(() => {
     i18n.changeLanguage(language);
-  }, [language]);
+  }, []);
+
+  // Force a language update when the component mounts to ensure consistency
+  useEffect(() => {
+    const savedLang = localStorage.getItem('language') as Language;
+    if (savedLang && ['en', 'sv'].includes(savedLang)) {
+      i18n.changeLanguage(savedLang);
+    }
+  }, []);
 
   const value = {
     language,

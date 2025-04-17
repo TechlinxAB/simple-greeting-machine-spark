@@ -29,7 +29,10 @@ const LanguageSelector = ({
     { code: 'sv', name: 'Svenska' }
   ];
 
-  const currentLanguage = languages.find(lang => lang.code === language) || languages[0];
+  const handleLanguageChange = (code: 'en' | 'sv') => {
+    console.log(`Changing language to: ${code}`);
+    setLanguage(code);
+  };
   
   return (
     <DropdownMenu>
@@ -44,7 +47,7 @@ const LanguageSelector = ({
           <DropdownMenuItem
             key={lang.code}
             className={language === lang.code ? "bg-primary/10 font-medium" : ""}
-            onClick={() => setLanguage(lang.code as 'en' | 'sv')}
+            onClick={() => handleLanguageChange(lang.code as 'en' | 'sv')}
           >
             {lang.name}
           </DropdownMenuItem>

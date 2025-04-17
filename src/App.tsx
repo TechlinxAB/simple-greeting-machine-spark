@@ -17,57 +17,68 @@ import Administration from "./pages/Administration";
 import UserStats from "./pages/UserStats";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { useEffect } from "react";
+import { useLanguage } from "./contexts/LanguageContext";
 
-const App = () => (
-  <TooltipProvider>
-    <BrowserRouter>
-      <AuthProvider>
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* Protected routes wrapped in AppLayout */}
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<TimeTracking />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/invoices" element={<Invoices />} />
+const App = () => {
+  const { language } = useLanguage();
+  
+  // Force language to be applied on app mount
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  return (
+    <TooltipProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             
-            {/* Protected route requiring admin or manager role for Administration */}
-            <Route path="/administration" element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <Administration />
-              </ProtectedRoute>
-            } />
+            {/* Protected routes wrapped in AppLayout */}
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<TimeTracking />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/invoices" element={<Invoices />} />
+              
+              {/* Protected route requiring admin or manager role for Administration */}
+              <Route path="/administration" element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Administration />
+                </ProtectedRoute>
+              } />
+              
+              {/* User stats page - requires admin or manager role */}
+              <Route path="/user-stats/:userId" element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <UserStats />
+                </ProtectedRoute>
+              } />
+              
+              {/* Protected route requiring ONLY admin role for Settings */}
+              <Route path="/settings" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={<Profile />} />
+              
+              {/* Redirect old paths */}
+              <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
+            </Route>
             
-            {/* User stats page - requires admin or manager role */}
-            <Route path="/user-stats/:userId" element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <UserStats />
-              </ProtectedRoute>
-            } />
-            
-            {/* Protected route requiring ONLY admin role for Settings */}
-            <Route path="/settings" element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/profile" element={<Profile />} />
-            
-            {/* Redirect old paths */}
-            <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-          
-          {/* Catch-all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
-  </TooltipProvider>
-);
+            {/* Catch-all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  );
+};
 
 export default App;
