@@ -10,11 +10,13 @@ import { Clock, Users, Package, FileText, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
 
 export default function Index() {
   const { user, isLoading: authLoading } = useAuth();
   const [loadingProgress, setLoadingProgress] = useState(10);
   const isMobile = useIsMobile();
+  const { t } = useTranslation();
 
   // Animate loading progress
   useEffect(() => {
@@ -109,9 +111,9 @@ export default function Index() {
   if (authLoading) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4">
-        <h1 className="text-2xl font-bold mb-8 text-center">Loading Time Tracking & Invoicing</h1>
+        <h1 className="text-2xl font-bold mb-8 text-center">{t("common.loading")} {t("navigation.dashboard")}</h1>
         <Progress value={loadingProgress} className="w-full max-w-md mb-4" />
-        <p className="text-muted-foreground">Preparing your workspace...</p>
+        <p className="text-muted-foreground">{t("dashboard.preparingWorkspace")}</p>
       </div>
     );
   }
@@ -127,17 +129,17 @@ export default function Index() {
   return (
     <div className="container mx-auto py-6 space-y-8 px-4 md:px-6">
       <div className="flex flex-col space-y-4">
-        <h1 className="text-3xl font-bold">Welcome to Your Dashboard</h1>
+        <h1 className="text-3xl font-bold">{t("dashboard.welcome")}</h1>
         <p className="text-muted-foreground">
-          Track your time, manage clients and create invoices all in one place.
+          {t("dashboard.trackTimeAndManageClients")}
         </p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {/* Time Entries Card */}
         <DashboardCard 
-          title="Time Entries" 
-          description="Track your time spent on client work"
+          title={t("dashboard.timeEntries")} 
+          description={t("dashboard.timeEntriesDescription")}
           icon={<Clock className="h-5 w-5" />}
           count={timeEntriesCount}
           isLoading={isDataLoading}
@@ -146,8 +148,8 @@ export default function Index() {
 
         {/* Clients Card */}
         <DashboardCard 
-          title="Clients" 
-          description="Manage your client information"
+          title={t("dashboard.clients")} 
+          description={t("dashboard.clientsDescription")}
           icon={<Users className="h-5 w-5" />}
           count={clientsCount}
           isLoading={isDataLoading}
@@ -156,8 +158,8 @@ export default function Index() {
 
         {/* Products Card */}
         <DashboardCard 
-          title="Products" 
-          description="Configure your products and services"
+          title={t("dashboard.products")} 
+          description={t("dashboard.productsDescription")}
           icon={<Package className="h-5 w-5" />}
           count={productsCount}
           isLoading={isDataLoading}
@@ -166,8 +168,8 @@ export default function Index() {
 
         {/* Invoices Card */}
         <DashboardCard 
-          title="Invoices" 
-          description="Create and manage your invoices"
+          title={t("dashboard.invoices")} 
+          description={t("dashboard.invoicesDescription")}
           icon={<FileText className="h-5 w-5" />}
           count={invoicesCount}
           isLoading={isDataLoading}
@@ -178,32 +180,32 @@ export default function Index() {
       <div className="mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Quick Start</CardTitle>
+            <CardTitle>{t("dashboard.quickStart")}</CardTitle>
             <CardDescription>
-              Get started with the time tracking and invoicing process
+              {t("dashboard.getStarted")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <h3 className="font-medium">1. Add your clients</h3>
-              <p className="text-sm text-muted-foreground">Create profiles for your clients with their contact information.</p>
+              <h3 className="font-medium">1. {t("dashboard.addYourClients")}</h3>
+              <p className="text-sm text-muted-foreground">{t("dashboard.addYourClientsDesc")}</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-medium">2. Configure your products and services</h3>
-              <p className="text-sm text-muted-foreground">Set up the products and services you offer with pricing information.</p>
+              <h3 className="font-medium">2. {t("dashboard.configureProducts")}</h3>
+              <p className="text-sm text-muted-foreground">{t("dashboard.configureProductsDesc")}</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-medium">3. Track your time</h3>
-              <p className="text-sm text-muted-foreground">Log time entries for client work to keep track of billable hours.</p>
+              <h3 className="font-medium">3. {t("dashboard.trackYourTime")}</h3>
+              <p className="text-sm text-muted-foreground">{t("dashboard.trackYourTimeDesc")}</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-medium">4. Generate invoices</h3>
-              <p className="text-sm text-muted-foreground">Create invoices based on your time entries and product sales.</p>
+              <h3 className="font-medium">4. {t("dashboard.generateInvoices")}</h3>
+              <p className="text-sm text-muted-foreground">{t("dashboard.generateInvoicesDesc")}</p>
             </div>
           </CardContent>
           <CardFooter>
             <Button className="w-full" onClick={() => window.location.href = "/time-tracking"}>
-              Go to Time Tracking
+              {t("dashboard.goToTimeTracking")}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
@@ -228,6 +230,8 @@ function DashboardCard({
   isLoading: boolean; 
   linkTo: string;
 }) {
+  const { t } = useTranslation();
+  
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-4">
@@ -248,7 +252,7 @@ function DashboardCard({
       </CardContent>
       <CardFooter>
         <Button variant="ghost" className="w-full justify-between text-sm md:text-base" onClick={() => window.location.href = linkTo}>
-          View All
+          {t("common.viewAll")}
           <ArrowRight className="h-4 w-4" />
         </Button>
       </CardFooter>

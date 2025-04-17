@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useTranslation } from "react-i18next"; // Import the translation hook
+import { useTranslation } from "react-i18next";
 import { 
   Clock, Users, Megaphone, Plus, ScrollText, Filter
 } from "lucide-react";
@@ -31,7 +31,7 @@ import { TimeJournalStats } from "@/components/dashboard/TimeJournalStats";
 import { UserSelect } from "@/components/dashboard/UserSelect";
 
 export default function Dashboard() {
-  const { t } = useTranslation(); // Initialize the translation hook
+  const { t } = useTranslation();
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("my-journal");
   const [creatingPost, setCreatingPost] = useState(false);
@@ -72,18 +72,18 @@ export default function Dashboard() {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   
   const months = [
-    { value: 0, label: "January" },
-    { value: 1, label: "February" },
-    { value: 2, label: "March" },
-    { value: 3, label: "April" },
-    { value: 4, label: "May" },
-    { value: 5, label: "June" },
-    { value: 6, label: "July" },
-    { value: 7, label: "August" },
-    { value: 8, label: "September" },
-    { value: 9, label: "October" },
-    { value: 10, label: "November" },
-    { value: 11, label: "December" }
+    { value: 0, label: t("common.months.january") },
+    { value: 1, label: t("common.months.february") },
+    { value: 2, label: t("common.months.march") },
+    { value: 3, label: t("common.months.april") },
+    { value: 4, label: t("common.months.may") },
+    { value: 5, label: t("common.months.june") },
+    { value: 6, label: t("common.months.july") },
+    { value: 7, label: t("common.months.august") },
+    { value: 8, label: t("common.months.september") },
+    { value: 9, label: t("common.months.october") },
+    { value: 10, label: t("common.months.november") },
+    { value: 11, label: t("common.months.december") }
   ];
   
   const { data: newsPosts = [], refetch: refetchNews } = useQuery({
@@ -226,19 +226,19 @@ export default function Dashboard() {
                   checked={filters.includes('client')}
                   onCheckedChange={() => toggleFilter('client')}
                 >
-                  Client
+                  {t("clients.client")}
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={filters.includes('year')}
                   onCheckedChange={() => toggleFilter('year')}
                 >
-                  Year
+                  {t("common.year")}
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={filters.includes('month')}
                   onCheckedChange={() => toggleFilter('month')}
                 >
-                  Month
+                  {t("common.month")}
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -253,10 +253,10 @@ export default function Dashboard() {
                     onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select client" />
+                      <SelectValue placeholder={t("clients.selectClient")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all-clients">All Clients</SelectItem>
+                      <SelectItem value="all-clients">{t("clients.allClients")}</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
@@ -274,7 +274,7 @@ export default function Dashboard() {
                     onValueChange={(value) => setSelectedYear(parseInt(value))}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select year" />
+                      <SelectValue placeholder={t("common.selectYear")} />
                     </SelectTrigger>
                     <SelectContent>
                       {years.map(year => (
@@ -294,7 +294,7 @@ export default function Dashboard() {
                     onValueChange={(value) => setSelectedMonth(parseInt(value))}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select month" />
+                      <SelectValue placeholder={t("common.selectMonth")} />
                     </SelectTrigger>
                     <SelectContent>
                       {months.map(month => (
@@ -321,7 +321,7 @@ export default function Dashboard() {
         {canViewTeamJournal && (
           <TabsContent value="team-journal" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Team Time Records</h2>
+              <h2 className="text-xl font-semibold">{t("dashboard.teamTimeRecords")}</h2>
               
               <div className="flex gap-2">
                 <UserSelect
@@ -333,7 +333,7 @@ export default function Dashboard() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
-                      <span>Filter by</span>
+                      <span>{t("dashboard.filterBy")}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-background">
@@ -341,19 +341,19 @@ export default function Dashboard() {
                       checked={filters.includes('client')}
                       onCheckedChange={() => toggleFilter('client')}
                     >
-                      Client
+                      {t("clients.client")}
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={filters.includes('year')}
                       onCheckedChange={() => toggleFilter('year')}
                     >
-                      Year
+                      {t("common.year")}
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={filters.includes('month')}
                       onCheckedChange={() => toggleFilter('month')}
                     >
-                      Month
+                      {t("common.month")}
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -369,10 +369,10 @@ export default function Dashboard() {
                       onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
                     >
                       <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="Select client" />
+                        <SelectValue placeholder={t("clients.selectClient")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all-clients">All Clients</SelectItem>
+                        <SelectItem value="all-clients">{t("clients.allClients")}</SelectItem>
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}
@@ -390,7 +390,7 @@ export default function Dashboard() {
                       onValueChange={(value) => setSelectedYear(parseInt(value))}
                     >
                       <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="Select year" />
+                        <SelectValue placeholder={t("common.selectYear")} />
                       </SelectTrigger>
                       <SelectContent>
                         {years.map(year => (
@@ -410,7 +410,7 @@ export default function Dashboard() {
                       onValueChange={(value) => setSelectedMonth(parseInt(value))}
                     >
                       <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="Select month" />
+                        <SelectValue placeholder={t("common.selectMonth")} />
                       </SelectTrigger>
                       <SelectContent>
                         {months.map(month => (
@@ -448,7 +448,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                   <ScrollText className="h-5 w-5" />
-                  <span>Company News & Announcements</span>
+                  <span>{t("dashboard.companyNewsAndAnnouncements")}</span>
                 </h2>
                 
                 {canManagePosts && (
@@ -457,7 +457,7 @@ export default function Dashboard() {
                     className="flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Add News Post</span>
+                    <span>{t("dashboard.addNewsPost")}</span>
                   </Button>
                 )}
               </div>
@@ -477,8 +477,8 @@ export default function Dashboard() {
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
                       <p className="text-muted-foreground text-center">
-                        No news posts available.
-                        {canManagePosts && " Click the 'Add News Post' button to create one."}
+                        {t("dashboard.noNewsAvailable")}
+                        {canManagePosts && ` ${t("dashboard.clickAddNewsPost")}`}
                       </p>
                     </CardContent>
                   </Card>

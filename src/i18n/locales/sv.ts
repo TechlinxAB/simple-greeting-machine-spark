@@ -12,7 +12,26 @@ const translations = {
     next: "Nästa",
     confirm: "Bekräfta",
     submit: "Skicka",
-    saving: "Sparar"
+    saving: "Sparar",
+    year: "År",
+    month: "Månad",
+    selectYear: "Välj år",
+    selectMonth: "Välj månad",
+    viewAll: "Visa alla",
+    months: {
+      january: "Januari",
+      february: "Februari",
+      march: "Mars",
+      april: "April",
+      may: "Maj",
+      june: "Juni",
+      july: "Juli",
+      august: "Augusti",
+      september: "September",
+      october: "Oktober",
+      november: "November",
+      december: "December"
+    }
   },
   auth: {
     email: "E-post",
@@ -69,9 +88,32 @@ const translations = {
     latestUpdates: "Senaste uppdateringarna",
     addNewsPost: "Lägg till nyhet",
     noNewsAvailable: "Inga nyheter tillgängliga",
+    clickAddNewsPost: "Klicka på 'Lägg till nyhet' för att skapa en nyhet.",
     myTimeJournal: "Min tidrapport",
     teamJournal: "Teamets tidrapport",
-    news: "Nyheter"
+    news: "Nyheter",
+    welcome: "Välkommen till din översikt",
+    trackTimeAndManageClients: "Spåra tid, hantera kunder och skapa fakturor på ett ställe.",
+    timeEntries: "Tidrapporter",
+    timeEntriesDescription: "Spåra din tid på klientarbete",
+    clients: "Kunder",
+    clientsDescription: "Hantera din kundinformation",
+    products: "Produkter",
+    productsDescription: "Konfigurera dina produkter och tjänster",
+    invoices: "Fakturor",
+    invoicesDescription: "Skapa och hantera dina fakturor",
+    quickStart: "Snabbstart",
+    getStarted: "Kom igång med tidsredovisning och fakturering",
+    addYourClients: "Lägg till dina kunder",
+    addYourClientsDesc: "Skapa profiler för dina kunder med deras kontaktinformation.",
+    configureProducts: "Konfigurera dina produkter och tjänster",
+    configureProductsDesc: "Ställ in produkter och tjänster du erbjuder med prisinformation.",
+    trackYourTime: "Spåra din tid",
+    trackYourTimeDesc: "Logga tidrapporter för kundarbete för att hålla koll på fakturerbara timmar.",
+    generateInvoices: "Generera fakturor",
+    generateInvoicesDesc: "Skapa fakturor baserat på dina tidrapporter och produktförsäljning.",
+    goToTimeTracking: "Gå till tidsredovisning",
+    preparingWorkspace: "Förbereder din arbetsyta..."
   },
   clients: {
     title: "Kunder",
@@ -102,7 +144,8 @@ const translations = {
     noClientsFound: "Inga kunder hittades",
     noClientsDesc: "Lägg till din första kund för att börja spåra tid",
     selectClient: "Välj en kund",
-    unknownClient: "Okänd kund"
+    unknownClient: "Okänd kund",
+    allClients: "Alla kunder"
   },
   products: {
     title: "Produkter",
