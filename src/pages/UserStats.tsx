@@ -1,781 +1,460 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+
+import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { 
-  BarChartCard, 
-  PieChartCard 
-} from "@/components/ui/dashboard-chart";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
+  Calendar,
   Clock,
   DollarSign,
+  User,
+  BarChart2,
+  PieChart,
   Users,
-  Building,
-  PieChart as PieChartIcon,
-  BarChart as BarChartIcon,
-  Loader2,
-  Calendar,
-  TrendingUp,
-  Activity,
-  Package,
-  AlertCircle
+  LineChart
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MonthYearSelector } from "@/components/administration/MonthYearSelector";
-import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
-import { type ProductType } from "@/types";
-
-interface ClientStat {
-  name: string;
-  hours: number;
-  revenue: number;
-}
-
-interface ProductStat {
-  name: string;
-  type: 'activity' | 'item';
-  units: number;
-  unitLabel: string;
-  revenue: number;
-  percentage?: number;
-  value?: number;
-}
-
-interface UserTimeEntry {
-  id: string;
-  client_id: string;
-  product_id: string;
-  start_time: string;
-  end_time: string;
-  quantity: number;
-  created_at: string;
-  clients?: {
-    id: string;
-    name: string;
-  };
-  products?: {
-    id: string;
-    name: string;
-    type: ProductType;
-    price: number;
-  };
-}
+import { format, startOfMonth, endOfMonth, differenceInDays, subMonths } from "date-fns";
+import { sv, enUS } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { BarChart, PieChart as CustomPieChart } from "@/components/dashboard/CustomCharts";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 export default function UserStats() {
-  const { userId } = useParams();
-  const navigate = useNavigate();
-  const [isAllTime, setIsAllTime] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'this-month' | 'all-time'>('this-month');
+  const { t } = useTranslation();
+  const { language } = useLanguage();
+  const isLaptop = useIsLaptop();
+  const params = useParams<{ userId: string }>();
+  const userId = params.userId;
+  const [activeTab, setActiveTab] = useState("overview");
   
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
+  const dateLocale = language === 'sv' ? sv : enUS;
+  const currentMonth = new Date();
+  const currentMonthStart = startOfMonth(currentMonth);
+  const currentMonthEnd = endOfMonth(currentMonth);
+  const previousMonth = subMonths(currentMonth, 1);
+  const previousMonthStart = startOfMonth(previousMonth);
+  const previousMonthEnd = endOfMonth(previousMonth);
   
-  const { data: profile, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ["user-profile", userId],
+  const { data: userData } = useQuery({
+    queryKey: ["user", userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, name, role, avatar_url")
+        .select("*")
         .eq("id", userId)
         .single();
-      
+        
       if (error) throw error;
       return data;
     },
-    enabled: !!userId
+    enabled: !!userId,
   });
-
-  const currentMonthStart = startOfMonth(currentDate);
-  const currentMonthEnd = endOfMonth(currentDate);
   
-  const { data: currentMonthTimeEntries = [], isLoading: isLoadingCurrentMonth } = useQuery({
-    queryKey: ["user-time-entries", userId, "month", format(currentMonthStart, "yyyy-MM")],
+  const { data: currentMonthEntries = [] } = useQuery({
+    queryKey: ["time-entries", "current-month", userId],
     queryFn: async () => {
       if (!userId) return [];
       
       const { data, error } = await supabase
         .from("time_entries")
         .select(`
-          id, client_id, product_id, start_time, end_time, quantity, created_at,
-          products:product_id (id, name, type, price),
-          clients:client_id (id, name)
+          id, start_time, end_time, quantity, client_id, product_id, 
+          clients:client_id(id, name),
+          products:product_id(id, name, type, price)
         `)
         .eq("user_id", userId)
         .gte("created_at", currentMonthStart.toISOString())
         .lte("created_at", currentMonthEnd.toISOString());
         
       if (error) throw error;
-      console.log("Current month entries:", data);
-      return data as unknown as UserTimeEntry[];
+      return data || [];
     },
-    enabled: !!userId
+    enabled: !!userId,
   });
   
-  const { data: allTimeEntries = [], isLoading: isLoadingAllTime } = useQuery({
-    queryKey: ["user-time-entries", userId, "all-time"],
+  const { data: previousMonthEntries = [] } = useQuery({
+    queryKey: ["time-entries", "previous-month", userId],
     queryFn: async () => {
       if (!userId) return [];
       
       const { data, error } = await supabase
         .from("time_entries")
         .select(`
-          id, client_id, product_id, start_time, end_time, quantity, created_at,
-          products:product_id (id, name, type, price),
-          clients:client_id (id, name)
+          id, start_time, end_time, quantity, product_id, 
+          products:product_id(id, name, type, price)
         `)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .gte("created_at", previousMonthStart.toISOString())
+        .lte("created_at", previousMonthEnd.toISOString());
         
       if (error) throw error;
-      console.log("All time entries:", data);
-      return data as unknown as UserTimeEntry[];
+      return data || [];
     },
-    enabled: !!userId
+    enabled: !!userId,
   });
-
-  const calculateHours = (entries: UserTimeEntry[]) => {
-    return entries
-      .filter(entry => entry.products?.type === 'activity' && entry.start_time && entry.end_time)
-      .reduce((total, entry) => {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + hours;
-      }, 0).toFixed(1);
-  };
-
-  const calculateRevenue = (entries: UserTimeEntry[]) => {
-    return entries
-      .reduce((total, entry) => {
-        if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-          const start = new Date(entry.start_time);
-          const end = new Date(entry.end_time);
-          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          return total + (hours * (entry.products?.price || 0));
-        } else if (entry.products?.type === 'item' && entry.quantity) {
-          return total + (entry.quantity * (entry.products?.price || 0));
-        }
-        return total;
-      }, 0).toFixed(0);
-  };
-
-  const getClientStats = (entries: UserTimeEntry[]): ClientStat[] => {
-    if (entries.length === 0) return [];
-    
-    const clientStats: Record<string, ClientStat> = {};
-    
-    entries.forEach(entry => {
-      const clientId = entry.client_id;
-      const clientName = entry.clients?.name || 'Unknown Client';
-      
-      if (!clientStats[clientId]) {
-        clientStats[clientId] = { name: clientName, hours: 0, revenue: 0 };
-      }
-      
+  
+  const calculateHours = (entries) => {
+    return entries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        clientStats[clientId].hours += hours;
-        clientStats[clientId].revenue += hours * (entry.products?.price || 0);
+        return total + hours;
+      }
+      return total;
+    }, 0);
+  };
+  
+  const calculateRevenue = (entries) => {
+    return entries.reduce((total, entry) => {
+      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+        const start = new Date(entry.start_time);
+        const end = new Date(entry.end_time);
+        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        return total + (hours * (entry.products.price || 0));
       } else if (entry.products?.type === 'item' && entry.quantity) {
-        clientStats[clientId].revenue += entry.quantity * (entry.products?.price || 0);
+        return total + (entry.quantity * (entry.products.price || 0));
       }
-    });
-    
-    return Object.values(clientStats)
-      .sort((a, b) => b.hours - a.hours)
-      .map(stat => ({
-        name: stat.name,
-        hours: parseFloat(stat.hours.toFixed(1)),
-        revenue: Math.round(stat.revenue)
-      }));
+      return total;
+    }, 0);
   };
-
-  const getActivityStats = (entries: UserTimeEntry[]): ProductStat[] => {
-    if (entries.length === 0) return [];
+  
+  const currentMonthHours = calculateHours(currentMonthEntries);
+  const previousMonthHours = calculateHours(previousMonthEntries);
+  const currentMonthRevenue = calculateRevenue(currentMonthEntries);
+  const previousMonthRevenue = calculateRevenue(previousMonthEntries);
+  
+  const hoursPercentageChange = previousMonthHours === 0 
+    ? 100 
+    : ((currentMonthHours - previousMonthHours) / previousMonthHours) * 100;
     
-    const activityStats: Record<string, Partial<ProductStat>> = {};
-    let totalHours = 0;
+  const revenuePercentageChange = previousMonthRevenue === 0 
+    ? 100 
+    : ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
+  
+  const prepareClientDistributionData = () => {
+    const clientMap = new Map();
     
-    entries.forEach(entry => {
-      if (!entry.products || entry.products.type !== 'activity' || !entry.start_time || !entry.end_time) return;
-      
-      const productId = entry.product_id;
-      const productName = entry.products.name || 'Unknown Service';
-      
-      if (!activityStats[productId]) {
-        activityStats[productId] = { 
-          name: productName, 
-          type: 'activity' as const,
-          units: 0,
-          unitLabel: 'hours',
-          revenue: 0 
-        };
+    currentMonthEntries.forEach(entry => {
+      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+        const clientName = entry.clients?.name || 'Unknown Client';
+        if (!clientMap.has(clientName)) {
+          clientMap.set(clientName, 0);
+        }
+        
+        const start = new Date(entry.start_time);
+        const end = new Date(entry.end_time);
+        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        
+        clientMap.set(clientName, clientMap.get(clientName) + hours);
       }
-      
-      const start = new Date(entry.start_time);
-      const end = new Date(entry.end_time);
-      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-      
-      activityStats[productId].units = (activityStats[productId].units || 0) + hours;
-      activityStats[productId].revenue = (activityStats[productId].revenue || 0) + hours * (entry.products.price || 0);
-      totalHours += hours;
     });
     
-    return Object.values(activityStats)
-      .map(stat => ({
-        name: stat.name || '',
-        type: 'activity' as const,
-        units: parseFloat((stat.units || 0).toFixed(1)),
-        unitLabel: 'hours',
-        revenue: Math.round(stat.revenue || 0),
-        percentage: totalHours > 0 ? Math.round(((stat.units || 0) / totalHours) * 100) : 0,
-        value: parseFloat((stat.units || 0).toFixed(1))
+    return Array.from(clientMap.entries())
+      .map(([name, hours]) => ({ 
+        name, 
+        hours: parseFloat(hours.toFixed(2))
       }))
-      .sort((a, b) => b.units - a.units);
+      .sort((a, b) => b.hours - a.hours);
   };
   
-  const getItemStats = (entries: UserTimeEntry[]): ProductStat[] => {
-    if (entries.length === 0) return [];
+  const prepareActivityTypeData = () => {
+    const activityMap = new Map();
     
-    const itemStats: Record<string, Partial<ProductStat>> = {};
-    let totalUnits = 0;
-    
-    entries.forEach(entry => {
-      if (!entry.products || entry.products.type !== 'item') return;
-      
-      const quantity = entry.quantity || 0;
-      if (quantity <= 0) return;
-      
-      const productId = entry.product_id;
-      const productName = entry.products.name || 'Unknown Product';
-      
-      if (!itemStats[productId]) {
-        itemStats[productId] = { 
-          name: productName, 
-          type: 'item' as const,
-          units: 0,
-          unitLabel: 'units',
-          revenue: 0 
-        };
+    currentMonthEntries.forEach(entry => {
+      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+        const activityName = entry.products.name || 'Unknown Activity';
+        if (!activityMap.has(activityName)) {
+          activityMap.set(activityName, 0);
+        }
+        
+        const start = new Date(entry.start_time);
+        const end = new Date(entry.end_time);
+        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        
+        activityMap.set(activityName, activityMap.get(activityName) + hours);
       }
-      
-      itemStats[productId].units = (itemStats[productId].units || 0) + quantity;
-      itemStats[productId].revenue = (itemStats[productId].revenue || 0) + quantity * (entry.products.price || 0);
-      totalUnits += quantity;
     });
     
-    console.log("Item stats before processing:", itemStats);
-    
-    return Object.values(itemStats)
-      .map(stat => ({
-        name: stat.name || '',
-        type: 'item' as const,
-        units: Math.round(stat.units || 0),
-        unitLabel: 'units',
-        revenue: Math.round(stat.revenue || 0),
-        percentage: totalUnits > 0 ? Math.round(((stat.units || 0) / totalUnits) * 100) : 0,
-        value: Math.round(stat.units || 0)
+    return Array.from(activityMap.entries())
+      .map(([name, hours]) => ({ 
+        name, 
+        hours: parseFloat(hours.toFixed(2))
       }))
-      .sort((a, b) => b.units - a.units);
+      .sort((a, b) => b.hours - a.hours);
   };
   
-  const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
-    const activityStats = getActivityStats(entries);
-    const itemStats = getItemStats(entries);
-    return [...activityStats, ...itemStats];
-  };
-
-  const goToPreviousMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
-  };
-
-  const handleGoBack = () => {
-    navigate('/administration?tab=users');
-  };
-
-  const handleMonthYearChange = (month: number, year: number) => {
-    setCurrentDate(new Date(year, month, 1));
-  };
-
-  const handleAllTimeToggle = (enabled: boolean) => {
-    setIsAllTime(enabled);
-    setActiveTab(enabled ? 'all-time' : 'this-month');
-  };
-
-  const currentMonthHours = calculateHours(currentMonthTimeEntries);
-  const currentMonthRevenue = calculateRevenue(currentMonthTimeEntries);
-  const allTimeHours = calculateHours(allTimeEntries);
-  const allTimeRevenue = calculateRevenue(allTimeEntries);
-  
-  const currentMonthClientStats = getClientStats(currentMonthTimeEntries);
-  const allTimeClientStats = getClientStats(allTimeEntries);
-  
-  const currentMonthActivityStats = getActivityStats(currentMonthTimeEntries);
-  const currentMonthItemStats = getItemStats(currentMonthTimeEntries);
-  const allTimeActivityStats = getActivityStats(allTimeEntries);
-  const allTimeItemStats = getItemStats(allTimeEntries);
-
-  console.log("Current month item stats:", currentMonthItemStats);
-  console.log("All time item stats:", allTimeItemStats);
-
-  const getTopClients = (clientStats: ClientStat[]) => {
-    return clientStats.slice(0, 5);
-  };
-
-  const getTopRevenueProducts = (productStats: ProductStat[]) => {
-    return [...productStats].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  };
-
-  if (isLoadingProfile) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="container mx-auto py-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            User not found or you don't have permission to view this user's data.
-          </AlertDescription>
-        </Alert>
-        <Button onClick={handleGoBack} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Administration
-        </Button>
-      </div>
-    );
-  }
-
-  const roleBadgeVariants = {
-    admin: "destructive",
-    manager: "blue",
-    user: "secondary",
+  const prepareRevenueByClientData = () => {
+    const clientMap = new Map();
+    
+    currentMonthEntries.forEach(entry => {
+      const clientName = entry.clients?.name || 'Unknown Client';
+      if (!clientMap.has(clientName)) {
+        clientMap.set(clientName, 0);
+      }
+      
+      let revenue = 0;
+      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
+        const start = new Date(entry.start_time);
+        const end = new Date(entry.end_time);
+        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        revenue = hours * (entry.products.price || 0);
+      } else if (entry.products?.type === 'item' && entry.quantity) {
+        revenue = entry.quantity * (entry.products.price || 0);
+      }
+      
+      clientMap.set(clientName, clientMap.get(clientName) + revenue);
+    });
+    
+    return Array.from(clientMap.entries())
+      .map(([name, revenue]) => ({ 
+        name, 
+        revenue: parseFloat(revenue.toFixed(2))
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
   };
   
-  const activeStats = isAllTime 
-    ? { 
-        clientStats: allTimeClientStats,
-        activityStats: allTimeActivityStats,
-        itemStats: allTimeItemStats,
-        hours: allTimeHours,
-        revenue: allTimeRevenue,
-        entries: allTimeEntries,
-        isLoading: isLoadingAllTime
-      } 
-    : {
-        clientStats: currentMonthClientStats,
-        activityStats: currentMonthActivityStats,
-        itemStats: currentMonthItemStats,
-        hours: currentMonthHours,
-        revenue: currentMonthRevenue,
-        entries: currentMonthTimeEntries,
-        isLoading: isLoadingCurrentMonth
-      };
+  const clientDistribution = prepareClientDistributionData();
+  const activityDistribution = prepareActivityTypeData();
+  const revenueByClient = prepareRevenueByClientData();
+  
+  const COLORS = [
+    '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#00C49F', 
+    '#FFBB28', '#FF8042', '#0088FE', '#00C49F', '#FFBB28'
+  ];
+  
+  const calculateProductivity = () => {
+    const daysInMonth = differenceInDays(currentMonthEnd, currentMonthStart) + 1;
+    const workDays = daysInMonth * 0.7; // Approximate working days
+    const averageHoursPerDay = currentMonthHours / workDays;
+    
+    // Scale to 0-100
+    return Math.min(100, (averageHoursPerDay / 8) * 100);
+  };
+  
+  const productivityScore = calculateProductivity();
+  
+  const getMonthName = (date) => {
+    return format(date, 'MMMM', { locale: dateLocale });
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b shadow-sm p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleGoBack}
-            className="rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-semibold">User Performance Dashboard</h1>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          {!isAllTime && (
-            <div className="flex items-center bg-white dark:bg-slate-800 border rounded-lg">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToPreviousMonth}
-                className="h-9 w-9 rounded-r-none"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-1 px-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{format(currentDate, 'MMMM yyyy')}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToNextMonth}
-                className="h-9 w-9 rounded-l-none"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-          
-          <AllTimeToggle 
-            isAllTime={isAllTime} 
-            onAllTimeChange={handleAllTimeToggle} 
-          />
-        </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">{t('userStats.title')}</h1>
       </div>
       
-      <div className="container mx-auto py-6 px-4">
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 md:col-span-3">
-            <Card className="overflow-hidden">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-32 flex items-center justify-center">
-                <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
-                  <AvatarImage src={profile?.avatar_url || ""} alt={profile?.name || "User"} />
-                  <AvatarFallback className="text-2xl bg-white text-green-600">
-                    {(profile?.name?.charAt(0) || "U").toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* User info card */}
+        <Card className="flex flex-col items-center justify-center p-6">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <User className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">{userData?.full_name || ''}</h2>
+          <p className="text-muted-foreground">{userData?.email || ''}</p>
+        </Card>
+        
+        {/* Hours card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">{t('userStats.totalHours')}</CardTitle>
+            <CardDescription>
+              {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{currentMonthHours.toFixed(1)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {previousMonthHours > 0 && (
+                    <span className={hoursPercentageChange >= 0 ? 'text-green-500' : 'text-red-500'}>
+                      {hoursPercentageChange >= 0 ? '↑' : '↓'} {Math.abs(hoursPercentageChange).toFixed(0)}%
+                    </span>
+                  )}
+                  {previousMonthHours > 0 && ` ${t('userStats.previousPeriod')}: ${previousMonthHours.toFixed(1)}`}
+                </div>
               </div>
-              <CardContent className="pt-6">
-                <div className="text-center mb-4">
-                  <h3 className="text-xl font-bold">{profile?.name}</h3>
-                  <Badge 
-                    variant={roleBadgeVariants[profile?.role as keyof typeof roleBadgeVariants] as any || "secondary"} 
-                    className="mt-1"
-                  >
-                    <span className="capitalize">{profile?.role}</span>
-                  </Badge>
+              <div className="rounded-full bg-primary/10 p-2">
+                <Clock className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Revenue card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">{t('userStats.totalRevenue')}</CardTitle>
+            <CardDescription>
+              {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{currentMonthRevenue.toFixed(0)} SEK</div>
+                <div className="text-xs text-muted-foreground">
+                  {previousMonthRevenue > 0 && (
+                    <span className={revenuePercentageChange >= 0 ? 'text-green-500' : 'text-red-500'}>
+                      {revenuePercentageChange >= 0 ? '↑' : '↓'} {Math.abs(revenuePercentageChange).toFixed(0)}%
+                    </span>
+                  )}
+                  {previousMonthRevenue > 0 && ` ${t('userStats.previousPeriod')}: ${previousMonthRevenue.toFixed(0)} SEK`}
                 </div>
-                
-                <div className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                      <p className="text-sm text-muted-foreground">Total Hours</p>
-                      <p className="text-xl font-bold text-green-600">{allTimeHours}h</p>
-                    </div>
-                    
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                      <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-xl font-bold text-green-600">{Number(allTimeRevenue).toLocaleString()} kr</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 flex items-center">
-                      <Users className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Total Clients</span>
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">{allTimeClientStats.length}</p>
-                  </div>
-                  
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 flex items-center">
-                      <Activity className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Services</span>
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">{allTimeActivityStats.length}</p>
-                  </div>
-                  
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 flex items-center">
-                      <Package className="h-4 w-4 mr-1 text-green-600" />
-                      <span>Products</span>
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">{allTimeItemStats.length}</p>
-                  </div>
+              </div>
+              <div className="rounded-full bg-primary/10 p-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Productivity card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">{t('userStats.productivityScore')}</CardTitle>
+            <CardDescription>
+              {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{Math.round(productivityScore)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t('userStats.averageHoursPerDay')}: {(currentMonthHours / (differenceInDays(currentMonthEnd, currentMonthStart) * 0.7)).toFixed(1)}
                 </div>
+              </div>
+              <div className="rounded-full bg-primary/10 p-2">
+                <BarChart2 className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">
+            {t('userStats.overview')}
+          </TabsTrigger>
+          <TabsTrigger value="clients">
+            {t('userStats.clientDistribution')}
+          </TabsTrigger>
+          <TabsTrigger value="activities">
+            {t('userStats.activityBreakdown')}
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('userStats.hoursPerClient')}</CardTitle>
+                <CardDescription>
+                  {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {clientDistribution.length > 0 ? (
+                  <BarChart
+                    data={clientDistribution.slice(0, 5)}
+                    height={300}
+                    barKey="hours"
+                    barName={t('common.hours')}
+                    barFill="#0ea5e9"
+                  />
+                ) : (
+                  <div className="flex justify-center items-center h-[300px] text-muted-foreground">
+                    No data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('userStats.revenuePerClient')}</CardTitle>
+                <CardDescription>
+                  {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {revenueByClient.length > 0 ? (
+                  <BarChart
+                    data={revenueByClient.slice(0, 5)}
+                    height={300}
+                    barKey="revenue"
+                    barName="Revenue (SEK)"
+                    barFill="#10b981"
+                  />
+                ) : (
+                  <div className="flex justify-center items-center h-[300px] text-muted-foreground">
+                    No data available
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
-          
-          <div className="col-span-12 md:col-span-9 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-                <CardContent className="p-6 flex justify-between items-center">
-                  <div>
-                    <p className="text-green-100 mb-1">Hours Tracked</p>
-                    <h3 className="text-3xl font-bold">{activeStats.hours}h</h3>
-                    <p className="text-green-100 text-sm mt-1">
-                      {isAllTime ? 'All Time' : format(currentDate, 'MMMM yyyy')}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <Clock className="h-8 w-8" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white">
-                <CardContent className="p-6 flex justify-between items-center">
-                  <div>
-                    <p className="text-green-100 mb-1">Total Revenue</p>
-                    <h3 className="text-3xl font-bold">{Number(activeStats.revenue).toLocaleString()} kr</h3>
-                    <p className="text-green-100 text-sm mt-1">
-                      {isAllTime ? 'All Time' : format(currentDate, 'MMMM yyyy')}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <DollarSign className="h-8 w-8" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
-                <CardContent className="p-6 flex justify-between items-center">
-                  <div>
-                    <p className="text-green-100 mb-1">Active Clients</p>
-                    <h3 className="text-3xl font-bold">{activeStats.clientStats.length}</h3>
-                    <p className="text-green-100 text-sm mt-1">
-                      {activeStats.clientStats.length > 0 ? `Top: ${activeStats.clientStats[0]?.name.substring(0, 15)}${activeStats.clientStats[0]?.name.length > 15 ? '...' : ''}` : 'No clients yet'}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <Building className="h-8 w-8" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {activeStats.isLoading ? (
-              <div className="flex items-center justify-center h-[400px]">
-                <Loader2 className="h-10 w-10 animate-spin text-green-600" />
-              </div>
-            ) : activeStats.entries.length === 0 ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>No data available</AlertTitle>
-                <AlertDescription>
-                  {isAllTime 
-                    ? 'No time entries found for this user.' 
-                    : `No time entries found for ${format(currentDate, 'MMMM yyyy')}.`}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <BarChartCard
-                    title="Hours per Client"
-                    description={isAllTime ? "All time distribution" : `Distribution for ${format(currentDate, 'MMMM yyyy')}`}
-                    data={activeStats.clientStats}
-                    height={320}
-                    barKey="hours"
-                    barName="Hours Worked"
-                    barFill="#10b981"
-                    tooltip={{
-                      formatter: (value) => [`${value} hours`, '']
-                    }}
-                    className="col-span-1"
-                  />
-                  
-                  <BarChartCard
-                    title="Revenue per Client"
-                    description={isAllTime ? "All time revenue" : `Revenue for ${format(currentDate, 'MMMM yyyy')}`}
-                    data={activeStats.clientStats}
-                    height={320}
-                    barKey="revenue"
-                    barName="Revenue (SEK)"
-                    barFill="#047857"
-                    tooltip={{
-                      formatter: (value) => [`${Number(value).toLocaleString()} kr`, '']
-                    }}
-                    className="col-span-1"
+        </TabsContent>
+        
+        <TabsContent value="clients" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('userStats.clientDistribution')}</CardTitle>
+              <CardDescription>
+                {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              {clientDistribution.length > 0 ? (
+                <div className="w-full h-[400px]">
+                  <CustomPieChart
+                    data={clientDistribution}
+                    dataKey="hours"
+                    colors={COLORS}
                   />
                 </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="overflow-hidden">
-                    <CardHeader className="border-b pb-3">
-                      <CardTitle>Service Distribution</CardTitle>
-                      <CardDescription>
-                        Hours tracked per service type {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="h-[350px]">
-                        {activeStats.activityStats.length > 0 ? (
-                          <PieChartCard
-                            title=""
-                            data={activeStats.activityStats.map(item => ({...item, value: item.units}))}
-                            height={350}
-                            dataKey="value"
-                            colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
-                            tooltip={{
-                              formatter: (value) => {
-                                const stat = activeStats.activityStats.find(s => s.units === value);
-                                const percentage = stat ? `${stat.percentage}%` : '';
-                                return [`${value} hours (${percentage})`, ''];
-                              }
-                            }}
-                            showLabels={true}
-                            outerRadius={120}
-                            hideOuterLabels={false}
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">No service data available</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="overflow-hidden">
-                    <CardHeader className="border-b pb-3">
-                      <CardTitle>Product Distribution</CardTitle>
-                      <CardDescription>
-                        Units sold per product {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="h-[350px]">
-                        {activeStats.itemStats.length > 0 ? (
-                          <PieChartCard
-                            title=""
-                            data={activeStats.itemStats.map(item => ({...item, value: item.units}))}
-                            height={350}
-                            dataKey="value"
-                            colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
-                            tooltip={{
-                              formatter: (value) => {
-                                const stat = activeStats.itemStats.find(s => s.units === value);
-                                const percentage = stat ? `${stat.percentage}%` : '';
-                                return [`${value} units (${percentage})`, ''];
-                              }
-                            }}
-                            showLabels={true}
-                            outerRadius={120}
-                            hideOuterLabels={false}
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">No product data available</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+              ) : (
+                <div className="flex justify-center items-center h-[400px] text-muted-foreground">
+                  No data available
                 </div>
-                
-                <div className="grid grid-cols-1 gap-6">
-                  <Card>
-                    <CardHeader className="pb-2 border-b">
-                      <div className="flex items-center">
-                        <Building className="h-5 w-5 text-green-600 mr-2" />
-                        <CardTitle>Top Clients</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Clients with the most hours logged {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="hover:bg-transparent">
-                            <TableHead>Client Name</TableHead>
-                            <TableHead className="text-right">Hours</TableHead>
-                            <TableHead className="text-right">Revenue (kr)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getTopClients(activeStats.clientStats).map((client, index) => (
-                            <TableRow key={index} className="hover:bg-green-50/50 dark:hover:bg-green-950/20">
-                              <TableCell className="font-medium">{client.name}</TableCell>
-                              <TableCell className="text-right">{client.hours}</TableCell>
-                              <TableCell className="text-right font-medium text-green-600">{client.revenue.toLocaleString()}</TableCell>
-                            </TableRow>
-                          ))}
-                          {activeStats.clientStats.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
-                                No client data available for this period.
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="pb-2 border-b">
-                      <div className="flex items-center">
-                        <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
-                        <CardTitle>Top Revenue Generators</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Products and services generating the most revenue {isAllTime ? 'all time' : `in ${format(currentDate, 'MMMM yyyy')}`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="hover:bg-transparent">
-                            <TableHead>Name</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Units</TableHead>
-                            <TableHead className="text-right">Revenue (kr)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getTopRevenueProducts([...activeStats.activityStats, ...activeStats.itemStats]).map((product, index) => (
-                            <TableRow key={index} className="hover:bg-green-50/50 dark:hover:bg-green-950/20">
-                              <TableCell className="font-medium">{product.name}</TableCell>
-                              <TableCell>
-                                <Badge variant={product.type === 'activity' ? "secondary" : "outline"} className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800">
-                                  {product.type === 'activity' ? 'Service' : 'Product'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{product.units} {product.unitLabel}</TableCell>
-                              <TableCell className="text-right font-medium text-green-600">{product.revenue.toLocaleString()}</TableCell>
-                            </TableRow>
-                          ))}
-                          {activeStats.activityStats.length === 0 && activeStats.itemStats.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                                No product data available for this period.
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="activities" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('userStats.activityBreakdown')}</CardTitle>
+              <CardDescription>
+                {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              {activityDistribution.length > 0 ? (
+                <div className="w-full h-[400px]">
+                  <CustomPieChart
+                    data={activityDistribution}
+                    dataKey="hours"
+                    colors={COLORS}
+                  />
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+              ) : (
+                <div className="flex justify-center items-center h-[400px] text-muted-foreground">
+                  No data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
