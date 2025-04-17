@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,12 +25,14 @@ import { useEffect, useState } from "react";
 import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
 import { useCachedLogo } from "@/hooks/useCachedLogo";
 import { Separator } from "./ui/separator";
+import { useTranslation } from "react-i18next";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { user, signOut, role } = useAuth();
   const [logoError, setLogoError] = useState(false);
   const { logoUrl, isLoading: logoLoading, isError, refreshLogo } = useCachedLogo();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (logoUrl) {
@@ -97,35 +100,35 @@ export function AppSidebar() {
 
   const links = [
     {
-      title: "Time Tracking",
+      title: t("navigation.timeTracking"),
       href: "/",
       icon: TimeIcon,
     },
     {
-      title: "Dashboard",
+      title: t("navigation.dashboard"),
       href: "/dashboard",
       icon: DashboardIcon,
     },
     {
-      title: "Clients",
+      title: t("navigation.clients"),
       href: "/clients",
       icon: ClientsIcon,
       adminOnly: false,
     },
     {
-      title: "Products",
+      title: t("navigation.products"),
       href: "/products",
       icon: ProductsIcon,
       managerOnly: true,
     },
     {
-      title: "Invoices",
+      title: t("navigation.invoices"),
       href: "/invoices",
       icon: InvoicesIcon,
       managerOnly: true,
     },
     {
-      title: "Administration",
+      title: t("navigation.administration"),
       href: "/administration",
       icon: AdminIcon,
       managerOnly: true,
@@ -134,12 +137,12 @@ export function AppSidebar() {
 
   const secondaryLinks = [
     {
-      title: "Profile",
+      title: t("navigation.profile"),
       href: "/profile",
       icon: ProfileIcon,
     },
     {
-      title: "Settings",
+      title: t("navigation.settings"),
       href: "/settings",
       icon: SettingsIcon,
       adminOnly: true,
@@ -339,7 +342,7 @@ export function AppSidebar() {
               className="h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white transition-colors duration-200"
             >
               <LogOut className="h-4 w-4" />
-              <span className="sr-only">Log out</span>
+              <span className="sr-only">{t("auth.logout")}</span>
             </Button>
           </Link>
         )}

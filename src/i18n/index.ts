@@ -33,4 +33,13 @@ i18n
     }
   });
 
+// Helper function to update HTML lang attribute
+export const updateHtmlLang = (language: string) => {
+  document.documentElement.lang = language;
+};
+
+// Apply initial language setting to HTML
+const currentLang = i18n.language || localStorage.getItem('language') || 'en';
+updateHtmlLang(currentLang);
+
 export default i18n;

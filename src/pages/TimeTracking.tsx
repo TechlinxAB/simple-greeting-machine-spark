@@ -7,11 +7,11 @@ import { DateSelector } from "@/components/time-tracking/DateSelector";
 import { TimerWidget } from "@/components/time-tracking/TimerWidget";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { format, isToday } from "date-fns";
+import { sv } from "date-fns/locale";
 import { toast } from "sonner";
 import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { sv } from "date-fns/locale";
 
 export default function TimeTracking() {
   const { t } = useTranslation();

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import i18n from '@/i18n';
+import { updateHtmlLang } from '@/i18n';
 
 type Language = 'en' | 'sv';
 
@@ -30,9 +31,13 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   });
 
   const setLanguage = (lang: Language) => {
+    if (lang === language) return; // Avoid unnecessary updates if language is the same
+    
+    console.log(`Setting language to ${lang} in LanguageContext`);
     setLanguageState(lang);
     localStorage.setItem('language', lang);
     i18n.changeLanguage(lang);
+    updateHtmlLang(lang);
   };
 
   const toggleLanguage = () => {
@@ -42,16 +47,21 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
 
   // Set initial language on mount
   useEffect(() => {
+    console.log(`Initial language in context: ${language}`);
     i18n.changeLanguage(language);
+    updateHtmlLang(language);
   }, []);
 
-  // Force a language update when the component mounts to ensure consistency
+  // Force a language update when the component mounts to ensure consistency with localStorage
   useEffect(() => {
     const savedLang = localStorage.getItem('language') as Language;
-    if (savedLang && ['en', 'sv'].includes(savedLang)) {
+    if (savedLang && ['en', 'sv'].includes(savedLang) && savedLang !== language) {
+      console.log(`Found saved language in localStorage: ${savedLang}, updating context`);
+      setLanguageState(savedLang);
       i18n.changeLanguage(savedLang);
+      updateHtmlLang(savedLang);
     }
-  }, []);
+  }, [language]);
 
   const value = {
     language,

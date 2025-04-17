@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +18,7 @@ import { TimePicker } from "./TimePicker";
 import { isToday } from "date-fns";
 import { cn } from "@/lib/utils"; 
 import { useIsLaptop } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
 
 let filteredProducts: any[] = [];
 
@@ -57,6 +59,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
   const autoIsLaptop = useIsLaptop();
+  const { t } = useTranslation();
   
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
@@ -95,12 +98,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         setProducts(productsData || []);
       } catch (error: any) {
         console.error("Error fetching data:", error.message);
-        toast.error("Failed to load clients and products");
+        toast.error(t("error.somethingWentWrong"));
       }
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const filtered = products.filter(product => product.type === selectedProductType);
@@ -163,24 +166,24 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
-      toast.error("You must be logged in to track time");
+      toast.error(t("error.sessionExpired"));
       return;
     }
 
     const product = getProductById(values.productId);
     if (!product) {
-      toast.error("Invalid product selected");
+      toast.error(t("timeTracking.productRequired"));
       return;
     }
 
     if (product.type === "activity") {
       if (!values.startTime || !values.endTime) {
-        toast.error("Both start and end times are required for activities");
+        toast.error(t("timeTracking.timeRequired"));
         return;
       }
     } else if (product.type === "item") {
       if (!values.quantity || values.quantity <= 0) {
-        toast.error("Quantity must be a positive number for items");
+        toast.error(t("timeTracking.quantityRequired"));
         return;
       }
     }
@@ -242,11 +245,11 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         form.setValue("quantity", undefined);
       }
 
-      toast.success("Time entry saved successfully");
+      toast.success(t("timeTracking.timeEntryAdded"));
       onSuccess();
     } catch (error: any) {
       console.error("Error saving time entry:", error);
-      toast.error(error.message || "Failed to save time entry");
+      toast.error(error.message || t("timeTracking.timeEntryFailure"));
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +268,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
             name="startTime"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Time from:</FormLabel>
+                <FormLabel>{t("timeTracking.fromTime")}:</FormLabel>
                 <FormControl>
                   <TimePicker 
                     value={field.value || null} 
@@ -284,7 +287,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
             name="endTime"
             render={({ field }) => (
               <FormItem ref={endTimeRef}>
-                <FormLabel>Time to:</FormLabel>
+                <FormLabel>{t("timeTracking.toTime")}:</FormLabel>
                 <FormControl>
                   <TimePicker 
                     value={field.value || null} 
@@ -307,13 +310,13 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
           name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Quantity</FormLabel>
+              <FormLabel>{t("timeTracking.quantity")}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
                   min="1"
                   step="1"
-                  placeholder="Enter quantity"
+                  placeholder={t("timeTracking.quantityPlaceholder")}
                   {...field}
                   value={field.value || ""}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
@@ -348,9 +351,9 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     <Card>
       <CardHeader className={cn("pb-3", compact ? "pt-3" : "")}>
         <CardTitle className={cn("flex justify-between", compact ? "text-sm" : "")}>
-          <span>New time entry</span>
+          <span>{t("timeTracking.addTimeEntry")}</span>
           {isToday(selectedDate) && (
-            <span className="text-sm bg-green-500 text-white px-3 py-1 rounded-md">Today</span>
+            <span className="text-sm bg-green-500 text-white px-3 py-1 rounded-md">{t("timeTracking.today")}</span>
           )}
         </CardTitle>
       </CardHeader>
@@ -360,7 +363,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <FormLabel>Select client:</FormLabel>
+                  <FormLabel>{t("timeTracking.selectClient")}:</FormLabel>
                   <FormField
                     control={form.control}
                     name="clientId"
@@ -373,7 +376,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                             value={field.value}
                           >
                             <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
-                              <SelectValue placeholder="Select a client" />
+                              <SelectValue placeholder={t("clients.selectClient")} />
                             </SelectTrigger>
                             <SelectContent>
                               {clients.map((client) => (
@@ -391,17 +394,17 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 </div>
                 
                 <div>
-                  <FormLabel>Activity / Item:</FormLabel>
+                  <FormLabel>{t("timeTracking.activityItem")}:</FormLabel>
                   <Select
                     value={selectedProductType}
                     onValueChange={setSelectedProductType}
                   >
                     <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
-                      <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder={t("products.selectType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="activity" className={compact ? "text-xs" : ""}>Activity</SelectItem>
-                      <SelectItem value="item" className={compact ? "text-xs" : ""}>Item</SelectItem>
+                      <SelectItem value="activity" className={compact ? "text-xs" : ""}>{t("products.activity")}</SelectItem>
+                      <SelectItem value="item" className={compact ? "text-xs" : ""}>{t("products.item")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -409,7 +412,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {watchClientId && (
                 <div>
-                  <FormLabel>What {selectedProductType}:</FormLabel>
+                  <FormLabel>{t("timeTracking.whatProduct")} {selectedProductType === "activity" ? t("products.activity").toLowerCase() : t("products.item").toLowerCase()}:</FormLabel>
                   <FormField
                     control={form.control}
                     name="productId"
@@ -427,7 +430,11 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                             value={field.value}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder={`Select an ${selectedProductType}`} />
+                              <SelectValue placeholder={
+                                selectedProductType === "activity" 
+                                  ? t("timeTracking.selectActivity") 
+                                  : t("timeTracking.selectItem")
+                              } />
                             </SelectTrigger>
                             <SelectContent>
                               {filteredProductsList.map((product) => (
@@ -449,12 +456,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {form.getValues("startTime") && form.getValues("endTime") && (
                 <div className="text-sm text-muted-foreground">
-                  Duration: {calculateDuration()}
+                  {t("timeTracking.duration")}: {calculateDuration()}
                 </div>
               )}
               
               <div>
-                <FormLabel>What did you do?</FormLabel>
+                <FormLabel>{t("timeTracking.description")}</FormLabel>
                 <FormField
                   control={form.control}
                   name="description"
@@ -462,7 +469,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     <FormItem>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter description here..."
+                          placeholder={t("timeTracking.descriptionPlaceholder")}
                           className={cn("min-h-[100px]", compact ? "text-xs" : "")}
                           {...field}
                           value={field.value || ""}
@@ -482,10 +489,10 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {t("common.saving")}...
                   </>
                 ) : (
-                  "Save time entry"
+                  t("timeTracking.saveTimer")
                 )}
               </Button>
             </div>

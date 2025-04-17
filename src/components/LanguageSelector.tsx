@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Globe } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface LanguageSelectorProps {
   variant?: 'default' | 'outline' | 'ghost';
@@ -22,16 +23,25 @@ const LanguageSelector = ({
   showLabel = true 
 }: LanguageSelectorProps) => {
   const { language, setLanguage } = useLanguage();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const languages = [
     { code: 'en', name: 'English' },
     { code: 'sv', name: 'Svenska' }
   ];
 
+  // Ensure i18n and document language is in sync with context
+  useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language);
+      document.documentElement.lang = language;
+    }
+  }, [language, i18n]);
+
   const handleLanguageChange = (code: 'en' | 'sv') => {
     console.log(`Changing language to: ${code}`);
     setLanguage(code);
+    document.documentElement.lang = code;
   };
   
   return (

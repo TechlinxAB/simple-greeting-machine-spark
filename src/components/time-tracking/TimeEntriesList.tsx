@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -46,6 +47,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useTranslation } from "react-i18next";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -57,6 +59,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const autoIsLaptop = useIsLaptop();
+  const { t } = useTranslation();
   
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
@@ -158,9 +161,9 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   const formatDuration = (hours: number) => {
     if (hours < 1) {
       const minutes = Math.round(hours * 60);
-      return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+      return `${minutes} ${minutes !== 1 ? t('timeTracking.minutes') : t('timeTracking.minute')}`;
     } else {
-      return `${hours.toFixed(2)} hour${hours !== 1 ? 's' : ''}`;
+      return `${hours.toFixed(2)} ${hours !== 1 ? t('timeTracking.hours') : t('timeTracking.hour')}`;
     }
   };
 
@@ -169,7 +172,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
       const hours = calculateDuration(entry.start_time, entry.end_time);
       return formatDuration(hours);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return `${entry.quantity} units`;
+      return `${entry.quantity} ${t('timeTracking.units')}`;
     }
     return "-";
   };
@@ -199,7 +202,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   
   const confirmDelete = async (forceDelete = false) => {
     if (!selectedEntry || !selectedEntry.id) {
-      toast.error("No time entry selected for deletion");
+      toast.error(t("error.somethingWentWrong"));
       return;
     }
     
@@ -226,7 +229,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
         });
         
         await refetch();
-        toast.success("Time entry deleted successfully");
+        toast.success(t("timeTracking.timeEntryDeleted"));
       } else {
         if (!forceDelete && selectedEntry.invoiced) {
           setInvoicedWarningOpen(true);
@@ -238,7 +241,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
     } catch (error: any) {
       setIsDeleting(false);
       console.error("Delete time entry error:", error);
-      toast.error(error.message || "Failed to delete time entry");
+      toast.error(error.message || t("error.somethingWentWrong"));
     }
   };
   
@@ -259,7 +262,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
     
     await refetch();
     
-    toast.success("Time entry updated successfully");
+    toast.success(t("timeTracking.timeEntryUpdated"));
   };
 
   return (
@@ -267,7 +270,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
       <Card>
         <CardHeader className={`flex flex-row items-center justify-between ${compact ? 'pb-1 pt-3' : 'pb-2 pt-4'}`}>
           <CardTitle className={`${compact ? 'text-sm' : 'text-base'} font-medium`}>
-            Activities for <span className="text-primary">{formattedDate}</span>
+            {t("timeTracking.activitiesFor")} <span className="text-primary">{formattedDate}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -278,28 +281,28 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
           ) : timeEntries.length === 0 ? (
             <div className={`text-center ${compact ? 'py-8' : 'py-12'} text-muted-foreground`}>
               <ClipboardList className={`mx-auto ${compact ? 'h-10 w-10 mb-3' : 'h-12 w-12 mb-4'} text-muted-foreground/60`} />
-              <p>No activities recorded for this day.</p>
-              <p className={`${compact ? 'text-xs' : 'text-sm'} mt-2`}>Click "Save time entry" to add your first activity.</p>
+              <p>{t("timeTracking.noTimeEntries")} {formattedDate}.</p>
+              <p className={`${compact ? 'text-xs' : 'text-sm'} mt-2`}>{t("timeTracking.noTimeEntriesDesc")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table isCompact={compact}>
                 <TableHeader>
                   <TableRow isCompact={compact}>
-                    <TableHead className={compact ? "w-[140px]" : "w-[180px]"} isCompact={compact}>Client</TableHead>
-                    <TableHead className={compact ? "w-[180px]" : "w-[250px]"} isCompact={compact}>Description</TableHead>
-                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Type</TableHead>
-                    <TableHead className={compact ? "w-[100px]" : "w-[120px]"} isCompact={compact}>Amount</TableHead>
-                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Total</TableHead>
-                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>Status</TableHead>
-                    <TableHead className={compact ? "w-[90px]" : "w-[120px]"} isCompact={compact}>Actions</TableHead>
+                    <TableHead className={compact ? "w-[140px]" : "w-[180px]"} isCompact={compact}>{t("clients.client")}</TableHead>
+                    <TableHead className={compact ? "w-[180px]" : "w-[250px]"} isCompact={compact}>{t("timeTracking.description")}</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("products.productType")}</TableHead>
+                    <TableHead className={compact ? "w-[100px]" : "w-[120px]"} isCompact={compact}>{t("invoices.amount")}</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("invoices.total")}</TableHead>
+                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("invoices.status")}</TableHead>
+                    <TableHead className={compact ? "w-[90px]" : "w-[120px]"} isCompact={compact}>{t("administration.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {timeEntries.map((entry) => (
                     <TableRow key={entry.id} isCompact={compact}>
                       <TableCell className="font-medium whitespace-nowrap" isCompact={compact}>
-                        {entry.clients?.name || 'Unknown client'}
+                        {entry.clients?.name || t("clients.unknownClient")}
                       </TableCell>
                       <TableCell className={compact ? "max-w-[180px]" : "max-w-[250px]"} isCompact={compact}>
                         <Popover>
@@ -309,11 +312,11 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                               className="line-clamp-2 cursor-pointer"
                             >
                               {entry.description || 
-                                (entry.products?.name || 'No description')}
+                                (entry.products?.name || t("timeTracking.noDescription"))}
                             </div>
                           </PopoverTrigger>
                           <PopoverContent className="max-w-[300px] p-4 text-wrap break-words">
-                            <p>{entry.description || (entry.products?.name || 'No description')}</p>
+                            <p>{entry.description || (entry.products?.name || t("timeTracking.noDescription"))}</p>
                           </PopoverContent>
                         </Popover>
                       </TableCell>
@@ -329,7 +332,11 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                             <Package className={compact ? "h-3 w-3 text-amber-600" : "h-4 w-4 text-amber-600"} />
                           )}
                           <span className="capitalize">
-                            {entry.products?.type || 'Deleted product'}
+                            {entry.products?.type === 'activity' 
+                              ? t("products.activity") 
+                              : entry.products?.type === 'item' 
+                                ? t("products.item") 
+                                : t("products.deletedProduct")}
                           </span>
                         </div>
                       </TableCell>
@@ -339,7 +346,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                       </TableCell>
                       <TableCell className="whitespace-nowrap" isCompact={compact}>
                         <Badge variant={entry.invoiced ? "default" : "outline"} className={compact ? "text-xs py-0.5" : ""}>
-                          {entry.invoiced ? "Invoiced" : "Pending"}
+                          {entry.invoiced ? t("invoices.invoiced") : t("invoices.pending")}
                         </Badge>
                       </TableCell>
                       <TableCell isCompact={compact}>
@@ -379,13 +386,13 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
+            <AlertDialogTitle>{t("timeTracking.deleteTimeEntry")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this time entry? This action cannot be undone.
+              {t("timeTracking.deleteConfirmation")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={(e) => {
                 e.preventDefault(); // Prevent form submission
@@ -397,10 +404,10 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("common.deleting")}...
                 </>
               ) : (
-                "Delete"
+                t("common.delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -412,20 +419,19 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
               <AlertCircle className="h-5 w-5" />
-              <span>Warning: Invoiced Time Entry</span>
+              <span>{t("invoices.invoicedWarningTitle")}</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               <p className="mb-2">
-                You are about to delete an invoiced time entry. This may cause inconsistencies between your app's data and Fortnox.
+                {t("invoices.invoicedWarningDesc1")}
               </p>
               <p>
-                If this entry has been exported to Fortnox, the deletion will only happen in your database, not in Fortnox.
-                This action cannot be reversed.
+                {t("invoices.invoicedWarningDesc2")}
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -437,10 +443,10 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("common.deleting")}...
                 </>
               ) : (
-                "Delete Anyway"
+                t("invoices.deleteAnyway")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -450,9 +456,9 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
-            <DialogTitle>Edit Time Entry</DialogTitle>
+            <DialogTitle>{t("timeTracking.editTimeEntry")}</DialogTitle>
             <DialogDescription>
-              Make changes to your time entry below.
+              {t("timeTracking.editTimeEntryDesc")}
             </DialogDescription>
           </DialogHeader>
           

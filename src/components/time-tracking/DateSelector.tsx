@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isToday, addMonths, subMonths } from 'date-fns';
+import { sv } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -15,6 +18,10 @@ interface DateSelectorProps {
 export function DateSelector({ selectedDate, onDateChange, isCompact = false }: DateSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
   const [forceRender, setForceRender] = useState(0);
+  const { t } = useTranslation();
+  const { language } = useLanguage();
+  
+  const locale = language === 'sv' ? sv : undefined;
   
   useEffect(() => {
     // Force multiple re-renders to ensure the calendar updates correctly
@@ -49,14 +56,14 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
   };
 
   // Ensure rendering key is always unique for each re-render cycle
-  const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}`;
+  const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}-${language}`;
 
   return (
     <Card className={`border border-primary/20 shadow-md overflow-hidden w-full ${isCompact ? 'max-h-[290px]' : ''}`}>
       <CardHeader className={`${isCompact ? 'pb-1 pt-2 px-3' : 'pb-2 pt-4 px-4'} border-b border-primary/20`}>
         <CardTitle className="flex items-center justify-between text-base font-medium">
           <div className="flex items-center cursor-default">
-            {format(currentMonth, 'MMMM, yyyy')}
+            {format(currentMonth, 'MMMM, yyyy', { locale })}
           </div>
           <div className="flex gap-1">
             <Button
@@ -92,6 +99,7 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
             hideHead={false}
             hideCaptionLabel={true}
             hideNav={true}
+            locale={locale}
             modifiers={{
               selected: (date) => date.toDateString() === selectedDate.toDateString(),
               today: (date) => isToday(date) && date.toDateString() !== selectedDate.toDateString()
