@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -174,7 +175,9 @@ const translations = {
     clientUpdated: "Client updated successfully",
     clientDeleted: "Client deleted successfully",
     noClientsFound: "No clients found",
-    noClientsDesc: "Add your first client to start tracking time"
+    noClientsDesc: "Add your first client to start tracking time",
+    selectClient: "Select Client",
+    client: "Client"
   },
   products: {
     title: "Products",
@@ -242,7 +245,21 @@ const translations = {
     productRequired: "Product is required",
     dateRequired: "Date is required",
     timeRequired: "Time is required",
-    quantityRequired: "Quantity is required"
+    quantityRequired: "Quantity is required",
+    descriptionPlaceholder: "Enter a description for this time entry",
+    whatProduct: "Select a",
+    activityItem: "Type",
+    descriptionOptional: "Description (optional)",
+    timerCompleted: "Timer Completed",
+    timerCompletedQuestion: "What would you like to do with this timer?",
+    deleteTimer: "Delete Timer",
+    convertToTimeEntry: "Convert to Time Entry",
+    roundedFrom: "rounded from",
+    activeTimer: "Active Timer",
+    activitiesFor: "Time Entries for",
+    unknownActivity: "Unknown activity",
+    quantityPlaceholder: "Enter quantity",
+    timeEntryFailure: "Failed to record time entry"
   },
   invoices: {
     title: "Invoices",
