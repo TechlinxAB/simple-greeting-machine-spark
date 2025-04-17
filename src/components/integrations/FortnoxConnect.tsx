@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import {
   disconnectFortnox,
   getFortnoxCredentials,
   saveFortnoxCredentials
-} from "@/integrations/fortnox"; // Updated import path
+} from "@/integrations/fortnox";
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -31,22 +30,16 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Set the redirect URI when component mounts
   useEffect(() => {
-    // Generate the current URL for the redirect - make sure it's exactly what's registered in Fortnox
     const baseUrl = window.location.origin;
     const redirectPath = environment.fortnox.redirectBaseUrl;
     setRedirectUri(`${baseUrl}${redirectPath}`);
   }, []);
 
-  // Validate client ID and secret whenever they change
   useEffect(() => {
-    // Clear any previous validation errors
     setValidationError(null);
     
-    // Only validate if both values are provided
     if (clientId && clientSecret) {
-      // Simple validation for length
       if (clientId.trim().length < 5) {
         setValidationError("Client ID appears to be too short");
         return;
@@ -59,7 +52,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     }
   }, [clientId, clientSecret]);
 
-  // Get connection status
   const { data: connected = false, refetch: refetchStatus } = useQuery({
     queryKey: ["fortnox-connection-status"],
     queryFn: async () => {
@@ -69,7 +61,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     enabled: !!clientId && !!clientSecret,
   });
 
-  // Get credentials for display
   const { data: credentials } = useQuery({
     queryKey: ["fortnox-credentials"],
     queryFn: getFortnoxCredentials,
@@ -104,7 +95,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       return;
     }
     
-    // Check for validation errors
     if (validationError) {
       toast.error(validationError);
       return;
@@ -113,7 +103,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     try {
       setIsConnecting(true);
       
-      // First, save the credentials to the database
       await saveFortnoxCredentials({
         clientId,
         clientSecret
@@ -121,22 +110,17 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       console.log("Saved credentials to database before OAuth flow");
       
-      // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = environment.fortnox.authUrl;
       
-      // Expanded scopes following the example from the Frappe implementation
       const scopes = [
         'companyinformation',
         'invoice',
         'customer',
-        'article' // For product data
+        'article'
       ];
       
-      // Generate a secure random state for CSRF protection
-      // Use crypto.randomUUID() for better security
       const state = crypto.randomUUID();
       
-      // Store the state in sessionStorage to verify when we come back - with explicit error handling
       try {
         sessionStorage.setItem('fortnox_oauth_state', state);
         console.log("Generated and stored secure state for OAuth:", state);
@@ -147,24 +131,26 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         return;
       }
       
-      // Build parameters following Fortnox's requirements
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
-        scope: scopes.join(' '), // Space-separated list of scopes
+        scope: scopes.join(' '),
         response_type: 'code',
         state: state,
-        access_type: 'offline' // Request refresh token
+        access_type: 'offline'
       });
       
       const authUrl = `${FORTNOX_AUTH_URL}?${params.toString()}`;
       
       console.log("Redirecting to Fortnox OAuth URL:", authUrl);
+      console.log("Using redirect URI:", redirectUri);
       
-      // Use direct window location change for most reliable redirect
+      toast.info("Connecting to Fortnox...", {
+        description: `Redirect URI: ${redirectUri}`
+      });
+      
       window.location.href = authUrl;
       
-      // Not setting isConnecting to false here because we're redirecting away
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);
       toast.error("Failed to generate Fortnox authorization URL");
@@ -299,11 +285,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               You'll be redirected to Fortnox to authorize this application.
             </p>
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">
-                Important: Make sure to register this exact redirect URI in your Fortnox Developer settings:
+              <p className="text-sm font-medium text-red-600">
+                <strong>IMPORTANT:</strong> Make sure to register this <em>exact</em> redirect URI in your Fortnox Developer settings:
               </p>
               <div className="flex items-center mt-1">
-                <code className="flex-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto">
+                <code className="flex-1 block bg-gray-700 text-white p-2 rounded-md text-xs overflow-auto font-bold">
                   {redirectUri || "Loading redirect URI..."}
                 </code>
                 <Button 
@@ -315,6 +301,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-xs text-amber-600 mt-1">
+                The error message suggests the redirect URI doesn't match what's configured in Fortnox. 
+                Please copy this URI and update it in the Fortnox Developer Portal.
+              </p>
             </div>
             
             {validationError && (

@@ -44,8 +44,9 @@ export const environment: EnvironmentConfig = {
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
-    // This will be joined with the current window.location.origin in FortnoxConnect
-    redirectBaseUrl: '/settings?tab=fortnox',
+    // Changed from '/settings?tab=fortnox' to '/settings' to simplify the redirect URI
+    // This will make it easier to match with what's registered in Fortnox
+    redirectBaseUrl: '/settings',
   },
   storage: {
     avatarBucket: 'avatars',
@@ -76,7 +77,7 @@ export const environment: EnvironmentConfig = {
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
-    redirectBaseUrl: '/settings?tab=fortnox',
+    redirectBaseUrl: '/settings',
   },
   storage: {
     avatarBucket: 'avatars',
