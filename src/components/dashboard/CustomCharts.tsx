@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart as RechartsBarChart,
   Bar as RechartsBar,
@@ -10,7 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   PieChart as RechartsPieChart,
-  Pie as RechartsPie,
+  Pie,
   Cell,
   LabelList,
   Sector
@@ -64,6 +64,7 @@ export const BarChart: React.FC<BarChartProps> = ({
             dataKey={barKey} 
             fill={barFill} 
             name={barName}
+            radius={[4, 4, 0, 0]}
           />
         </RechartsBarChart>
       </ResponsiveContainer>
@@ -146,7 +147,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   labelLineProps,
   hideOuterLabels = false
 }) => {
-  const [activeIdx, setActiveIdx] = React.useState<number | undefined>(undefined);
+  const [activeIdx, setActiveIdx] = useState<number | undefined>(undefined);
   
   const handlePieEnter = (_, index: number) => {
     setActiveIdx(index);
@@ -162,7 +163,7 @@ export const PieChart: React.FC<PieChartProps> = ({
     <div className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <RechartsPieChart>
-          <RechartsPie
+          <Pie
             data={data}
             cx="50%"
             cy="50%"
@@ -192,7 +193,7 @@ export const PieChart: React.FC<PieChartProps> = ({
                 style={{ fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 2px #000' }}
               />
             )}
-          </RechartsPie>
+          </Pie>
           <Tooltip 
             formatter={(value, name, entry) => {
               if (tooltip?.formatter) {
