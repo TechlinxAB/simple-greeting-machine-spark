@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
 
 interface ClientSelectProps {
   value: string;
@@ -15,6 +16,7 @@ interface ClientSelectProps {
 }
 
 export function ClientSelect({ value, onChange }: ClientSelectProps) {
+  const { t } = useTranslation();
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -39,10 +41,10 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
       onValueChange={(val) => onChange(val === "all-clients" ? "" : val)}
     >
       <SelectTrigger className="bg-background w-full">
-        <SelectValue placeholder="All Clients" />
+        <SelectValue placeholder={t('common.allClients')} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all-clients">All Clients</SelectItem>
+        <SelectItem value="all-clients">{t('common.allClients')}</SelectItem>
         {clients.map((client) => (
           <SelectItem key={client.id} value={client.id}>
             {client.name}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DateRangeSelectorProps {
   fromDate: Date | undefined;
@@ -18,6 +19,7 @@ export function DateRangeSelector({
   toDate, 
   onDateChange 
 }: DateRangeSelectorProps) {
+  const { t } = useTranslation();
   const [fromPickerOpen, setFromPickerOpen] = useState(false);
   const [toPickerOpen, setToPickerOpen] = useState(false);
   const [localFromDate, setLocalFromDate] = useState<Date | undefined>(fromDate);
@@ -55,7 +57,7 @@ export function DateRangeSelector({
   return (
     <div className="flex flex-wrap gap-3">
       <div>
-        <label className="text-sm font-medium block mb-2">From date</label>
+        <label className="text-sm font-medium block mb-2">{t('reports.from')}</label>
         <Popover open={fromPickerOpen} onOpenChange={setFromPickerOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -66,7 +68,7 @@ export function DateRangeSelector({
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {localFromDate ? format(localFromDate, 'MMM dd, yyyy') : "Select date"}
+              {localFromDate ? format(localFromDate, 'MMM dd, yyyy') : t('timeTracking.selectClient')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -82,7 +84,7 @@ export function DateRangeSelector({
       </div>
 
       <div>
-        <label className="text-sm font-medium block mb-2">To date</label>
+        <label className="text-sm font-medium block mb-2">{t('reports.to')}</label>
         <Popover open={toPickerOpen} onOpenChange={setToPickerOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -93,7 +95,7 @@ export function DateRangeSelector({
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {localToDate ? format(localToDate, 'MMM dd, yyyy') : "Select date"}
+              {localToDate ? format(localToDate, 'MMM dd, yyyy') : t('timeTracking.selectClient')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">

@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Laddar...",
@@ -82,14 +83,12 @@ const translations = {
     selectAllEntries: "Välj alla",
     deleteSelected: "Radera valda",
     bulkDelete: "Radera flera",
-    edit: "Redigera",
     duration: "Varaktighet",
     quantity: "Antal",
     status: "Status",
     amount: "Belopp",
     user: "Användare",
     product: "Produkt",
-    description: "Beskrivning",
     allClients: "Alla kunder",
     allUsers: "Alla användare",
     allTime: "All tid",
@@ -100,15 +99,12 @@ const translations = {
     deleteTimeEntryConfirm: "Är du säker på att du vill radera denna tidsrapport? Detta kan inte ångras.",
     editTimeEntry: "Redigera tidsrapport",
     editTimeEntryDesc: "Gör ändringar i din tidsrapport nedan.",
-    timeEntries: "Tidrapporter",
-    users: "Användare",
-    administration: "Administration",
+    entries: "Rapporter",
     searchTimeEntries: "Sök tidrapporter...",
     searchInvoices: "Sök fakturor...",
     searchUsers: "Sök användare...",
     units: "enheter",
-    noDescription: "Ingen beskrivning",
-    entries: "Rapporter"
+    noDescription: "Ingen beskrivning"
   },
   auth: {
     email: "E-post",
