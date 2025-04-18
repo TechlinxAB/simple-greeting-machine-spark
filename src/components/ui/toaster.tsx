@@ -30,10 +30,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           color: '#ffffff',
           borderRadius: '8px',
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        }
-      }}
-      icons={{
-        close: ({ className }) => <X className={className} size={14} />,
+        },
+        icon: ({ className }) => <X className={className} size={14} />
       }}
       {...props}
     />
