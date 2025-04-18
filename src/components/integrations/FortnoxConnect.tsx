@@ -14,7 +14,7 @@ import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshC
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { environment } from "@/config/environment";
+import { environment, getRedirectUri } from "@/config/environment";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -33,12 +33,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Set the redirect URI when component mounts
+  // Set the redirect URI when component mounts - use the new getRedirectUri function
   useEffect(() => {
-    // Generate the current URL for the redirect - make sure it's exactly what's registered in Fortnox
-    const baseUrl = window.location.origin;
-    const redirectPath = environment.fortnox.redirectBaseUrl;
-    setRedirectUri(`${baseUrl}${redirectPath}`);
+    const fullRedirectUri = getRedirectUri();
+    console.log("Setting Fortnox redirect URI:", fullRedirectUri);
+    setRedirectUri(fullRedirectUri);
   }, []);
 
   // Validate client ID and secret whenever they change
@@ -125,6 +124,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     try {
       setIsConnecting(true);
       
+      // Log the current origin and redirect URI
+      console.log("Current origin:", window.location.origin);
+      console.log("Using redirect URI:", redirectUri);
+      
       // First, save the credentials to the database
       console.log("Saving credentials to database before OAuth flow");
       await saveFortnoxCredentials({
@@ -152,8 +155,16 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       // Store the state in sessionStorage to verify when we come back - with explicit error handling
       try {
-        sessionStorage.setItem('fortnox_oauth_state', state);
+        // Also save the origin with the state to help with cross-domain redirects
+        const stateData = {
+          state,
+          origin: window.location.origin,
+          path: environment.fortnox.redirectPath
+        };
+        
+        sessionStorage.setItem('fortnox_oauth_state', JSON.stringify(stateData));
         console.log("Generated and stored secure state for OAuth:", state);
+        console.log("Stored OAuth state data:", stateData);
       } catch (storageError) {
         console.error("Failed to store OAuth state in sessionStorage:", storageError);
         toast.error("Failed to secure the authorization process. Please check your browser settings and try again.");

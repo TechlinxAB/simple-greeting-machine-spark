@@ -17,7 +17,7 @@ interface EnvironmentConfig {
   fortnox: {
     authUrl: string;
     apiUrl: string;
-    redirectBaseUrl: string;
+    redirectPath: string; // Changed from redirectBaseUrl to redirectPath
   };
   // Storage Configuration
   storage: {
@@ -29,6 +29,8 @@ interface EnvironmentConfig {
   features: {
     enableEdgeFunctions: boolean;
   };
+  // Allowed domains for redirects
+  allowedDomains?: string[]; // Optional list of allowed domains
 }
 
 /**
@@ -44,8 +46,8 @@ export const environment: EnvironmentConfig = {
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
-    // This will be joined with the current window.location.origin in FortnoxConnect
-    redirectBaseUrl: '/settings?tab=fortnox',
+    // Changed to just the path, without joining with origin
+    redirectPath: '/settings?tab=fortnox',
   },
   storage: {
     avatarBucket: 'avatars',
@@ -54,7 +56,13 @@ export const environment: EnvironmentConfig = {
   },
   features: {
     enableEdgeFunctions: true,
-  }
+  },
+  // Add allowed domains for OAuth redirects
+  allowedDomains: [
+    'timetracking.techlinx.se',
+    '5a7b22d3-f455-4d7b-888a-7f87ae8dba3f.lovableproject.com',
+    'localhost:5173', // For local development
+  ]
 };
 
 /**
@@ -76,7 +84,7 @@ export const environment: EnvironmentConfig = {
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
-    redirectBaseUrl: '/settings?tab=fortnox',
+    redirectPath: '/settings?tab=fortnox',
   },
   storage: {
     avatarBucket: 'avatars',
@@ -86,6 +94,37 @@ export const environment: EnvironmentConfig = {
   features: {
     // Set to false if your self-hosted instance doesn't have edge functions
     enableEdgeFunctions: true,
-  }
+  },
+  allowedDomains: [
+    'timetracking.techlinx.se',
+    'your-other-domain.com',
+  ]
 };
 */
+
+/**
+ * Get the fully qualified redirect URI for OAuth flows
+ * This function considers the current origin and registered allowed domains
+ */
+export function getRedirectUri(): string {
+  const origin = window.location.origin;
+  const path = environment.fortnox.redirectPath;
+  
+  // Check if the current origin is allowed explicitly (if allowedDomains is provided)
+  if (environment.allowedDomains) {
+    // Parse the domain from the origin
+    const currentDomain = origin.replace(/^https?:\/\//, '').replace(/:\d+$/, '');
+    
+    // Check if any allowed domain is contained in the current domain
+    const isDomainAllowed = environment.allowedDomains.some(
+      allowedDomain => currentDomain.includes(allowedDomain) || 
+                        currentDomain === allowedDomain.replace(/:\d+$/, '')
+    );
+    
+    if (!isDomainAllowed) {
+      console.warn(`Current origin (${origin}) is not in the allowed domains list. OAuth redirects may fail.`);
+    }
+  }
+  
+  return `${origin}${path}`;
+}
