@@ -27,15 +27,13 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
-      console.log("Received token exchange request with data:", {
-        hasCode: !!requestData.code,
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret,
-        hasRedirectUri: !!requestData.redirect_uri,
-        grantType: requestData.grant_type || "not provided",
-        codeLength: requestData.code ? requestData.code.length : 0,
-        clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
-        clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0
+      console.log("Parsed request data:", {
+        grantType: requestData.grant_type,
+        hasCode: Boolean(requestData.code),
+        codeLength: requestData.code?.length || 0,
+        hasClientId: Boolean(requestData.client_id),
+        hasClientSecret: Boolean(requestData.client_secret),
+        hasRedirectUri: Boolean(requestData.redirect_uri)
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -51,7 +49,7 @@ serve(async (req) => {
       );
     }
     
-    // Validate required fields based on grant type
+    // Validate required fields for authorization_code grant type
     if (requestData.grant_type === 'authorization_code') {
       if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
         const missingFields = [];
@@ -60,13 +58,13 @@ serve(async (req) => {
         if (!requestData.client_secret) missingFields.push('client_secret');
         if (!requestData.redirect_uri) missingFields.push('redirect_uri');
         
-        console.error(`Missing required parameters for auth code exchange: ${missingFields.join(', ')}`);
+        console.error(`Missing required parameters: ${missingFields.join(', ')}`);
         
         return new Response(
           JSON.stringify({ 
             error: "invalid_request", 
             error_description: "Missing required parameters", 
-            details: { missing: missingFields } 
+            missing_fields: missingFields
           }),
           { 
             status: 400, 
@@ -75,20 +73,20 @@ serve(async (req) => {
         );
       }
     } else if (requestData.grant_type === 'refresh_token') {
-      // Validate required fields for refresh token flow
+      // Validate refresh token grant type
       if (!requestData.refresh_token || !requestData.client_id || !requestData.client_secret) {
         const missingFields = [];
         if (!requestData.refresh_token) missingFields.push('refresh_token');
         if (!requestData.client_id) missingFields.push('client_id');
         if (!requestData.client_secret) missingFields.push('client_secret');
         
-        console.error(`Missing required parameters for token refresh: ${missingFields.join(', ')}`);
+        console.error(`Missing required parameters for refresh token: ${missingFields.join(', ')}`);
         
         return new Response(
           JSON.stringify({ 
             error: "invalid_request", 
-            error_description: "Missing required parameters", 
-            details: { missing: missingFields } 
+            error_description: "Missing required parameters for refresh token", 
+            missing_fields: missingFields
           }),
           { 
             status: 400, 
@@ -102,7 +100,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "unsupported_grant_type", 
-          error_description: `Unsupported grant type: ${requestData.grant_type}`
+          error_description: `Unsupported grant type: ${requestData.grant_type || "not provided"}`
         }),
         { 
           status: 400, 
@@ -111,21 +109,20 @@ serve(async (req) => {
       );
     }
     
-    // Prepare form data from the request
+    // Create form data for the Fortnox API request
     const formData = new URLSearchParams();
     
-    // Add all fields to the form data
+    // Add all fields from the request to the form data
     for (const [key, value] of Object.entries(requestData)) {
-      if (value) {
+      if (value !== undefined && value !== null) {
         formData.append(key, value.toString());
       }
     }
     
-    // Log the form data for debugging (excluding sensitive information)
-    console.log("Making token request to Fortnox with grant_type:", requestData.grant_type);
+    console.log("Making request to Fortnox with grant_type:", requestData.grant_type);
     console.log("Form data keys:", Array.from(formData.keys()));
     
-    // Make the token request to Fortnox
+    // Make the request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -134,15 +131,16 @@ serve(async (req) => {
       body: formData.toString(),
     });
     
-    // Get the response text
+    // Read the response as text
     const responseText = await response.text();
-    console.log("Fortnox token response status:", response.status);
+    
+    console.log("Fortnox response status:", response.status);
     
     // Try to parse the response as JSON
     let responseData;
     
     try {
-      // Check if the response has a JSON content type or try to parse as JSON
+      // Only attempt to parse as JSON if the content appears to be JSON
       if (responseText && (
           response.headers.get('content-type')?.includes('application/json') ||
           (responseText.trim().startsWith('{') && responseText.trim().endsWith('}'))
@@ -150,7 +148,7 @@ serve(async (req) => {
         responseData = JSON.parse(responseText);
         console.log("Successfully parsed token response as JSON");
       } else {
-        console.error("Token response is not JSON:", responseText);
+        console.error("Fortnox response is not JSON:", responseText);
         return new Response(
           JSON.stringify({ 
             error: "invalid_response_format", 
@@ -158,13 +156,15 @@ serve(async (req) => {
             raw_response: responseText 
           }),
           { 
-            status: 400, 
+            status: 502, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
       }
     } catch (e) {
-      console.error("Failed to parse token response as JSON:", e, "Raw response:", responseText);
+      console.error("Failed to parse Fortnox response:", e);
+      console.error("Raw response:", responseText);
+      
       return new Response(
         JSON.stringify({ 
           error: "parse_error", 
@@ -172,29 +172,28 @@ serve(async (req) => {
           raw_response: responseText 
         }),
         { 
-          status: 500, 
+          status: 502, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    // If the response is not OK or contains an error field
+    // Handle error responses from Fortnox
     if (!response.ok || responseData.error) {
-      const errorStatus = response.status || 400;
+      const errorStatus = response.status;
       
-      console.error("Fortnox token API error:", {
+      console.error("Fortnox API error:", {
         status: errorStatus,
         error: responseData.error || "unknown_error",
-        error_description: responseData.error_description || "Unknown error"
+        description: responseData.error_description || "Unknown error"
       });
       
-      // Special handling for common Fortnox errors
-      if (responseData.error === 'invalid_grant' && responseData.error_description?.includes('expired')) {
+      // Handle common Fortnox errors
+      if (responseData.error === 'invalid_grant') {
         return new Response(
           JSON.stringify({ 
             error: "invalid_grant", 
-            error_description: "Authorization code has expired, please try connecting again",
-            status: errorStatus,
+            error_description: responseData.error_description || "Authorization code has expired or is invalid",
             fortnox_error: responseData 
           }),
           { 
@@ -209,7 +208,6 @@ serve(async (req) => {
           JSON.stringify({ 
             error: "invalid_client", 
             error_description: "Invalid client credentials (client ID or client secret)",
-            status: errorStatus,
             fortnox_error: responseData 
           }),
           { 
@@ -227,13 +225,13 @@ serve(async (req) => {
           fortnox_error: responseData 
         }),
         { 
-          status: errorStatus, 
+          status: response.status || 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    // Verify required tokens are present
+    // Verify required tokens are present in successful response
     if (!responseData.access_token) {
       console.error("Fortnox response missing access_token:", responseData);
       return new Response(
@@ -242,13 +240,13 @@ serve(async (req) => {
           error_description: "Fortnox response missing access_token" 
         }),
         { 
-          status: 500, 
+          status: 502, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    console.log("Token exchange/refresh successful");
+    console.log("Fortnox token exchange successful");
     
     // Return the successful token response
     return new Response(
@@ -258,8 +256,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
+    
   } catch (error) {
     console.error("Server error in token-exchange:", error);
+    
     return new Response(
       JSON.stringify({ 
         error: "server_error", 

@@ -70,7 +70,10 @@ export async function exchangeCodeForTokens(
       // Now call the actual token exchange endpoint
       console.log("Calling token exchange edge function...");
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
-        body: JSON.stringify(tokenExchangeData)
+        body: JSON.stringify(tokenExchangeData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       console.log("Edge function response received:", proxyResponse ? "success" : "empty");
@@ -215,7 +218,7 @@ export async function refreshAccessToken(
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
     
-    // Similar approach as the token exchange - using the token-refresh edge function
+    // Similar approach as the token exchange - using the token-exchange edge function with grant_type=refresh_token
     const refreshData = {
       grant_type: 'refresh_token',
       client_id: clientId,
@@ -223,18 +226,21 @@ export async function refreshAccessToken(
       refresh_token: refreshToken,
     };
     
-    // Use the token-refresh edge function
+    // Use the token-exchange edge function with refresh_token grant type
     try {
-      console.log("Attempting to use Supabase Edge Function for token refresh");
+      console.log("Attempting to refresh token via Edge Function");
       
-      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
-        body: JSON.stringify(refreshData)
+      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
+        body: JSON.stringify(refreshData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       console.log("Edge function response received:", proxyResponse ? "success" : "empty");
       
       if (proxyError) {
-        console.error("Error calling refresh token edge function:", proxyError);
+        console.error("Error calling token refresh edge function:", proxyError);
         throw new Error(`Edge function error: ${proxyError.message}`);
       }
       
@@ -308,7 +314,10 @@ export async function migrateToJwtAuthentication(
     // Call the migration edge function
     console.log("Calling fortnox-token-migration edge function");
     const { data: migrationResponse, error: migrationError } = await supabase.functions.invoke('fortnox-token-migration', {
-      body: JSON.stringify(migrationData)
+      body: JSON.stringify(migrationData),
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     
     if (migrationError) {

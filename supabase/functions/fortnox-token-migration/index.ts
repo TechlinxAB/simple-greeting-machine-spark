@@ -11,7 +11,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests (OPTIONS)
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log("Handling CORS preflight request");
     return new Response(null, {
@@ -27,17 +27,18 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
-      console.log("Parsed request data successfully", {
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret,
-        hasAccessToken: !!requestData.access_token,
-        clientIdLength: requestData.client_id?.length,
-        accessTokenLength: requestData.access_token?.length
+      console.log("Parsed migration request data:", {
+        hasClientId: Boolean(requestData.client_id),
+        hasClientSecret: Boolean(requestData.client_secret),
+        hasAccessToken: Boolean(requestData.access_token),
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
       return new Response(
-        JSON.stringify({ error: "invalid_request", error_description: "Invalid request body - could not parse JSON" }),
+        JSON.stringify({ 
+          error: "invalid_request", 
+          error_description: "Invalid request body - could not parse JSON" 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -57,28 +58,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "invalid_request", 
-          error_description: "Missing required parameters",
-          details: {
-            missing: missingFields,
-            client_id: requestData.client_id ? "present" : "missing",
-            client_secret: requestData.client_secret ? "present" : "missing",
-            access_token: requestData.access_token ? "present" : "missing"
-          }
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    // Additional validation
-    if (requestData.client_id.length < 5 || requestData.client_secret.length < 5 || requestData.access_token.length < 5) {
-      console.error("One or more parameters appear to be too short");
-      return new Response(
-        JSON.stringify({ 
-          error: "invalid_parameters",
-          error_description: "One or more parameters appear to be too short or invalid"
+          error_description: "Missing required parameters", 
+          missing_fields: missingFields
         }),
         { 
           status: 400, 
@@ -87,170 +68,43 @@ serve(async (req) => {
       );
     }
     
-    // Create Basic Auth header from client_id and client_secret
-    const credentials = `${requestData.client_id}:${requestData.client_secret}`;
-    const base64Credentials = btoa(credentials);
-    const authHeader = `Basic ${base64Credentials}`;
+    // Create the Basic Authorization header from client_id and client_secret
+    const credentials = btoa(`${requestData.client_id}:${requestData.client_secret}`);
     
-    // Prepare the form data for migration
+    // Create form data for the Fortnox API request
     const formData = new URLSearchParams();
     formData.append('access_token', requestData.access_token);
     
-    console.log("Making token migration request to Fortnox");
-    console.log("Form data:", formData.toString());
-    console.log("Using authorization header with length:", authHeader.length);
+    console.log("Making migration request to Fortnox");
     
-    // Make the request to Fortnox with full error logging
+    // Make the request to Fortnox
     const response = await fetch(FORTNOX_MIGRATION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': authHeader
+        'Authorization': `Basic ${credentials}`
       },
       body: formData.toString(),
     });
     
-    // Get the response body as text first
+    // Read the response as text
     const responseText = await response.text();
+    
     console.log("Fortnox migration response status:", response.status);
-    console.log("Fortnox migration response body:", responseText);
     
-    // If the response is not OK, return the appropriate error based on Fortnox error types
-    if (!response.ok) {
-      // Try to parse response as JSON if possible
-      let errorData = null;
-      let errorMessage = responseText;
-      
-      try {
-        if (responseText.includes('{') && responseText.includes('}')) {
-          // Extract JSON part if embedded in text
-          const jsonStart = responseText.indexOf('{');
-          const jsonEnd = responseText.lastIndexOf('}') + 1;
-          const jsonPart = responseText.substring(jsonStart, jsonEnd);
-          errorData = JSON.parse(jsonPart);
-        } else if (responseText.trim().startsWith('{')) {
-          // Direct JSON response
-          errorData = JSON.parse(responseText);
-        }
-      } catch (e) {
-        console.error("Failed to parse error response as JSON:", e);
-      }
-      
-      // Handle specific Fortnox error scenarios
-      if (response.status === 401) {
-        return new Response(
-          JSON.stringify({
-            error: "invalid_client",
-            error_description: "Invalid authorization credentials",
-            details: { raw_response: responseText }
-          }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      } else if (response.status === 400) {
-        // Process known 400 error types
-        if (responseText.includes("Invalid access-token")) {
-          return new Response(
-            JSON.stringify({
-              error: "invalid_token",
-              error_description: "The provided access token is invalid",
-              details: { raw_response: responseText }
-            }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-        
-        if (responseText.includes("Could not create JWT")) {
-          return new Response(
-            JSON.stringify({
-              error: "jwt_creation_failed",
-              error_description: "Could not create JWT token",
-              details: { raw_response: responseText }
-            }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-        
-        if (responseText.includes("incorrect auth flow type")) {
-          return new Response(
-            JSON.stringify({
-              error: "incorrect_auth_flow",
-              error_description: "Could not create JWT, due to incorrect auth flow type",
-              details: { raw_response: responseText }
-            }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-      } else if (response.status === 403) {
-        if (responseText.includes("Not allowed to create JWT")) {
-          const isMissingLicense = responseText.includes("missing license");
-          
-          return new Response(
-            JSON.stringify({
-              error: "jwt_creation_not_allowed",
-              error_description: isMissingLicense 
-                ? "Not allowed to create JWT, due to missing license" 
-                : "Not allowed to create JWT for the given access-token",
-              details: { raw_response: responseText }
-            }),
-            { 
-              status: 403, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-      } else if (response.status === 404) {
-        if (responseText.includes("Access-token not found")) {
-          return new Response(
-            JSON.stringify({
-              error: "token_not_found",
-              error_description: "The provided access token was not found",
-              details: { raw_response: responseText }
-            }),
-            { 
-              status: 404, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-      }
-      
-      // Generic error response if none of the specific cases matched
-      return new Response(
-        JSON.stringify({ 
-          error: errorData?.error || "fortnox_api_error", 
-          error_description: errorMessage,
-          status: response.status,
-          details: { raw_response: responseText }
-        }),
-        { 
-          status: response.status, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Parse the successful response
+    // Try to parse the response as JSON
     let responseData;
+    
     try {
-      // Check if the response is JSON
-      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+      // Only attempt to parse as JSON if the content appears to be JSON
+      if (responseText && (
+          response.headers.get('content-type')?.includes('application/json') ||
+          (responseText.trim().startsWith('{') && responseText.trim().endsWith('}'))
+      )) {
         responseData = JSON.parse(responseText);
-        console.log("Successfully parsed Fortnox response as JSON");
+        console.log("Successfully parsed migration response as JSON");
       } else {
-        // If not JSON, wrap the text in a simple object
-        console.error("Fortnox response is not JSON:", responseText);
+        console.error("Fortnox migration response is not JSON:", responseText);
         return new Response(
           JSON.stringify({ 
             error: "invalid_response_format", 
@@ -258,45 +112,143 @@ serve(async (req) => {
             raw_response: responseText 
           }),
           { 
-            status: 400, 
+            status: 502, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
       }
     } catch (e) {
-      console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
+      console.error("Failed to parse Fortnox migration response:", e);
+      console.error("Raw response:", responseText);
+      
       return new Response(
         JSON.stringify({ 
           error: "parse_error", 
-          error_description: "Failed to parse Fortnox response",
+          error_description: "Failed to parse Fortnox response", 
           raw_response: responseText 
         }),
         { 
-          status: 500, 
+          status: 502, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    // Check for required fields in successful response
+    // Handle error responses from Fortnox
+    if (!response.ok || responseData.error) {
+      const errorStatus = response.status;
+      
+      console.error("Fortnox API migration error:", {
+        status: errorStatus,
+        error: responseData.error || "unknown_error",
+        description: responseData.error_description || "Unknown error"
+      });
+      
+      // Handle specific migration errors
+      if (response.status === 404 || responseData.error === 'token_not_found') {
+        return new Response(
+          JSON.stringify({ 
+            error: "token_not_found", 
+            error_description: "Access-token not found or has expired",
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 404, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      if (response.status === 403) {
+        if (responseData.error === 'jwt_creation_not_allowed') {
+          return new Response(
+            JSON.stringify({ 
+              error: "jwt_creation_not_allowed", 
+              error_description: "Not allowed to create JWT for given access-token",
+              fortnox_error: responseData 
+            }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        if (responseData.error === 'jwt_creation_failed') {
+          return new Response(
+            JSON.stringify({ 
+              error: "jwt_creation_failed", 
+              error_description: "Could not create JWT",
+              fortnox_error: responseData 
+            }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      }
+      
+      if (response.status === 400 && responseData.error === 'incorrect_auth_flow') {
+        return new Response(
+          JSON.stringify({ 
+            error: "incorrect_auth_flow", 
+            error_description: "Could not create JWT, due to incorrect auth flow type",
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      if (response.status === 401 || responseData.error === 'invalid_client') {
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_client", 
+            error_description: "Invalid client credentials (client ID or client secret)",
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: responseData.error || "fortnox_api_error", 
+          error_description: responseData.error_description || "Fortnox API error",
+          status: errorStatus,
+          fortnox_error: responseData 
+        }),
+        { 
+          status: response.status || 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    // Verify required tokens are present in successful response
     if (!responseData.access_token || !responseData.refresh_token) {
-      console.error("Fortnox response missing required fields:", responseData);
+      console.error("Fortnox response missing tokens:", responseData);
       return new Response(
         JSON.stringify({ 
           error: "invalid_response", 
-          error_description: "Fortnox response missing required token fields",
-          details: responseData
+          error_description: "Fortnox response missing required tokens" 
         }),
         { 
-          status: 400, 
+          status: 502, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    console.log("Token migration successful");
+    console.log("Fortnox token migration successful");
     
-    // Return the token data
+    // Return the successful migration response
     return new Response(
       JSON.stringify(responseData),
       { 
@@ -304,12 +256,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
+    
   } catch (error) {
-    console.error("Server error in fortnox-token-migration:", error);
+    console.error("Server error in token-migration:", error);
+    
     return new Response(
       JSON.stringify({ 
         error: "server_error", 
-        error_description: error.message || "Unknown error",
+        error_description: error.message || "Unknown server error",
         stack: error.stack
       }),
       { 

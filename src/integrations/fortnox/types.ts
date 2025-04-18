@@ -28,6 +28,7 @@ export interface FortnoxError {
   raw_response?: string;
   parsed_response?: any;
   request_needs_retry?: boolean;
+  missing_fields?: string[];
 }
 
 export interface FortnoxMigrationResponse {
@@ -46,4 +47,12 @@ export interface FortnoxClientData {
   isValid: boolean;
   connectionStatus?: boolean;
   error?: string;
+}
+
+export interface FortnoxTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+  scope?: string;
 }
