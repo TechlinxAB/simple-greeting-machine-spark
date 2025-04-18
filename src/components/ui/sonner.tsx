@@ -22,7 +22,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           actionButton:
             "bg-black text-white",
           cancelButton:
-            "bg-white text-black border border-gray-300",
+            "bg-white text-black border border-gray-300 hover:bg-gray-100", 
           closeButton: "text-black hover:bg-gray-100 rounded-full p-1" 
         },
         style: {
