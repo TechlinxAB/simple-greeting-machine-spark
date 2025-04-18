@@ -32,8 +32,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
         }
       }}
-      // Custom close icon as a separate property, not inside toastOptions
-      closeIcon={<X size={14} />}
       {...props}
     />
   );
