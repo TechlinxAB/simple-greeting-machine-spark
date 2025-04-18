@@ -309,6 +309,12 @@ export async function migrateToJwtAuthentication(
     
     if (migrationResponse.error) {
       console.error("Fortnox API returned an error during migration:", migrationResponse);
+      
+      // Special handling for invalid token errors
+      if (migrationResponse.error === 'invalid_token') {
+        throw new Error(`Migration failed: The access token is invalid or has expired. You may need to reconnect your Fortnox account.`);
+      }
+      
       throw new Error(`Migration failed: ${migrationResponse.error} - ${migrationResponse.error_description || ''}`);
     }
     

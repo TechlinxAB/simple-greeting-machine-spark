@@ -117,11 +117,73 @@ serve(async (req) => {
     const responseText = await response.text();
     console.log("Fortnox migration response status:", response.status);
     
-    let responseData;
+    // If the response is not OK, return the error
+    if (!response.ok) {
+      console.error("Fortnox returned an error:", response.status, responseText);
+      
+      // Check if the response is "Invalid access-token" which is a common error
+      if (responseText.includes("Invalid access-token")) {
+        return new Response(
+          JSON.stringify({
+            error: "invalid_token",
+            error_description: "The provided access token is invalid or has expired",
+            status: response.status,
+            details: responseText
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // Try to parse as JSON if it looks like JSON
+      let errorData = null;
+      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          // If it fails to parse as JSON, use the text as-is
+          console.log("Failed to parse error response as JSON:", e);
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: errorData?.error || "fortnox_api_error", 
+          error_description: errorData?.error_description || responseText || "Unknown error from Fortnox API",
+          status: response.status,
+          details: errorData || responseText
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
+    // Parse the successful response as JSON
+    let responseData;
     try {
-      responseData = JSON.parse(responseText);
-      console.log("Successfully parsed Fortnox response as JSON");
+      // Check if the response looks like JSON
+      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+        responseData = JSON.parse(responseText);
+        console.log("Successfully parsed Fortnox response as JSON");
+      } else {
+        // If not JSON, wrap the text in a simple object
+        console.error("Fortnox response is not JSON:", responseText);
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_response_format", 
+            error_description: "Fortnox returned a non-JSON response", 
+            raw_response: responseText 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
@@ -136,18 +198,17 @@ serve(async (req) => {
       );
     }
     
-    // If the response is not OK, return the error
-    if (!response.ok) {
-      console.error("Fortnox API error during migration:", response.status, responseData);
+    // Check for required fields in successful response
+    if (!responseData.access_token || !responseData.refresh_token) {
+      console.error("Fortnox response missing required fields:", responseData);
       return new Response(
         JSON.stringify({ 
-          error: responseData?.error || "fortnox_api_error", 
-          error_description: responseData?.error_description || "Unknown error from Fortnox API",
-          status: response.status,
+          error: "invalid_response", 
+          error_description: "Fortnox response missing required token fields",
           details: responseData
         }),
         { 
-          status: response.status, 
+          status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
