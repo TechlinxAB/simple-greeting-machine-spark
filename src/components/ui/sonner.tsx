@@ -17,13 +17,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast bg-white text-black border border-gray-300", 
+            "group toast bg-white text-black border border-gray-300 shadow-md", 
           description: "text-black",
           actionButton:
             "bg-black text-white",
           cancelButton:
             "bg-white text-black border border-gray-300",
-          closeButton: "text-black hover:bg-white hover:text-gray-800 rounded-full p-1" 
+          closeButton: "text-black hover:bg-gray-100 rounded-full p-1" 
         },
         style: {
           background: '#ffffff',
@@ -38,4 +38,3 @@ const Toaster = ({ ...props }: ToasterProps) => {
 }
 
 export { Toaster }
-

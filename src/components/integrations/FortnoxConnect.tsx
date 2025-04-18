@@ -10,17 +10,11 @@ import {
   saveFortnoxCredentials
 } from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key, Info } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { environment, getRedirectUri } from "@/config/environment";
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -39,7 +33,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Set the redirect URI when component mounts - use the getRedirectUri function
+  // Set the redirect URI when component mounts - use the new getRedirectUri function
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
     console.log("Setting Fortnox redirect URI:", fullRedirectUri);
@@ -138,9 +132,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       console.log("Saving credentials to database before OAuth flow");
       await saveFortnoxCredentials({
         clientId,
-        clientSecret,
-        // Set the auth flow type for JWT support
-        authFlow: "authorization_code_grant"
+        clientSecret
       });
       
       // Force refresh credentials query
@@ -180,16 +172,14 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         return;
       }
       
-      // Build parameters following Fortnox's requirements with added auth_flow parameter
+      // Build parameters following Fortnox's requirements
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
         scope: scopes.join(' '), // Space-separated list of scopes
         response_type: 'code',
         state: state,
-        access_type: 'offline', // Request refresh token
-        auth_flow: 'authorization_code_grant',
-        token_type_hint: 'jwt'
+        access_type: 'offline' // Request refresh token
       });
       
       const authUrl = `${FORTNOX_AUTH_URL}?${params.toString()}`;
@@ -278,52 +268,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                 Connected to Fortnox. You can now export invoices directly to your Fortnox account.
               </p>
               
-              {/* Add JWT info with tooltip for auth flow */}
-              {credentials && (
-                <div className="mt-2">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <Badge 
-                      variant={credentials.migratedToJwt ? "default" : "outline"} 
-                      className={credentials.migratedToJwt ? "bg-green-600" : "bg-amber-100 text-amber-800"}
-                    >
-                      {credentials.migratedToJwt ? (
-                        <>
-                          <Check className="mr-1 h-3 w-3" /> 
-                          JWT Authentication
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="mr-1 h-3 w-3" /> 
-                          Legacy Token
-                        </>
-                      )}
-                    </Badge>
-                    
-                    {credentials.authFlow && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="secondary" className="cursor-help">
-                              <Info className="mr-1 h-3 w-3" />
-                              {credentials.authFlow}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Authentication flow type used for Fortnox API</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    
-                    {credentials.tokenType && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        {credentials.tokenType}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-              
               {credentials?.accessToken && (
                 <div className="mt-4 space-y-4">
                   <div className="space-y-2">
@@ -363,19 +307,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                   </div>
                 </div>
               )}
-              
-              {/* Show any migration errors if present */}
-              {credentials?.migrationError && (
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">Migration Issue</p>
-                      <p className="text-xs text-amber-700 mt-1">{credentials.migrationError}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -393,9 +324,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                   await saveFortnoxCredentials({
                     clientId,
                     clientSecret,
-                    ...(credentials || {}),
-                    // Always ensure we have the correct authFlow set for JWT support
-                    authFlow: "authorization_code_grant"
+                    ...(credentials || {})
                   });
                   toast.success("Credentials updated successfully");
                   // Force refresh status and credentials
@@ -410,20 +339,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               disabled={!clientId || !clientSecret}
             >
               Update Credentials
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setConnectionRetryCount(prev => prev + 1);
-                queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
-                queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
-                toast.info("Reconnecting to Fortnox...");
-                // Full reconnect by starting over
-                handleConnect();
-              }}
-              disabled={!clientId || !clientSecret || isConnecting}
-            >
-              Reconnect
             </Button>
           </div>
         </div>
@@ -457,21 +372,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
-              
-              {/* Help section for JWT migration requirement */}
-              <div className="bg-blue-50 border border-blue-200 p-3 rounded-md mt-4">
-                <p className="text-sm font-medium text-blue-800 flex items-center gap-2">
-                  <Info className="h-4 w-4 text-blue-500" />
-                  <span>JWT Support Setup</span>
-                </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Fortnox now requires JWT authentication. Make sure your Fortnox application is set up with:
-                </p>
-                <ul className="list-disc list-inside text-xs text-blue-700 mt-1 space-y-1">
-                  <li>Authentication flow type: <strong>Authorization Code Grant</strong></li>
-                  <li>Token type: <strong>JWT</strong></li>
-                </ul>
-              </div>
             </div>
             
             {validationError && (
@@ -495,7 +395,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               className="flex items-center gap-2"
             >
               <Link className="h-4 w-4" />
-              <span>{isConnecting ? "Connecting..." : "Connect to Fortnox"}</span>
+              <span>Connect to Fortnox</span>
               <ArrowUpRight className="h-3 w-3" />
             </Button>
             
