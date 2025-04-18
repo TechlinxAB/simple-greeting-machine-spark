@@ -17,7 +17,6 @@ export default function TimeTracking() {
   const { t } = useTranslation();
   const { language } = useLanguage();
   
-  // Initialize with a stable Date object for today to prevent unnecessary rerenders
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -27,14 +26,11 @@ export default function TimeTracking() {
   const isMobile = useIsMobile();
   const isLaptop = useIsLaptop();
 
-  // Use a strong initialization approach that forces the calendar to update
   useEffect(() => {
-    // Force an immediate update
     const today = new Date();
     const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     setSelectedDate(normalizedToday);
 
-    // Then follow up with additional updates to ensure proper rendering
     const timer1 = setTimeout(() => {
       const refreshToday = new Date();
       setSelectedDate(new Date(refreshToday.getFullYear(), refreshToday.getMonth(), refreshToday.getDate()));
@@ -51,22 +47,19 @@ export default function TimeTracking() {
     };
   }, []);
 
-  // Refetch clients data when the component mounts to ensure data freshness
   const { isLoading: isClientsLoading } = useQuery({
     queryKey: ["clients"],
-    staleTime: 15000, // Consider data stale after 15 seconds
-    refetchOnMount: "always", // Always refetch on component mount
+    staleTime: 15000,
+    refetchOnMount: "always",
   });
 
   const handleClientCreated = () => {
-    // Invalidate the clients query to force refresh
     queryClient.invalidateQueries({ queryKey: ["clients"] });
     queryClient.invalidateQueries({ queryKey: ["all-clients"] });
     toast.success(t("clients.clientAdded"));
   };
 
   const handleTimeEntryCreated = () => {
-    // Invalidate the time entries query to force refresh
     queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     toast.success(t("timeTracking.timeEntryAdded"));
   };
@@ -78,11 +71,6 @@ export default function TimeTracking() {
         'd MMMM yyyy', 
         { locale: language === 'sv' ? sv : undefined }
       );
-
-  // Log selected date for debugging
-  useEffect(() => {
-    console.info("Current selected date:", selectedDate.toISOString(), "Is today:", isToday(selectedDate));
-  }, [selectedDate]);
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">

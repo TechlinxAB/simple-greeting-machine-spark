@@ -19,21 +19,18 @@ interface LanguageProviderProps {
 
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    // Initialize from localStorage or browser language
     const savedLang = localStorage.getItem('language') as Language;
     if (savedLang && ['en', 'sv'].includes(savedLang)) {
       return savedLang;
     }
     
-    // Check browser language
     const browserLang = navigator.language.split('-')[0];
     return browserLang === 'sv' ? 'sv' : 'en';
   });
 
   const setLanguage = (lang: Language) => {
-    if (lang === language) return; // Avoid unnecessary updates if language is the same
+    if (lang === language) return;
     
-    console.log(`Setting language to ${lang} in LanguageContext`);
     setLanguageState(lang);
     localStorage.setItem('language', lang);
     i18n.changeLanguage(lang);
@@ -45,18 +42,14 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
     setLanguage(newLang);
   };
 
-  // Set initial language on mount
   useEffect(() => {
-    console.log(`Initial language in context: ${language}`);
     i18n.changeLanguage(language);
     updateHtmlLang(language);
   }, []);
 
-  // Force a language update when the component mounts to ensure consistency with localStorage
   useEffect(() => {
     const savedLang = localStorage.getItem('language') as Language;
     if (savedLang && ['en', 'sv'].includes(savedLang) && savedLang !== language) {
-      console.log(`Found saved language in localStorage: ${savedLang}, updating context`);
       setLanguageState(savedLang);
       i18n.changeLanguage(savedLang);
       updateHtmlLang(savedLang);
