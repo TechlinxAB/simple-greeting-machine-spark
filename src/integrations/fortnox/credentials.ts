@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
 import { refreshAccessToken } from "./auth";
@@ -6,16 +5,19 @@ import { toast } from "sonner";
 
 /**
  * Save Fortnox credentials to the database
- * This function should only be callable by admins (enforced at the UI level)
  */
 export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
   try {
-    // Convert credentials to a plain object to ensure it can be stored in JSON
     const credentialsObj = { ...credentials };
     
-    // Set a long expiration time for refresh tokens (350 days to be safe)
+    // Set refresh token expiration to 44 days (one day less than max to be safe)
     if (credentials.refreshToken) {
-      credentialsObj.refreshTokenExpiresAt = Date.now() + (350 * 24 * 60 * 60 * 1000);
+      credentialsObj.refreshTokenExpiresAt = Date.now() + (44 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Set access token expiration to 55 minutes (5 minutes less than max)
+    if (credentials.accessToken) {
+      credentialsObj.expiresAt = Date.now() + (55 * 60 * 1000);
     }
     
     console.log("Saving Fortnox credentials to database");
@@ -67,7 +69,6 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
         console.error(`Error fetching Fortnox credentials (${4-retries}/3):`, error);
         retries--;
         if (retries > 0) {
-          // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } else {
@@ -85,11 +86,8 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Fix for TypeScript error - properly type-cast the JSON data to FortnoxCredentials
-    // First cast to unknown, then to FortnoxCredentials to avoid type errors
     const settingsData = data.settings as unknown as FortnoxCredentials;
     
-    // Validate credentials structure
     if (!settingsData.clientId || !settingsData.clientSecret) {
       console.log("Invalid credentials format - missing client ID or secret");
       return null;
@@ -101,15 +99,15 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       
       if (refreshTokenExpired) {
         console.log("Refresh token has expired - user needs to reconnect");
-        toast.error("Fortnox connection has expired. Please reconnect.");
-        return settingsData; // Return credentials so UI can show reconnect state
+        toast.error("Your Fortnox connection has expired. Please reconnect to continue using Fortnox features.");
+        return settingsData;
       }
     }
     
-    // If access token is expired or close to expiring (within 5 minutes), refresh it
+    // If access token expires within 15 minutes or has expired, refresh it
     if (settingsData.accessToken && settingsData.expiresAt) {
       const expiresInMinutes = (settingsData.expiresAt - Date.now()) / (1000 * 60);
-      const shouldRefresh = expiresInMinutes < 15; // Increased buffer to 15 minutes
+      const shouldRefresh = expiresInMinutes < 15;
       
       if (shouldRefresh) {
         console.log(`Access token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting refresh`);
@@ -117,19 +115,24 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
         try {
           if (!settingsData.refreshToken) {
             console.error("Cannot refresh: No refresh token available");
-            return settingsData; // Return existing credentials
+            return settingsData;
           }
           
+          // Attempt to refresh the token
           const refreshed = await refreshAccessToken(
             settingsData.clientId,
             settingsData.clientSecret,
             settingsData.refreshToken
           );
           
-          // Update credentials with new tokens
+          // Update credentials with new tokens and proper expiration times
           const updatedCredentials = {
             ...settingsData,
             ...refreshed,
+            // Set refresh token expiration to 44 days
+            refreshTokenExpiresAt: Date.now() + (44 * 24 * 60 * 60 * 1000),
+            // Set access token expiration to 55 minutes
+            expiresAt: Date.now() + (55 * 60 * 1000)
           };
           
           // Save the refreshed credentials
@@ -147,6 +150,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
           }
           
           // If tokens are actually expired, return null to trigger reconnect
+          toast.error("Failed to refresh Fortnox connection. Please reconnect to continue using Fortnox features.");
           return null;
         }
       }
