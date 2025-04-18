@@ -119,14 +119,23 @@ serve(async (req) => {
       }
     }
     
+    // Add additional required parameters for JWT token generation
+    // Based on Fortnox documentation for JWT migration
+    formData.append('auth_flow', 'authorization_code_grant');
+    formData.append('token_type_hint', 'jwt');
+    
     console.log("Making request to Fortnox with grant_type:", requestData.grant_type);
     console.log("Form data keys:", Array.from(formData.keys()));
+    
+    // Create the Basic Authorization header from client_id and client_secret
+    const credentials = btoa(`${requestData.client_id}:${requestData.client_secret}`);
     
     // Make the request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${credentials}`
       },
       body: formData.toString(),
     });
@@ -212,6 +221,34 @@ serve(async (req) => {
           }),
           { 
             status: 401, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      if (responseData.error === 'jwt_creation_not_allowed') {
+        return new Response(
+          JSON.stringify({ 
+            error: "jwt_creation_not_allowed", 
+            error_description: "Not allowed to create JWT for given authentication",
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 403, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      if (responseData.error === 'incorrect_auth_flow') {
+        return new Response(
+          JSON.stringify({ 
+            error: "incorrect_auth_flow", 
+            error_description: "Could not create JWT, due to incorrect auth flow type",
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 400, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );

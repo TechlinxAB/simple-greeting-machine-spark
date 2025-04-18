@@ -75,6 +75,10 @@ serve(async (req) => {
     const formData = new URLSearchParams();
     formData.append('access_token', requestData.access_token);
     
+    // Add additional parameters for JWT token migration
+    formData.append('auth_flow', 'authorization_code_grant');
+    formData.append('token_type_hint', 'jwt');
+    
     console.log("Making migration request to Fortnox");
     
     // Make the request to Fortnox

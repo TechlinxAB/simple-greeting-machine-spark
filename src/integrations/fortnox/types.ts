@@ -11,6 +11,9 @@ export interface FortnoxCredentials {
   migrationLastAttempt?: number; // timestamp of last migration attempt
   migrationAttemptCount?: number; // number of times we've attempted migration
   migrationError?: string; // last migration error message
+  tokenType?: string; // token type (bearer, jwt)
+  scope?: string; // token scope
+  authFlow?: string; // auth flow used (authorization_code_grant)
 }
 
 export interface SystemSettings {
@@ -29,6 +32,8 @@ export interface FortnoxError {
   parsed_response?: any;
   request_needs_retry?: boolean;
   missing_fields?: string[];
+  requires_reconnect?: boolean;
+  fortnox_error?: any;
 }
 
 export interface FortnoxMigrationResponse {
