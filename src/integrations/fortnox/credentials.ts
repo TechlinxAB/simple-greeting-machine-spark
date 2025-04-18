@@ -1,6 +1,7 @@
+
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
-import { refreshAccessToken } from "./auth";
+import { refreshAccessToken, migrateToJwtAuthentication } from "./auth";
 import { toast } from "sonner";
 
 /**
@@ -38,6 +39,70 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
     console.error('Error saving Fortnox credentials:', error);
     throw error;
   }
+}
+
+/**
+ * Check if migration to JWT is needed and perform it if required
+ */
+async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Promise<FortnoxCredentials> {
+  // Only attempt migration if:
+  // 1. Migration hasn't been done yet (no migratedToJwt flag)
+  // 2. We have all required credentials
+  if (!credentials.migratedToJwt && 
+      credentials.clientId && 
+      credentials.clientSecret && 
+      credentials.accessToken) {
+    
+    try {
+      console.log("JWT migration needed, attempting migration...");
+      
+      // Check if we should show migration notification
+      const migrationDeadline = new Date('2025-04-30').getTime();
+      const daysUntilDeadline = Math.ceil((migrationDeadline - Date.now()) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilDeadline <= 60) {
+        // Show warning for users if within 60 days of deadline
+        toast.warning(
+          `Fortnox API is changing on April 30, 2025. Migrating your connection now (${daysUntilDeadline} days remaining).`, 
+          { duration: 8000 }
+        );
+      }
+      
+      // Perform the migration
+      const migrationResult = await migrateToJwtAuthentication(
+        credentials.clientId,
+        credentials.clientSecret,
+        credentials.accessToken
+      );
+      
+      if (migrationResult) {
+        // Update credentials with migration results
+        const updatedCredentials = {
+          ...credentials,
+          ...migrationResult,
+          migratedToJwt: true
+        };
+        
+        // Save the migrated credentials
+        await saveFortnoxCredentials(updatedCredentials);
+        
+        console.log("JWT migration completed successfully");
+        toast.success("Fortnox connection has been upgraded to the new authentication system.");
+        
+        return updatedCredentials;
+      }
+    } catch (error) {
+      console.error("JWT migration failed:", error);
+      
+      // Don't block access due to migration failure, just log and notify
+      toast.error(
+        "Fortnox connection upgrade failed. You may need to reconnect before April 30, 2025.", 
+        { duration: 10000 }
+      );
+    }
+  }
+  
+  return credentials;
 }
 
 /**
@@ -81,6 +146,22 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     
     if (!settingsData.clientId || !settingsData.clientSecret) {
       return null;
+    }
+    
+    // Check if migration to JWT is needed
+    const migrationDeadline = new Date('2025-04-30').getTime();
+    const currentDate = Date.now();
+    
+    if (currentDate < migrationDeadline && !settingsData.migratedToJwt) {
+      // Attempt JWT migration if we're before the deadline and haven't migrated yet
+      const migratedCredentials = await checkAndPerformJwtMigration(settingsData);
+      if (migratedCredentials !== settingsData) {
+        // If migration succeeded, use the new credentials
+        settingsData.accessToken = migratedCredentials.accessToken;
+        settingsData.refreshToken = migratedCredentials.refreshToken;
+        settingsData.expiresAt = migratedCredentials.expiresAt;
+        settingsData.migratedToJwt = true;
+      }
     }
     
     // Check refresh token expiration - proactively refresh 2 days before expiration

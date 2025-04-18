@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -267,6 +266,28 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               <p className="text-sm">
                 Connected to Fortnox. You can now export invoices directly to your Fortnox account.
               </p>
+              
+              {/* Add JWT migration status badge */}
+              {credentials && (
+                <div className="mt-2">
+                  <Badge 
+                    variant={credentials.migratedToJwt ? "default" : "outline"} 
+                    className={credentials.migratedToJwt ? "bg-green-600" : "bg-amber-100 text-amber-800"}
+                  >
+                    {credentials.migratedToJwt ? (
+                      <>
+                        <Check className="mr-1 h-3 w-3" /> 
+                        JWT Migration Complete
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="mr-1 h-3 w-3" /> 
+                        Legacy Token (Migration Needed)
+                      </>
+                    )}
+                  </Badge>
+                </div>
+              )}
               
               {credentials?.accessToken && (
                 <div className="mt-4 space-y-4">

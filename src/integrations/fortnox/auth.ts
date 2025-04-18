@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials } from "./types";
@@ -259,6 +258,78 @@ export async function refreshAccessToken(
     }
   } catch (error) {
     console.error('Error refreshing access token:', error);
+    throw error;
+  }
+}
+
+/**
+ * Migrate legacy access token to JWT-based authentication
+ * This function handles the migration of legacy Fortnox tokens to the new JWT-based authentication system
+ * Must be called before April 30, 2025 to ensure continued API access
+ */
+export async function migrateToJwtAuthentication(
+  clientId: string,
+  clientSecret: string,
+  legacyToken: string
+): Promise<Partial<FortnoxCredentials>> {
+  try {
+    console.log("Starting migration to JWT-based authentication");
+    
+    if (!clientId || !clientSecret || !legacyToken) {
+      const missingParams = [];
+      if (!clientId) missingParams.push('clientId');
+      if (!clientSecret) missingParams.push('clientSecret');
+      if (!legacyToken) missingParams.push('legacyToken');
+      
+      throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+    }
+    
+    // Prepare data for migration request
+    const migrationData = {
+      client_id: clientId,
+      client_secret: clientSecret,
+      access_token: legacyToken
+    };
+    
+    // Call the migration edge function
+    console.log("Calling fortnox-token-migration edge function");
+    const { data: migrationResponse, error: migrationError } = await supabase.functions.invoke('fortnox-token-migration', {
+      body: JSON.stringify(migrationData)
+    });
+    
+    if (migrationError) {
+      console.error("Migration edge function error:", migrationError);
+      throw new Error(`Migration failed: ${migrationError.message}`);
+    }
+    
+    if (!migrationResponse) {
+      console.error("Empty response from migration edge function");
+      throw new Error("Migration failed: Empty response from server");
+    }
+    
+    if (migrationResponse.error) {
+      console.error("Fortnox API returned an error during migration:", migrationResponse);
+      throw new Error(`Migration failed: ${migrationResponse.error} - ${migrationResponse.error_description || ''}`);
+    }
+    
+    if (!migrationResponse.access_token || !migrationResponse.refresh_token) {
+      console.error("Invalid response from migration function:", migrationResponse);
+      throw new Error("Migration failed: Missing tokens in response");
+    }
+    
+    console.log("JWT migration successful");
+    
+    // Calculate token expiration time
+    const expiresAt = Date.now() + (migrationResponse.expires_in || 3600) * 1000;
+    
+    return {
+      accessToken: migrationResponse.access_token,
+      refreshToken: migrationResponse.refresh_token,
+      expiresAt,
+      migratedToJwt: true
+    };
+  } catch (error) {
+    console.error('Error migrating to JWT authentication:', error);
     throw error;
   }
 }
