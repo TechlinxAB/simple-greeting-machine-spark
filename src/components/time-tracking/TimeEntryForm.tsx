@@ -63,6 +63,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   const endTimeRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -163,6 +164,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     }
   };
 
+  const handleEndTimeComplete = () => {
+    if (descriptionRef.current) {
+      descriptionRef.current.focus();
+    }
+  };
+
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error(t("error.sessionExpired"));
@@ -233,7 +240,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
       form.reset({
         clientId: values.clientId,
-        productId: "",
+        productId: values.productId,
         description: "",
       });
       
@@ -292,6 +299,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     value={field.value || null} 
                     onChange={field.onChange}
                     roundOnBlur={false}
+                    onComplete={handleEndTimeComplete}
                   />
                 </FormControl>
                 <FormMessage />
@@ -468,6 +476,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     <FormItem>
                       <FormControl>
                         <Textarea
+                          ref={descriptionRef}
                           placeholder={t("timeTracking.descriptionPlaceholder")}
                           className={cn("min-h-[100px]", compact ? "text-xs" : "")}
                           {...field}
