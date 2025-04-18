@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Clock, Package } from "lucide-react";
 import type { Product, ProductType } from "@/types";
+import { useTranslation } from "react-i18next";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -35,6 +37,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
   const [isLoading, setIsLoading] = useState(false);
   const [selectedType, setSelectedType] = useState<ProductType>(productType);
   const isEditMode = !!productToEdit;
+  const { t } = useTranslation();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
