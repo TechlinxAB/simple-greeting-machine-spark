@@ -1,6 +1,7 @@
 
 import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
+import { X } from "lucide-react";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -10,30 +11,29 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      position="bottom-right"
-      richColors={false}
+      position="top-center"
       closeButton
-      duration={3000}
+      richColors={false}
+      duration={4000}
       gap={8}
       toastOptions={{
         classNames: {
-          toast: "group toast bg-black text-white border-none shadow-lg rounded-md overflow-hidden flex items-center justify-center max-w-[350px] w-full p-4 relative",
-          description: "text-white text-sm font-normal text-center w-full",
-          actionButton: "bg-white text-black",
-          cancelButton: "bg-black text-white border border-white hover:bg-gray-900",
-          closeButton: "absolute top-2 right-2 p-1 rounded-full text-white hover:bg-white/20 transition-colors"
+          toast: "group flex w-full justify-between items-center bg-[#1a1a1a] text-white rounded-lg shadow-lg py-3 px-4 max-w-[380px]",
+          title: "font-medium text-sm",
+          description: "text-sm text-gray-200",
+          actionButton: "bg-white text-black rounded px-2 py-1 text-xs font-medium",
+          cancelButton: "bg-[#333] text-white rounded px-2 py-1 text-xs font-medium",
+          closeButton: "text-white/70 hover:text-white transition-colors rounded-full p-1"
         },
         style: {
-          background: '#000000',
+          background: '#1a1a1a',
           color: '#ffffff',
-          borderRadius: '6px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          margin: '0.5rem',
-          padding: '0.75rem',
-          maxWidth: '350px',
-          width: '100%',
-          position: 'relative'
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
         }
+      }}
+      icons={{
+        close: ({ className }) => <X className={className} size={14} />,
       }}
       {...props}
     />
