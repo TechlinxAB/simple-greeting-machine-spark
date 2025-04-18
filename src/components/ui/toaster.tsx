@@ -11,8 +11,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      position="top-right"
-      richColors
+      position="bottom-right"
+      richColors={false}
       closeButton
       toastOptions={{
         classNames: {
@@ -20,7 +20,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           description: "text-black",
           actionButton: "bg-black text-white",
           cancelButton: "bg-white text-black border border-gray-300 hover:bg-gray-100",
-          closeButton: "absolute right-2 top-2 p-1 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
+          closeButton: "absolute right-2 top-2 p-1 rounded-full text-gray-500 hover:bg-gray-200 transition-colors border border-gray-200 bg-white"
         },
         style: {
           background: '#ffffff',
