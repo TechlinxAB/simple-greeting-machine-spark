@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -65,6 +64,14 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   
   const endTimeRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -156,7 +163,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     );
   };
 
-  const handleStartTimeComplete = () => {
+  const handleStartTimeComplete = useCallback(() => {
     console.log("Start time complete, focusing end time field");
     if (endTimeRef.current) {
       const input = endTimeRef.current.querySelector('input');
@@ -164,20 +171,49 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         input.focus();
       }
     }
-  };
+  }, []);
 
-  const handleEndTimeComplete = () => {
+  const handleEndTimeComplete = useCallback(() => {
     console.log("End time complete, focusing description field");
-    setTimeout(() => {
-      if (descriptionRef.current) {
-        console.log("Focusing description field", descriptionRef.current);
-        descriptionRef.current.focus();
-        descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } else {
-        console.log("Description field ref is null");
-      }
-    }, 400); // Increased timeout to ensure DOM is ready
-  };
+    
+    console.log("Description ref:", descriptionRef.current);
+    
+    requestAnimationFrame(() => {
+      const focusDescription = () => {
+        if (!isMounted.current) return;
+        
+        const textarea = document.getElementById('description-field');
+        if (textarea) {
+          console.log("Found description field by ID:", textarea);
+          (textarea as HTMLTextAreaElement).focus();
+          textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return;
+        }
+        
+        if (descriptionRef.current) {
+          console.log("Focusing description field via ref");
+          descriptionRef.current.focus();
+          descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          console.log("Description field ref is null, will retry");
+          setTimeout(() => {
+            if (!isMounted.current) return;
+            
+            const retryTextarea = document.getElementById('description-field');
+            if (retryTextarea) {
+              console.log("Found description field on retry");
+              (retryTextarea as HTMLTextAreaElement).focus();
+              retryTextarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+              console.log("Failed to find description field after retries");
+            }
+          }, 100);
+        }
+      };
+      
+      setTimeout(focusDescription, 100);
+    });
+  }, []);
 
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
@@ -487,7 +523,10 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     <FormLabel>{t("timeTracking.description")}</FormLabel>
                     <FormControl>
                       <Textarea
-                        ref={descriptionRef}
+                        ref={(el) => {
+                          descriptionRef.current = el;
+                          console.log("Description ref attached:", el);
+                        }}
                         placeholder={t("timeTracking.descriptionPlaceholder")}
                         className={cn("min-h-[100px]", compact ? "text-xs" : "")}
                         {...field}
