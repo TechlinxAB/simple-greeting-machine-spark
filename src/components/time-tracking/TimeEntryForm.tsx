@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -156,6 +157,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   };
 
   const handleStartTimeComplete = () => {
+    console.log("Start time complete, focusing end time field");
     if (endTimeRef.current) {
       const input = endTimeRef.current.querySelector('input');
       if (input) {
@@ -165,12 +167,16 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   };
 
   const handleEndTimeComplete = () => {
+    console.log("End time complete, focusing description field");
     setTimeout(() => {
       if (descriptionRef.current) {
+        console.log("Focusing description field", descriptionRef.current);
         descriptionRef.current.focus();
         descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        console.log("Description field ref is null");
       }
-    }, 250);
+    }, 400); // Increased timeout to ensure DOM is ready
   };
 
   const onSubmit = async (values: TimeEntryFormValues) => {
@@ -487,6 +493,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                         {...field}
                         value={field.value || ""}
                         id="description-field"
+                        tabIndex={0}
                       />
                     </FormControl>
                     <FormMessage />
