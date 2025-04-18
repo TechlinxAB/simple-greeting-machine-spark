@@ -25,6 +25,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "bg-white text-black border border-gray-300",
           closeButton: "text-gray-600 hover:text-black hover:bg-gray-100 rounded-full p-1" 
         },
+        style: {
+          background: '#ffffff',
+          color: '#000000',
+          border: '1px solid #cccccc'
+        },
         duration: 3000,
       }}
       {...props}
