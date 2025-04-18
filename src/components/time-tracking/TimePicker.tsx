@@ -22,7 +22,6 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   const [timeInput, setTimeInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Update the time input when the value changes
   useEffect(() => {
     if (value && value instanceof Date) {
       const hours = value.getHours().toString().padStart(2, '0');
@@ -33,31 +32,22 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
   }, [value]);
   
-  // Handle direct time input
   const handleTimeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
-    
-    // Only allow numbers and colon
     const filtered = input.replace(/[^0-9:]/g, "");
     
-    // Format as we type
     if (filtered.length <= 5) {
       if (filtered.length === 2 && !filtered.includes(":") && !timeInput.includes(":")) {
-        // Automatically add colon after hours
         setTimeInput(`${filtered}:`);
       } else {
         setTimeInput(filtered);
       }
     }
     
-    // Check if 5 characters have been entered (full time in format HH:MM)
     if (filtered.length === 5 && filtered.includes(":")) {
-      // If we have a complete time, create the Date object immediately
-      handleTimeUpdate(filtered, false); // Don't apply rounding when input is complete
+      handleTimeUpdate(filtered, false);
       
-      // Make sure onComplete is called after the time is properly updated
       if (onComplete) {
-        // Use a reliable setTimeout approach
         requestAnimationFrame(() => {
           setTimeout(onComplete, 50);
         });
@@ -65,7 +55,6 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
   };
   
-  // Parse time and create Date object with ceiling (round up) to nearest interval
   const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
       onChange(null);
@@ -76,13 +65,11 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     let hours = parseInt(hoursStr) || 0;
     let minutes = parseInt(minutesStr) || 0;
     
-    // Validate hours and minutes
     if (hours < 0) hours = 0;
     if (hours > 23) hours = 23;
     if (minutes < 0) minutes = 0;
     if (minutes > 59) minutes = 59;
     
-    // Create a new date with the selected time
     const now = new Date();
     const newDate = new Date(
       now.getFullYear(),
@@ -94,12 +81,8 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       0
     );
     
-    // Apply rounding if required - using ceiling instead of round to always round up
     if (shouldRound && roundToMinutes > 0) {
-      // Round up to the nearest interval
       const roundedMinutes = Math.ceil(minutes / roundToMinutes) * roundToMinutes;
-      
-      // If rounding exceeds 59 minutes, increment hour
       let roundedHours = hours;
       let finalMinutes = roundedMinutes;
       
@@ -107,17 +90,14 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
         roundedHours = hours + Math.floor(roundedMinutes / 60);
         finalMinutes = roundedMinutes % 60;
         
-        // Handle hour overflow
         if (roundedHours >= 24) {
           roundedHours = roundedHours % 24;
         }
       }
       
-      // Set the rounded time
       newDate.setHours(roundedHours);
       newDate.setMinutes(finalMinutes);
       
-      // Update the input field to show the rounded time
       const formattedHours = roundedHours.toString().padStart(2, '0');
       const formattedMins = finalMinutes.toString().padStart(2, '0');
       setTimeInput(`${formattedHours}:${formattedMins}`);
@@ -126,11 +106,10 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     onChange(newDate);
   };
   
-  // Handle when the user presses Enter or Tab
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate(timeInput, roundOnBlur); // Only apply rounding if roundOnBlur is true
+        handleTimeUpdate(timeInput, roundOnBlur);
       }
       if (e.key === "Enter" && onComplete) {
         e.preventDefault();
@@ -141,11 +120,9 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
   };
   
-  // Handle blur event
   const handleBlur = () => {
     if (timeInput) {
       handleTimeUpdate(timeInput, roundOnBlur);
-      // Call onComplete when field is completed via blur
       if (timeInput.length === 5 && onComplete) {
         requestAnimationFrame(() => {
           setTimeout(onComplete, 50);
@@ -158,7 +135,6 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     <div className="relative w-full">
       <Input
         ref={(el) => {
-          // Assign to both forwarded ref and local ref
           if (typeof ref === 'function') {
             ref(el);
           } else if (ref) {
