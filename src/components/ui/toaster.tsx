@@ -1,7 +1,6 @@
 
 import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
-import { X } from "lucide-react";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -11,25 +10,25 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      position="top-center"
+      position="bottom-right"
       closeButton
       richColors={false}
       duration={4000}
       gap={8}
       toastOptions={{
         classNames: {
-          toast: "group flex w-full justify-between items-center bg-[#1a1a1a] text-white rounded-lg shadow-lg py-3 px-4 max-w-[380px]",
+          toast: "group flex w-full items-center bg-white text-gray-800 rounded-lg shadow-lg py-2 px-4 max-w-[320px]",
           title: "font-medium text-sm",
-          description: "text-sm text-gray-200",
-          actionButton: "bg-white text-black rounded px-2 py-1 text-xs font-medium",
-          cancelButton: "bg-[#333] text-white rounded px-2 py-1 text-xs font-medium",
-          closeButton: "text-white/70 hover:text-white transition-colors rounded-full p-1"
+          description: "text-sm text-gray-600",
+          actionButton: "bg-primary text-white rounded px-2 py-1 text-xs font-medium",
+          cancelButton: "bg-gray-100 text-gray-800 rounded px-2 py-1 text-xs font-medium",
+          closeButton: "absolute right-2 top-2 p-1 rounded-full hover:bg-gray-100 transition-colors"
         },
         style: {
-          background: '#1a1a1a',
-          color: '#ffffff',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          background: '#ffffff',
+          color: '#1f2937',
+          borderRadius: '0.5rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         }
       }}
       {...props}
@@ -38,3 +37,4 @@ const Toaster = ({ ...props }: ToasterProps) => {
 };
 
 export { Toaster };
+
