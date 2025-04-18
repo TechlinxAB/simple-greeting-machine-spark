@@ -319,7 +319,11 @@ const translations = {
     activitiesFor: "Time Entries for",
     unknownActivity: "Unknown activity",
     quantityPlaceholder: "Enter quantity",
-    timeEntryFailure: "Failed to record time entry"
+    timeEntryFailure: "Failed to record time entry",
+    hour: "hour",
+    hours: "hours",
+    minute: "minute",
+    minutes: "minutes"
   },
   invoices: {
     title: "Invoices",

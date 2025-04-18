@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -11,7 +10,7 @@ import {
   FileText
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { formatCurrency } from "@/lib/formatCurrency";
+import { formatCurrency, formatTime } from "@/lib/formatCurrency";
 import { useTranslation } from "react-i18next";
 
 interface TimeJournalStatsProps {
@@ -33,7 +32,6 @@ export function TimeJournalStats({
 }: TimeJournalStatsProps) {
   const { t } = useTranslation();
   
-  // Calculate date range based on filters
   const startDate = useMemo(() => {
     return startOfMonth(new Date(selectedYear, selectedMonth, 1));
   }, [selectedYear, selectedMonth]);
@@ -42,7 +40,6 @@ export function TimeJournalStats({
     return endOfMonth(new Date(selectedYear, selectedMonth, 1));
   }, [selectedYear, selectedMonth]);
 
-  // Fetch time entries based on filters
   const { data: timeEntries = [], isLoading } = useQuery({
     queryKey: [
       "time-entries",
@@ -56,7 +53,6 @@ export function TimeJournalStats({
       try {
         console.log(`Fetching time entries for ${format(startDate, "MMMM yyyy")}`);
         
-        // Base query for time entries
         let query = supabase
           .from("time_entries")
           .select(`
@@ -73,12 +69,10 @@ export function TimeJournalStats({
           .gte("created_at", startDate.toISOString())
           .lte("created_at", endDate.toISOString());
           
-        // Apply user filter if provided (or current user if in My Journal)
         if (userId) {
           query = query.eq("user_id", userId);
         }
         
-        // Apply client filter if provided
         if (selectedClient) {
           query = query.eq("client_id", selectedClient);
         }
@@ -92,10 +86,8 @@ export function TimeJournalStats({
         
         console.log(`Found ${entries?.length || 0} time entries`);
         
-        // For each entry, fetch the related product and client data
         const enhancedEntries = await Promise.all(
           (entries || []).map(async (entry) => {
-            // Fetch product data
             let productData = null;
             if (entry.product_id) {
               const { data: product } = await supabase
@@ -106,7 +98,6 @@ export function TimeJournalStats({
               productData = product;
             }
             
-            // Fetch client data
             let clientData = null;
             if (entry.client_id) {
               const { data: client } = await supabase
@@ -117,7 +108,6 @@ export function TimeJournalStats({
               clientData = client;
             }
             
-            // Fetch username
             let username = "Unknown";
             if (entry.user_id) {
               try {
@@ -153,9 +143,8 @@ export function TimeJournalStats({
     enabled: true,
   });
   
-  // Calculate statistics
   const calculateTotalHours = () => {
-    return timeEntries.reduce((total, entry) => {
+    const totalHours = timeEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -163,7 +152,9 @@ export function TimeJournalStats({
         return total + hours;
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0);
+    
+    return formatTime(totalHours);
   };
 
   const calculateTotalRevenue = () => {
@@ -180,13 +171,12 @@ export function TimeJournalStats({
     }, 0));
   };
   
-  // Prepare table data
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours.toFixed(2);
+    return diffHours;
   };
   
   return (
@@ -279,7 +269,7 @@ export function TimeJournalStats({
                         </TableCell>
                         <TableCell>
                           {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                            ? `${calculateDuration(entry.start_time, entry.end_time)} ${t("common.hours")}`
+                            ? formatTime(calculateDuration(entry.start_time, entry.end_time), simplifiedView)
                             : entry.quantity ? `${entry.quantity} ${t("common.items")}` : '-'}
                         </TableCell>
                         {!simplifiedView && (

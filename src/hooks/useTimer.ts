@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Timer, UserTimerRecord } from '@/types/timer';
 import { toast } from 'sonner';
+import { roundTimeToInterval } from "@/lib/formatTime";
 
 /**
  * Rounds up seconds to the nearest 15-minute interval
@@ -15,14 +16,14 @@ import { toast } from 'sonner';
  * - Time over 60 minutes follows the same pattern for each hour
  */
 function roundUpToInterval(seconds: number): number {
-  // Convert to minutes for easier calculation
-  const minutes = seconds / 60;
+  // Convert to hours for our utility function
+  const hours = seconds / 3600;
   
-  // Calculate which 15-minute interval we're in
-  const interval = Math.ceil(minutes / 15);
+  // Use our unified rounding function
+  const roundedHours = roundTimeToInterval(hours);
   
-  // Return rounded seconds (convert back from minutes)
-  return interval * 15 * 60;
+  // Convert back to seconds
+  return roundedHours * 3600;
 }
 
 export function useTimer() {

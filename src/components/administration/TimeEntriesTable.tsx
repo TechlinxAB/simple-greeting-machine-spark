@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useQuery } from "@tanstack/react-query";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
 import { useTranslation } from "react-i18next";
+import { formatTime } from "@/lib/formatTime";
 
 interface TimeEntriesTableProps {
   timeEntries?: TimeEntry[];
@@ -233,7 +234,7 @@ export function TimeEntriesTable({
     const endDate = new Date(end);
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours.toFixed(2);
+    return diffHours;
   };
   
   const getItemTotal = (entry: TimeEntry) => {
@@ -412,7 +413,7 @@ export function TimeEntriesTable({
                 </TableCell>
                 <TableCell isCompact={isCompact}>
                   {entry.products?.type === "activity" && entry.start_time && entry.end_time
-                    ? `${calculateDuration(entry.start_time, entry.end_time)} hours`
+                    ? formatTime(calculateDuration(entry.start_time, entry.end_time), true)
                     : entry.quantity ? `${entry.quantity} units` : "N/A"}
                 </TableCell>
                 <TableCell className="font-medium" isCompact={isCompact}>

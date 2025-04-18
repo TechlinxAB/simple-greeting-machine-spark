@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -47,6 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
+import { formatTime } from "@/lib/formatTime";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
@@ -158,12 +158,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   };
 
   const formatDuration = (hours: number) => {
-    if (hours < 1) {
-      const minutes = Math.round(hours * 60);
-      return `${minutes} ${minutes !== 1 ? t('timeTracking.minutes') : t('timeTracking.minute')}`;
-    } else {
-      return `${hours.toFixed(2)} ${hours !== 1 ? t('timeTracking.hours') : t('timeTracking.hour')}`;
-    }
+    return formatTime(hours, compact);
   };
 
   const getItemAmount = (entry: any) => {
