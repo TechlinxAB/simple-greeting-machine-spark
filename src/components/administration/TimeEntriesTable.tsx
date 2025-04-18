@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
-import { formatTime, roundTimeToInterval } from "@/lib/formatTime";
+import { formatTime } from "@/lib/formatTime";
 import { Settings, Clock, Tag, Eye, Calendar, User, Briefcase, Monitor, Check, X, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
@@ -44,6 +44,16 @@ interface TimeEntriesTableProps {
   showActions?: boolean;
   simplifiedView?: boolean;
   hideInvoiced?: boolean;
+  // Add these new props to match what's being passed in Administration.tsx
+  fromDate?: Date;
+  toDate?: Date;
+  searchTerm?: string;
+  bulkDeleteMode?: boolean;
+  selectedItems?: string[];
+  onItemSelect?: (id: string) => void;
+  onSelectAll?: (checked: boolean) => void;
+  onBulkDelete?: () => Promise<void>;
+  isCompact?: boolean;
 }
 
 export function TimeEntriesTable({
@@ -58,6 +68,15 @@ export function TimeEntriesTable({
   showActions = true,
   simplifiedView = false,
   hideInvoiced = false,
+  fromDate,
+  toDate,
+  searchTerm = "",
+  bulkDeleteMode = false,
+  selectedItems = [],
+  onItemSelect = () => {},
+  onSelectAll = () => {},
+  onBulkDelete = async () => {},
+  isCompact = false,
 }: TimeEntriesTableProps) {
   const { t } = useTranslation();
   const { user, role } = useAuth();
@@ -73,8 +92,15 @@ export function TimeEntriesTable({
 
   const canEdit = role === 'admin' || role === 'manager';
 
-  const startDate = startOfMonth(new Date(selectedYear, selectedMonth, 1));
-  const endDate = endOfMonth(new Date(selectedYear, selectedMonth, 1));
+  // Determine the date range to use
+  // Try to use fromDate and toDate first, fall back to selectedYear/selectedMonth
+  const effectiveFromDate = fromDate || (selectedYear && selectedMonth !== undefined 
+    ? new Date(selectedYear, selectedMonth, 1) 
+    : undefined);
+    
+  const effectiveToDate = toDate || (selectedYear && selectedMonth !== undefined 
+    ? new Date(selectedYear, selectedMonth + 1, 0)  // Last day of month
+    : undefined);
 
   const queryFn = async () => {
     try {
@@ -85,10 +111,10 @@ export function TimeEntriesTable({
           created_at, invoiced, invoice_id, product_id, client_id, user_id
         `);
 
-      if (!allTime) {
+      if (!allTime && effectiveFromDate && effectiveToDate) {
         query = query
-          .gte("created_at", startDate.toISOString())
-          .lte("created_at", endDate.toISOString());
+          .gte("created_at", effectiveFromDate.toISOString())
+          .lte("created_at", effectiveToDate.toISOString());
       }
 
       if (userId) {
@@ -101,6 +127,10 @@ export function TimeEntriesTable({
 
       if (hideInvoiced) {
         query = query.eq("invoiced", false);
+      }
+
+      if (searchTerm) {
+        query = query.ilike("description", `%${searchTerm}%`);
       }
 
       query = query.order("created_at", { ascending: false });
@@ -161,6 +191,7 @@ export function TimeEntriesTable({
     }
   };
 
+  // Update query key to include the new search parameters
   const { data: timeEntries = [], isLoading, isError, refetch } = useQuery({
     queryKey: [
       "all-time-entries",
@@ -169,7 +200,11 @@ export function TimeEntriesTable({
       selectedYear,
       selectedMonth,
       allTime,
-      hideInvoiced
+      hideInvoiced,
+      fromDate?.toISOString(),
+      toDate?.toISOString(),
+      searchTerm,
+      bulkDeleteMode
     ],
     queryFn,
   });
@@ -279,17 +314,22 @@ export function TimeEntriesTable({
     );
   }
 
+  // Add bulk selection features for Administration.tsx
+  const isSelected = (id) => {
+    return selectedItems.includes(id);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>{t("timeTracking.timeEntries")}</CardTitle>
           <CardDescription>
-            {!allTime && (
+            {!allTime && effectiveFromDate && effectiveToDate && (
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-1" />
                 <span>
-                  {format(startDate, "MMMM yyyy")}
+                  {format(effectiveFromDate, "MMMM yyyy")}
                 </span>
               </div>
             )}
@@ -311,6 +351,16 @@ export function TimeEntriesTable({
           <Table>
             <TableHeader>
               <TableRow>
+                {bulkDeleteMode && (
+                  <TableHead className="w-[50px]">
+                    <input 
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300"
+                      onChange={(e) => onSelectAll(e.target.checked)}
+                      checked={selectedItems.length > 0 && selectedItems.length === timeEntries.length}
+                    />
+                  </TableHead>
+                )}
                 {showUserColumn && (
                   <TableHead>{t("common.user")}</TableHead>
                 )}
@@ -328,7 +378,21 @@ export function TimeEntriesTable({
             </TableHeader>
             <TableBody>
               {timeEntries.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow 
+                  key={entry.id}
+                  data-entry-id={entry.id}
+                  className={bulkDeleteMode && isSelected(entry.id) ? "bg-primary/10" : ""}
+                >
+                  {bulkDeleteMode && (
+                    <TableCell>
+                      <input 
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={isSelected(entry.id)}
+                        onChange={() => onItemSelect(entry.id)}
+                      />
+                    </TableCell>
+                  )}
                   {showUserColumn && (
                     <TableCell>{entry.user?.name || t("common.unknown")}</TableCell>
                   )}

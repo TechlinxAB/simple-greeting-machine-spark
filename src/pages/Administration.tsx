@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -366,7 +365,7 @@ export default function Administration() {
                   userId={selectedUser === "all" ? undefined : selectedUser}
                   fromDate={fromDate}
                   toDate={toDate}
-                  searchTerm={searchTerm || undefined}
+                  searchTerm={searchTerm}
                   bulkDeleteMode={bulkDeleteMode}
                   selectedItems={selectedItems}
                   onItemSelect={handleItemSelect}
