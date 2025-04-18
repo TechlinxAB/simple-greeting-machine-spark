@@ -95,7 +95,7 @@ export function FortnoxTokenMigration() {
       </CardHeader>
       <CardContent>
         {migrationComplete ? (
-          <Alert variant="success" className="bg-green-50 border-green-200 text-green-800">
+          <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertTitle>Migration Successful</AlertTitle>
             <AlertDescription>
