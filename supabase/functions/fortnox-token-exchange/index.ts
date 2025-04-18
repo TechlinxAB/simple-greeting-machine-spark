@@ -230,7 +230,7 @@ serve(async (req) => {
         'Accept': 'application/json',
         'Authorization': authHeader
       },
-      body: formData,
+      body: formData.toString(),
     });
     
     // Get the response body
@@ -244,12 +244,17 @@ serve(async (req) => {
     let parseError = null;
     
     try {
-      responseData = JSON.parse(responseText);
+      // Try to parse as JSON if it looks like JSON
+      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+        responseData = JSON.parse(responseText);
+      } else {
+        throw new Error("Response is not in JSON format");
+      }
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       parseError = e.message;
       
-      // If not JSON, still return the text for debugging
+      // If not JSON, return detailed error including the raw text for debugging
       return new Response(
         JSON.stringify({ 
           error: "fortnox_response_parse_error", 
@@ -265,7 +270,7 @@ serve(async (req) => {
       );
     }
     
-    // If Fortnox returned a non-200 status, pass that through with the error details and the raw response
+    // If Fortnox returned a non-200 status, pass that through with the error details
     if (!response.ok) {
       console.error(`Fortnox API returned error status ${response.status}:`, responseData || responseText);
       
@@ -328,7 +333,7 @@ serve(async (req) => {
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
-  }
-});
+        }
+      );
+    }
+  });

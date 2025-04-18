@@ -89,7 +89,8 @@ serve(async (req) => {
     console.log("Migration attempt with:", {
       clientIdLength: requestData.client_id.length,
       clientSecretLength: requestData.client_secret.length,
-      accessTokenLength: requestData.access_token.length
+      accessTokenLength: requestData.access_token.length,
+      accessTokenPrefix: requestData.access_token.substring(0, 10) + '...'
     });
     
     // Create Basic Auth header from client_id and client_secret
@@ -116,7 +117,7 @@ serve(async (req) => {
     // Get the response body as text first
     const responseText = await response.text();
     console.log("Fortnox migration response status:", response.status);
-    console.log("Fortnox migration response body:", responseText.substring(0, 200)); // Log first 200 chars
+    console.log("Fortnox migration response body:", responseText);
     
     // If the response is not OK, return the appropriate error based on Fortnox error types
     if (!response.ok) {
@@ -125,9 +126,15 @@ serve(async (req) => {
       let errorMessage = responseText;
       
       try {
-        if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+        if (responseText.includes('{') && responseText.includes('}')) {
+          // Extract JSON part if embedded in text
+          const jsonStart = responseText.indexOf('{');
+          const jsonEnd = responseText.lastIndexOf('}') + 1;
+          const jsonPart = responseText.substring(jsonStart, jsonEnd);
+          errorData = JSON.parse(jsonPart);
+        } else if (responseText.trim().startsWith('{')) {
+          // Direct JSON response
           errorData = JSON.parse(responseText);
-          errorMessage = errorData.error_description || errorData.message || responseText;
         }
       } catch (e) {
         console.error("Failed to parse error response as JSON:", e);
@@ -138,7 +145,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             error: "invalid_client",
-            error_description: "Invalid authorization credentials"
+            error_description: "Invalid authorization credentials",
+            details: { raw_response: responseText }
           }),
           { 
             status: 401, 
@@ -146,12 +154,41 @@ serve(async (req) => {
           }
         );
       } else if (response.status === 400) {
-        // Check for specific error messages
+        // Process known 400 error types
+        if (responseText.includes("Invalid access-token")) {
+          return new Response(
+            JSON.stringify({
+              error: "invalid_token",
+              error_description: "The provided access token is invalid",
+              details: { raw_response: responseText }
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
         if (responseText.includes("Could not create JWT")) {
           return new Response(
             JSON.stringify({
               error: "jwt_creation_failed",
-              error_description: responseText
+              error_description: "Could not create JWT token",
+              details: { raw_response: responseText }
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        if (responseText.includes("incorrect auth flow type")) {
+          return new Response(
+            JSON.stringify({
+              error: "incorrect_auth_flow",
+              error_description: "Could not create JWT, due to incorrect auth flow type",
+              details: { raw_response: responseText }
             }),
             { 
               status: 400, 
@@ -161,12 +198,15 @@ serve(async (req) => {
         }
       } else if (response.status === 403) {
         if (responseText.includes("Not allowed to create JWT")) {
+          const isMissingLicense = responseText.includes("missing license");
+          
           return new Response(
             JSON.stringify({
               error: "jwt_creation_not_allowed",
-              error_description: responseText.includes("missing license") 
+              error_description: isMissingLicense 
                 ? "Not allowed to create JWT, due to missing license" 
-                : "Not allowed to create JWT for the given access-token"
+                : "Not allowed to create JWT for the given access-token",
+              details: { raw_response: responseText }
             }),
             { 
               status: 403, 
@@ -179,7 +219,8 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({
               error: "token_not_found",
-              error_description: "The provided access token was not found"
+              error_description: "The provided access token was not found",
+              details: { raw_response: responseText }
             }),
             { 
               status: 404, 
@@ -194,7 +235,8 @@ serve(async (req) => {
         JSON.stringify({ 
           error: errorData?.error || "fortnox_api_error", 
           error_description: errorMessage,
-          status: response.status
+          status: response.status,
+          details: { raw_response: responseText }
         }),
         { 
           status: response.status, 
@@ -203,10 +245,10 @@ serve(async (req) => {
       );
     }
     
-    // Parse the successful response as JSON
+    // Parse the successful response
     let responseData;
     try {
-      // Check if the response looks like JSON
+      // Check if the response is JSON
       if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
         responseData = JSON.parse(responseText);
         console.log("Successfully parsed Fortnox response as JSON");
@@ -229,8 +271,9 @@ serve(async (req) => {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
         JSON.stringify({ 
-          error: "Failed to parse Fortnox response", 
-          rawResponse: responseText 
+          error: "parse_error", 
+          error_description: "Failed to parse Fortnox response",
+          raw_response: responseText 
         }),
         { 
           status: 500, 
@@ -255,7 +298,7 @@ serve(async (req) => {
       );
     }
     
-    console.log("Token migration successful, returning response");
+    console.log("Token migration successful");
     
     // Return the token data
     return new Response(
@@ -270,7 +313,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: "server_error", 
-        error_description: error.message || "Unknown error"
+        error_description: error.message || "Unknown error",
+        stack: error.stack
       }),
       { 
         status: 500, 

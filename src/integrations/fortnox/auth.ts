@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials } from "./types";
@@ -318,6 +319,8 @@ export async function migrateToJwtAuthentication(
                 errorMessage = `Migration failed: ${errorData.error_description || 'Your account is not allowed to create JWT tokens'}`;
               } else if (errorData.error === 'jwt_creation_failed') {
                 errorMessage = `Migration failed: ${errorData.error_description || 'Failed to create JWT token'}`;
+              } else if (errorData.error === 'incorrect_auth_flow') {
+                errorMessage = `Migration failed: ${errorData.error_description || 'Incorrect authentication flow type'}`;
               } else {
                 errorMessage = `Migration failed: ${errorData.error}${
                   errorData.error_description ? ' - ' + errorData.error_description : ''
@@ -350,6 +353,8 @@ export async function migrateToJwtAuthentication(
         throw new Error(`Migration failed: ${migrationResponse.error_description || 'Your account is not allowed to create JWT tokens'}`);
       } else if (migrationResponse.error === 'jwt_creation_failed') {
         throw new Error(`Migration failed: ${migrationResponse.error_description || 'Failed to create JWT token'}`);
+      } else if (migrationResponse.error === 'incorrect_auth_flow') {
+        throw new Error(`Migration failed: ${migrationResponse.error_description || 'Incorrect authentication flow type'}`);
       }
       
       throw new Error(`Migration failed: ${migrationResponse.error} - ${migrationResponse.error_description || ''}`);

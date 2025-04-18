@@ -1,8 +1,11 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
 import { refreshAccessToken, migrateToJwtAuthentication } from "./auth";
 import { toast } from "sonner";
+
+// Constants
+const MAX_MIGRATION_ATTEMPTS = 3;
+const MIGRATION_RETRY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Save Fortnox credentials to the database
@@ -45,11 +48,21 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
  * Check if migration to JWT is needed and perform it if required
  */
 async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Promise<FortnoxCredentials> {
-  // Only attempt migration if:
-  // 1. Migration hasn't been done yet (no migratedToJwt flag)
-  // 2. We have all required credentials
-  if (!credentials.migratedToJwt && 
-      credentials.clientId && 
+  // Skip migration if:
+  // 1. Migration has already been done successfully (migratedToJwt = true)
+  // 2. Migration has been explicitly skipped (migrationSkipped = true)
+  // 3. We've exceeded retry attempts AND the retry interval hasn't passed
+  if (credentials.migratedToJwt || 
+      credentials.migrationSkipped || 
+      (credentials.migrationAttemptCount && 
+       credentials.migrationAttemptCount >= MAX_MIGRATION_ATTEMPTS && 
+       credentials.migrationLastAttempt && 
+       Date.now() - credentials.migrationLastAttempt < MIGRATION_RETRY_INTERVAL)) {
+    return credentials;
+  }
+  
+  // Only attempt migration if we have all required credentials
+  if (credentials.clientId && 
       credentials.clientSecret && 
       credentials.accessToken) {
     
@@ -68,6 +81,17 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
         );
       }
       
+      // Keep track of attempt count
+      const attemptCount = credentials.migrationAttemptCount || 0;
+      const updatedCredentials = {
+        ...credentials,
+        migrationAttemptCount: attemptCount + 1,
+        migrationLastAttempt: Date.now()
+      };
+      
+      // Save the updated attempt count before performing migration
+      await saveFortnoxCredentials(updatedCredentials);
+      
       // Perform the migration
       const migrationResult = await migrateToJwtAuthentication(
         credentials.clientId,
@@ -77,35 +101,47 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
       
       if (migrationResult) {
         // Update credentials with migration results
-        const updatedCredentials = {
-          ...credentials,
+        const migratedCredentials = {
+          ...updatedCredentials,
           ...migrationResult,
-          migratedToJwt: true
+          migratedToJwt: true,
+          migrationAttemptCount: 0 // Reset attempt count on success
         };
         
         // Save the migrated credentials
-        await saveFortnoxCredentials(updatedCredentials);
+        await saveFortnoxCredentials(migratedCredentials);
         
         console.log("JWT migration completed successfully");
         toast.success("Fortnox connection has been upgraded to the new authentication system.");
         
-        return updatedCredentials;
+        return migratedCredentials;
       }
     } catch (error) {
       console.error("JWT migration failed:", error);
       
+      // Get current count of attempts
+      const attemptCount = (credentials.migrationAttemptCount || 0) + 1;
+      
       // Extract meaningful error message
       let errorMessage = "Fortnox connection upgrade failed";
+      let shouldSkipFutureMigration = false;
+      
       if (error instanceof Error) {
         if (error.message.includes("invalid_token") || 
             error.message.includes("token_not_found") || 
             error.message.includes("invalid or has expired")) {
           errorMessage = "Your Fortnox access token has expired. Please reconnect to Fortnox.";
+          shouldSkipFutureMigration = true; // Skip future attempts if token is invalid
         } else if (error.message.includes("Invalid client credentials")) {
           errorMessage = "Invalid API credentials. Please check your Fortnox client ID and secret.";
+          shouldSkipFutureMigration = true; // Skip future attempts if credentials are invalid
         } else if (error.message.includes("jwt_creation_not_allowed") || 
                   error.message.includes("Not allowed to create JWT")) {
           errorMessage = "Your Fortnox account does not have permission to use the new authentication system.";
+          shouldSkipFutureMigration = true; // Skip future attempts if not allowed
+        } else if (error.message.includes("incorrect_auth_flow")) {
+          errorMessage = "Your Fortnox connection uses an authentication flow that doesn't support migration.";
+          shouldSkipFutureMigration = true; // Skip future attempts if wrong auth flow
         } else if (error.message.includes("jwt_creation_failed") || 
                   error.message.includes("Could not create JWT")) {
           errorMessage = "Failed to create new authentication tokens. Please try reconnecting to Fortnox.";
@@ -116,11 +152,37 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
         }
       }
       
+      // Save updated migration attempt information
+      const updatedCredentials = {
+        ...credentials,
+        migrationAttemptCount: attemptCount,
+        migrationLastAttempt: Date.now(),
+        migrationSkipped: shouldSkipFutureMigration
+      };
+      
+      await saveFortnoxCredentials(updatedCredentials);
+      
       // Don't block access due to migration failure, just log and notify
-      toast.error(
-        `${errorMessage} You may need to reconnect before April 30, 2025.`, 
-        { duration: 10000 }
-      );
+      const attemptsRemaining = MAX_MIGRATION_ATTEMPTS - attemptCount;
+      
+      if (shouldSkipFutureMigration) {
+        toast.error(
+          `${errorMessage} You may need to reconnect your Fortnox account before April 30, 2025.`, 
+          { duration: 10000 }
+        );
+      } else if (attemptsRemaining <= 0) {
+        toast.warning(
+          `${errorMessage} Upgrade attempts temporarily paused. Will try again later.`, 
+          { duration: 8000 }
+        );
+      } else {
+        toast.warning(
+          `${errorMessage} Will try again ${attemptsRemaining} more time${attemptsRemaining !== 1 ? 's' : ''}.`, 
+          { duration: 8000 }
+        );
+      }
+      
+      return updatedCredentials;
     }
   }
   
