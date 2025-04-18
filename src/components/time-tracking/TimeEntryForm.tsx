@@ -169,7 +169,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
       if (descriptionRef.current) {
         descriptionRef.current.focus();
       }
-    }, 50);
+    }, 100);
   };
 
   const onSubmit = async (values: TimeEntryFormValues) => {
@@ -240,9 +240,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
       if (error) throw error;
 
+      const currentClientId = values.clientId;
+      const currentProductId = values.productId;
+      
       form.reset({
-        clientId: values.clientId,
-        productId: values.productId,
+        clientId: currentClientId,
+        productId: currentProductId,
         description: "",
       });
       

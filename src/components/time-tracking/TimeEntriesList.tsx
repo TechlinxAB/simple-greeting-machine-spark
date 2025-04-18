@@ -15,7 +15,6 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -294,7 +293,6 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                     <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("products.productType")}</TableHead>
                     <TableHead className={compact ? "w-[100px]" : "w-[120px]"} isCompact={compact}>{t("invoices.amount")}</TableHead>
                     <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("invoices.total")}</TableHead>
-                    <TableHead className={compact ? "w-[80px]" : "w-[100px]"} isCompact={compact}>{t("invoices.status")}</TableHead>
                     <TableHead className={compact ? "w-[90px]" : "w-[120px]"} isCompact={compact}>{t("administration.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -343,11 +341,6 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
                       <TableCell className="whitespace-nowrap" isCompact={compact}>{getItemAmount(entry)}</TableCell>
                       <TableCell className="font-semibold whitespace-nowrap" isCompact={compact}>
                         {getItemTotal(entry)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap" isCompact={compact}>
-                        <Badge variant={entry.invoiced ? "default" : "outline"} className={compact ? "text-xs py-0.5" : ""}>
-                          {entry.invoiced ? t("invoices.invoiced") : t("invoices.pending")}
-                        </Badge>
                       </TableCell>
                       <TableCell isCompact={compact}>
                         <div className="flex items-center space-x-2">
