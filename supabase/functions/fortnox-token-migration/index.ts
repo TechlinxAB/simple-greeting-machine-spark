@@ -35,7 +35,7 @@ serve(async (req) => {
     } catch (e) {
       console.error("Failed to parse request body:", e);
       return new Response(
-        JSON.stringify({ error: "Invalid request body - could not parse JSON" }),
+        JSON.stringify({ error: "invalid_request", error_description: "Invalid request body - could not parse JSON" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -54,7 +54,8 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          error: "Missing required parameters",
+          error: "invalid_request", 
+          error_description: "Missing required parameters",
           details: {
             missing: missingFields,
             client_id: requestData.client_id ? "present" : "missing",
@@ -102,57 +103,98 @@ serve(async (req) => {
     
     console.log("Making token migration request to Fortnox");
     
-    // Make the request to Fortnox
+    // Make the request to Fortnox with full error logging
     const response = await fetch(FORTNOX_MIGRATION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': authHeader
       },
-      body: formData.toString(), // Use toString() to properly format the URLSearchParams
+      body: formData.toString(),
     });
     
-    // Get the response body
+    // Get the response body as text first
     const responseText = await response.text();
     console.log("Fortnox migration response status:", response.status);
+    console.log("Fortnox migration response body:", responseText.substring(0, 200)); // Log first 200 chars
     
-    // If the response is not OK, return the error
+    // If the response is not OK, return the appropriate error based on Fortnox error types
     if (!response.ok) {
-      console.error("Fortnox returned an error:", response.status, responseText);
+      // Try to parse response as JSON if possible
+      let errorData = null;
+      let errorMessage = responseText;
       
-      // Check if the response is "Invalid access-token" which is a common error
-      if (responseText.includes("Invalid access-token")) {
+      try {
+        if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+          errorData = JSON.parse(responseText);
+          errorMessage = errorData.error_description || errorData.message || responseText;
+        }
+      } catch (e) {
+        console.error("Failed to parse error response as JSON:", e);
+      }
+      
+      // Handle specific Fortnox error scenarios
+      if (response.status === 401) {
         return new Response(
           JSON.stringify({
-            error: "invalid_token",
-            error_description: "The provided access token is invalid or has expired",
-            status: response.status,
-            details: responseText
+            error: "invalid_client",
+            error_description: "Invalid authorization credentials"
           }),
           { 
-            status: 400, 
+            status: 401, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
-      }
-      
-      // Try to parse as JSON if it looks like JSON
-      let errorData = null;
-      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          // If it fails to parse as JSON, use the text as-is
-          console.log("Failed to parse error response as JSON:", e);
+      } else if (response.status === 400) {
+        // Check for specific error messages
+        if (responseText.includes("Could not create JWT")) {
+          return new Response(
+            JSON.stringify({
+              error: "jwt_creation_failed",
+              error_description: responseText
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      } else if (response.status === 403) {
+        if (responseText.includes("Not allowed to create JWT")) {
+          return new Response(
+            JSON.stringify({
+              error: "jwt_creation_not_allowed",
+              error_description: responseText.includes("missing license") 
+                ? "Not allowed to create JWT, due to missing license" 
+                : "Not allowed to create JWT for the given access-token"
+            }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      } else if (response.status === 404) {
+        if (responseText.includes("Access-token not found")) {
+          return new Response(
+            JSON.stringify({
+              error: "token_not_found",
+              error_description: "The provided access token was not found"
+            }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
         }
       }
       
+      // Generic error response if none of the specific cases matched
       return new Response(
         JSON.stringify({ 
           error: errorData?.error || "fortnox_api_error", 
-          error_description: errorData?.error_description || responseText || "Unknown error from Fortnox API",
-          status: response.status,
-          details: errorData || responseText
+          error_description: errorMessage,
+          status: response.status
         }),
         { 
           status: response.status, 
@@ -227,9 +269,8 @@ serve(async (req) => {
     console.error("Server error in fortnox-token-migration:", error);
     return new Response(
       JSON.stringify({ 
-        error: "Server error", 
-        message: error.message || "Unknown error",
-        stack: error.stack || "No stack trace"
+        error: "server_error", 
+        error_description: error.message || "Unknown error"
       }),
       { 
         status: 500, 

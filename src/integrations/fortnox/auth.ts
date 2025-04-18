@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials } from "./types";
@@ -310,9 +309,20 @@ export async function migrateToJwtAuthentication(
           if (jsonStart >= 0 && jsonEnd > jsonStart) {
             const errorData = JSON.parse(migrationError.message.substring(jsonStart, jsonEnd));
             if (errorData.error) {
-              errorMessage = `Migration failed: ${errorData.error}${
-                errorData.error_description ? ' - ' + errorData.error_description : ''
-              }`;
+              // Handle specific error types
+              if (errorData.error === 'invalid_client') {
+                errorMessage = `Migration failed: Invalid client credentials (client ID or client secret)`;
+              } else if (errorData.error === 'token_not_found' || errorData.error === 'invalid_token') {
+                errorMessage = `Migration failed: The access token is invalid or has expired. You need to reconnect your Fortnox account.`;
+              } else if (errorData.error === 'jwt_creation_not_allowed') {
+                errorMessage = `Migration failed: ${errorData.error_description || 'Your account is not allowed to create JWT tokens'}`;
+              } else if (errorData.error === 'jwt_creation_failed') {
+                errorMessage = `Migration failed: ${errorData.error_description || 'Failed to create JWT token'}`;
+              } else {
+                errorMessage = `Migration failed: ${errorData.error}${
+                  errorData.error_description ? ' - ' + errorData.error_description : ''
+                }`;
+              }
             }
           }
         }
@@ -331,9 +341,15 @@ export async function migrateToJwtAuthentication(
     if (migrationResponse.error) {
       console.error("Fortnox API returned an error during migration:", migrationResponse);
       
-      // Special handling for invalid token errors
-      if (migrationResponse.error === 'invalid_token') {
-        throw new Error(`Migration failed: The access token is invalid or has expired. You may need to reconnect your Fortnox account.`);
+      // Handle specific error types
+      if (migrationResponse.error === 'invalid_token' || migrationResponse.error === 'token_not_found') {
+        throw new Error(`Migration failed: The access token is invalid or has expired. You need to reconnect your Fortnox account.`);
+      } else if (migrationResponse.error === 'invalid_client') {
+        throw new Error(`Migration failed: Invalid client credentials (client ID or client secret)`);
+      } else if (migrationResponse.error === 'jwt_creation_not_allowed') {
+        throw new Error(`Migration failed: ${migrationResponse.error_description || 'Your account is not allowed to create JWT tokens'}`);
+      } else if (migrationResponse.error === 'jwt_creation_failed') {
+        throw new Error(`Migration failed: ${migrationResponse.error_description || 'Failed to create JWT token'}`);
       }
       
       throw new Error(`Migration failed: ${migrationResponse.error} - ${migrationResponse.error_description || ''}`);

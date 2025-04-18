@@ -97,8 +97,18 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
       // Extract meaningful error message
       let errorMessage = "Fortnox connection upgrade failed";
       if (error instanceof Error) {
-        if (error.message.includes("invalid_token") || error.message.includes("invalid or has expired")) {
+        if (error.message.includes("invalid_token") || 
+            error.message.includes("token_not_found") || 
+            error.message.includes("invalid or has expired")) {
           errorMessage = "Your Fortnox access token has expired. Please reconnect to Fortnox.";
+        } else if (error.message.includes("Invalid client credentials")) {
+          errorMessage = "Invalid API credentials. Please check your Fortnox client ID and secret.";
+        } else if (error.message.includes("jwt_creation_not_allowed") || 
+                  error.message.includes("Not allowed to create JWT")) {
+          errorMessage = "Your Fortnox account does not have permission to use the new authentication system.";
+        } else if (error.message.includes("jwt_creation_failed") || 
+                  error.message.includes("Could not create JWT")) {
+          errorMessage = "Failed to create new authentication tokens. Please try reconnecting to Fortnox.";
         } else {
           errorMessage = error.message.includes("Migration failed:") 
             ? error.message 
