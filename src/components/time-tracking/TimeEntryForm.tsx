@@ -165,9 +165,11 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   };
 
   const handleEndTimeComplete = () => {
-    if (descriptionRef.current) {
-      descriptionRef.current.focus();
-    }
+    setTimeout(() => {
+      if (descriptionRef.current) {
+        descriptionRef.current.focus();
+      }
+    }, 50);
   };
 
   const onSubmit = async (values: TimeEntryFormValues) => {

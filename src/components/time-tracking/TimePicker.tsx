@@ -15,7 +15,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   value, 
   onChange, 
   roundToMinutes = 15, 
-  roundOnBlur = false, // Changed to false by default to prevent automatic rounding
+  roundOnBlur = false,
   onComplete,
   disabled = false
 }, ref) => {
@@ -53,12 +53,13 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     // Check if 5 characters have been entered (full time in format HH:MM)
     if (filtered.length === 5 && filtered.includes(":")) {
       // If we have a complete time, create the Date object immediately
-      setTimeout(() => {
-        handleTimeUpdate(filtered, false); // Don't apply rounding when input is complete
-        if (onComplete) {
-          onComplete();
-        }
-      }, 50);
+      handleTimeUpdate(filtered, false); // Don't apply rounding when input is complete
+      
+      // Make sure onComplete is called after the time is properly updated
+      if (onComplete) {
+        // Use setTimeout to ensure the state is updated before triggering the callback
+        setTimeout(onComplete, 10);
+      }
     }
   };
   
@@ -129,11 +130,10 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       if (timeInput) {
         handleTimeUpdate(timeInput, roundOnBlur); // Only apply rounding if roundOnBlur is true
       }
-      if (e.key === "Enter") {
+      if (e.key === "Enter" && onComplete) {
         e.preventDefault();
-        if (onComplete) {
-          onComplete();
-        }
+        // Use setTimeout to ensure the state is updated before triggering the callback
+        setTimeout(onComplete, 10);
       }
     }
   };
@@ -142,6 +142,10 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   const handleBlur = () => {
     if (timeInput) {
       handleTimeUpdate(timeInput, roundOnBlur);
+      // Call onComplete when field is completed via blur
+      if (timeInput.length === 5 && onComplete) {
+        setTimeout(onComplete, 10);
+      }
     }
   };
 
