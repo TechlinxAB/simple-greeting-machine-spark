@@ -6,6 +6,7 @@ import { toast } from "sonner";
 // Constants
 const MAX_MIGRATION_ATTEMPTS = 3;
 const MIGRATION_RETRY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+const MIGRATION_DEADLINE = new Date('2025-04-30').getTime();
 
 /**
  * Save Fortnox credentials to the database
@@ -70,8 +71,7 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
       console.log("JWT migration needed, attempting migration...");
       
       // Check if we should show migration notification
-      const migrationDeadline = new Date('2025-04-30').getTime();
-      const daysUntilDeadline = Math.ceil((migrationDeadline - Date.now()) / (1000 * 60 * 60 * 24));
+      const daysUntilDeadline = Math.ceil((MIGRATION_DEADLINE - Date.now()) / (1000 * 60 * 60 * 24));
       
       if (daysUntilDeadline <= 60) {
         // Show warning for users if within 60 days of deadline
@@ -81,7 +81,7 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
         );
       }
       
-      // Keep track of attempt count
+      // Save updated attempt info before performing migration
       const attemptCount = credentials.migrationAttemptCount || 0;
       const updatedCredentials = {
         ...credentials,
@@ -157,7 +157,8 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
         ...credentials,
         migrationAttemptCount: attemptCount,
         migrationLastAttempt: Date.now(),
-        migrationSkipped: shouldSkipFutureMigration
+        migrationSkipped: shouldSkipFutureMigration,
+        migrationError: errorMessage
       };
       
       await saveFortnoxCredentials(updatedCredentials);
@@ -233,18 +234,17 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     }
     
     // Check if migration to JWT is needed
-    const migrationDeadline = new Date('2025-04-30').getTime();
     const currentDate = Date.now();
     
-    if (currentDate < migrationDeadline && !settingsData.migratedToJwt) {
+    if (currentDate < MIGRATION_DEADLINE && 
+        settingsData.accessToken && 
+        !settingsData.migratedToJwt && 
+        !settingsData.refreshToken) { // Only migrate if we have legacy token but no refresh token
       // Attempt JWT migration if we're before the deadline and haven't migrated yet
       const migratedCredentials = await checkAndPerformJwtMigration(settingsData);
       if (migratedCredentials !== settingsData) {
         // If migration succeeded, use the new credentials
-        settingsData.accessToken = migratedCredentials.accessToken;
-        settingsData.refreshToken = migratedCredentials.refreshToken;
-        settingsData.expiresAt = migratedCredentials.expiresAt;
-        settingsData.migratedToJwt = true;
+        return migratedCredentials;
       }
     }
     
@@ -276,6 +276,16 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
         try {
           if (!settingsData.refreshToken) {
             console.error("Cannot refresh: No refresh token available");
+            
+            // If we have a legacy token (pre-migration) and no refresh token, just return the current state
+            if (!settingsData.migratedToJwt && Date.now() < MIGRATION_DEADLINE) {
+              return settingsData;
+            }
+            
+            // Otherwise, we need to reconnect
+            toast.error("Your Fortnox access token has expired and can't be refreshed. Please reconnect to Fortnox.", {
+              duration: 10000,
+            });
             return settingsData;
           }
           
@@ -336,6 +346,13 @@ export async function isFortnoxConnected(): Promise<boolean> {
       return false;
     }
     
+    // Check if we have migrated to JWT-based authentication
+    // After migration deadline (April 30, 2025), require JWT migration
+    if (Date.now() > MIGRATION_DEADLINE && !credentials.migratedToJwt) {
+      console.log("Fortnox not connected: Legacy token after migration deadline");
+      return false;
+    }
+    
     // Check if token is expired or close to expiring
     if (credentials.expiresAt) {
       const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
@@ -343,6 +360,22 @@ export async function isFortnoxConnected(): Promise<boolean> {
       // If token expires in less than 15 minutes or is already expired
       if (expiresInMinutes < 15) {
         console.log(`Fortnox token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting to refresh`);
+        
+        // If using JWT authentication, need to refresh
+        if (credentials.migratedToJwt && !credentials.refreshToken) {
+          console.log("JWT token expired without refresh token - reconnection needed");
+          return false;
+        }
+        
+        // Legacy token without refresh token - no way to refresh
+        if (!credentials.migratedToJwt && !credentials.refreshToken) {
+          // Before migration deadline, legacy tokens are still valid
+          if (Date.now() < MIGRATION_DEADLINE) {
+            console.log("Legacy token without refresh capabilities - still valid until migration deadline");
+            return true;
+          }
+          return false;
+        }
         
         // Token is expired or expiring soon, need to refresh
         if (!credentials.refreshToken) {

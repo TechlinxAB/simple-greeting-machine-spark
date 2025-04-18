@@ -7,11 +7,11 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests (OPTIONS)
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log("Handling CORS preflight request");
     return new Response(null, {
@@ -20,125 +20,26 @@ serve(async (req) => {
     });
   }
   
-  // Handle test requests with special path
-  const url = new URL(req.url);
-  if (url.pathname.endsWith('/test')) {
-    console.log("Test endpoint called");
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Test endpoint is working",
-      timestamp: new Date().toISOString(),
-      headers: Object.fromEntries([...req.headers.entries()]),
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
-  }
-  
   try {
-    console.log("===== TOKEN EXCHANGE FUNCTION CALLED =====");
-    console.log("Request method:", req.method);
-    console.log("Request headers:", Object.fromEntries([...req.headers.entries()]));
+    console.log("Received token exchange request");
     
-    // Parse the request body based on Content-Type
-    const contentType = req.headers.get("content-type") || "";
-    console.log("Content-Type:", contentType);
-    
-    let requestData: any = {};
-    
+    // Parse the request body
+    let requestData;
     try {
-      if (contentType.includes("application/json")) {
-        try {
-          const bodyText = await req.text();
-          console.log("Raw JSON body:", bodyText);
-          
-          if (!bodyText || bodyText.trim() === '') {
-            throw new Error("Empty request body");
-          }
-          
-          requestData = JSON.parse(bodyText);
-          console.log("📦 Parsed JSON body:", {
-            client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
-            client_secret: requestData.client_secret ? '•••' : null,
-            code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
-            redirect_uri: requestData.redirect_uri
-          });
-        } catch (err) {
-          console.error("❌ Failed to parse JSON body:", err.message);
-          return new Response(JSON.stringify({
-            error: "invalid_json",
-            error_description: "Failed to parse JSON body",
-            details: err.message
-          }), {
-            status: 400,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json"
-            }
-          });
-        }
-      } else if (contentType.includes("application/x-www-form-urlencoded")) {
-        const bodyText = await req.text();
-        console.log("Raw form body:", bodyText);
-        
-        if (!bodyText || bodyText.trim() === '') {
-          throw new Error("Empty request body");
-        }
-        
-        const formEntries = new URLSearchParams(bodyText);
-        for (const [key, value] of formEntries.entries()) {
-          requestData[key] = value;
-        }
-        console.log("📦 Parsed form-urlencoded body:", {
-          client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
-          client_secret: requestData.client_secret ? '•••' : null,
-          code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
-          redirect_uri: requestData.redirect_uri
-        });
-      } else {
-        // Try to parse as text as a fallback for compatibility
-        console.log("⚠️ Unrecognized content type:", contentType);
-        console.log("Attempting to parse as text and then detect format");
-        
-        const bodyText = await req.text();
-        console.log("📦 Received raw body:", bodyText);
-        
-        if (!bodyText || bodyText.trim() === '') {
-          throw new Error("Empty request body");
-        }
-        
-        try {
-          // First try to parse as JSON
-          requestData = JSON.parse(bodyText);
-          console.log("📦 Successfully parsed as JSON:");
-        } catch (jsonError) {
-          // If not JSON, try as form data
-          const formEntries = new URLSearchParams(bodyText);
-          if (Array.from(formEntries.entries()).length > 0) {
-            for (const [key, value] of formEntries.entries()) {
-              requestData[key] = value;
-            }
-            console.log("📦 Successfully parsed as form data:");
-          } else {
-            // Neither JSON nor form data worked
-            throw new Error("Could not parse request body as either JSON or form data");
-          }
-        }
-        
-        console.log({
-          client_id: requestData.client_id ? `${requestData.client_id.substring(0, 5)}...` : null,
-          client_secret: requestData.client_secret ? '•••' : null,
-          code: requestData.code ? `${requestData.code.substring(0, 10)}...` : null,
-          redirect_uri: requestData.redirect_uri
-        });
-      }
+      requestData = await req.json();
+      console.log("Received token exchange data", {
+        hasCode: !!requestData.code,
+        hasClientId: !!requestData.client_id,
+        hasClientSecret: !!requestData.client_secret,
+        hasRedirectUri: !!requestData.redirect_uri,
+        grantType: requestData.grant_type || "not provided"
+      });
     } catch (e) {
       console.error("Failed to parse request body:", e);
       return new Response(
-        JSON.stringify({
-          error: "invalid_request",
-          error_description: "Invalid request body format",
-          details: e.message
+        JSON.stringify({ 
+          error: "invalid_request", 
+          error_description: "Invalid request body - could not parse JSON" 
         }),
         { 
           status: 400, 
@@ -147,11 +48,8 @@ serve(async (req) => {
       );
     }
     
-    // Set default grant_type if not provided
-    const grantType = requestData.grant_type || 'authorization_code';
-    
-    // Validate required fields based on grant type
-    if (grantType === 'authorization_code') {
+    // Validate required fields for authorization code flow
+    if (requestData.grant_type === 'authorization_code') {
       if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
         const missingFields = [];
         if (!requestData.code) missingFields.push('code');
@@ -159,12 +57,13 @@ serve(async (req) => {
         if (!requestData.client_secret) missingFields.push('client_secret');
         if (!requestData.redirect_uri) missingFields.push('redirect_uri');
         
-        console.error(`Missing required parameters for authorization_code flow: ${missingFields.join(', ')}`);
+        console.error(`Missing required parameters for auth code exchange: ${missingFields.join(', ')}`);
         
         return new Response(
           JSON.stringify({ 
-            error: "invalid_request",
-            error_description: `Missing required parameters: ${missingFields.join(', ')}` 
+            error: "invalid_request", 
+            error_description: "Missing required parameters", 
+            details: { missing: missingFields } 
           }),
           { 
             status: 400, 
@@ -172,19 +71,21 @@ serve(async (req) => {
           }
         );
       }
-    } else if (grantType === 'refresh_token') {
+    } else if (requestData.grant_type === 'refresh_token') {
+      // Validate required fields for refresh token flow
       if (!requestData.refresh_token || !requestData.client_id || !requestData.client_secret) {
         const missingFields = [];
         if (!requestData.refresh_token) missingFields.push('refresh_token');
         if (!requestData.client_id) missingFields.push('client_id');
         if (!requestData.client_secret) missingFields.push('client_secret');
         
-        console.error(`Missing required parameters for refresh_token flow: ${missingFields.join(', ')}`);
+        console.error(`Missing required parameters for token refresh: ${missingFields.join(', ')}`);
         
         return new Response(
           JSON.stringify({ 
-            error: "invalid_request",
-            error_description: `Missing required parameters for token refresh: ${missingFields.join(', ')}` 
+            error: "invalid_request", 
+            error_description: "Missing required parameters", 
+            details: { missing: missingFields } 
           }),
           { 
             status: 400, 
@@ -192,115 +93,126 @@ serve(async (req) => {
           }
         );
       }
+    } else {
+      console.error(`Unsupported grant type: ${requestData.grant_type}`);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: "unsupported_grant_type", 
+          error_description: "Unsupported grant type"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
-    // Prepare the form data
+    // Prepare form data from the request
     const formData = new URLSearchParams();
-    formData.append('grant_type', grantType);
     
-    // Add parameters specific to grant type
-    if (grantType === 'authorization_code') {
-      formData.append('code', requestData.code);
-      formData.append('redirect_uri', requestData.redirect_uri);
-    } else if (grantType === 'refresh_token') {
-      formData.append('refresh_token', requestData.refresh_token);
+    for (const [key, value] of Object.entries(requestData)) {
+      if (value) {
+        formData.append(key, value.toString());
+      }
     }
     
-    // Create Basic Auth header from client_id and client_secret
-    const credentials = `${requestData.client_id}:${requestData.client_secret}`;
-    const base64Credentials = btoa(credentials);
-    const authHeader = `Basic ${base64Credentials}`;
+    console.log("Making token request to Fortnox with grant_type:", requestData.grant_type);
     
-    // Log the request to Fortnox (with masked sensitive data)
-    console.log("🔁 Sending request to Fortnox:");
-    console.log("URL:", FORTNOX_TOKEN_URL);
-    console.log("Method: POST");
-    console.log("Headers:", {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Accept": "application/json",
-      "Authorization": "Basic •••" // Masked for security
-    });
-    console.log("Body (form data):", formData.toString());
-    
-    // Make the request to Fortnox with Basic Auth and form-urlencoded content
+    // Make the token request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'Authorization': authHeader
       },
       body: formData.toString(),
     });
     
-    // Get the response body
+    // Get the response text
     const responseText = await response.text();
-    console.log("📬 Fortnox responded with status:", response.status);
-    console.log("🧾 Fortnox response body:");
-    console.log(responseText);
+    console.log("Fortnox token response status:", response.status);
     
-    // CRITICAL CHANGE: Always return the raw response text for debugging if it's not JSON parseable
     let responseData;
-    let parseError = null;
     
     try {
-      // Try to parse as JSON if it looks like JSON
-      if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
+      // Check if the response has a JSON content type or try to parse as JSON
+      if (responseText && (
+          response.headers.get('content-type')?.includes('application/json') ||
+          (responseText.trim().startsWith('{') && responseText.trim().endsWith('}'))
+      )) {
         responseData = JSON.parse(responseText);
+        console.log("Successfully parsed token response as JSON");
       } else {
-        throw new Error("Response is not in JSON format");
+        console.error("Token response is not JSON:", responseText);
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_response_format", 
+            error_description: "Fortnox returned a non-JSON response", 
+            raw_response: responseText 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
     } catch (e) {
-      console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
-      parseError = e.message;
-      
-      // If not JSON, return detailed error including the raw text for debugging
+      console.error("Failed to parse token response as JSON:", e, "Raw response:", responseText);
       return new Response(
         JSON.stringify({ 
-          error: "fortnox_response_parse_error", 
-          error_description: "Could not parse Fortnox response as JSON",
-          http_status: response.status,
-          raw_response: responseText,
-          parse_error: e.message
+          error: "parse_error", 
+          error_description: "Failed to parse Fortnox response", 
+          raw_response: responseText 
         }),
         { 
-          status: response.status, 
+          status: 500, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    // If Fortnox returned a non-200 status, pass that through with the error details
-    if (!response.ok) {
-      console.error(`Fortnox API returned error status ${response.status}:`, responseData || responseText);
+    // If the response is not OK or contains an error field
+    if (!response.ok || responseData.error) {
+      const errorStatus = response.status || 400;
       
-      // Create a richer error response that includes everything we have
-      const errorResponse = {
-        error: responseData?.error || "fortnox_api_error",
-        error_description: responseData?.error_description || "Unknown error from Fortnox API",
-        http_status: response.status,
-        raw_response: responseText,
-        parsed_response: responseData || null
-      };
-      
-      // Handle specific error cases
-      if (responseData?.error === 'invalid_grant' && responseData?.error_description?.includes('expired')) {
-        errorResponse.error_hint = "Authorization code has expired. Please try connecting to Fortnox again.";
-        errorResponse.request_needs_retry = true;
-      }
+      console.error("Fortnox token API error:", {
+        status: errorStatus,
+        error: responseData.error || "unknown_error",
+        error_description: responseData.error_description || "Unknown error"
+      });
       
       return new Response(
-        JSON.stringify(errorResponse),
+        JSON.stringify({ 
+          error: responseData.error || "fortnox_api_error", 
+          error_description: responseData.error_description || "Fortnox API error",
+          status: errorStatus,
+          details: responseData 
+        }),
         { 
-          status: response.status, 
+          status: errorStatus, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
     
-    console.log("✅ Token exchange/refresh successful");
+    // Verify required tokens are present
+    if (!responseData.access_token) {
+      console.error("Fortnox response missing access_token:", responseData);
+      return new Response(
+        JSON.stringify({ 
+          error: "invalid_response", 
+          error_description: "Fortnox response missing access_token" 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
-    // Return the successful response
+    console.log("Token exchange/refresh successful");
+    
+    // Return the successful token response
     return new Response(
       JSON.stringify(responseData),
       { 
@@ -309,31 +221,16 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Server error in fortnox-token-exchange:", error);
-    
-    // IMPORTANT: Return a more detailed error with as much context as possible
-    const errorDetails = {
-      error: "server_error", 
-      error_description: "Server error occurred during token exchange",
-      details: error.message || "Unknown error",
-      stack: error.stack || null,
-    };
-    
-    // If the error has additional properties, include them
-    if (error && typeof error === 'object') {
-      for (const key in error) {
-        if (key !== 'message' && key !== 'stack') {
-          errorDetails[`error_${key}`] = error[key];
-        }
-      }
-    }
-    
+    console.error("Server error in token-exchange:", error);
     return new Response(
-      JSON.stringify(errorDetails),
+      JSON.stringify({ 
+        error: "server_error", 
+        error_description: error.message || "Unknown server error" 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-  });
+      }
+    );
+  }
+});

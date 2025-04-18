@@ -10,6 +10,7 @@ export interface FortnoxCredentials {
   migrationSkipped?: boolean; // flag to indicate we should skip migration attempts
   migrationLastAttempt?: number; // timestamp of last migration attempt
   migrationAttemptCount?: number; // number of times we've attempted migration
+  migrationError?: string; // last migration error message
 }
 
 export interface SystemSettings {
@@ -27,4 +28,14 @@ export interface FortnoxError {
   raw_response?: string;
   parsed_response?: any;
   request_needs_retry?: boolean;
+}
+
+export interface FortnoxMigrationResponse {
+  access_token: string;
+  refresh_token: string;
+  scope: string;
+  expires_in: number;
+  token_type: string;
+  error?: string;
+  error_description?: string;
 }

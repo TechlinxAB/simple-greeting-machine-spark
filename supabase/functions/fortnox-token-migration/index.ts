@@ -85,14 +85,6 @@ serve(async (req) => {
       );
     }
     
-    // Log migration attempt (with masked sensitive data)
-    console.log("Migration attempt with:", {
-      clientIdLength: requestData.client_id.length,
-      clientSecretLength: requestData.client_secret.length,
-      accessTokenLength: requestData.access_token.length,
-      accessTokenPrefix: requestData.access_token.substring(0, 10) + '...'
-    });
-    
     // Create Basic Auth header from client_id and client_secret
     const credentials = `${requestData.client_id}:${requestData.client_secret}`;
     const base64Credentials = btoa(credentials);
@@ -103,6 +95,8 @@ serve(async (req) => {
     formData.append('access_token', requestData.access_token);
     
     console.log("Making token migration request to Fortnox");
+    console.log("Form data:", formData.toString());
+    console.log("Using authorization header with length:", authHeader.length);
     
     // Make the request to Fortnox with full error logging
     const response = await fetch(FORTNOX_MIGRATION_URL, {

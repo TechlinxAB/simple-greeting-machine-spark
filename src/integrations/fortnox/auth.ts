@@ -1,7 +1,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { FortnoxCredentials } from "./types";
+import { FortnoxCredentials, FortnoxError } from "./types";
 import { environment } from "@/config/environment";
 
 /**
@@ -102,7 +102,7 @@ export async function exchangeCodeForTokens(
                       error_description: 'Authorization code has expired',
                       error_hint: 'Please try connecting to Fortnox again',
                       request_needs_retry: true
-                    };
+                    } as FortnoxError;
                   }
                   
                   if (errorData.error) {
@@ -116,7 +116,7 @@ export async function exchangeCodeForTokens(
           }
         } catch (parseError) {
           if (parseError && typeof parseError === 'object' && 'request_needs_retry' in parseError) {
-            throw parseError;
+            throw parseError as FortnoxError;
           }
           console.log("Could not parse error details:", parseError);
         }
@@ -142,7 +142,7 @@ export async function exchangeCodeForTokens(
             error_description: 'Authorization code has expired',
             error_hint: 'Please try connecting to Fortnox again',
             request_needs_retry: true
-          };
+          } as FortnoxError;
         }
         
         throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
@@ -162,6 +162,7 @@ export async function exchangeCodeForTokens(
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token,
         expiresAt,
+        migratedToJwt: true // Mark as already migrated since new tokens from OAuth 2.0 are already JWT-based
       };
     } catch (edgeFunctionError) {
       // If edge function fails, log the error and throw it
@@ -251,6 +252,7 @@ export async function refreshAccessToken(
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token || refreshToken, // Use new refresh token if provided
         expiresAt,
+        migratedToJwt: true // Mark as migrated since we're using OAuth 2.0 refresh flow
       };
     } catch (edgeFunctionError) {
       // Log and throw the error
