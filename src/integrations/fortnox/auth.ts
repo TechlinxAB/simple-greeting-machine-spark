@@ -162,6 +162,7 @@ export async function exchangeCodeForTokens(
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token,
         expiresAt,
+        expiresIn: proxyResponse.expires_in
       };
     } catch (edgeFunctionError) {
       // If edge function fails, log the error and throw it
@@ -251,6 +252,7 @@ export async function refreshAccessToken(
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token || refreshToken, // Use new refresh token if provided
         expiresAt,
+        expiresIn: proxyResponse.expires_in
       };
     } catch (edgeFunctionError) {
       // Log and throw the error

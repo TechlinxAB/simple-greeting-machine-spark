@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -29,6 +28,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -86,6 +86,56 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     enabled: connected,
     staleTime: 10000,
   });
+
+  // Setup automatic check for token validity
+  const checkTokenValidity = useCallback(async () => {
+    console.log("Running scheduled token validity check");
+    
+    if (connected && credentials?.expiresAt) {
+      const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
+      console.log(`Token expires in approximately ${Math.round(expiresInMinutes)} minutes`);
+      
+      // If token expires in less than 30 minutes, trigger a status refresh
+      if (expiresInMinutes < 30) {
+        console.log("Token is expiring soon, refreshing connection status");
+        setConnectionRetryCount(prev => prev + 1);
+        
+        try {
+          await refetchStatus();
+        } catch (error) {
+          console.error("Error refreshing token status:", error);
+        }
+      }
+    }
+  }, [connected, credentials, refetchStatus]);
+
+  // Set up an interval to check token validity
+  useEffect(() => {
+    // Clear any existing interval
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
+    
+    // Only set up interval if we're connected
+    if (connected) {
+      console.log("Setting up token validity check interval");
+      const intervalId = window.setInterval(() => {
+        checkTokenValidity();
+      }, 5 * 60 * 1000); // Check every 5 minutes
+      
+      setAutoRefreshInterval(intervalId);
+      
+      // Run a check immediately 
+      checkTokenValidity();
+    }
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+      }
+    };
+  }, [connected, checkTokenValidity]);
 
   useEffect(() => {
     if (onStatusChange) {
@@ -228,6 +278,9 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
     queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
     toast.info("Refreshing Fortnox connection status...");
+    
+    // Also trigger a token validity check
+    checkTokenValidity();
   };
 
   return (
@@ -302,6 +355,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                     {credentials?.expiresAt && (
                       <p className="text-xs text-muted-foreground">
                         Token expires: {new Date(credentials.expiresAt).toLocaleString()}
+                        {' '}
+                        (in {Math.max(0, Math.round((credentials.expiresAt - Date.now()) / (1000 * 60)))} minutes)
                       </p>
                     )}
                   </div>
@@ -339,6 +394,14 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               disabled={!clientId || !clientSecret}
             >
               Update Credentials
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleRefreshStatus}
+              disabled={isLoadingStatus}
+            >
+              <RefreshCcw className={`h-4 w-4 mr-2 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+              Refresh Token
             </Button>
           </div>
         </div>

@@ -105,10 +105,11 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       }
     }
     
-    // If access token is expired or close to expiring (within 5 minutes), refresh it
+    // If access token is expired or close to expiring (within 30 minutes), refresh it
+    // Increased from 15 minutes to 30 minutes for more buffer time
     if (settingsData.accessToken && settingsData.expiresAt) {
       const expiresInMinutes = (settingsData.expiresAt - Date.now()) / (1000 * 60);
-      const shouldRefresh = expiresInMinutes < 15; // Increased buffer to 15 minutes
+      const shouldRefresh = expiresInMinutes < 30; // Increased buffer to 30 minutes
       
       if (shouldRefresh) {
         console.log(`Access token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting refresh`);
@@ -125,10 +126,15 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
             settingsData.refreshToken
           );
           
+          // IMPORTANT: Update the expiresAt value with the new one
+          // This ensures we have accurate expiration info
+          const newExpiresAt = Date.now() + (refreshed.expiresIn || 3600) * 1000;
+          
           // Update credentials with new tokens
           const updatedCredentials = {
             ...settingsData,
             ...refreshed,
+            expiresAt: newExpiresAt,
           };
           
           // Save the refreshed credentials
@@ -157,7 +163,8 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       hasAccessToken: !!settingsData.accessToken,
       hasRefreshToken: !!settingsData.refreshToken,
       isLegacyToken: isLegacyToken(settingsData),
-      isTokenExpired: settingsData.expiresAt ? Date.now() > settingsData.expiresAt : null
+      isTokenExpired: settingsData.expiresAt ? Date.now() > settingsData.expiresAt : null,
+      expiresInMinutes: settingsData.expiresAt ? Math.round((settingsData.expiresAt - Date.now()) / (1000 * 60)) : null
     });
     
     return settingsData;
@@ -221,8 +228,8 @@ export async function isFortnoxConnected(): Promise<boolean> {
     if (credentials.expiresAt) {
       const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
       
-      // If token expires in less than 15 minutes or is already expired
-      if (expiresInMinutes < 15) {
+      // If token expires in less than 30 minutes or is already expired
+      if (expiresInMinutes < 30) {
         console.log(`Fortnox token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting to refresh`);
         
         // Token is expired or expiring soon, need to refresh
@@ -239,10 +246,14 @@ export async function isFortnoxConnected(): Promise<boolean> {
             credentials.refreshToken
           );
           
+          // Calculate new expiration time
+          const newExpiresAt = Date.now() + (refreshed.expiresIn || 3600) * 1000;
+          
           // Save the refreshed tokens
           await saveFortnoxCredentials({
             ...credentials,
             ...refreshed,
+            expiresAt: newExpiresAt,
           });
           
           console.log("Fortnox token refreshed successfully");

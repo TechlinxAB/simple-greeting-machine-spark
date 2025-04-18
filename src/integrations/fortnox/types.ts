@@ -1,39 +1,53 @@
 
-import { Json } from "@/integrations/supabase/types";
-
-// Interface for Fortnox OAuth config
+/**
+ * Fortnox OAuth credentials
+ */
 export interface FortnoxCredentials {
+  // OAuth flow identifiers
   clientId: string;
   clientSecret: string;
+  
+  // Legacy token (if applicable)
   accessToken?: string;
   refreshToken?: string;
+  isLegacyToken?: boolean;
+  
+  // OAuth expiration time in milliseconds (epoch)
   expiresAt?: number;
-  refreshTokenExpiresAt?: number; // New field for refresh token expiration
-  isLegacyToken?: boolean;        // Flag to indicate if this is a legacy token
+  
+  // OAuth expiration time in seconds (as returned by Fortnox)
+  expiresIn?: number;
+  
+  // Refresh token expiration time in milliseconds (epoch)
+  refreshTokenExpiresAt?: number;
 }
 
-// Interface for storing system settings
+/**
+ * System settings structure from database
+ */
 export interface SystemSettings {
-  fortnoxCredentials?: FortnoxCredentials;
-  appSettings?: {
-    appName: string;
-    primaryColor: string;
-    secondaryColor: string;
-  };
+  id: string;
+  settings: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Interface for token migration response
+/**
+ * Response from token migration endpoint
+ */
 export interface TokenMigrationResponse {
   access_token: string;
   refresh_token: string;
-  scope: string;
   expires_in: number;
   token_type: string;
+  scope?: string;
 }
 
-// Interface for token migration error
+/**
+ * Error from token migration endpoint
+ */
 export interface TokenMigrationError {
-  status: number;
-  message: string;
-  details?: string;
+  error: string;
+  error_description: string;
+  status_code?: number;
 }

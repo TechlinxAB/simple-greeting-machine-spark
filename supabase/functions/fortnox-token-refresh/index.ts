@@ -151,6 +151,15 @@ serve(async (req) => {
     try {
       responseData = JSON.parse(responseText);
       console.log("Successfully parsed Fortnox response as JSON");
+      
+      // Log the structure of the response (without revealing sensitive data)
+      console.log("Response structure:", {
+        has_access_token: !!responseData.access_token,
+        has_refresh_token: !!responseData.refresh_token,
+        has_expires_in: !!responseData.expires_in,
+        expires_in_value: responseData.expires_in,
+        token_type: responseData.token_type
+      });
     } catch (e) {
       console.error("Failed to parse Fortnox response as JSON:", e, "Raw response:", responseText);
       return new Response(
