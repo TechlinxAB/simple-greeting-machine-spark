@@ -39,3 +39,11 @@ export interface FortnoxMigrationResponse {
   error?: string;
   error_description?: string;
 }
+
+export interface FortnoxClientData {
+  clientId: string;
+  clientSecret: string;
+  isValid: boolean;
+  connectionStatus?: boolean;
+  error?: string;
+}

@@ -85,18 +85,26 @@ export async function exchangeCodeForTokens(
         // Try to parse the error response if available
         try {
           if (typeof proxyError === 'object' && 'message' in proxyError) {
-            const errorContent = proxyError.message as string || '';
-            if (errorContent.includes('{') && errorContent.includes('}')) {
-              const jsonStart = errorContent.indexOf('{');
-              const jsonEnd = errorContent.lastIndexOf('}') + 1;
+            const errorMessage = proxyError.message as string || '';
+            
+            if (errorMessage.includes('invalid_grant')) {
+              throw {
+                error: 'invalid_grant',
+                error_description: 'Authorization code is invalid or has expired',
+                error_hint: 'Please try connecting to Fortnox again',
+                request_needs_retry: true
+              } as FortnoxError;
+            }
+            
+            if (errorMessage.includes('{') && errorMessage.includes('}')) {
+              const jsonStart = errorMessage.indexOf('{');
+              const jsonEnd = errorMessage.lastIndexOf('}') + 1;
               
               if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                errorData = JSON.parse(errorContent.substring(jsonStart, jsonEnd));
+                errorData = JSON.parse(errorMessage.substring(jsonStart, jsonEnd));
                 
                 if (errorData) {
-                  if (errorData.error === 'invalid_grant' && 
-                      typeof errorData.error_description === 'string' && 
-                      errorData.error_description.includes('expired')) {
+                  if (errorData.error === 'invalid_grant') {
                     throw {
                       error: 'invalid_grant',
                       error_description: 'Authorization code has expired',
@@ -134,15 +142,18 @@ export async function exchangeCodeForTokens(
         console.error("Fortnox API returned an error:", proxyResponse);
         
         // Special handling for expired code
-        if (proxyResponse.error === 'invalid_grant' && 
-            typeof proxyResponse.error_description === 'string' && 
-            proxyResponse.error_description.includes('expired')) {
+        if (proxyResponse.error === 'invalid_grant') {
           throw {
             error: 'invalid_grant',
-            error_description: 'Authorization code has expired',
+            error_description: 'Authorization code has expired or is invalid',
             error_hint: 'Please try connecting to Fortnox again',
             request_needs_retry: true
           } as FortnoxError;
+        }
+        
+        // Special handling for invalid client
+        if (proxyResponse.error === 'invalid_client') {
+          throw new Error(`Invalid client credentials (client ID or secret). Please check your Fortnox integration settings.`);
         }
         
         throw new Error(`Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`);
@@ -305,6 +316,26 @@ export async function migrateToJwtAuthentication(
       
       // Try to parse error details from the error message
       let errorMessage = `Migration failed: ${migrationError.message}`;
+      
+      // Handle specific error types
+      if (migrationError.message && migrationError.message.includes('Access-token not found')) {
+        return {
+          migrationSkipped: true,
+          migrationError: "The legacy token is not valid or has expired. You need to reconnect your Fortnox account.",
+          migrationLastAttempt: Date.now(),
+          migrationAttemptCount: 1
+        };
+      }
+      
+      if (migrationError.message && migrationError.message.includes('incorrect auth flow')) {
+        return {
+          migrationSkipped: true,
+          migrationError: "Incorrect authentication flow type. The integration needs to be set to use OAuth 2.0.",
+          migrationLastAttempt: Date.now(),
+          migrationAttemptCount: 1
+        };
+      }
+      
       try {
         if (typeof migrationError.message === 'string' && migrationError.message.includes('{')) {
           const jsonStart = migrationError.message.indexOf('{');
@@ -316,13 +347,23 @@ export async function migrateToJwtAuthentication(
               if (errorData.error === 'invalid_client') {
                 errorMessage = `Migration failed: Invalid client credentials (client ID or client secret)`;
               } else if (errorData.error === 'token_not_found' || errorData.error === 'invalid_token') {
-                errorMessage = `Migration failed: The access token is invalid or has expired. You need to reconnect your Fortnox account.`;
+                return {
+                  migrationSkipped: true,
+                  migrationError: "The legacy token is not valid or has expired. You need to reconnect your Fortnox account.",
+                  migrationLastAttempt: Date.now(),
+                  migrationAttemptCount: 1
+                };
               } else if (errorData.error === 'jwt_creation_not_allowed') {
                 errorMessage = `Migration failed: ${errorData.error_description || 'Your account is not allowed to create JWT tokens'}`;
               } else if (errorData.error === 'jwt_creation_failed') {
                 errorMessage = `Migration failed: ${errorData.error_description || 'Failed to create JWT token'}`;
               } else if (errorData.error === 'incorrect_auth_flow') {
-                errorMessage = `Migration failed: ${errorData.error_description || 'Incorrect authentication flow type'}`;
+                return {
+                  migrationSkipped: true,
+                  migrationError: "The integration needs to be set to use OAuth 2.0 in the Fortnox developer portal.",
+                  migrationLastAttempt: Date.now(),
+                  migrationAttemptCount: 1
+                };
               } else {
                 errorMessage = `Migration failed: ${errorData.error}${
                   errorData.error_description ? ' - ' + errorData.error_description : ''
@@ -348,7 +389,12 @@ export async function migrateToJwtAuthentication(
       
       // Handle specific error types
       if (migrationResponse.error === 'invalid_token' || migrationResponse.error === 'token_not_found') {
-        throw new Error(`Migration failed: The access token is invalid or has expired. You need to reconnect your Fortnox account.`);
+        return {
+          migrationSkipped: true,
+          migrationError: "The legacy token is not valid or has expired. You need to reconnect your Fortnox account.",
+          migrationLastAttempt: Date.now(),
+          migrationAttemptCount: 1
+        };
       } else if (migrationResponse.error === 'invalid_client') {
         throw new Error(`Migration failed: Invalid client credentials (client ID or client secret)`);
       } else if (migrationResponse.error === 'jwt_creation_not_allowed') {
@@ -356,7 +402,12 @@ export async function migrateToJwtAuthentication(
       } else if (migrationResponse.error === 'jwt_creation_failed') {
         throw new Error(`Migration failed: ${migrationResponse.error_description || 'Failed to create JWT token'}`);
       } else if (migrationResponse.error === 'incorrect_auth_flow') {
-        throw new Error(`Migration failed: ${migrationResponse.error_description || 'Incorrect authentication flow type'}`);
+        return {
+          migrationSkipped: true,
+          migrationError: "The integration needs to be set to use OAuth 2.0 in the Fortnox developer portal.",
+          migrationLastAttempt: Date.now(),
+          migrationAttemptCount: 1
+        };
       }
       
       throw new Error(`Migration failed: ${migrationResponse.error} - ${migrationResponse.error_description || ''}`);

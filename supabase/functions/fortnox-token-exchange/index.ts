@@ -27,12 +27,15 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
-      console.log("Received token exchange data", {
+      console.log("Received token exchange request with data:", {
         hasCode: !!requestData.code,
         hasClientId: !!requestData.client_id,
         hasClientSecret: !!requestData.client_secret,
         hasRedirectUri: !!requestData.redirect_uri,
-        grantType: requestData.grant_type || "not provided"
+        grantType: requestData.grant_type || "not provided",
+        codeLength: requestData.code ? requestData.code.length : 0,
+        clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
+        clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
@@ -48,7 +51,7 @@ serve(async (req) => {
       );
     }
     
-    // Validate required fields for authorization code flow
+    // Validate required fields based on grant type
     if (requestData.grant_type === 'authorization_code') {
       if (!requestData.code || !requestData.client_id || !requestData.client_secret || !requestData.redirect_uri) {
         const missingFields = [];
@@ -99,7 +102,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "unsupported_grant_type", 
-          error_description: "Unsupported grant type"
+          error_description: `Unsupported grant type: ${requestData.grant_type}`
         }),
         { 
           status: 400, 
@@ -111,13 +114,16 @@ serve(async (req) => {
     // Prepare form data from the request
     const formData = new URLSearchParams();
     
+    // Add all fields to the form data
     for (const [key, value] of Object.entries(requestData)) {
       if (value) {
         formData.append(key, value.toString());
       }
     }
     
+    // Log the form data for debugging (excluding sensitive information)
     console.log("Making token request to Fortnox with grant_type:", requestData.grant_type);
+    console.log("Form data keys:", Array.from(formData.keys()));
     
     // Make the token request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
@@ -132,6 +138,7 @@ serve(async (req) => {
     const responseText = await response.text();
     console.log("Fortnox token response status:", response.status);
     
+    // Try to parse the response as JSON
     let responseData;
     
     try {
@@ -181,12 +188,43 @@ serve(async (req) => {
         error_description: responseData.error_description || "Unknown error"
       });
       
+      // Special handling for common Fortnox errors
+      if (responseData.error === 'invalid_grant' && responseData.error_description?.includes('expired')) {
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_grant", 
+            error_description: "Authorization code has expired, please try connecting again",
+            status: errorStatus,
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      if (responseData.error === 'invalid_client') {
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_client", 
+            error_description: "Invalid client credentials (client ID or client secret)",
+            status: errorStatus,
+            fortnox_error: responseData 
+          }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: responseData.error || "fortnox_api_error", 
           error_description: responseData.error_description || "Fortnox API error",
           status: errorStatus,
-          details: responseData 
+          fortnox_error: responseData 
         }),
         { 
           status: errorStatus, 
@@ -225,7 +263,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: "server_error", 
-        error_description: error.message || "Unknown server error" 
+        error_description: error.message || "Unknown server error",
+        stack: error.stack
       }),
       { 
         status: 500, 

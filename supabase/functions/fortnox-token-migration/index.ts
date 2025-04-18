@@ -30,7 +30,9 @@ serve(async (req) => {
       console.log("Parsed request data successfully", {
         hasClientId: !!requestData.client_id,
         hasClientSecret: !!requestData.client_secret,
-        hasAccessToken: !!requestData.access_token
+        hasAccessToken: !!requestData.access_token,
+        clientIdLength: requestData.client_id?.length,
+        accessTokenLength: requestData.access_token?.length
       });
     } catch (e) {
       console.error("Failed to parse request body:", e);
