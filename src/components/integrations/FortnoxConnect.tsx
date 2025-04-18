@@ -33,6 +33,9 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // New state for guaranteed refresh timing
+  const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number | null>(null);
+
   // Set the redirect URI when component mounts - use the new getRedirectUri function
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
@@ -87,55 +90,47 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     staleTime: 10000,
   });
 
-  // Setup automatic check for token validity
+  // Enhanced token validity check
   const checkTokenValidity = useCallback(async () => {
     console.log("Running scheduled token validity check");
     
-    if (connected && credentials?.expiresAt) {
-      const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
-      console.log(`Token expires in approximately ${Math.round(expiresInMinutes)} minutes`);
+    const currentTime = Date.now();
+    const credentials = await getFortnoxCredentials();
+    
+    if (credentials?.expiresAt) {
+      const expiresInMinutes = (credentials.expiresAt - currentTime) / (1000 * 60);
       
-      // If token expires in less than 30 minutes, trigger a status refresh
-      if (expiresInMinutes < 30) {
-        console.log("Token is expiring soon, refreshing connection status");
-        setConnectionRetryCount(prev => prev + 1);
+      // Guaranteed refresh conditions
+      const shouldRefreshDueToTime = expiresInMinutes < 30;
+      const hasNotRefreshedInLastHour = 
+        !lastRefreshTimestamp || 
+        (currentTime - lastRefreshTimestamp) > (60 * 60 * 1000); // 1 hour
+      
+      if (shouldRefreshDueToTime || hasNotRefreshedInLastHour) {
+        console.log(`Forcing token refresh. Expires in ${expiresInMinutes} minutes`);
         
         try {
           await refetchStatus();
+          setLastRefreshTimestamp(currentTime);
         } catch (error) {
-          console.error("Error refreshing token status:", error);
+          console.error("Forced refresh failed:", error);
+          // Optional: Show a toast or handle refresh failure
         }
       }
     }
-  }, [connected, credentials, refetchStatus]);
+  }, [connected, lastRefreshTimestamp, refetchStatus]);
 
-  // Set up an interval to check token validity
+  // More aggressive interval setup
   useEffect(() => {
-    // Clear any existing interval
-    if (autoRefreshInterval) {
-      clearInterval(autoRefreshInterval);
-    }
+    const refreshInterval = window.setInterval(checkTokenValidity, 15 * 60 * 1000); // Every 15 minutes
     
-    // Only set up interval if we're connected
-    if (connected) {
-      console.log("Setting up token validity check interval");
-      const intervalId = window.setInterval(() => {
-        checkTokenValidity();
-      }, 5 * 60 * 1000); // Check every 5 minutes
-      
-      setAutoRefreshInterval(intervalId);
-      
-      // Run a check immediately 
-      checkTokenValidity();
-    }
+    // Initial check on mount
+    checkTokenValidity();
     
-    // Cleanup interval on unmount
     return () => {
-      if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-      }
+      clearInterval(refreshInterval);
     };
-  }, [connected, checkTokenValidity]);
+  }, [checkTokenValidity]);
 
   useEffect(() => {
     if (onStatusChange) {
