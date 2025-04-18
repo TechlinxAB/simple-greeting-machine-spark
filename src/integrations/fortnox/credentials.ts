@@ -152,11 +152,11 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     }
     
     // Add detailed token type logging
-    console.log("Token Details:", {
+    console.log("Token Details Extended:", {
       hasClientId: !!settingsData.clientId,
       hasAccessToken: !!settingsData.accessToken,
       hasRefreshToken: !!settingsData.refreshToken,
-      isLegacyToken: settingsData.isLegacyToken,
+      isLegacyToken: isLegacyToken(settingsData),
       isTokenExpired: settingsData.expiresAt ? Date.now() > settingsData.expiresAt : null
     });
     
@@ -165,6 +165,37 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     console.error('Error getting Fortnox credentials:', error);
     return null;
   }
+}
+
+export function isLegacyToken(credentials: FortnoxCredentials | null): boolean {
+  if (!credentials || !credentials.accessToken) {
+    console.log("🚨 Token Check: No credentials or access token");
+    return false;
+  }
+  
+  // Detailed token type logging
+  console.group("🔍 Token Type Analysis");
+  console.log("Access Token Present:", !!credentials.accessToken);
+  console.log("Refresh Token Present:", !!credentials.refreshToken);
+  console.log("Explicitly Marked Legacy Token:", credentials.isLegacyToken);
+  
+  // If explicitly marked as legacy token
+  if (credentials.isLegacyToken === true) {
+    console.log("✅ Token Type: LEGACY (Explicitly Marked)");
+    console.groupEnd();
+    return true;
+  }
+  
+  // If we have an access token but no refresh token, it's likely a legacy token
+  if (credentials.accessToken && !credentials.refreshToken) {
+    console.log("⚠️ Token Type: LEGACY (No Refresh Token)");
+    console.groupEnd();
+    return true;
+  }
+  
+  console.log("✅ Token Type: JWT (Modern OAuth Token)");
+  console.groupEnd();
+  return false;
 }
 
 /**
