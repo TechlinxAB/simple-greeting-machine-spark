@@ -12,7 +12,8 @@ import {
   FileText, Edit, Save, X, Megaphone
 } from "lucide-react";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/formatCurrency";
+import { formatTime } from "@/lib/formatTime";
 import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 
 export default function Reports() {
@@ -140,7 +141,7 @@ export default function Reports() {
   }, [newsData]);
   
   const calculateTodayHours = () => {
-    return todayEntries.reduce((total, entry) => {
+    const hours = todayEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -148,11 +149,13 @@ export default function Reports() {
         return total + hours;
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0);
+    
+    return formatTime(hours, true);
   };
   
   const calculateMonthHours = () => {
-    return monthEntries.reduce((total, entry) => {
+    const hours = monthEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -160,11 +163,13 @@ export default function Reports() {
         return total + hours;
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0);
+    
+    return formatTime(hours, true);
   };
   
   const calculateTodayRevenue = () => {
-    return todayEntries.reduce((total, entry) => {
+    return formatCurrency(todayEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -174,11 +179,11 @@ export default function Reports() {
         return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0));
   };
   
   const calculateMonthRevenue = () => {
-    return monthEntries.reduce((total, entry) => {
+    return formatCurrency(monthEntries.reduce((total, entry) => {
       if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
@@ -188,7 +193,7 @@ export default function Reports() {
         return total + (entry.quantity * (entry.products.price || 0));
       }
       return total;
-    }, 0).toFixed(2);
+    }, 0));
   };
   
   const prepareWeeklyActivityData = () => {
@@ -305,7 +310,7 @@ export default function Reports() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateTodayRevenue()} SEK</p>
+                      <p className="text-2xl font-bold">{calculateTodayRevenue()}</p>
                     </div>
                   </div>
                 </div>
@@ -335,7 +340,7 @@ export default function Reports() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">{calculateMonthRevenue()} SEK</p>
+                      <p className="text-2xl font-bold">{calculateMonthRevenue()}</p>
                     </div>
                   </div>
                 </div>
@@ -398,7 +403,7 @@ export default function Reports() {
                       <div>
                         <p className="text-sm text-muted-foreground">Total Team Hours</p>
                         <p className="text-2xl font-bold">
-                          {companyEntries.reduce((total, entry) => {
+                          {formatTime(companyEntries.reduce((total, entry) => {
                             if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
                               const start = new Date(entry.start_time);
                               const end = new Date(entry.end_time);
@@ -406,7 +411,7 @@ export default function Reports() {
                               return total + hours;
                             }
                             return total;
-                          }, 0).toFixed(2)}
+                          }, 0), true)}
                         </p>
                       </div>
                     </div>
@@ -428,7 +433,7 @@ export default function Reports() {
                       <div>
                         <p className="text-sm text-muted-foreground">Total Revenue</p>
                         <p className="text-2xl font-bold">
-                          {companyEntries.reduce((total, entry) => {
+                          {formatCurrency(companyEntries.reduce((total, entry) => {
                             if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
                               const start = new Date(entry.start_time);
                               const end = new Date(entry.end_time);
@@ -438,7 +443,7 @@ export default function Reports() {
                               return total + (entry.quantity * (entry.products.price || 0));
                             }
                             return total;
-                          }, 0).toFixed(2)} SEK
+                          }, 0))}
                         </p>
                       </div>
                     </div>

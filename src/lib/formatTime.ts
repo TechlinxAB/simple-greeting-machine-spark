@@ -1,6 +1,4 @@
 
-import { useTranslation } from "react-i18next";
-
 /**
  * Formats time in hours to a user-friendly string
  * - For exactly 1 hour: "1 hour"
@@ -9,8 +7,6 @@ import { useTranslation } from "react-i18next";
  * - For less than 1 hour: "30 minutes"
  */
 export function formatTime(hours: number, useCompactFormat = false): string {
-  const { t } = useTranslation();
-  
   // Round to 2 decimal places to avoid floating point issues
   const roundedHours = Math.round(hours * 100) / 100;
   
@@ -25,12 +21,12 @@ export function formatTime(hours: number, useCompactFormat = false): string {
   
   // Case 1: Less than 1 hour (show as minutes)
   if (wholeHours === 0) {
-    return `${minutes} ${minutes === 1 ? t('timeTracking.minute') : t('timeTracking.minutes')}`;
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
   }
   
   // Case 2: Exactly X hours with no minutes
   if (minutes === 0) {
-    return `${wholeHours} ${wholeHours === 1 ? t('timeTracking.hour') : t('timeTracking.hours')}`;
+    return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'}`;
   }
   
   // Case 3: Hours and minutes
@@ -39,7 +35,7 @@ export function formatTime(hours: number, useCompactFormat = false): string {
     return `${wholeHours}h ${minutes}m`;
   } else {
     // Full format: "1 hour 30 minutes"
-    return `${wholeHours} ${wholeHours === 1 ? t('timeTracking.hour') : t('timeTracking.hours')} ${minutes} ${minutes === 1 ? t('timeTracking.minute') : t('timeTracking.minutes')}`;
+    return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'} ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
   }
 }
 

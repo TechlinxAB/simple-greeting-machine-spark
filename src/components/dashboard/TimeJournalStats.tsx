@@ -10,7 +10,8 @@ import {
   FileText
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { formatCurrency, formatTime } from "@/lib/formatCurrency";
+import { formatCurrency } from "@/lib/formatCurrency";
+import { formatTime } from "@/lib/formatTime";
 import { useTranslation } from "react-i18next";
 
 interface TimeJournalStatsProps {
@@ -51,8 +52,6 @@ export function TimeJournalStats({
     ],
     queryFn: async () => {
       try {
-        console.log(`Fetching time entries for ${format(startDate, "MMMM yyyy")}`);
-        
         let query = supabase
           .from("time_entries")
           .select(`
@@ -80,11 +79,8 @@ export function TimeJournalStats({
         const { data: entries, error } = await query;
         
         if (error) {
-          console.error("Error fetching time entries:", error);
           throw error;
         }
-        
-        console.log(`Found ${entries?.length || 0} time entries`);
         
         const enhancedEntries = await Promise.all(
           (entries || []).map(async (entry) => {
@@ -136,7 +132,6 @@ export function TimeJournalStats({
         
         return enhancedEntries || [];
       } catch (error) {
-        console.error("Error in time entries query:", error);
         return [];
       }
     },
@@ -275,7 +270,7 @@ export function TimeJournalStats({
                         {!simplifiedView && (
                           <TableCell>
                             {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                              ? formatCurrency(parseFloat(calculateDuration(entry.start_time, entry.end_time)) * (entry.products.price || 0))
+                              ? formatCurrency(calculateDuration(entry.start_time, entry.end_time) * (entry.products.price || 0))
                               : entry.quantity ? formatCurrency(entry.quantity * (entry.products?.price || 0)) : '-'}
                           </TableCell>
                         )}
