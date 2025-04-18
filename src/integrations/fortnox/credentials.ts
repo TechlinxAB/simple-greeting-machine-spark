@@ -10,14 +10,14 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
   try {
     const credentialsObj = { ...credentials };
     
-    // Set refresh token expiration to 44 days (one day less than max to be safe)
+    // Set refresh token expiration to 43 days (2 days before actual expiration for safety)
     if (credentials.refreshToken) {
-      credentialsObj.refreshTokenExpiresAt = Date.now() + (44 * 24 * 60 * 60 * 1000);
+      credentialsObj.refreshTokenExpiresAt = Date.now() + (43 * 24 * 60 * 60 * 1000);
     }
     
-    // Set access token expiration to 55 minutes (5 minutes less than max)
+    // Set access token expiration to 45 minutes (15 minutes before actual expiration)
     if (credentials.accessToken) {
-      credentialsObj.expiresAt = Date.now() + (55 * 60 * 1000);
+      credentialsObj.expiresAt = Date.now() + (45 * 60 * 1000);
     }
     
     console.log("Saving Fortnox credentials to database");
@@ -31,10 +31,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
         onConflict: 'id'
       });
       
-    if (error) {
-      console.error("Error saving Fortnox credentials:", error);
-      throw error;
-    }
+    if (error) throw error;
     
     console.log("Fortnox credentials saved successfully");
   } catch (error) {
@@ -76,81 +73,73 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       }
     }
     
-    if (error) {
-      console.error('Error fetching Fortnox credentials after retries:', error);
-      return null;
-    }
-    
-    if (!data || !data.settings) {
-      console.log("No Fortnox credentials found in database");
+    if (error || !data || !data.settings) {
       return null;
     }
     
     const settingsData = data.settings as unknown as FortnoxCredentials;
     
     if (!settingsData.clientId || !settingsData.clientSecret) {
-      console.log("Invalid credentials format - missing client ID or secret");
       return null;
     }
     
-    // If we have a refresh token, check its expiration
+    // Check refresh token expiration - proactively refresh 2 days before expiration
     if (settingsData.refreshToken && settingsData.refreshTokenExpiresAt) {
-      const refreshTokenExpired = Date.now() > settingsData.refreshTokenExpiresAt;
+      const daysUntilExpiration = (settingsData.refreshTokenExpiresAt - Date.now()) / (1000 * 60 * 60 * 24);
       
-      if (refreshTokenExpired) {
-        console.log("Refresh token has expired - user needs to reconnect");
-        toast.error("Your Fortnox connection has expired. Please reconnect to continue using Fortnox features.");
+      if (daysUntilExpiration <= 0) {
+        toast.error("Your Fortnox connection has expired. Please reconnect to continue.", {
+          duration: 10000,
+        });
         return settingsData;
+      }
+      
+      // Warn user 5 days before expiration
+      if (daysUntilExpiration <= 5) {
+        toast.warning(`Your Fortnox connection will expire in ${Math.ceil(daysUntilExpiration)} days. Please reconnect soon to avoid interruption.`, {
+          duration: 10000,
+        });
       }
     }
     
-    // If access token expires within 15 minutes or has expired, refresh it
+    // Refresh access token if it expires within 30 minutes (increased buffer)
     if (settingsData.accessToken && settingsData.expiresAt) {
-      const expiresInMinutes = (settingsData.expiresAt - Date.now()) / (1000 * 60);
-      const shouldRefresh = expiresInMinutes < 15;
+      const minutesUntilExpiration = (settingsData.expiresAt - Date.now()) / (1000 * 60);
+      const shouldRefresh = minutesUntilExpiration < 30;
       
       if (shouldRefresh) {
-        console.log(`Access token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting refresh`);
-        
         try {
           if (!settingsData.refreshToken) {
             console.error("Cannot refresh: No refresh token available");
             return settingsData;
           }
           
-          // Attempt to refresh the token
           const refreshed = await refreshAccessToken(
             settingsData.clientId,
             settingsData.clientSecret,
             settingsData.refreshToken
           );
           
-          // Update credentials with new tokens and proper expiration times
           const updatedCredentials = {
             ...settingsData,
             ...refreshed,
-            // Set refresh token expiration to 44 days
-            refreshTokenExpiresAt: Date.now() + (44 * 24 * 60 * 60 * 1000),
-            // Set access token expiration to 55 minutes
-            expiresAt: Date.now() + (55 * 60 * 1000)
+            refreshTokenExpiresAt: Date.now() + (43 * 24 * 60 * 60 * 1000), // 43 days
+            expiresAt: Date.now() + (45 * 60 * 1000) // 45 minutes
           };
           
-          // Save the refreshed credentials
           await saveFortnoxCredentials(updatedCredentials);
-          
           console.log("Successfully refreshed and saved new access token");
           return updatedCredentials;
         } catch (refreshError) {
           console.error("Error refreshing access token:", refreshError);
           
-          // If refresh fails but tokens aren't expired yet, return existing credentials
-          if (expiresInMinutes > 0) {
-            console.log("Using existing credentials as fallback");
+          if (minutesUntilExpiration > 0) {
             return settingsData;
           }
           
-          // If tokens are actually expired, return null to trigger reconnect
-          toast.error("Failed to refresh Fortnox connection. Please reconnect to continue using Fortnox features.");
+          toast.error("Failed to refresh Fortnox connection. Please reconnect if issues persist.", {
+            duration: 10000,
+          });
           return null;
         }
       }
