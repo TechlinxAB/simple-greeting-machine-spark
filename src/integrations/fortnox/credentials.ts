@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
 import { refreshAccessToken } from "./auth";
@@ -151,6 +150,15 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
         }
       }
     }
+    
+    // Add detailed token type logging
+    console.log("Token Details:", {
+      hasClientId: !!settingsData.clientId,
+      hasAccessToken: !!settingsData.accessToken,
+      hasRefreshToken: !!settingsData.refreshToken,
+      isLegacyToken: settingsData.isLegacyToken,
+      isTokenExpired: settingsData.expiresAt ? Date.now() > settingsData.expiresAt : null
+    });
     
     return settingsData;
   } catch (error) {
