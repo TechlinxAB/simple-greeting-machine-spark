@@ -110,7 +110,7 @@ serve(async (req) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': authHeader
       },
-      body: formData,
+      body: formData.toString(), // Ensure formData is correctly converted to string
     });
     
     // Get the response body
