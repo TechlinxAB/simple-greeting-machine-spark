@@ -57,8 +57,8 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       
       // Make sure onComplete is called after the time is properly updated
       if (onComplete) {
-        // Use setTimeout with a longer delay to ensure the state is updated before triggering the callback
-        setTimeout(onComplete, 100);
+        // Use setTimeout with an even longer delay to ensure the state is updated before triggering the callback
+        setTimeout(onComplete, 200);
       }
     }
   };
@@ -133,7 +133,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       if (e.key === "Enter" && onComplete) {
         e.preventDefault();
         // Use setTimeout with a longer delay to ensure the state is updated before triggering the callback
-        setTimeout(onComplete, 100);
+        setTimeout(onComplete, 200);
       }
     }
   };
@@ -144,7 +144,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       handleTimeUpdate(timeInput, roundOnBlur);
       // Call onComplete when field is completed via blur
       if (timeInput.length === 5 && onComplete) {
-        setTimeout(onComplete, 100);
+        setTimeout(onComplete, 200);
       }
     }
   };

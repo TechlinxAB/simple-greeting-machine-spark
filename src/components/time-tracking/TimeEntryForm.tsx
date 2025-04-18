@@ -168,8 +168,9 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     setTimeout(() => {
       if (descriptionRef.current) {
         descriptionRef.current.focus();
+        descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
-    }, 100);
+    }, 250);
   };
 
   const onSubmit = async (values: TimeEntryFormValues) => {
@@ -472,27 +473,26 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 </div>
               )}
               
-              <div>
-                <FormLabel>{t("timeTracking.description")}</FormLabel>
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea
-                          ref={descriptionRef}
-                          placeholder={t("timeTracking.descriptionPlaceholder")}
-                          className={cn("min-h-[100px]", compact ? "text-xs" : "")}
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("timeTracking.description")}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        ref={descriptionRef}
+                        placeholder={t("timeTracking.descriptionPlaceholder")}
+                        className={cn("min-h-[100px]", compact ? "text-xs" : "")}
+                        {...field}
+                        value={field.value || ""}
+                        id="description-field"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <Button 
                 type="submit" 
