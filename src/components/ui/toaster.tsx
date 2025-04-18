@@ -17,18 +17,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
       gap={8}
       toastOptions={{
         classNames: {
-          toast: "group toast bg-white text-black border border-gray-200 shadow-sm rounded-md overflow-hidden flex items-center justify-center max-w-[350px] w-full p-4",
-          description: "text-black text-sm font-normal text-center w-full",
-          actionButton: "bg-black text-white",
-          cancelButton: "bg-white text-black border border-gray-200 hover:bg-gray-100",
-          closeButton: "absolute top-2 right-2 p-1 rounded-sm text-black hover:text-gray-700 transition-colors border border-gray-200 bg-white hover:bg-gray-50"
+          toast: "group toast bg-black text-white border-none shadow-lg rounded-md overflow-hidden flex items-center justify-center max-w-[350px] w-full p-4 relative",
+          description: "text-white text-sm font-normal text-center w-full",
+          actionButton: "bg-white text-black",
+          cancelButton: "bg-black text-white border border-white hover:bg-gray-900",
+          closeButton: "absolute top-2 right-2 p-1 rounded-full text-white hover:bg-white/20 transition-colors"
         },
         style: {
-          background: '#ffffff',
-          color: '#000000',
-          border: '1px solid #e5e7eb',
+          background: '#000000',
+          color: '#ffffff',
           borderRadius: '6px',
-          boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
           margin: '0.5rem',
           padding: '0.75rem',
           maxWidth: '350px',
