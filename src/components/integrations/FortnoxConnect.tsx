@@ -36,6 +36,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   // New state for guaranteed refresh timing
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number | null>(null);
 
+  // Enhanced token lifecycle tracking
+  const [tokenExpirationDate, setTokenExpirationDate] = useState<Date | null>(null);
+  const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null);
+
   // Set the redirect URI when component mounts - use the new getRedirectUri function
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
@@ -92,35 +96,56 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
 
   // Enhanced token validity check
   const checkTokenValidity = useCallback(async () => {
-    console.log("Running scheduled token validity check");
+    console.log("🔍 Running comprehensive token validity check");
     
-    const currentTime = Date.now();
     const credentials = await getFortnoxCredentials();
     
     if (credentials?.expiresAt) {
-      const expiresInMinutes = (credentials.expiresAt - currentTime) / (1000 * 60);
-      
-      // Guaranteed refresh conditions
-      const shouldRefreshDueToTime = expiresInMinutes < 30;
-      const hasNotRefreshedInLastHour = 
-        !lastRefreshTimestamp || 
-        (currentTime - lastRefreshTimestamp) > (60 * 60 * 1000); // 1 hour
-      
-      if (shouldRefreshDueToTime || hasNotRefreshedInLastHour) {
-        console.log(`Forcing token refresh. Expires in ${expiresInMinutes} minutes`);
+      const currentTime = Date.now();
+      const expirationTime = credentials.expiresAt;
+      const expiresInMinutes = (expirationTime - currentTime) / (1000 * 60);
+      const expiresInDays = expiresInMinutes / (24 * 60);
+
+      // Update expiration tracking state
+      const expirationDate = new Date(expirationTime);
+      setTokenExpirationDate(expirationDate);
+      setDaysUntilExpiration(Math.round(expiresInDays));
+
+      // Log detailed token lifecycle information
+      console.group("🕰️ Token Lifecycle Analysis");
+      console.log(`Current Time: ${new Date().toISOString()}`);
+      console.log(`Token Expiration: ${expirationDate.toISOString()}`);
+      console.log(`Days Until Expiration: ${Math.round(expiresInDays)}`);
+      console.log(`Minutes Until Expiration: ${Math.round(expiresInMinutes)}`);
+      console.groupEnd();
+
+      // Proactive refresh conditions
+      const shouldRefreshDueToTime = 
+        expiresInDays <= 7 || // Refresh if 7 days or less remaining
+        expiresInMinutes < 30; // Or if less than 30 minutes remaining
+
+      if (shouldRefreshDueToTime) {
+        console.warn(`🚨 Proactive Token Refresh Required. Expires in ${Math.round(expiresInDays)} days`);
         
         try {
           await refetchStatus();
-          setLastRefreshTimestamp(currentTime);
+          
+          // Optional toast notification for transparency
+          toast.info("Fortnox connection automatically refreshed", {
+            description: `Previous token was expiring in ${Math.round(expiresInDays)} days`
+          });
         } catch (error) {
           console.error("Forced refresh failed:", error);
-          // Optional: Show a toast or handle refresh failure
+          
+          toast.error("Failed to automatically refresh Fortnox connection", {
+            description: "Please manually reconnect to Fortnox"
+          });
         }
       }
     }
-  }, [connected, lastRefreshTimestamp, refetchStatus]);
+  }, [refetchStatus]);
 
-  // More aggressive interval setup
+  // More aggressive interval setup with proactive refresh
   useEffect(() => {
     const refreshInterval = window.setInterval(checkTokenValidity, 15 * 60 * 1000); // Every 15 minutes
     
@@ -278,6 +303,23 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     checkTokenValidity();
   };
 
+  // Render token expiration information
+  const renderTokenExpirationInfo = () => {
+    if (!tokenExpirationDate || daysUntilExpiration === null) return null;
+
+    const warningLevel = 
+      daysUntilExpiration <= 7 ? "text-red-500" : 
+      daysUntilExpiration <= 14 ? "text-orange-500" : 
+      "text-green-500";
+
+    return (
+      <div className={`text-sm ${warningLevel}`}>
+        Token Expires: {tokenExpirationDate.toLocaleDateString()} 
+        ({daysUntilExpiration} days remaining)
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -399,6 +441,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               Refresh Token
             </Button>
           </div>
+          {renderTokenExpirationInfo()}
         </div>
       ) : (
         <div className="space-y-4">
