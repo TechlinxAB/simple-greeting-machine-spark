@@ -1,31 +1,39 @@
 
-import { Toaster as SonnerToaster } from "sonner";
+import { useTheme } from "next-themes";
+import { Toaster as Sonner } from "sonner";
 import { X } from "lucide-react";
 
-export function Toaster() {
+type ToasterProps = React.ComponentProps<typeof Sonner>;
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme();
+
   return (
-    <SonnerToaster 
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
       position="top-right"
-      closeButton={({ closeButtonProps }) => (
-        <button 
-          {...closeButtonProps} 
-          className="absolute right-2 top-2 text-white hover:bg-black/20 rounded-full p-1"
-        >
-          <X className="h-4 w-4 stroke-current" />
-        </button>
-      )}
+      richColors
+      closeButton
       toastOptions={{
-        style: {
-          background: "#ffffff",
-          color: "#000000",
-          border: "1px solid hsl(var(--border))",
-          cursor: "pointer", 
-          position: "relative",
+        classNames: {
+          toast: "group toast bg-white text-black border border-gray-300 shadow-md relative",
+          description: "text-black",
+          actionButton: "bg-black text-white",
+          cancelButton: "bg-white text-black border border-gray-300 hover:bg-gray-100",
+          closeButton: "absolute right-2 top-2 p-1 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
         },
-        className: "toaster group relative",
-        descriptionClassName: "text-sm text-gray-800",
+        style: {
+          background: '#ffffff',
+          color: '#000000',
+          border: '1px solid #cccccc',
+          position: 'relative',
+          cursor: 'pointer'
+        },
         duration: 3000,
       }}
+      {...props}
     />
   );
-}
+};
+
+export { Toaster };

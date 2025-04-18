@@ -41,20 +41,4 @@ const enhancedToast = Object.assign(
   }
 );
 
-// After we create our enhanced toast, we register a click event listener on the document
-// to catch clicks on toast elements
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement;
-  // Find the closest toast element
-  const toast = target.closest('.toast');
-  if (toast) {
-    // If we clicked on a toast (or child of toast), dismiss it
-    // We can dismiss it by clicking the hidden close button
-    const closeButton = toast.querySelector('[data-sonner-toast-close]') as HTMLButtonElement;
-    if (closeButton) {
-      closeButton.click();
-    }
-  }
-}, { capture: true });
-
 export { enhancedToast as toast };
