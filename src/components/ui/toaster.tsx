@@ -17,11 +17,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       gap={8}
       toastOptions={{
         classNames: {
-          toast: "group toast bg-white text-black border border-gray-200 shadow-sm rounded-md overflow-hidden flex items-center justify-between max-w-[350px] w-full",
-          description: "text-black text-sm font-normal flex-grow pr-4",
+          toast: "group toast bg-white text-black border border-gray-200 shadow-sm rounded-md overflow-hidden flex items-center justify-center max-w-[350px] w-full p-4",
+          description: "text-black text-sm font-normal text-center w-full",
           actionButton: "bg-black text-white",
           cancelButton: "bg-white text-black border border-gray-200 hover:bg-gray-100",
-          closeButton: "p-1 rounded-sm text-black hover:text-gray-700 transition-colors border border-gray-200 bg-white hover:bg-gray-50 ml-auto"
+          closeButton: "absolute top-2 right-2 p-1 rounded-sm text-black hover:text-gray-700 transition-colors border border-gray-200 bg-white hover:bg-gray-50"
         },
         style: {
           background: '#ffffff',
@@ -32,7 +32,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           margin: '0.5rem',
           padding: '0.75rem',
           maxWidth: '350px',
-          width: '100%'
+          width: '100%',
+          position: 'relative'
         }
       }}
       {...props}
