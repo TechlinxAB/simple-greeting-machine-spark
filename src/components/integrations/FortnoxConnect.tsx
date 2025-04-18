@@ -8,7 +8,7 @@ import {
   disconnectFortnox,
   getFortnoxCredentials,
   saveFortnoxCredentials
-} from "@/integrations/fortnox"; // Updated import path
+} from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [redirectUri, setRedirectUri] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
+  const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -60,22 +61,24 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     }
   }, [clientId, clientSecret]);
 
-  // Get connection status
+  // Get connection status with automatic retry
   const { data: connected = false, refetch: refetchStatus, isLoading: isLoadingStatus } = useQuery({
-    queryKey: ["fortnox-connection-status"],
+    queryKey: ["fortnox-connection-status", connectionRetryCount], // Include retry count to force refresh
     queryFn: async () => {
       if (!clientId || !clientSecret) return false;
+      console.log(`Checking Fortnox connection (attempt ${connectionRetryCount + 1})`);
       const result = await isFortnoxConnected();
       console.log("Fortnox connection status:", result);
       return result;
     },
     enabled: !!clientId && !!clientSecret,
-    staleTime: 10000,
+    staleTime: 5000, // Reduced stale time to check more frequently
+    retry: 2, // Added retry attempts
   });
 
   // Get credentials for display
   const { data: credentials, isLoading: isLoadingCredentials } = useQuery({
-    queryKey: ["fortnox-credentials"],
+    queryKey: ["fortnox-credentials", connectionRetryCount], // Include retry count to force refresh
     queryFn: async () => {
       const creds = await getFortnoxCredentials();
       console.log("Retrieved Fortnox credentials:", creds ? "Found" : "Not found");
@@ -190,6 +193,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       toast.success("Successfully disconnected from Fortnox");
       queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
       queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+      setConnectionRetryCount(0); // Reset retry counter
     } catch (error) {
       toast.error("Failed to disconnect from Fortnox");
       console.error(error);
@@ -209,9 +213,9 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   };
 
   const handleRefreshStatus = () => {
+    setConnectionRetryCount(prev => prev + 1); // Increment retry counter to force a fresh check
     queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
     queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
-    refetchStatus();
     toast.info("Refreshing Fortnox connection status...");
   };
 
@@ -313,6 +317,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                   });
                   toast.success("Credentials updated successfully");
                   // Force refresh status and credentials
+                  setConnectionRetryCount(prev => prev + 1);
                   queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
                   queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
                 } catch (error) {

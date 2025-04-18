@@ -126,7 +126,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit' : 'Create new'} product</DialogTitle>
           <DialogDescription>
-            {isEditMode ? 'Edit an existing' : 'Add a new'} activity or item to your account
+            {isEditMode ? 'Edit an existing' : 'Add a new'} {selectedType === 'activity' ? t('products.activity').toLowerCase() : t('products.item').toLowerCase()} to your account
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -136,11 +136,11 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                 <div className="mb-6 flex items-center">
                   <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'activity' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     <Clock className="h-4 w-4" />
-                    <span>Activity</span>
+                    <span>{t('products.activity')}</span>
                   </div>
                   <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'item' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     <Package className="h-4 w-4" />
-                    <span>Item</span>
+                    <span>{t('products.item')}</span>
                   </div>
                 </div>
               ) : (
@@ -152,11 +152,11 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="activity" className="flex items-center gap-2">
                       <Clock className="h-4 w-4" />
-                      <span>Activity</span>
+                      <span>{t('products.activity')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="item" className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
-                      <span>Item</span>
+                      <span>{t('products.item')}</span>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -241,7 +241,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
             
             <DialogFooter className="mt-6">
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? `Update ${selectedType}` : `Create ${selectedType}`)}
+                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? `Update ${t('products.' + selectedType)}` : `Create ${t('products.' + selectedType)}`)}
               </Button>
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
                 Cancel

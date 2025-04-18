@@ -48,14 +48,35 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
   try {
     console.log("Fetching Fortnox credentials from database");
     
-    const { data, error } = await supabase
-      .from('system_settings')
-      .select('settings')
-      .eq('id', 'fortnox_credentials')
-      .maybeSingle();
+    // Add retry mechanism for database connectivity issues
+    let retries = 3;
+    let data = null;
+    let error = null;
+    
+    while (retries > 0 && data === null) {
+      const result = await supabase
+        .from('system_settings')
+        .select('settings')
+        .eq('id', 'fortnox_credentials')
+        .maybeSingle();
       
+      data = result.data;
+      error = result.error;
+      
+      if (error) {
+        console.error(`Error fetching Fortnox credentials (${4-retries}/3):`, error);
+        retries--;
+        if (retries > 0) {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } else {
+        break;
+      }
+    }
+    
     if (error) {
-      console.error('Error fetching Fortnox credentials:', error);
+      console.error('Error fetching Fortnox credentials after retries:', error);
       return null;
     }
     
@@ -68,7 +89,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     // First cast to unknown, then to FortnoxCredentials to avoid type errors
     const settingsData = data.settings as unknown as FortnoxCredentials;
     
-    // Check if we have valid credentials
+    // Validate credentials structure
     if (!settingsData.clientId || !settingsData.clientSecret) {
       console.log("Invalid credentials format - missing client ID or secret");
       return null;
@@ -88,15 +109,21 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     // If access token is expired or close to expiring (within 5 minutes), refresh it
     if (settingsData.accessToken && settingsData.expiresAt) {
       const expiresInMinutes = (settingsData.expiresAt - Date.now()) / (1000 * 60);
+      const shouldRefresh = expiresInMinutes < 15; // Increased buffer to 15 minutes
       
-      if (expiresInMinutes < 5) {
-        console.log("Access token expired or expiring soon, attempting refresh");
+      if (shouldRefresh) {
+        console.log(`Access token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting refresh`);
         
         try {
+          if (!settingsData.refreshToken) {
+            console.error("Cannot refresh: No refresh token available");
+            return settingsData; // Return existing credentials
+          }
+          
           const refreshed = await refreshAccessToken(
             settingsData.clientId,
             settingsData.clientSecret,
-            settingsData.refreshToken!
+            settingsData.refreshToken
           );
           
           // Update credentials with new tokens
@@ -151,35 +178,40 @@ export async function isFortnoxConnected(): Promise<boolean> {
       return false;
     }
     
-    // Check if token is expired
-    if (credentials.expiresAt && credentials.expiresAt < Date.now()) {
-      console.log("Fortnox token expired, attempting to refresh");
+    // Check if token is expired or close to expiring
+    if (credentials.expiresAt) {
+      const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
       
-      // Token is expired, need to refresh
-      if (!credentials.refreshToken) {
-        console.log("No refresh token available");
-        return false;
-      }
-      
-      try {
-        // Attempt to refresh the token
-        const refreshed = await refreshAccessToken(
-          credentials.clientId,
-          credentials.clientSecret,
-          credentials.refreshToken
-        );
+      // If token expires in less than 15 minutes or is already expired
+      if (expiresInMinutes < 15) {
+        console.log(`Fortnox token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting to refresh`);
         
-        // Save the refreshed tokens
-        await saveFortnoxCredentials({
-          ...credentials,
-          ...refreshed,
-        });
+        // Token is expired or expiring soon, need to refresh
+        if (!credentials.refreshToken) {
+          console.log("No refresh token available");
+          return false;
+        }
         
-        console.log("Fortnox token refreshed successfully");
-        return true;
-      } catch (error) {
-        console.error('Error refreshing token:', error);
-        return false;
+        try {
+          // Attempt to refresh the token
+          const refreshed = await refreshAccessToken(
+            credentials.clientId,
+            credentials.clientSecret,
+            credentials.refreshToken
+          );
+          
+          // Save the refreshed tokens
+          await saveFortnoxCredentials({
+            ...credentials,
+            ...refreshed,
+          });
+          
+          console.log("Fortnox token refreshed successfully");
+          return true;
+        } catch (error) {
+          console.error('Error refreshing token:', error);
+          return false;
+        }
       }
     }
     
