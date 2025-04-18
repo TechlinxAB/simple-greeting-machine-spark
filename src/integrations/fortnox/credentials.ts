@@ -94,9 +94,21 @@ async function checkAndPerformJwtMigration(credentials: FortnoxCredentials): Pro
     } catch (error) {
       console.error("JWT migration failed:", error);
       
+      // Extract meaningful error message
+      let errorMessage = "Fortnox connection upgrade failed";
+      if (error instanceof Error) {
+        if (error.message.includes("invalid_token") || error.message.includes("invalid or has expired")) {
+          errorMessage = "Your Fortnox access token has expired. Please reconnect to Fortnox.";
+        } else {
+          errorMessage = error.message.includes("Migration failed:") 
+            ? error.message 
+            : `Fortnox connection upgrade failed: ${error.message}`;
+        }
+      }
+      
       // Don't block access due to migration failure, just log and notify
       toast.error(
-        "Fortnox connection upgrade failed. You may need to reconnect before April 30, 2025.", 
+        `${errorMessage} You may need to reconnect before April 30, 2025.`, 
         { duration: 10000 }
       );
     }

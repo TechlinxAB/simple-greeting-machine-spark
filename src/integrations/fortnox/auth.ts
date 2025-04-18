@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials } from "./types";
@@ -299,7 +300,27 @@ export async function migrateToJwtAuthentication(
     
     if (migrationError) {
       console.error("Migration edge function error:", migrationError);
-      throw new Error(`Migration failed: ${migrationError.message}`);
+      
+      // Try to parse error details from the error message
+      let errorMessage = `Migration failed: ${migrationError.message}`;
+      try {
+        if (typeof migrationError.message === 'string' && migrationError.message.includes('{')) {
+          const jsonStart = migrationError.message.indexOf('{');
+          const jsonEnd = migrationError.message.lastIndexOf('}') + 1;
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            const errorData = JSON.parse(migrationError.message.substring(jsonStart, jsonEnd));
+            if (errorData.error) {
+              errorMessage = `Migration failed: ${errorData.error}${
+                errorData.error_description ? ' - ' + errorData.error_description : ''
+              }`;
+            }
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing error message:", parseError);
+      }
+      
+      throw new Error(errorMessage);
     }
     
     if (!migrationResponse) {

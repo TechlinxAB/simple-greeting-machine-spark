@@ -74,8 +74,8 @@ serve(async (req) => {
       console.error("One or more parameters appear to be too short");
       return new Response(
         JSON.stringify({ 
-          error: "Invalid parameters",
-          details: "One or more parameters appear to be too short or invalid"
+          error: "invalid_parameters",
+          error_description: "One or more parameters appear to be too short or invalid"
         }),
         { 
           status: 400, 
@@ -97,9 +97,8 @@ serve(async (req) => {
     const authHeader = `Basic ${base64Credentials}`;
     
     // Prepare the form data for migration
-    const formData = new URLSearchParams({
-      access_token: requestData.access_token
-    });
+    const formData = new URLSearchParams();
+    formData.append('access_token', requestData.access_token);
     
     console.log("Making token migration request to Fortnox");
     
@@ -110,7 +109,7 @@ serve(async (req) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': authHeader
       },
-      body: formData.toString(), // Ensure formData is correctly converted to string
+      body: formData.toString(), // Use toString() to properly format the URLSearchParams
     });
     
     // Get the response body
