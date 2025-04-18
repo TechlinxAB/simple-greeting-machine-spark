@@ -35,6 +35,7 @@ import {
   updateLogoInSystemSettings,
   LOGO_DATA_URL_KEY
 } from "@/utils/logoUtils";
+import { FortnoxTokenMigration } from "@/components/integrations/FortnoxTokenMigration";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
@@ -533,6 +534,10 @@ export default function Settings() {
           <span>Settings</span>
         </h1>
       </div>
+      
+      {isAdmin && (
+        <FortnoxTokenMigration />
+      )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">

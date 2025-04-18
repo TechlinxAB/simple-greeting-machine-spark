@@ -3,7 +3,7 @@
 // This file serves as the main entry point for the Fortnox integration
 
 // Types
-export type { FortnoxCredentials, SystemSettings } from './types';
+export type { FortnoxCredentials, SystemSettings, TokenMigrationResponse, TokenMigrationError } from './types';
 
 // Authentication
 export { 
@@ -18,6 +18,12 @@ export {
   isFortnoxConnected,
   disconnectFortnox
 } from './credentials';
+
+// Migration
+export {
+  migrateLegacyToken,
+  isLegacyToken
+} from './migration';
 
 // API client
 export {
