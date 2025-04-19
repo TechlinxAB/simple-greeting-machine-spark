@@ -62,7 +62,7 @@ export interface TokenMigrationError {
 export interface RefreshResult {
   success: boolean;
   message: string;
-  credentials?: Partial<FortnoxCredentials>;
+  credentials?: Partial<FortnoxCredentials>; // This contains the new tokens
   error?: any;
   requiresReconnect?: boolean;
 }
