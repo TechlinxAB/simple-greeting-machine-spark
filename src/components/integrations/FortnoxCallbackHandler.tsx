@@ -28,7 +28,8 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
         console.log("Fortnox callback received:", {
           hasCode: !!code,
           hasError: !!errorParam,
-          hasState: !!stateParam
+          hasState: !!stateParam,
+          codeLength: code?.length
         });
 
         // Check for error from Fortnox
@@ -132,6 +133,9 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
         
         // Exchange code for tokens
         console.log("Exchanging authorization code for tokens...");
+        console.log("Authorization code:", code);
+        console.log("Authorization code length:", code.length);
+        
         const tokens = await exchangeCodeForTokens(
           code,
           credentials.clientId,
@@ -143,12 +147,38 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           throw new Error("Failed to get access token from Fortnox");
         }
         
+        console.log("🔑 Received tokens from Fortnox:", {
+          accessTokenLength: tokens.accessToken.length,
+          refreshTokenLength: tokens.refreshToken?.length || 0,
+          accessTokenPreview: `${tokens.accessToken.substring(0, 20)}...${tokens.accessToken.substring(tokens.accessToken.length - 20)}`,
+          refreshTokenPreview: tokens.refreshToken ? 
+            `${tokens.refreshToken.substring(0, 10)}...${tokens.refreshToken.substring(tokens.refreshToken.length - 5)}` : 
+            'none'
+        });
+        
         // Save tokens
         console.log("Saving Fortnox tokens...");
         await saveFortnoxCredentials({
           ...credentials,
           ...tokens,
+          isLegacyToken: false
         });
+        
+        // Verify tokens were saved correctly
+        const savedCredentials = await getFortnoxCredentials();
+        if (savedCredentials) {
+          console.log("✅ Saved credentials verification:", {
+            accessTokenLength: savedCredentials.accessToken?.length || 0,
+            refreshTokenLength: savedCredentials.refreshToken?.length || 0,
+            accessTokenMatches: savedCredentials.accessToken === tokens.accessToken,
+            refreshTokenMatches: savedCredentials.refreshToken === tokens.refreshToken
+          });
+          
+          if (savedCredentials.accessToken !== tokens.accessToken || 
+              (tokens.refreshToken && savedCredentials.refreshToken !== tokens.refreshToken)) {
+            console.error("⚠️ Token mismatch after save!");
+          }
+        }
         
         console.log("Fortnox connection successful!");
         setStatus("success");

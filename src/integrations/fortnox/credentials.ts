@@ -19,19 +19,23 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
     // Only add these fields if they exist
     if (credentials.accessToken) {
       credentialsObj.accessToken = credentials.accessToken;
-      console.log("Saving access token, length:", credentials.accessToken.length);
+      console.log("🔑 Saving access token, length:", credentials.accessToken.length);
+      console.log("🔑 Access token preview:", 
+        `${credentials.accessToken.substring(0, 20)}...${credentials.accessToken.substring(credentials.accessToken.length - 20)}`);
     }
     
     if (credentials.refreshToken) {
       credentialsObj.refreshToken = credentials.refreshToken;
-      console.log("Saving refresh token, length:", credentials.refreshToken.length);
+      console.log("🔑 Saving refresh token, length:", credentials.refreshToken.length);
+      console.log("🔑 Refresh token preview:", 
+        `${credentials.refreshToken.substring(0, 10)}...${credentials.refreshToken.substring(credentials.refreshToken.length - 5)}`);
     }
     
     if (credentials.isLegacyToken !== undefined) {
       credentialsObj.isLegacyToken = credentials.isLegacyToken;
     }
     
-    console.log("Saving Fortnox credentials to database");
+    console.log("💾 Saving Fortnox credentials to database");
     
     const { error } = await supabase
       .from('system_settings')
@@ -43,13 +47,43 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
       });
       
     if (error) {
-      console.error("Error saving Fortnox credentials:", error);
+      console.error("❌ Error saving Fortnox credentials:", error);
       throw error;
     }
     
-    console.log("Fortnox credentials saved successfully");
+    // Verify the saved credentials
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('system_settings')
+      .select('settings')
+      .eq('id', 'fortnox_credentials')
+      .maybeSingle();
+    
+    if (verifyError) {
+      console.error("❌ Error verifying saved credentials:", verifyError);
+    } else if (verifyData && verifyData.settings) {
+      // Type assertion for the JSON data
+      const settings = verifyData.settings as Record<string, any>;
+      
+      console.log("✅ Verification - Saved credentials:", {
+        clientIdMatch: settings.clientId === credentials.clientId,
+        clientSecretLength: settings.clientSecret?.length,
+        accessTokenLength: settings.accessToken?.length,
+        refreshTokenLength: settings.refreshToken?.length
+      });
+      
+      // Check if tokens match what we tried to save
+      if (credentials.accessToken && settings.accessToken !== credentials.accessToken) {
+        console.error("❌ Access token mismatch after save!");
+      }
+      
+      if (credentials.refreshToken && settings.refreshToken !== credentials.refreshToken) {
+        console.error("❌ Refresh token mismatch after save!");
+      }
+    }
+    
+    console.log("✅ Fortnox credentials saved successfully");
   } catch (error) {
-    console.error('Error saving Fortnox credentials:', error);
+    console.error('❌ Error saving Fortnox credentials:', error);
     throw error;
   }
 }
@@ -59,7 +93,7 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
  */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
-    console.log("Fetching Fortnox credentials from database");
+    console.log("📚 Fetching Fortnox credentials from database");
     
     // Add retry mechanism for database connectivity issues
     let retries = 3;
@@ -77,7 +111,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       error = result.error;
       
       if (error) {
-        console.error(`Error fetching Fortnox credentials (${4-retries}/3):`, error);
+        console.error(`❌ Error fetching Fortnox credentials (${4-retries}/3):`, error);
         retries--;
         if (retries > 0) {
           // Wait before retrying
@@ -89,12 +123,12 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     }
     
     if (error) {
-      console.error('Error fetching Fortnox credentials after retries:', error);
+      console.error('❌ Error fetching Fortnox credentials after retries:', error);
       return null;
     }
     
     if (!data || !data.settings) {
-      console.log("No Fortnox credentials found in database");
+      console.log("ℹ️ No Fortnox credentials found in database");
       return null;
     }
     
@@ -112,18 +146,33 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     
     // Validate credentials structure
     if (!credentials.clientId || !credentials.clientSecret) {
-      console.log("Invalid credentials format - missing client ID or secret");
+      console.log("❌ Invalid credentials format - missing client ID or secret");
       return null;
     }
     
     // Debug access token integrity
     if (credentials.accessToken) {
-      console.log(`Access token retrieved from DB - Length: ${credentials.accessToken.length}`);
-      console.log(`Access token preview: ${credentials.accessToken.substring(0, 50)}...`);
+      console.log(`📝 Access token retrieved from DB - Length: ${credentials.accessToken.length}`);
+      console.log(`📝 Access token preview: ${credentials.accessToken.substring(0, 20)}...${credentials.accessToken.substring(credentials.accessToken.length - 20)}`);
       
       // Check if the token appears truncated (contains literal "...")
-      if (credentials.accessToken.includes('...') && !credentials.accessToken.startsWith('...') && !credentials.accessToken.endsWith('...')) {
+      if (credentials.accessToken.includes('...') && 
+          !credentials.accessToken.startsWith('...') && 
+          !credentials.accessToken.endsWith('...')) {
         console.error("⚠️ Access token appears to be truncated in the database");
+      }
+    }
+    
+    // Debug refresh token integrity
+    if (credentials.refreshToken) {
+      console.log(`📝 Refresh token retrieved from DB - Length: ${credentials.refreshToken.length}`);
+      console.log(`📝 Refresh token preview: ${credentials.refreshToken.substring(0, 10)}...${credentials.refreshToken.substring(credentials.refreshToken.length - 5)}`);
+      
+      // Check if the refresh token appears truncated
+      if (credentials.refreshToken.includes('...') && 
+          !credentials.refreshToken.startsWith('...') && 
+          !credentials.refreshToken.endsWith('...')) {
+        console.error("⚠️ Refresh token appears to be truncated in the database");
       }
     }
     
@@ -135,7 +184,7 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
     
     return credentials;
   } catch (error) {
-    console.error('Error getting Fortnox credentials:', error);
+    console.error('❌ Error getting Fortnox credentials:', error);
     return null;
   }
 }

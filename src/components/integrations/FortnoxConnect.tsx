@@ -31,6 +31,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [validationError, setValidationError] = useState<string | null>(null);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -81,6 +82,14 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     queryFn: async () => {
       const creds = await getFortnoxCredentials();
       console.log("Retrieved Fortnox credentials:", creds ? "Found" : "Not found");
+      if (creds) {
+        console.log("🔍 Credentials check:", {
+          clientIdLength: creds.clientId?.length || 0,
+          clientSecretLength: creds.clientSecret?.length || 0,
+          accessTokenLength: creds.accessToken?.length || 0,
+          refreshTokenLength: creds.refreshToken?.length || 0
+        });
+      }
       return creds;
     },
     enabled: connected || connectionRetryCount > 0,
@@ -213,9 +222,25 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
 
   const handleManualRefresh = async () => {
     try {
+      setIsRefreshing(true);
       toast.info("Manually refreshing Fortnox token...");
       
       console.log("Calling token refresh edge function...");
+      
+      // Get current credentials before refresh to log and compare
+      const currentCreds = await getFortnoxCredentials();
+      if (currentCreds) {
+        console.log("🔍 Current credentials before refresh:", {
+          clientIdLength: currentCreds.clientId?.length || 0,
+          clientSecretLength: currentCreds.clientSecret?.length || 0,
+          accessTokenLength: currentCreds.accessToken?.length || 0,
+          refreshTokenLength: currentCreds.refreshToken?.length || 0,
+          refreshTokenPreview: currentCreds.refreshToken ? 
+            `${currentCreds.refreshToken.substring(0, 10)}...${currentCreds.refreshToken.substring(currentCreds.refreshToken.length - 5)}` : 
+            'none'
+        });
+      }
+      
       const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
         body: JSON.stringify({ force: true }),
         headers: {
@@ -260,6 +285,27 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         console.log("Token refresh successful, token length:", data.tokenLength);
         toast.success("Fortnox token refreshed successfully");
         setNeedsReconnect(false);
+        
+        // Get updated credentials after refresh to verify
+        const updatedCreds = await getFortnoxCredentials();
+        if (updatedCreds) {
+          console.log("🔍 Updated credentials after refresh:", {
+            clientIdLength: updatedCreds.clientId?.length || 0,
+            clientSecretLength: updatedCreds.clientSecret?.length || 0,
+            accessTokenLength: updatedCreds.accessToken?.length || 0,
+            refreshTokenLength: updatedCreds.refreshToken?.length || 0,
+            refreshTokenPreview: updatedCreds.refreshToken ? 
+              `${updatedCreds.refreshToken.substring(0, 10)}...${updatedCreds.refreshToken.substring(updatedCreds.refreshToken.length - 5)}` : 
+              'none'
+          });
+          
+          // Verify refresh token hasn't changed unexpectedly
+          if (currentCreds?.refreshToken && updatedCreds?.refreshToken &&
+              currentCreds.refreshToken !== updatedCreds.refreshToken) {
+            console.log("⚠️ Note: Refresh token was updated during refresh");
+          }
+        }
+        
         await Promise.all([
           refetchStatus(),
           queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
@@ -271,6 +317,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     } catch (error) {
       console.error("Error during manual token refresh:", error);
       toast.error("Error refreshing token");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 

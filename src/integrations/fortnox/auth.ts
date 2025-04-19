@@ -18,11 +18,11 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<Partial<FortnoxCredentials>> {
   try {
-    console.log("Exchanging code for tokens with parameters:", {
+    console.log("🔄 Exchanging code for tokens with parameters:", {
       codeLength: code ? code.length : 0,
-      code: code ? `${code.substring(0, 5)}...` : 'missing',
+      codePreview: code ? `${code.substring(0, 5)}...` : 'missing',
       clientIdLength: clientId ? clientId.length : 0,
-      clientId: clientId ? `${clientId.substring(0, 5)}...` : 'missing',
+      clientIdPreview: clientId ? `${clientId.substring(0, 5)}...` : 'missing',
       clientSecretLength: clientSecret ? clientSecret.length : 0,
       redirectUri
     });
@@ -60,15 +60,14 @@ export async function exchangeCodeForTokens(
     };
     
     // Log the request details for debugging
-    console.log("Making token exchange request via Edge Function");
+    console.log("🔄 Making token exchange request via Edge Function");
     
     try {
       // Make sure the function URL is correctly configured
       console.log("Using edge function URL from environment:", environment.supabase.url);
-      console.log("Testing Edge Function connectivity");
       
       // Now call the actual token exchange endpoint
-      console.log("Calling token exchange edge function...");
+      console.log("Calling token exchange edge function with code:", `${code.substring(0, 5)}...`);
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
         body: JSON.stringify(tokenExchangeData)
       });
@@ -153,7 +152,15 @@ export async function exchangeCodeForTokens(
         throw new Error("Invalid response from proxy service - missing access token");
       }
       
-      console.log("Token exchange successful via Edge Function");
+      console.log("✅ Token exchange successful via Edge Function");
+      console.log("🔑 Received tokens from Fortnox:", {
+        accessTokenLength: proxyResponse.access_token.length,
+        refreshTokenLength: proxyResponse.refresh_token?.length || 0,
+        accessTokenPreview: `${proxyResponse.access_token.substring(0, 20)}...${proxyResponse.access_token.substring(proxyResponse.access_token.length - 20)}`,
+        refreshTokenPreview: proxyResponse.refresh_token ? 
+          `${proxyResponse.refresh_token.substring(0, 10)}...${proxyResponse.refresh_token.substring(proxyResponse.refresh_token.length - 5)}` : 
+          'none'
+      });
       
       return {
         accessToken: proxyResponse.access_token,
