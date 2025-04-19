@@ -6,7 +6,7 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 // Get Supabase configuration from environment
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const supabaseJwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
+const jwtSecret = Deno.env.get('JWT_SECRET');
 
 // Fixed CORS headers
 const corsHeaders = {
@@ -45,33 +45,32 @@ Deno.serve(async (req) => {
     
     // Get both authorization methods
     const apiKey = req.headers.get("x-api-key");
-    const authHeader = req.headers.get("Authorization");
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
-    const token = authHeader?.replace("Bearer ", "");
 
     // Detailed logging to help debug authentication issues
     console.log("Authentication check:", {
-      authHeaderPresent: !!authHeader,
+      authHeaderPresent: !!req.headers.get("Authorization"),
       apiKeyPresent: !!apiKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyLength: validKey ? validKey.length : 0,
-      jwtSecretPresent: !!supabaseJwtSecret
+      jwtSecretPresent: !!jwtSecret
     });
     
     // Check for system-level authentication via API key
     const isSystemAuthenticated = validKey && apiKey === validKey;
     
-    // Check for user authentication via JWT
+    // Check for user authentication via JWT token
     let userAuthenticated = false;
     
-    if (!isSystemAuthenticated && token && supabaseJwtSecret) {
+    if (!isSystemAuthenticated && token && jwtSecret) {
       try {
         const encoder = new TextEncoder();
-        const { payload } = await jwtVerify(token, encoder.encode(supabaseJwtSecret));
-        console.log("✅ JWT validated, user ID:", payload.sub);
+        const { payload } = await jwtVerify(token, encoder.encode(jwtSecret));
+        console.log("✅ JWT manually validated via jose, user ID:", payload.sub);
         userAuthenticated = true;
       } catch (err) {
-        console.error("❌ JWT verification failed", err);
+        console.error("❌ JWT verification failed (via jose):", err);
       }
     }
     
