@@ -43,6 +43,7 @@ serve(async (req) => {
     console.log("Authentication check:", {
       apiKeyPresent: !!apiKey,
       validKeyPresent: !!validKey,
+      hasAuthHeader: !!req.headers.get("Authorization"),
       apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyLength: validKey ? validKey.length : 0,
       requestMethod: req.method,
@@ -50,7 +51,34 @@ serve(async (req) => {
       headersPresent: Array.from(req.headers.keys()),
     });
     
-    const isSystemAuthenticated = validKey && apiKey === validKey;
+    const isSystemAuthenticated = !!validKey && apiKey === validKey;
+
+    // Try Supabase auth for logged-in users
+    let userAuthenticated = false;
+
+    if (!isSystemAuthenticated && req.headers.get("Authorization")?.startsWith("Bearer ")) {
+      const userSupabase = createClient(supabaseUrl, supabaseServiceKey, {
+        global: { headers: { Authorization: req.headers.get("Authorization")! } }
+      });
+
+      const { data: authData, error: authError } = await userSupabase.auth.getUser();
+
+      if (authData?.user && !authError) {
+        userAuthenticated = true;
+        console.log("Authenticated via Supabase JWT:", authData.user.id);
+      } else {
+        console.warn("Supabase auth failed:", authError);
+      }
+    }
+
+    // Final check
+    if (!isSystemAuthenticated && !userAuthenticated) {
+      console.error("Unauthorized request: missing or invalid API key or user token");
+      return new Response(
+        JSON.stringify({ error: "unauthorized", message: "Missing or invalid API key or user token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     // If this is a system-level authenticated request, get credentials from database
     if (isSystemAuthenticated) {
