@@ -12,7 +12,8 @@ export {
 export {
   exchangeCodeForTokens,
   refreshAccessToken,
-  triggerSystemTokenRefresh
+  triggerSystemTokenRefresh,
+  getTokenRefreshHistory
 } from './auth';
 
 // Export migration functions
@@ -26,7 +27,8 @@ export type {
   RefreshResult, 
   TokenMigrationResponse, 
   TokenMigrationError,
-  SystemSettings 
+  SystemSettings,
+  TokenRefreshLog
 } from './types';
 
 // Export invoices related functions

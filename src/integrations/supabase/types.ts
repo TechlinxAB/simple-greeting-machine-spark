@@ -339,6 +339,36 @@ export type Database = {
           },
         ]
       }
+      token_refresh_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          session_id: string | null
+          success: boolean
+          token_length: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          session_id?: string | null
+          success: boolean
+          token_length?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          session_id?: string | null
+          success?: boolean
+          token_length?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_timers: {
         Row: {
           client_id: string
