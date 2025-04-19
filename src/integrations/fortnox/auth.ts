@@ -1,5 +1,5 @@
 
-import { SystemSettings, FortnoxCredentials, RefreshResult } from './types';
+import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
@@ -8,16 +8,16 @@ const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
  * @param code The authorization code received from Fortnox.
- * @param redirectUri The redirect URI used in the authorization request.
  * @param clientId The client ID of the Fortnox application.
  * @param clientSecret The client secret of the Fortnox application.
+ * @param redirectUri The redirect URI used in the authorization request.
  * @returns A promise that resolves to an object containing the access token, refresh token, and expires_in value, or rejects with an error.
  */
 export async function exchangeCodeForTokens(
   code: string,
-  redirectUri: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
     const params = new URLSearchParams();
@@ -63,16 +63,16 @@ export async function exchangeCodeForTokens(
 /**
  * Refreshes an access token using a refresh token from Fortnox.
  * @param refreshToken The refresh token to use.
- * @param redirectUri The redirect URI used in the authorization request.
  * @param clientId The client ID of the Fortnox application.
  * @param clientSecret The client secret of the Fortnox application.
+ * @param redirectUri The redirect URI used in the authorization request.
  * @returns A promise that resolves to an object containing the new access token, refresh token, and expires_in value, or rejects with an error.
  */
 export async function refreshAccessToken(
   refreshToken: string,
-  redirectUri: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  redirectUri: string
 ): Promise<RefreshResult> {
   try {
     const params = new URLSearchParams();

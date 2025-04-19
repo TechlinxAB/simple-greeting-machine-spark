@@ -186,7 +186,7 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           redirectUri
         );
         
-        if (!tokens || !tokens.accessToken) {
+        if (!tokens || !tokens.access_token) {
           const message = "Failed to get access token from Fortnox";
           console.error(`[${sessionId}] ${message}`);
           setStatus("error");
@@ -203,11 +203,11 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
         updateStep("tokens", { status: "success" });
         
         console.log(`[${sessionId}] 🔑 Received tokens from Fortnox:`, {
-          accessTokenLength: tokens.accessToken.length,
-          refreshTokenLength: tokens.refreshToken?.length || 0,
-          accessTokenPreview: `${tokens.accessToken.substring(0, 20)}...${tokens.accessToken.substring(tokens.accessToken.length - 20)}`,
-          refreshTokenPreview: tokens.refreshToken ? 
-            `${tokens.refreshToken.substring(0, 10)}...${tokens.refreshToken.substring(tokens.refreshToken.length - 5)}` : 
+          accessTokenLength: tokens.access_token.length,
+          refreshTokenLength: tokens.refresh_token?.length || 0,
+          accessTokenPreview: `${tokens.access_token.substring(0, 20)}...${tokens.access_token.substring(tokens.access_token.length - 20)}`,
+          refreshTokenPreview: tokens.refresh_token ? 
+            `${tokens.refresh_token.substring(0, 10)}...${tokens.refresh_token.substring(tokens.refresh_token.length - 5)}` : 
             'none'
         });
         
@@ -218,7 +218,8 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
         console.log(`[${sessionId}] Saving Fortnox tokens...`);
         await saveFortnoxCredentials({
           ...credentials,
-          ...tokens,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
           isLegacyToken: false
         });
         
@@ -234,21 +235,21 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           console.log(`[${sessionId}] ✅ Saved credentials verification:`, {
             accessTokenLength: savedCredentials.accessToken?.length || 0,
             refreshTokenLength: savedCredentials.refreshToken?.length || 0,
-            accessTokenMatches: savedCredentials.accessToken === tokens.accessToken,
-            refreshTokenMatches: savedCredentials.refreshToken === tokens.refreshToken
+            accessTokenMatches: savedCredentials.accessToken === tokens.access_token,
+            refreshTokenMatches: savedCredentials.refreshToken === tokens.refresh_token
           });
           
-          if (savedCredentials.accessToken !== tokens.accessToken || 
-              (tokens.refreshToken && savedCredentials.refreshToken !== tokens.refreshToken)) {
+          if (savedCredentials.accessToken !== tokens.access_token || 
+              (tokens.refresh_token && savedCredentials.refreshToken !== tokens.refresh_token)) {
             console.error(`[${sessionId}] ⚠️ Token mismatch after save!`);
             
             // Log the differences
-            if (savedCredentials.accessToken !== tokens.accessToken) {
-              console.error(`[${sessionId}] Access token length - Original: ${tokens.accessToken.length}, Saved: ${savedCredentials.accessToken?.length}`);
+            if (savedCredentials.accessToken !== tokens.access_token) {
+              console.error(`[${sessionId}] Access token length - Original: ${tokens.access_token.length}, Saved: ${savedCredentials.accessToken?.length}`);
             }
             
-            if (tokens.refreshToken && savedCredentials.refreshToken !== tokens.refreshToken) {
-              console.error(`[${sessionId}] Refresh token length - Original: ${tokens.refreshToken.length}, Saved: ${savedCredentials.refreshToken?.length}`);
+            if (tokens.refresh_token && savedCredentials.refreshToken !== tokens.refresh_token) {
+              console.error(`[${sessionId}] Refresh token length - Original: ${tokens.refresh_token.length}, Saved: ${savedCredentials.refreshToken?.length}`);
             }
             
             // Set warning in the verification step but don't fail the overall process

@@ -4,6 +4,7 @@ import { getFortnoxCredentials } from "./credentials";
 import { refreshAccessToken } from "./auth";
 import { toast } from "sonner";
 import { RefreshResult } from "./types";
+import { getRedirectUri } from "@/config/environment";
 
 // Maximum number of retries for token refresh
 const MAX_REFRESH_RETRIES = 2;
@@ -67,14 +68,18 @@ export async function fortnoxApiRequest(
         throw new Error("No refresh token available");
       }
       
+      // Get redirect URI
+      const redirectUri = getRedirectUri();
+      
       // Attempt to refresh the token
       const refreshResult: RefreshResult = await refreshAccessToken(
+        credentials.refreshToken,
         credentials.clientId,
         credentials.clientSecret,
-        credentials.refreshToken
+        redirectUri
       );
       
-      if (refreshResult.success && refreshResult.credentials) {
+      if (refreshResult.success && refreshResult.accessToken) {
         console.log("Token refresh successful, retrying request");
         
         // Retry the request with the new token
