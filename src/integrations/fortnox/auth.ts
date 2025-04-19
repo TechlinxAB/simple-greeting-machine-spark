@@ -368,8 +368,13 @@ export async function triggerSystemTokenRefresh(force: boolean = false): Promise
   try {
     console.log("Triggering system-level token refresh");
     
+    // Call the scheduled refresh function with the force flag
     const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
       body: JSON.stringify({ force }),
+      headers: {
+        'Content-Type': 'application/json',
+        // The function now has a fixed key it checks against - we don't need to pass x-api-key
+      }
     });
     
     if (error) {

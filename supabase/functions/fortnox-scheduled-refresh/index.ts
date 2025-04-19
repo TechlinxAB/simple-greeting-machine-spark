@@ -7,6 +7,10 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
+// Fixed API key - matching the one in the cron job
+// This allows the function to verify system-level requests
+const SYSTEM_API_KEY = 'fortnox-refresh-secret-key-xojrleypudfrbmvejpow';
+
 // Fixed CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,25 +45,22 @@ Deno.serve(async (req) => {
     // Check for API key in Authorization header (if using supabase.functions.invoke)
     const authHeader = req.headers.get("Authorization");
     
-    // Check for API key in x-api-key header (direct HTTP call)
+    // Check for API key in x-api-key header (direct HTTP call from cron)
     const apiKey = req.headers.get("x-api-key");
-    
-    // Get the valid key from environment
-    const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
     
     console.log("Authentication check:", {
       authHeaderPresent: !!authHeader,
       apiKeyPresent: !!apiKey,
-      validKeyPresent: !!validKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
-      validKeyLength: validKey ? validKey.length : 0
+      validKeyLength: SYSTEM_API_KEY.length,
+      apiKeyMatches: apiKey === SYSTEM_API_KEY,
     });
     
-    // Determine if the request is authenticated through any valid method
+    // Determine if the request is authenticated through any valid method:
+    // 1. Either it has the correct system API key in x-api-key header (from cron job)
+    // 2. Or it's from the frontend with a valid Authorization header
     const isAuthenticated = 
-      // Either we have a valid key in x-api-key header
-      (validKey && apiKey && apiKey === validKey) ||
-      // Or this is called via supabase.functions.invoke with the valid anon key
+      (apiKey === SYSTEM_API_KEY) ||
       (authHeader && authHeader.startsWith("Bearer "));
     
     if (!isAuthenticated) {
@@ -67,7 +68,9 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
-          message: "Invalid or missing API key for scheduled refresh"
+          message: "Invalid or missing API key for scheduled refresh",
+          apiKeyPresent: !!apiKey,
+          headerPresent: !!authHeader,
         }),
         { 
           status: 401, 
@@ -302,8 +305,8 @@ Deno.serve(async (req) => {
       { 
         status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+        }
+      );
   } catch (error) {
     console.error("Server error in scheduled token refresh:", error);
     return new Response(
