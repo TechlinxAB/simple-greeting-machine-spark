@@ -7,10 +7,6 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-// Fixed API key - matching the one in the cron job
-// This allows the function to verify system-level requests
-const SYSTEM_API_KEY = 'fortnox-refresh-secret-key-xojrleypudfrbmvejpow';
-
 // Fixed CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,11 +38,16 @@ Deno.serve(async (req) => {
       console.log("No valid request body found");
     }
     
+    // Authentication check
+    // 1. Check for API key-based auth (system level)
+    // 2. Check for JWT-based auth (user level) as fallback
+    
     // Get both authorization methods
     const apiKey = req.headers.get("x-api-key");
     const authHeader = req.headers.get("Authorization");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
 
+    // Detailed logging to help debug authentication issues
     console.log("Authentication check:", {
       authHeaderPresent: !!authHeader,
       apiKeyPresent: !!apiKey,
@@ -56,53 +57,74 @@ Deno.serve(async (req) => {
     
     // Check for system-level authentication via API key
     const isSystemAuthenticated = validKey && apiKey === validKey;
-
+    
     // Check for user authentication via JWT
     let userAuthenticated = false;
-
+    
     if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
       
+      // Add more detailed logging about auth key presence
       if (!supabaseAnonKey) {
         console.error("❌ SUPABASE_ANON_KEY environment variable is not set");
       } else {
         console.log("✅ Using SUPABASE_ANON_KEY for JWT validation");
       }
-
-      const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey || '', {
-        global: {
-          headers: {
-            Authorization: authHeader,
+      
+      // Create a client instance using the anon key for JWT validation
+      const supabaseClient = createClient(
+        supabaseUrl,
+        supabaseAnonKey || '',
+        {
+          global: {
+            headers: { Authorization: authHeader },
           },
-        },
-      });
-
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          }
+        }
+      );
+      
       try {
-        const { data: userData, error: userError } = await supabaseAuthClient.auth.getUser();
-
-        if (userData?.user && !userError) {
-          console.log("✅ Authenticated via Supabase JWT:", userData.user.id);
+        // Attempt to retrieve the user from the JWT
+        const { data: user, error: userError } = await supabaseClient.auth.getUser();
+        
+        if (user?.user && !userError) {
+          console.log("✅ Authenticated via Supabase JWT:", user.user.id);
           userAuthenticated = true;
         } else {
-          console.warn("❌ Supabase JWT auth failed", userError);
+          console.error("❌ Supabase JWT auth failed", userError);
         }
       } catch (authError) {
         console.error("❌ Exception during Supabase auth:", authError);
       }
     }
-
-    // Final authentication check - either system or user auth must succeed
+    
+    // Final authentication result - either system auth or user auth must be true
     const isAuthenticated = isSystemAuthenticated || userAuthenticated;
-
+    
     if (!isAuthenticated) {
       console.error("❌ Unauthorized access to Fortnox scheduled refresh");
       return new Response(
-        JSON.stringify({ error: "unauthorized", message: "Missing or invalid API key or user token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          error: "unauthorized", 
+          message: "Missing or invalid API key or user token" 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
     
-    // Initialize Supabase client with service role
+    // Successfully authenticated! Now proceed with the token refresh
+    console.log("✅ Authentication successful:", {
+      systemAuth: isSystemAuthenticated,
+      userAuth: userAuthenticated
+    });
+    
+    // Initialize Supabase client with service role for database access
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Supabase URL or service key not configured");
       return new Response(
@@ -328,8 +350,8 @@ Deno.serve(async (req) => {
       { 
         status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      }
+    );
   } catch (error) {
     console.error("Server error in scheduled token refresh:", error);
     return new Response(

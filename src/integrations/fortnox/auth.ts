@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
@@ -373,7 +374,6 @@ export async function triggerSystemTokenRefresh(force: boolean = false): Promise
       body: JSON.stringify({ force }),
       headers: {
         'Content-Type': 'application/json',
-        // The function now has a fixed key it checks against - we don't need to pass x-api-key
       }
     });
     
@@ -402,6 +402,9 @@ export async function forceTokenRefresh(): Promise<boolean> {
     // Use the supabase.functions.invoke method instead of direct fetch
     const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
       body: JSON.stringify({ force: true }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
     });
     
     if (error) {
