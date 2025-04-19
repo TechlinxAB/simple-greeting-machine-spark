@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
@@ -33,6 +34,34 @@ function isValidJwtFormat(token: string): boolean {
 // Utility function to validate refresh token
 function isValidRefreshToken(token: string): boolean {
   return typeof token === 'string' && token.trim().length > 20;
+}
+
+// Helper to log refresh attempts to the database
+async function logRefreshAttempt(
+  supabase, 
+  success: boolean, 
+  message: string, 
+  sessionId: string, 
+  tokenLength?: number
+) {
+  try {
+    const { error } = await supabase
+      .from('token_refresh_logs')
+      .insert({
+        success,
+        message,
+        token_length: tokenLength,
+        session_id: sessionId
+      });
+      
+    if (error) {
+      console.error(`[${sessionId}] Error logging refresh attempt:`, error);
+    } else {
+      console.log(`[${sessionId}] Successfully logged refresh attempt`);
+    }
+  } catch (err) {
+    console.error(`[${sessionId}] Exception logging refresh attempt:`, err);
+  }
 }
 
 // This function will be called by a scheduled cron job or manually
@@ -95,6 +124,13 @@ Deno.serve(async (req) => {
     
     if (!isAuthenticated) {
       console.error(`[${sessionId}] ❌ Unauthorized access to Fortnox token refresh`);
+      
+      // Log unauthorized attempt
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        await logRefreshAttempt(supabase, false, "Unauthorized access attempt", sessionId);
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
@@ -139,6 +175,7 @@ Deno.serve(async (req) => {
     
     if (settingsError || !settingsData) {
       console.error(`[${sessionId}] ❌ Error retrieving Fortnox credentials:`, settingsError);
+      await logRefreshAttempt(supabase, false, "Failed to retrieve credentials from database", sessionId);
       return new Response(
         JSON.stringify({ 
           error: "database_error", 
@@ -171,6 +208,8 @@ Deno.serve(async (req) => {
         clientSecretExists: !!credentials?.clientSecret,
         refreshTokenExists: !!credentials?.refreshToken
       });
+      
+      await logRefreshAttempt(supabase, false, "Incomplete credentials found in database", sessionId);
       
       return new Response(
         JSON.stringify({ 
@@ -251,6 +290,9 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error(`[${sessionId}] ❌ Failed to parse Fortnox response:`, e);
       console.log(`[${sessionId}] 📝 Raw response text:`, responseText);
+      
+      await logRefreshAttempt(supabase, false, "Invalid response from Fortnox API", sessionId);
+      
       return new Response(
         JSON.stringify({ 
           error: "invalid_response", 
@@ -266,6 +308,13 @@ Deno.serve(async (req) => {
     
     if (!response.ok) {
       console.error(`[${sessionId}] ❌ Fortnox API error:`, responseData);
+      
+      await logRefreshAttempt(
+        supabase, 
+        false, 
+        `Fortnox API error: ${responseData.error || 'Unknown error'} - ${responseData.error_description || ''}`, 
+        sessionId
+      );
       
       // For invalid_grant (refresh token expired/invalid), we handle this
       // by telling the client they need to reconnect
@@ -300,6 +349,9 @@ Deno.serve(async (req) => {
     // Validate received tokens
     if (!responseData.access_token || !isValidJwtFormat(responseData.access_token)) {
       console.error(`[${sessionId}] ❌ Invalid access token format received from Fortnox`);
+      
+      await logRefreshAttempt(supabase, false, "Received invalid access token format", sessionId);
+      
       return new Response(
         JSON.stringify({
           error: "invalid_token_format",
@@ -332,6 +384,23 @@ Deno.serve(async (req) => {
       isLegacyToken: false
     };
     
+    // Add token expiration information - parse JWT to extract expiration
+    if (responseData.access_token) {
+      try {
+        const tokenParts = responseData.access_token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          if (payload.exp) {
+            // Convert Unix timestamp to ISO date
+            updatedCredentials.expiresAt = new Date(payload.exp * 1000).toISOString();
+            console.log(`[${sessionId}] 🕒 Token expires at: ${updatedCredentials.expiresAt}`);
+          }
+        }
+      } catch (err) {
+        console.error(`[${sessionId}] Error parsing JWT token:`, err);
+      }
+    }
+    
     // Verify we're not storing a truncated token
     console.log(`[${sessionId}] ✅ Verification - Access token type check:`, typeof updatedCredentials.accessToken === 'string');
     console.log(`[${sessionId}] ✅ Verification - Access token length check:`, updatedCredentials.accessToken.length);
@@ -341,6 +410,9 @@ Deno.serve(async (req) => {
     if (typeof updatedCredentials.accessToken !== 'string' || 
         updatedCredentials.accessToken.length < 100) {
       console.error(`[${sessionId}] ❌ Token validation failed - suspiciously short access token`);
+      
+      await logRefreshAttempt(supabase, false, "Token validation failed - suspiciously short access token", sessionId, updatedCredentials.accessToken.length);
+      
       return new Response(
         JSON.stringify({
           error: "token_validation_failed",
@@ -374,6 +446,9 @@ Deno.serve(async (req) => {
       
     if (updateError) {
       console.error(`[${sessionId}] ❌ Error updating credentials in database:`, updateError);
+      
+      await logRefreshAttempt(supabase, false, "Failed to update tokens in database", sessionId, updatedCredentials.accessToken.length);
+      
       return new Response(
         JSON.stringify({ 
           error: "database_error", 
@@ -429,6 +504,15 @@ Deno.serve(async (req) => {
     
     console.log(`[${sessionId}] ✅ Token refresh completed successfully`);
     
+    // Log the successful refresh
+    await logRefreshAttempt(
+      supabase, 
+      true, 
+      "Token refresh completed successfully", 
+      sessionId, 
+      updatedCredentials.accessToken.length
+    );
+    
     return new Response(
       JSON.stringify({
         success: true,
@@ -444,6 +528,22 @@ Deno.serve(async (req) => {
     
   } catch (error) {
     console.error(`[${sessionId}] ❌ Server error in token refresh:`, error);
+    
+    // Try to log the error
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        await logRefreshAttempt(
+          supabase, 
+          false, 
+          `Server error: ${error.message || "Unknown error"}`, 
+          sessionId
+        );
+      } catch (logError) {
+        console.error(`[${sessionId}] Failed to log error:`, logError);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: "server_error", 
