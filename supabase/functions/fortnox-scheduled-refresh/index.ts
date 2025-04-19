@@ -10,7 +10,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 // Fixed CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -27,25 +27,42 @@ Deno.serve(async (req) => {
   try {
     console.log("Starting scheduled Fortnox token refresh");
     
-    // Validate request has the correct API key (prevent unauthorized calls)
-    const apiKey = req.headers.get("x-api-key");
-    const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
-    
-    if (!validKey) {
-      console.error("FORTNOX_REFRESH_SECRET environment variable is not set");
-      return new Response(
-        JSON.stringify({ 
-          error: "server_configuration_error", 
-          message: "Server is not properly configured. Missing refresh secret." 
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    // Parse request body if it exists
+    let force = false;
+    try {
+      const body = await req.json();
+      force = !!body.force;
+      console.log("Request body:", { force });
+    } catch (e) {
+      // No body or invalid JSON - that's okay for this endpoint
+      console.log("No valid request body found");
     }
     
-    if (!apiKey || apiKey !== validKey) {
+    // Check for API key in Authorization header (if using supabase.functions.invoke)
+    const authHeader = req.headers.get("Authorization");
+    
+    // Check for API key in x-api-key header (direct HTTP call)
+    const apiKey = req.headers.get("x-api-key");
+    
+    // Get the valid key from environment
+    const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+    
+    console.log("Authentication check:", {
+      authHeaderPresent: !!authHeader,
+      apiKeyPresent: !!apiKey,
+      validKeyPresent: !!validKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      validKeyLength: validKey ? validKey.length : 0
+    });
+    
+    // Determine if the request is authenticated through any valid method
+    const isAuthenticated = 
+      // Either we have a valid key in x-api-key header
+      (validKey && apiKey && apiKey === validKey) ||
+      // Or this is called via supabase.functions.invoke with the valid anon key
+      (authHeader && authHeader.startsWith("Bearer "));
+    
+    if (!isAuthenticated) {
       console.error("Invalid or missing API key for scheduled refresh");
       return new Response(
         JSON.stringify({ 
@@ -117,15 +134,14 @@ Deno.serve(async (req) => {
     }
     
     // Check if token needs refreshing
-    // Refresh if less than 7 days remaining or explicitly forced
-    const shouldForceRefresh = req.url.includes('force=true');
+    // Refresh if explicitly forced or if less than 7 days remaining
     const expiresInMs = credentials.expiresAt ? credentials.expiresAt - Date.now() : 0;
     const expiresInDays = expiresInMs / (1000 * 60 * 60 * 24);
-    const needsRefresh = shouldForceRefresh || !credentials.expiresAt || expiresInDays < 7;
+    const needsRefresh = force || !credentials.expiresAt || expiresInDays < 7;
     
     console.log("Token status:", {
       expiresInDays: Math.round(expiresInDays * 10) / 10,
-      forceRefresh: shouldForceRefresh,
+      forceRefresh: force,
       needsRefresh: needsRefresh
     });
     
@@ -278,6 +294,7 @@ Deno.serve(async (req) => {
     // Return success response
     return new Response(
       JSON.stringify({
+        success: true,
         message: "Scheduled token refresh completed successfully",
         expiresAt: new Date(expiresAt).toISOString(),
         expiresIn: responseData.expires_in

@@ -394,24 +394,19 @@ export async function forceTokenRefresh(): Promise<boolean> {
   try {
     console.log("Force refreshing Fortnox access token");
     
-    // Call the edge function that handles token refresh
-    const response = await fetch('/functions/v1/fortnox-token-refresh', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // Use the supabase.functions.invoke method instead of direct fetch
+    const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
       body: JSON.stringify({ force: true }),
     });
     
-    if (!response.ok) {
-      console.error("Failed to force refresh token:", response.status, await response.text());
+    if (error) {
+      console.error("Failed to force refresh token:", error);
       return false;
     }
     
-    const result = await response.json();
-    console.log("Force token refresh result:", result);
+    console.log("Force token refresh result:", data);
     
-    return !!result.success;
+    return !!data?.success;
   } catch (error) {
     console.error("Error in force refreshing token:", error);
     return false;
