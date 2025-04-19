@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
@@ -222,12 +221,15 @@ export async function refreshAccessToken(
       refresh_token: refreshToken,
     };
     
-    // Use the token-refresh edge function
+    // Use the token-refresh edge function with API key authentication
     try {
       console.log("Attempting to use Supabase Edge Function for token refresh");
       
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
-        body: JSON.stringify(refreshData)
+        body: JSON.stringify(refreshData),
+        headers: {
+          'x-api-key': environment.fortnox.refreshSecret
+        }
       });
       
       console.log("Edge function response received:", proxyResponse ? "success" : "empty");
@@ -235,40 +237,49 @@ export async function refreshAccessToken(
       if (proxyError) {
         console.error("Error calling refresh token edge function:", proxyError);
         
-        // Try to extract the error details
-        let errorMessage = proxyError.message || "Unknown error";
-        let errorDetails = null;
+        // Try to extract more detailed error information
+        let errorMessage = proxyError.message || "Unknown edge function error";
+        let errorData = null;
         
+        // Try to parse the error response if available
         try {
-          if (typeof proxyError.message === 'string' && proxyError.message.includes('{')) {
-            const jsonStart = proxyError.message.indexOf('{');
-            const jsonEnd = proxyError.message.lastIndexOf('}') + 1;
-            
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-              errorDetails = JSON.parse(proxyError.message.substring(jsonStart, jsonEnd));
+          if (typeof proxyError === 'object' && 'message' in proxyError) {
+            const errorContent = proxyError.message as string || '';
+            if (errorContent.includes('{') && errorContent.includes('}')) {
+              const jsonStart = errorContent.indexOf('{');
+              const jsonEnd = errorContent.lastIndexOf('}') + 1;
+              
+              if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                errorData = JSON.parse(errorContent.substring(jsonStart, jsonEnd));
+                
+                if (errorData) {
+                  if (errorData.error === 'invalid_grant' && 
+                      typeof errorData.error_description === 'string' && 
+                      errorData.error_description.includes('expired')) {
+                    return {
+                      success: false,
+                      message: 'Invalid refresh token',
+                      error: errorData,
+                      requiresReconnect: true
+                    };
+                  }
+                  
+                  if (errorData.error) {
+                    errorMessage = `Fortnox API error: ${errorData.error}${
+                      errorData.error_description ? ' - ' + errorData.error_description : ''
+                    }`;
+                  }
+                }
+              }
             }
           }
-        } catch (e) {
-          console.error("Failed to parse error details:", e);
-        }
-        
-        // Check if this is an invalid refresh token error
-        if (errorDetails && 
-            (errorDetails.error === 'refresh_token_invalid' || 
-             (errorDetails.details && 
-              errorDetails.details.error === 'invalid_grant' && 
-              errorDetails.details.error_description === 'Invalid refresh token'))) {
-          return {
-            success: false,
-            message: "Invalid refresh token - user needs to reconnect",
-            error: errorDetails,
-            requiresReconnect: true
-          };
+        } catch (parseError) {
+          console.error("Failed to parse error details:", parseError);
         }
         
         return {
           success: false,
-          message: `Edge function error: ${errorMessage}`,
+          message: errorMessage,
           error: proxyError
         };
       }

@@ -3,15 +3,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
-// Define CORS headers to allow requests from any origin
+// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests (OPTIONS)
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log("Handling CORS preflight request");
     return new Response(null, {
@@ -22,6 +22,24 @@ serve(async (req) => {
   
   try {
     console.log("Received token refresh request");
+    
+    // Validate API key
+    const apiKey = req.headers.get("x-api-key");
+    const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+    
+    if (!apiKey || apiKey !== validKey) {
+      console.error("Invalid or missing API key");
+      return new Response(
+        JSON.stringify({ 
+          error: "unauthorized", 
+          message: "Invalid or missing API key" 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     // Parse the request body
     let requestData;
@@ -50,11 +68,7 @@ serve(async (req) => {
       if (!requestData.client_secret) missingFields.push('client_secret');
       if (!requestData.refresh_token) missingFields.push('refresh_token');
       
-      console.error(`Missing required parameters: ${missingFields.join(', ')}`, {
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret,
-        hasRefreshToken: !!requestData.refresh_token
-      });
+      console.error(`Missing required parameters: ${missingFields.join(', ')}`);
       
       return new Response(
         JSON.stringify({ 
@@ -65,49 +79,6 @@ serve(async (req) => {
             client_secret: requestData.client_secret ? "present" : "missing",
             refresh_token: requestData.refresh_token ? "present" : "missing"
           }
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    // Additional validation for parameter lengths
-    if (requestData.client_id.length < 5) {
-      console.error("Client ID appears to be too short", { length: requestData.client_id.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid client_id",
-          details: "Client ID appears to be too short or invalid"
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    if (requestData.client_secret.length < 5) {
-      console.error("Client secret appears to be too short", { length: requestData.client_secret.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid client_secret",
-          details: "Client secret appears to be too short or invalid"
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    if (requestData.refresh_token.length < 5) {
-      console.error("Refresh token appears to be too short", { length: requestData.refresh_token.length });
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid refresh_token",
-          details: "Refresh token appears to be too short or invalid"
         }),
         { 
           status: 400, 
@@ -147,7 +118,6 @@ serve(async (req) => {
     console.log("Fortnox response status:", response.status);
     
     let responseData;
-    
     try {
       responseData = JSON.parse(responseText);
       console.log("Successfully parsed Fortnox response as JSON");
@@ -189,7 +159,7 @@ serve(async (req) => {
             details: responseData
           }),
           { 
-            status: 401, // Use 401 for auth issues 
+            status: 401, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );

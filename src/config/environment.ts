@@ -1,4 +1,3 @@
-
 /**
  * Environment Configuration
  * 
@@ -18,6 +17,7 @@ interface EnvironmentConfig {
     authUrl: string;
     apiUrl: string;
     redirectPath: string; // Changed from redirectBaseUrl to redirectPath
+    refreshSecret: string; // This should be replaced with your actual secret
   };
   // Storage Configuration
   storage: {
@@ -36,7 +36,7 @@ interface EnvironmentConfig {
 /**
  * Default configuration for cloud-hosted Supabase
  */
-export const environment: EnvironmentConfig = {
+export const environment = {
   supabase: {
     // Current cloud Supabase values (same as hardcoded in supabase.ts)
     url: 'https://xojrleypudfrbmvejpow.supabase.co',
@@ -48,6 +48,7 @@ export const environment: EnvironmentConfig = {
     apiUrl: 'https://api.fortnox.se/3',
     // Changed to just the path, without joining with origin
     redirectPath: '/settings?tab=fortnox',
+    refreshSecret: 'fortnox-refresh-secret-key' // This should be replaced with your actual secret
   },
   storage: {
     avatarBucket: 'avatars',
