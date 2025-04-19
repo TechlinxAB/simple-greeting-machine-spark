@@ -7,10 +7,12 @@ import { RefreshResult } from "./types";
 import { getRedirectUri } from "@/config/environment";
 
 // Maximum number of retries for token refresh
-const MAX_REFRESH_RETRIES = 2;
+const MAX_REFRESH_RETRIES = 3;
+// Safety buffer - refresh token if less than 15 minutes to expiry
+const TOKEN_REFRESH_BUFFER_MINUTES = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 /**
- * Checks if the token is about to expire (less than 5 minutes remaining)
+ * Checks if the token is about to expire (less than buffer time remaining)
  */
 function isTokenAboutToExpire(token: string): boolean {
   try {
@@ -22,13 +24,12 @@ function isTokenAboutToExpire(token: string): boolean {
     const payload = JSON.parse(atob(parts[1]));
     if (!payload.exp) return true; // If no expiration, consider it about to expire
     
-    // Check if token expires in less than 5 minutes
+    // Check if token expires in less than buffer time
     const expirationTime = payload.exp * 1000; // Convert to milliseconds
     const now = Date.now();
     const timeUntilExpiry = expirationTime - now;
-    const fiveMinutesInMs = 5 * 60 * 1000;
     
-    return timeUntilExpiry < fiveMinutesInMs;
+    return timeUntilExpiry < TOKEN_REFRESH_BUFFER_MINUTES;
   } catch (error) {
     console.error("Error checking token expiration:", error);
     return true; // On error, consider token about to expire
@@ -89,7 +90,18 @@ export async function fortnoxApiRequest(
         return fortnoxApiRequest(endpoint, method, data, contentType, retryCount + 1);
       } else {
         console.error("Proactive token refresh failed:", refreshResult.message);
-        // Continue with request using existing token
+        
+        // If the token refresh failed due to an expired refresh token,
+        // notify the user that they need to reconnect
+        if (refreshResult.requiresReconnect) {
+          toast.error("Fortnox connection needs to be reestablished", {
+            description: "Please reconnect to Fortnox from the settings page"
+          });
+          throw new Error("Fortnox connection needs to be reestablished");
+        }
+        
+        // Continue with request using existing token as a fallback attempt
+        console.log("Continuing with request using existing token as fallback");
       }
     }
     
@@ -153,6 +165,8 @@ export async function fortnoxApiRequest(
             
             throw new Error(`Token refresh failed: ${refreshResult.message}`);
           }
+        } else {
+          console.error(`Exceeded maximum retry count (${MAX_REFRESH_RETRIES}) for token refresh`);
         }
       }
       

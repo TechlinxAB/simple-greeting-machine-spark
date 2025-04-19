@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials, getTokenRefreshHistory, triggerSystemTokenRefresh } from "@/integrations/fortnox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,16 +57,20 @@ export function FortnoxTokenInfo() {
   // Calculate the next scheduled refresh time
   useEffect(() => {
     if (credentials?.accessToken) {
-      // Cron job now runs every 30 minutes (0, 30)
+      // Cron job now runs every 15 minutes (0, 15, 30, 45)
       const calculateNextRefresh = () => {
         const now = new Date();
         let nextRefresh = new Date(now);
         
-        // Set minutes to either 0 or 30, whichever is next
-        if (now.getMinutes() < 30) {
-          nextRefresh.setMinutes(30, 0, 0);
-        } else {
+        // Find the next 15-minute mark
+        const currentMinute = now.getMinutes();
+        const nextMinuteMark = Math.ceil(currentMinute / 15) * 15;
+        
+        if (nextMinuteMark === 60) {
+          // If we need to go to the next hour
           nextRefresh.setHours(now.getHours() + 1, 0, 0, 0);
+        } else {
+          nextRefresh.setMinutes(nextMinuteMark, 0, 0);
         }
         
         setNextScheduledRefresh(nextRefresh);
@@ -86,8 +91,9 @@ export function FortnoxTokenInfo() {
         const now = new Date();
         const minutesUntilExpiry = differenceInMinutes(accessTokenExpiration, now);
         
-        // If token expires in less than 30 minutes, trigger a refresh
-        if (minutesUntilExpiry < 30 && minutesUntilExpiry > 0 && !isRefreshing) {
+        // If token expires in less than 20 minutes, trigger a refresh
+        // (made more aggressive from 30 minutes to ensure we refresh in time)
+        if (minutesUntilExpiry < 20 && minutesUntilExpiry > 0 && !isRefreshing) {
           console.log(`Token expires in ${minutesUntilExpiry} minutes - triggering proactive refresh`);
           
           setIsRefreshing(true);
@@ -111,9 +117,10 @@ export function FortnoxTokenInfo() {
       }
     };
 
-    // Run the check immediately and set up an interval to check every 5 minutes
+    // Run the check immediately and set up an interval to check every 2 minutes
+    // (more frequent than before to catch expiring tokens faster)
     checkTokenExpirationAndRefresh();
-    const intervalId = setInterval(checkTokenExpirationAndRefresh, 5 * 60 * 1000);
+    const intervalId = setInterval(checkTokenExpirationAndRefresh, 2 * 60 * 1000);
     
     return () => clearInterval(intervalId);
   }, [accessTokenExpiration, isRefreshing, queryClient]);
@@ -197,18 +204,16 @@ export function FortnoxTokenInfo() {
           )}
           
           {/* Add manual refresh button */}
-          {health === "critical" || health === "warning" || health === "expired" ? (
-            <Button 
-              size="sm" 
-              variant="secondary" 
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="mt-1"
-            >
-              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh Now
-            </Button>
-          ) : null}
+          <Button 
+            size="sm" 
+            variant="secondary" 
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="mt-1"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh Now
+          </Button>
         </div>
 
         {/* Refresh Token Information */}
@@ -245,8 +250,8 @@ export function FortnoxTokenInfo() {
           <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-200">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              The system automatically refreshes the access token every 30 minutes and also proactively when it has less than 30 minutes before expiration.
-              The refresh token is valid for approximately 45 days.
+              The system automatically refreshes the access token every 15 minutes and also proactively when it has less than 20 minutes before expiration.
+              A forced refresh is also performed every 12 hours to ensure token validity. The refresh token is valid for approximately 45 days.
             </AlertDescription>
           </Alert>
         </div>

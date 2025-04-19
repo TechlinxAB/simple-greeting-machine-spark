@@ -56,6 +56,7 @@ function tokenNeedsRefresh(token: string): boolean {
   const timeRemaining = expTime - now;
   const thirtyMinutesInSeconds = 30 * 60;
   
+  // Always refresh if less than 30 minutes remaining
   return timeRemaining < thirtyMinutesInSeconds;
 }
 
@@ -253,9 +254,28 @@ Deno.serve(async (req) => {
     }
     
     // Check if token refresh is needed
+    // IMPORTANT: We've modified the logic to be more aggressive about refreshing
+    // Always refresh if:
+    // 1. Force is true
+    // 2. No access token exists
+    // 3. Invalid token format
+    // 4. Token is expiring soon (less than 30 minutes)
+    // This ensures we maintain a valid token at all times
     const shouldRefresh = force || !credentials.accessToken || 
                          !isValidJwtFormat(credentials.accessToken) || 
                          tokenNeedsRefresh(credentials.accessToken);
+    
+    // Always log the token expiration status regardless of whether we refresh
+    if (credentials.accessToken && isValidJwtFormat(credentials.accessToken)) {
+      const expTime = getTokenExpirationTime(credentials.accessToken);
+      if (expTime) {
+        const now = Math.floor(Date.now() / 1000);
+        const timeRemaining = expTime - now;
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        console.log(`[${sessionId}] ⏰ Token expires in: ${minutes} minutes and ${seconds} seconds`);
+      }
+    }
     
     if (!shouldRefresh) {
       console.log(`[${sessionId}] ✅ Token is still valid with more than 30 minutes remaining. No refresh needed.`);
@@ -281,6 +301,9 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    // If we got here, we need to refresh the token
+    console.log(`[${sessionId}] 🔄 Token needs refreshing - proceeding with refresh`);
 
     // Make sure the refresh token is the correct length (40 chars for Fortnox)
     if (credentials.refreshToken.length !== 40) {
@@ -321,15 +344,51 @@ Deno.serve(async (req) => {
       refreshTokenLength: credentials.refreshToken.length
     });
     
-    // Make the request to Fortnox
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': authHeader
-      },
-      body: formData,
-    });
+    // Make the request to Fortnox with multiple retries
+    let response;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+    
+    while (retryCount < maxRetries) {
+      try {
+        response = await fetch(FORTNOX_TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': authHeader
+          },
+          body: formData,
+        });
+        
+        // If successful, break out of the retry loop
+        break;
+      } catch (err) {
+        retryCount++;
+        console.error(`[${sessionId}] ❌ Fetch error on attempt ${retryCount}/${maxRetries}:`, err);
+        
+        if (retryCount < maxRetries) {
+          console.log(`[${sessionId}] ⏱️ Retrying in ${retryDelay}ms...`);
+          await delay(retryDelay * retryCount); // Exponential backoff
+        } else {
+          console.error(`[${sessionId}] ❌ All retry attempts failed`);
+          
+          await logRefreshAttempt(supabase, false, `Failed to connect to Fortnox API after ${maxRetries} attempts`, sessionId);
+          
+          return new Response(
+            JSON.stringify({ 
+              error: "connection_error", 
+              message: `Failed to connect to Fortnox API after ${maxRetries} attempts`,
+              details: String(err)
+            }),
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      }
+    }
     
     // Get and parse response
     const responseText = await response.text();
@@ -488,33 +547,51 @@ Deno.serve(async (req) => {
     const stringifiedSettings = JSON.stringify(updatedCredentials);
     console.log(`[${sessionId}] 📐 Stringified settings length:`, stringifiedSettings.length);
     
-    const { error: updateError } = await supabase
-      .from('system_settings')
-      .upsert({
-        id: 'fortnox_credentials',
-        settings: updatedCredentials
-      }, {
-        onConflict: 'id'
-      });
-      
-    if (updateError) {
-      console.error(`[${sessionId}] ❌ Error updating credentials in database:`, updateError);
-      
-      await logRefreshAttempt(supabase, false, "Failed to update tokens in database", sessionId, updatedCredentials.accessToken.length);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "database_error", 
-          message: "Failed to update tokens in database",
-          details: updateError
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
+    // Try multiple times to save the credentials to ensure they're properly stored
+    let updateSuccess = false;
+    let updateAttempts = 0;
+    const maxUpdateAttempts = 3;
     
+    while (!updateSuccess && updateAttempts < maxUpdateAttempts) {
+      updateAttempts++;
+      console.log(`[${sessionId}] 💾 Database save attempt ${updateAttempts}/${maxUpdateAttempts}`);
+      
+      const { error: updateError } = await supabase
+        .from('system_settings')
+        .upsert({
+          id: 'fortnox_credentials',
+          settings: updatedCredentials
+        }, {
+          onConflict: 'id'
+        });
+        
+      if (updateError) {
+        console.error(`[${sessionId}] ❌ Error updating credentials in database (attempt ${updateAttempts}):`, updateError);
+        
+        if (updateAttempts < maxUpdateAttempts) {
+          console.log(`[${sessionId}] ⏱️ Waiting before retry...`);
+          await delay(1000); // Wait 1 second before retrying
+        } else {
+          await logRefreshAttempt(supabase, false, "Failed to update tokens in database after multiple attempts", sessionId, updatedCredentials.accessToken.length);
+          
+          return new Response(
+            JSON.stringify({ 
+              error: "database_error", 
+              message: "Failed to update tokens in database after multiple attempts",
+              details: updateError
+            }),
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      } else {
+        updateSuccess = true;
+        console.log(`[${sessionId}] ✅ Credentials successfully updated in database (attempt ${updateAttempts})`);
+      }
+    }
+      
     // Add a small delay to ensure database consistency
     await delay(500);
     
