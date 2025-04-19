@@ -24,7 +24,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       .from('system_settings')
       .upsert({
         id: 'fortnox_credentials',
-        settings: credentialsObj
+        settings: credentialsObj as Record<string, any>
       }, {
         onConflict: 'id'
       });
