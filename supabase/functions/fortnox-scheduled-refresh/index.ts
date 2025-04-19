@@ -15,8 +15,13 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Simple delay function
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Utility function to validate access token structure
-function isValidJwtFormat(token) {
+function isValidJwtFormat(token: string): boolean {
   if (typeof token !== 'string') return false;
   if (token.length < 20) return false; // Arbitrary minimum length
   
@@ -26,12 +31,15 @@ function isValidJwtFormat(token) {
 }
 
 // Utility function to validate refresh token
-function isValidRefreshToken(token) {
+function isValidRefreshToken(token: string): boolean {
   return typeof token === 'string' && token.trim().length > 20;
 }
 
 // This function will be called by a scheduled cron job or manually
 Deno.serve(async (req) => {
+  // Generate a unique session ID for this refresh operation
+  const sessionId = crypto.randomUUID().substring(0, 8);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -41,16 +49,16 @@ Deno.serve(async (req) => {
   }
   
   try {
-    console.log("🚀 Starting Fortnox token refresh process");
+    console.log(`[${sessionId}] 🚀 Starting Fortnox token refresh process`);
     
     // Parse request body if it exists
     let force = false;
     try {
       const body = await req.json();
       force = !!body.force;
-      console.log("📝 Request body:", { force });
+      console.log(`[${sessionId}] 📝 Request body:`, { force });
     } catch (e) {
-      console.log("⚠️ No valid request body found");
+      console.log(`[${sessionId}] ⚠️ No valid request body found`);
     }
     
     // Authentication check
@@ -58,7 +66,7 @@ Deno.serve(async (req) => {
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
 
-    console.log("🔐 Authentication check:", {
+    console.log(`[${sessionId}] 🔐 Authentication check:`, {
       authHeaderPresent: !!req.headers.get("Authorization"),
       apiKeyPresent: !!apiKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
@@ -76,17 +84,17 @@ Deno.serve(async (req) => {
       try {
         const encoder = new TextEncoder();
         const { payload } = await jwtVerify(token, encoder.encode(jwtSecret));
-        console.log("✅ JWT manually validated via jose, user ID:", payload.sub);
+        console.log(`[${sessionId}] ✅ JWT manually validated via jose, user ID:`, payload.sub);
         userAuthenticated = true;
       } catch (err) {
-        console.error("❌ JWT verification failed (via jose):", err);
+        console.error(`[${sessionId}] ❌ JWT verification failed (via jose):`, err);
       }
     }
     
     const isAuthenticated = isSystemAuthenticated || userAuthenticated;
     
     if (!isAuthenticated) {
-      console.error("❌ Unauthorized access to Fortnox token refresh");
+      console.error(`[${sessionId}] ❌ Unauthorized access to Fortnox token refresh`);
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
@@ -99,14 +107,14 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log("✅ Authentication successful:", {
+    console.log(`[${sessionId}] ✅ Authentication successful:`, {
       systemAuth: isSystemAuthenticated,
       userAuth: userAuthenticated
     });
     
     // Initialize Supabase client
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("❌ Supabase configuration missing");
+      console.error(`[${sessionId}] ❌ Supabase configuration missing`);
       return new Response(
         JSON.stringify({ 
           error: "server_configuration_error", 
@@ -122,7 +130,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Get Fortnox credentials from database
-    console.log("📚 Retrieving Fortnox credentials from database");
+    console.log(`[${sessionId}] 📚 Retrieving Fortnox credentials from database`);
     const { data: settingsData, error: settingsError } = await supabase
       .from('system_settings')
       .select('settings')
@@ -130,7 +138,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     
     if (settingsError || !settingsData) {
-      console.error("❌ Error retrieving Fortnox credentials:", settingsError);
+      console.error(`[${sessionId}] ❌ Error retrieving Fortnox credentials:`, settingsError);
       return new Response(
         JSON.stringify({ 
           error: "database_error", 
@@ -146,7 +154,7 @@ Deno.serve(async (req) => {
     // Extract and validate credentials
     const credentials = settingsData.settings;
     
-    console.log("🧐 Credentials structure check:", {
+    console.log(`[${sessionId}] 🧐 Credentials structure check:`, {
       hasClientId: !!credentials?.clientId,
       hasClientSecret: !!credentials?.clientSecret,
       hasAccessToken: !!credentials?.accessToken,
@@ -158,7 +166,7 @@ Deno.serve(async (req) => {
     });
     
     if (!credentials || !credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
-      console.error("❌ Invalid or incomplete credentials in database:", {
+      console.error(`[${sessionId}] ❌ Invalid or incomplete credentials in database:`, {
         clientIdExists: !!credentials?.clientId,
         clientSecretExists: !!credentials?.clientSecret,
         refreshTokenExists: !!credentials?.refreshToken
@@ -182,34 +190,42 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Make sure the refresh token is the correct length (40 chars for Fortnox)
+    if (credentials.refreshToken.length !== 40) {
+      console.warn(`[${sessionId}] ⚠️ Refresh token length (${credentials.refreshToken.length}) doesn't match expected 40 chars`);
+    }
+    
     // Log the current refresh token details (for debugging)
-    console.log("🔑 Using refresh token:", credentials.refreshToken);
-    console.log("🔍 Current refresh token details:", {
+    console.log(`[${sessionId}] 🔑 Using refresh token:`, credentials.refreshToken);
+    console.log(`[${sessionId}] 🔍 Current refresh token details:`, {
       length: credentials.refreshToken.length,
       preview: `${credentials.refreshToken.substring(0, 10)}...${credentials.refreshToken.substring(credentials.refreshToken.length - 5)}`,
       isString: typeof credentials.refreshToken === 'string',
       valid: isValidRefreshToken(credentials.refreshToken)
     });
     
-    console.log("💬 Refreshing with:", { 
+    console.log(`[${sessionId}] 💬 Refreshing with:`, { 
       clientId: credentials.clientId,
       clientSecretLength: credentials.clientSecret.length,
       refreshToken: credentials.refreshToken
     });
     
-    // Prepare form data for token refresh
-    const formData = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: credentials.clientId,
-      client_secret: credentials.clientSecret,
-      refresh_token: credentials.refreshToken,
-    });
+    // Prepare form data for token refresh using URLSearchParams
+    const formData = new URLSearchParams();
+    formData.append('grant_type', 'refresh_token');
+    formData.append('refresh_token', credentials.refreshToken);
     
-    console.log("🔄 Making token refresh request to Fortnox with:", {
+    // Create the Authorization header with Basic auth
+    const authString = `${credentials.clientId}:${credentials.clientSecret}`;
+    const base64Auth = btoa(authString);
+    const authHeader = `Basic ${base64Auth}`;
+    
+    console.log(`[${sessionId}] 🔄 Making token refresh request to Fortnox with:`, {
       url: FORTNOX_TOKEN_URL,
       method: 'POST',
       contentType: 'application/x-www-form-urlencoded',
-      formDataKeys: Array.from(formData.keys()),
+      authHeader: 'Basic ***',
+      formData: Object.fromEntries(formData.entries()),
       refreshTokenLength: credentials.refreshToken.length
     });
     
@@ -218,22 +234,23 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': authHeader
       },
       body: formData,
     });
     
     // Get and parse response
     const responseText = await response.text();
-    console.log("📬 Fortnox response status:", response.status);
+    console.log(`[${sessionId}] 📬 Fortnox response status:`, response.status);
     
     let responseData;
     try {
       responseData = JSON.parse(responseText);
-      console.log("✅ Successfully parsed Fortnox response");
-      console.log("📋 Fortnox response data:", responseData);
+      console.log(`[${sessionId}] ✅ Successfully parsed Fortnox response`);
+      console.log(`[${sessionId}] 📋 Fortnox response data:`, responseData);
     } catch (e) {
-      console.error("❌ Failed to parse Fortnox response:", e);
-      console.log("📝 Raw response text:", responseText);
+      console.error(`[${sessionId}] ❌ Failed to parse Fortnox response:`, e);
+      console.log(`[${sessionId}] 📝 Raw response text:`, responseText);
       return new Response(
         JSON.stringify({ 
           error: "invalid_response", 
@@ -248,7 +265,7 @@ Deno.serve(async (req) => {
     }
     
     if (!response.ok) {
-      console.error("❌ Fortnox API error:", responseData);
+      console.error(`[${sessionId}] ❌ Fortnox API error:`, responseData);
       
       // For invalid_grant (refresh token expired/invalid), we handle this
       // by telling the client they need to reconnect
@@ -282,7 +299,7 @@ Deno.serve(async (req) => {
     
     // Validate received tokens
     if (!responseData.access_token || !isValidJwtFormat(responseData.access_token)) {
-      console.error("❌ Invalid access token format received from Fortnox");
+      console.error(`[${sessionId}] ❌ Invalid access token format received from Fortnox`);
       return new Response(
         JSON.stringify({
           error: "invalid_token_format",
@@ -297,11 +314,11 @@ Deno.serve(async (req) => {
     }
     
     // Detailed token logging
-    console.log("🧪 access_token length:", responseData.access_token?.length);
-    console.log("🧪 refresh_token length:", responseData.refresh_token?.length);
-    console.log("🧪 access_token preview:", `${responseData.access_token?.slice(0, 20)}...${responseData.access_token?.slice(-20)}`);
+    console.log(`[${sessionId}] 🧪 access_token length:`, responseData.access_token?.length);
+    console.log(`[${sessionId}] 🧪 refresh_token length:`, responseData.refresh_token?.length);
+    console.log(`[${sessionId}] 🧪 access_token preview:`, `${responseData.access_token?.slice(0, 20)}...${responseData.access_token?.slice(-20)}`);
     if (responseData.refresh_token) {
-      console.log("🧪 refresh_token preview:", `${responseData.refresh_token?.slice(0, 10)}...${responseData.refresh_token?.slice(-5)}`);
+      console.log(`[${sessionId}] 🧪 refresh_token preview:`, `${responseData.refresh_token?.slice(0, 10)}...${responseData.refresh_token?.slice(-5)}`);
     }
     
     // Create a clean, minimalist credentials object with only the necessary fields
@@ -311,18 +328,19 @@ Deno.serve(async (req) => {
       clientSecret: credentials.clientSecret,
       accessToken: responseData.access_token,
       // Only update refresh token if a new one is provided, otherwise keep the existing one
-      refreshToken: responseData.refresh_token || credentials.refreshToken
+      refreshToken: responseData.refresh_token || credentials.refreshToken,
+      isLegacyToken: false
     };
     
     // Verify we're not storing a truncated token
-    console.log("✅ Verification - Access token type check:", typeof updatedCredentials.accessToken === 'string');
-    console.log("✅ Verification - Access token length check:", updatedCredentials.accessToken.length);
-    console.log("✅ Verification - Refresh token type check:", typeof updatedCredentials.refreshToken === 'string');
-    console.log("✅ Verification - Refresh token length check:", updatedCredentials.refreshToken.length);
+    console.log(`[${sessionId}] ✅ Verification - Access token type check:`, typeof updatedCredentials.accessToken === 'string');
+    console.log(`[${sessionId}] ✅ Verification - Access token length check:`, updatedCredentials.accessToken.length);
+    console.log(`[${sessionId}] ✅ Verification - Refresh token type check:`, typeof updatedCredentials.refreshToken === 'string');
+    console.log(`[${sessionId}] ✅ Verification - Refresh token length check:`, updatedCredentials.refreshToken.length);
     
     if (typeof updatedCredentials.accessToken !== 'string' || 
         updatedCredentials.accessToken.length < 100) {
-      console.error("❌ Token validation failed - suspiciously short access token");
+      console.error(`[${sessionId}] ❌ Token validation failed - suspiciously short access token`);
       return new Response(
         JSON.stringify({
           error: "token_validation_failed",
@@ -337,9 +355,13 @@ Deno.serve(async (req) => {
     }
     
     // Save updated credentials
-    console.log("💾 Saving updated credentials to database");
-    console.log("💾 Access token length:", updatedCredentials.accessToken.length);
-    console.log("💾 Refresh token length:", updatedCredentials.refreshToken.length);
+    console.log(`[${sessionId}] 💾 Saving updated credentials to database`);
+    console.log(`[${sessionId}] 💾 Access token length:`, updatedCredentials.accessToken.length);
+    console.log(`[${sessionId}] 💾 Refresh token length:`, updatedCredentials.refreshToken.length);
+    
+    // Serialize credentials separately to ensure full data integrity 
+    const stringifiedSettings = JSON.stringify(updatedCredentials);
+    console.log(`[${sessionId}] 📐 Stringified settings length:`, stringifiedSettings.length);
     
     const { error: updateError } = await supabase
       .from('system_settings')
@@ -351,7 +373,7 @@ Deno.serve(async (req) => {
       });
       
     if (updateError) {
-      console.error("❌ Error updating credentials in database:", updateError);
+      console.error(`[${sessionId}] ❌ Error updating credentials in database:`, updateError);
       return new Response(
         JSON.stringify({ 
           error: "database_error", 
@@ -365,30 +387,54 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Add a small delay to ensure database consistency
+    await delay(500);
+    
     // Double-check that the tokens were saved correctly
-    const { data: verifyData } = await supabase
+    const { data: verifyData, error: verifyError } = await supabase
       .from('system_settings')
       .select('settings')
       .eq('id', 'fortnox_credentials')
       .maybeSingle();
       
-    if (verifyData && verifyData.settings) {
-      console.log("✅ Verification - Saved access token length:", verifyData.settings.accessToken.length);
-      console.log("✅ Verification - Saved refresh token length:", verifyData.settings.refreshToken.length);
-      console.log("✅ Verification - First 20 chars of access token match:", 
-        verifyData.settings.accessToken.substring(0, 20) === updatedCredentials.accessToken.substring(0, 20));
-      console.log("✅ Verification - Last 20 chars of access token match:",
-        verifyData.settings.accessToken.substring(verifyData.settings.accessToken.length - 20) === 
+    if (verifyError) {
+      console.error(`[${sessionId}] ❌ Error verifying updated credentials:`, verifyError);
+    } else if (verifyData && verifyData.settings) {
+      const settings = verifyData.settings;
+      
+      console.log(`[${sessionId}] ✅ Verification - Saved access token length:`, settings.accessToken.length);
+      console.log(`[${sessionId}] ✅ Verification - Saved refresh token length:`, settings.refreshToken.length);
+      console.log(`[${sessionId}] ✅ Verification - First 20 chars of access token match:`, 
+        settings.accessToken.substring(0, 20) === updatedCredentials.accessToken.substring(0, 20));
+      console.log(`[${sessionId}] ✅ Verification - Last 20 chars of access token match:`,
+        settings.accessToken.substring(settings.accessToken.length - 20) === 
         updatedCredentials.accessToken.substring(updatedCredentials.accessToken.length - 20));
+      
+      if (settings.accessToken.length !== updatedCredentials.accessToken.length) {
+        console.error(
+          `[${sessionId}] ⚠️ Token length mismatch after save! ` +
+          `Original: ${updatedCredentials.accessToken.length}, ` +
+          `Saved: ${settings.accessToken.length}`
+        );
+      }
+      
+      if (settings.refreshToken.length !== updatedCredentials.refreshToken.length) {
+        console.error(
+          `[${sessionId}] ⚠️ Refresh token length mismatch after save! ` +
+          `Original: ${updatedCredentials.refreshToken.length}, ` +
+          `Saved: ${settings.refreshToken.length}`
+        );
+      }
     }
     
-    console.log("✅ Token refresh completed successfully");
+    console.log(`[${sessionId}] ✅ Token refresh completed successfully`);
     
     return new Response(
       JSON.stringify({
         success: true,
         message: "Token refresh completed successfully",
-        tokenLength: updatedCredentials.accessToken.length
+        tokenLength: updatedCredentials.accessToken.length,
+        session_id: sessionId
       }),
       { 
         status: 200, 
@@ -397,7 +443,7 @@ Deno.serve(async (req) => {
     );
     
   } catch (error) {
-    console.error("❌ Server error in token refresh:", error);
+    console.error(`[${sessionId}] ❌ Server error in token refresh:`, error);
     return new Response(
       JSON.stringify({ 
         error: "server_error", 

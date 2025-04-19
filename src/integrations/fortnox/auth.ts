@@ -4,6 +4,9 @@ import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
 import { environment } from "@/config/environment";
 
+// Add a delay utility function for token operations
+const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * Exchange the authorization code for access and refresh tokens
  * @param code The authorization code from Fortnox
@@ -17,8 +20,11 @@ export async function exchangeCodeForTokens(
   clientSecret: string,
   redirectUri: string
 ): Promise<Partial<FortnoxCredentials>> {
+  // Generate a unique operation ID for tracing this token exchange
+  const operationId = Math.random().toString(36).substring(2, 10);
+  
   try {
-    console.log("🔄 Exchanging code for tokens with parameters:", {
+    console.log(`[${operationId}] 🔄 Exchanging code for tokens with parameters:`, {
       codeLength: code ? code.length : 0,
       codePreview: code ? `${code.substring(0, 5)}...` : 'missing',
       clientIdLength: clientId ? clientId.length : 0,
@@ -60,22 +66,23 @@ export async function exchangeCodeForTokens(
     };
     
     // Log the request details for debugging
-    console.log("🔄 Making token exchange request via Edge Function");
+    console.log(`[${operationId}] 🔄 Making token exchange request via Edge Function`);
     
     try {
       // Make sure the function URL is correctly configured
-      console.log("Using edge function URL from environment:", environment.supabase.url);
+      console.log(`[${operationId}] Using edge function URL from environment:`, environment.supabase.url);
       
       // Now call the actual token exchange endpoint
-      console.log("Calling token exchange edge function with code:", `${code.substring(0, 5)}...`);
+      console.log(`[${operationId}] Calling token exchange edge function with code:`, `${code.substring(0, 5)}...`);
+      
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
         body: JSON.stringify(tokenExchangeData)
       });
       
-      console.log("Edge function response received:", proxyResponse ? "success" : "empty");
+      console.log(`[${operationId}] Edge function response received:`, proxyResponse ? "success" : "empty");
       
       if (proxyError) {
-        console.error("Error calling Supabase Edge Function:", proxyError);
+        console.error(`[${operationId}] Error calling Supabase Edge Function:`, proxyError);
         
         // Try to extract more detailed error information
         let detailedError = proxyError.message || "Unknown edge function error";
@@ -117,20 +124,20 @@ export async function exchangeCodeForTokens(
           if (parseError && typeof parseError === 'object' && 'request_needs_retry' in parseError) {
             throw parseError;
           }
-          console.log("Could not parse error details:", parseError);
+          console.log(`[${operationId}] Could not parse error details:`, parseError);
         }
         
         throw new Error(`Edge function error: ${detailedError}`);
       }
       
       if (!proxyResponse) {
-        console.error("Empty response from edge function");
+        console.error(`[${operationId}] Empty response from edge function`);
         throw new Error("Empty response from edge function");
       }
       
       // Check for Fortnox API errors in the response
       if (proxyResponse.error) {
-        console.error("Fortnox API returned an error:", proxyResponse);
+        console.error(`[${operationId}] Fortnox API returned an error:`, proxyResponse);
         
         // Special handling for expired code
         if (proxyResponse.error === 'invalid_grant' && 
@@ -148,31 +155,40 @@ export async function exchangeCodeForTokens(
       }
       
       if (!proxyResponse.access_token) {
-        console.error("Invalid response from edge function:", proxyResponse);
+        console.error(`[${operationId}] Invalid response from edge function:`, proxyResponse);
         throw new Error("Invalid response from proxy service - missing access token");
       }
       
-      console.log("✅ Token exchange successful via Edge Function");
-      console.log("🔑 Received tokens from Fortnox:", {
+      // Check for debug information
+      const debugInfo = proxyResponse._debug || {};
+      
+      console.log(`[${operationId}] ✅ Token exchange successful via Edge Function`);
+      console.log(`[${operationId}] 🔑 Received tokens from Fortnox:`, {
         accessTokenLength: proxyResponse.access_token.length,
         refreshTokenLength: proxyResponse.refresh_token?.length || 0,
         accessTokenPreview: `${proxyResponse.access_token.substring(0, 20)}...${proxyResponse.access_token.substring(proxyResponse.access_token.length - 20)}`,
         refreshTokenPreview: proxyResponse.refresh_token ? 
           `${proxyResponse.refresh_token.substring(0, 10)}...${proxyResponse.refresh_token.substring(proxyResponse.refresh_token.length - 5)}` : 
-          'none'
+          'none',
+        session_id: debugInfo.session_id || 'none',
+        access_token_hash_excerpt: debugInfo.access_token_hash ? `${debugInfo.access_token_hash.substring(0, 10)}...` : 'none'
       });
       
+      // Wait a moment to ensure database synchronization before returning
+      await delay(500);
+      
+      // Return only the tokens needed
       return {
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token
       };
     } catch (edgeFunctionError) {
       // If edge function fails, log the error and throw it
-      console.error("Edge function failed:", edgeFunctionError);
+      console.error(`[${operationId}] Edge function failed:`, edgeFunctionError);
       throw edgeFunctionError;
     }
   } catch (error) {
-    console.error('Error exchanging code for tokens:', error);
+    console.error(`[${operationId}] Error exchanging code for tokens:`, error);
     
     // Check if this is a CORS or network error
     if (error instanceof Error && 
