@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
@@ -220,6 +221,10 @@ export async function refreshAccessToken(
       client_secret: clientSecret,
       refresh_token: refreshToken,
     };
+    
+    // Enhanced logging
+    const refreshSecret = environment.fortnox.refreshSecret;
+    console.log("Using refresh secret:", refreshSecret ? `${refreshSecret.substring(0, 3)}...${refreshSecret.substring(refreshSecret.length - 3)}` : 'Missing');
     
     // Use the token-refresh edge function with API key authentication
     try {

@@ -49,7 +49,7 @@ export const environment: EnvironmentConfig = {
     apiUrl: 'https://api.fortnox.se/3',
     // Changed to just the path, without joining with origin
     redirectPath: '/settings?tab=fortnox',
-    refreshSecret: import.meta.env.FORTNOX_REFRESH_SECRET || 'fortnox-refresh-secret-key' // Uses the Supabase secret
+    refreshSecret: import.meta.env.VITE_FORTNOX_REFRESH_SECRET || 'fortnox-refresh-secret-key' // Fixed environment variable prefix
   },
   storage: {
     avatarBucket: 'avatars',

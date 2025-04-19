@@ -19,9 +19,20 @@ serve(async (req) => {
   }
   
   try {
+    // Enhanced logging for API key validation
+    console.log("Starting Fortnox token refresh process");
+    
     // Validate API key
     const apiKey = req.headers.get("x-api-key");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+    
+    console.log("API key validation:", {
+      apiKeyPresent: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      validKeyPresent: !!validKey,
+      validKeyLength: validKey ? validKey.length : 0,
+      headersPresent: Array.from(req.headers.keys())
+    });
     
     if (!validKey) {
       console.error("FORTNOX_REFRESH_SECRET environment variable is not set");
@@ -38,11 +49,21 @@ serve(async (req) => {
     }
     
     if (!apiKey || apiKey !== validKey) {
-      console.error("Invalid or missing API key");
+      console.error("Invalid or missing API key", {
+        apiKeyProvided: apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'missing',
+        validKeyHint: validKey ? `${validKey.substring(0, 3)}...${validKey.substring(validKey.length - 3)}` : 'missing',
+        match: apiKey === validKey
+      });
+      
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
-          message: "Invalid or missing API key" 
+          message: "Invalid or missing API key",
+          debug: {
+            api_key_present: !!apiKey,
+            valid_key_present: !!validKey,
+            headers_present: Array.from(req.headers.keys())
+          }
         }),
         { 
           status: 401, 
