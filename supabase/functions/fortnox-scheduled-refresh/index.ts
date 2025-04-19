@@ -16,6 +16,21 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Utility function to validate access token structure
+function isValidJwtFormat(token) {
+  if (typeof token !== 'string') return false;
+  if (token.length < 20) return false; // Arbitrary minimum length
+  
+  // JWT should have 3 parts separated by dots
+  const parts = token.split('.');
+  return parts.length === 3;
+}
+
+// Utility function to validate refresh token
+function isValidRefreshToken(token) {
+  return typeof token === 'string' && token.trim().length > 20;
+}
+
 // This function will be called by a scheduled cron job or manually
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -142,7 +157,8 @@ Deno.serve(async (req) => {
             clientIdExists: !!credentials?.clientId,
             clientSecretExists: !!credentials?.clientSecret,
             refreshTokenExists: !!credentials?.refreshToken
-          }
+          },
+          requiresReconnect: true
         }),
         { 
           status: 400, 
@@ -150,6 +166,13 @@ Deno.serve(async (req) => {
         }
       );
     }
+    
+    // Log the current refresh token details (for debugging)
+    console.log("🔍 Current refresh token details:", {
+      length: credentials.refreshToken.length,
+      preview: credentials.refreshToken.substring(0, 20) + "...",
+      valid: isValidRefreshToken(credentials.refreshToken)
+    });
     
     // Prepare form data for token refresh
     const formData = new URLSearchParams({
@@ -196,7 +219,7 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       console.error("Fortnox API error:", responseData);
       
-      // For invalid_grant (refresh token expired/invalid), we should handle this
+      // For invalid_grant (refresh token expired/invalid), we handle this
       // by telling the client they need to reconnect
       if (responseData.error === 'invalid_grant') {
         return new Response(
@@ -226,14 +249,57 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Update credentials with new tokens only
+    // Validate received tokens
+    if (!responseData.access_token || !isValidJwtFormat(responseData.access_token)) {
+      console.error("Invalid access token format received from Fortnox");
+      return new Response(
+        JSON.stringify({
+          error: "invalid_token_format",
+          message: "Received invalid access token format from Fortnox",
+          requiresReconnect: true
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    // Detailed token logging
+    console.log("🧪 access_token length:", responseData.access_token?.length);
+    console.log("🧪 refresh_token length:", responseData.refresh_token?.length);
+    console.log("🧪 access_token preview:", responseData.access_token?.slice(0, 100));
+    
+    // Create a clean, minimalist credentials object with only the necessary fields
     const updatedCredentials = {
-      ...credentials,
+      clientId: credentials.clientId,
+      clientSecret: credentials.clientSecret,
       accessToken: responseData.access_token,
       refreshToken: responseData.refresh_token || credentials.refreshToken
     };
     
+    // Verify we're not storing a truncated token
+    console.log("✅ Verification - Access token type check:", typeof updatedCredentials.accessToken === 'string');
+    console.log("✅ Verification - Access token length check:", updatedCredentials.accessToken.length);
+    
+    if (typeof updatedCredentials.accessToken !== 'string' || 
+        updatedCredentials.accessToken.length < 100) {
+      console.error("❌ Token validation failed - suspiciously short access token");
+      return new Response(
+        JSON.stringify({
+          error: "token_validation_failed",
+          message: "Refusing to save suspiciously short access token",
+          requiresReconnect: true
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
     // Save updated credentials
+    console.log("Saving updated credentials to database");
     const { error: updateError } = await supabase
       .from('system_settings')
       .upsert({
@@ -258,12 +324,29 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Double-check that the tokens were saved correctly
+    const { data: verifyData } = await supabase
+      .from('system_settings')
+      .select('settings')
+      .eq('id', 'fortnox_credentials')
+      .maybeSingle();
+      
+    if (verifyData) {
+      console.log("✅ Verification - Saved access token length:", verifyData.settings.accessToken.length);
+      console.log("✅ Verification - First 20 chars match:", 
+        verifyData.settings.accessToken.substring(0, 20) === updatedCredentials.accessToken.substring(0, 20));
+      console.log("✅ Verification - Last 20 chars match:",
+        verifyData.settings.accessToken.substring(verifyData.settings.accessToken.length - 20) === 
+        updatedCredentials.accessToken.substring(updatedCredentials.accessToken.length - 20));
+    }
+    
     console.log("Token refresh completed successfully");
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Token refresh completed successfully"
+        message: "Token refresh completed successfully",
+        tokenLength: updatedCredentials.accessToken.length
       }),
       { 
         status: 200, 

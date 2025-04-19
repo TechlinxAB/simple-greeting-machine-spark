@@ -8,16 +8,28 @@ import { toast } from "sonner";
  * Save Fortnox credentials to the database
  * This function should only be callable by admins (enforced at the UI level)
  */
-export async function saveFortnoxCredentials(credentials: FortnoxCredentials): Promise<void> {
+export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredentials>): Promise<void> {
   try {
-    // Convert credentials to a plain object to ensure it can be stored in JSON
-    const credentialsObj = {
+    // Ensure all credentials are strings and we're not passing any unexpected fields
+    const credentialsObj: Record<string, any> = {
       clientId: credentials.clientId,
       clientSecret: credentials.clientSecret,
-      accessToken: credentials.accessToken,
-      refreshToken: credentials.refreshToken,
-      isLegacyToken: credentials.isLegacyToken
     };
+    
+    // Only add these fields if they exist
+    if (credentials.accessToken) {
+      credentialsObj.accessToken = credentials.accessToken;
+      console.log("Saving access token, length:", credentials.accessToken.length);
+    }
+    
+    if (credentials.refreshToken) {
+      credentialsObj.refreshToken = credentials.refreshToken;
+      console.log("Saving refresh token, length:", credentials.refreshToken.length);
+    }
+    
+    if (credentials.isLegacyToken !== undefined) {
+      credentialsObj.isLegacyToken = credentials.isLegacyToken;
+    }
     
     console.log("Saving Fortnox credentials to database");
     
@@ -25,7 +37,7 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       .from('system_settings')
       .upsert({
         id: 'fortnox_credentials',
-        settings: credentialsObj as Record<string, any>
+        settings: credentialsObj
       }, {
         onConflict: 'id'
       });
@@ -104,12 +116,22 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
+    // Debug access token integrity
+    if (credentials.accessToken) {
+      console.log(`Access token retrieved from DB - Length: ${credentials.accessToken.length}`);
+      console.log(`Access token preview: ${credentials.accessToken.substring(0, 50)}...`);
+      
+      // Check if the token appears truncated (contains literal "...")
+      if (credentials.accessToken.includes('...') && !credentials.accessToken.startsWith('...') && !credentials.accessToken.endsWith('...')) {
+        console.error("⚠️ Access token appears to be truncated in the database");
+      }
+    }
+    
     // Add detailed token type logging
-    console.group("🔍 Token Type Analysis");
+    console.log("🔍 Token Type Analysis");
     console.log("Access Token Present:", !!credentials.accessToken);
     console.log("Refresh Token Present:", !!credentials.refreshToken);
     console.log("Explicitly Marked Legacy Token:", credentials.isLegacyToken);
-    console.groupEnd();
     
     return credentials;
   } catch (error) {
@@ -125,7 +147,7 @@ export function isLegacyToken(credentials: FortnoxCredentials | null): boolean {
   }
   
   // Detailed token type logging
-  console.group("🔍 Token Type Analysis");
+  console.log("🔍 Token Type Analysis");
   console.log("Access Token Present:", !!credentials.accessToken);
   console.log("Refresh Token Present:", !!credentials.refreshToken);
   console.log("Explicitly Marked Legacy Token:", credentials.isLegacyToken);
@@ -133,19 +155,16 @@ export function isLegacyToken(credentials: FortnoxCredentials | null): boolean {
   // If explicitly marked as legacy token
   if (credentials.isLegacyToken === true) {
     console.log("✅ Token Type: LEGACY (Explicitly Marked)");
-    console.groupEnd();
     return true;
   }
   
   // If we have an access token but no refresh token, it's likely a legacy token
   if (credentials.accessToken && !credentials.refreshToken) {
     console.log("⚠️ Token Type: LEGACY (No Refresh Token)");
-    console.groupEnd();
     return true;
   }
   
   console.log("✅ Token Type: JWT (Modern OAuth Token)");
-  console.groupEnd();
   return false;
 }
 

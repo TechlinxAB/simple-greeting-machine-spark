@@ -55,6 +55,8 @@ export async function migrateLegacyToken(
     }
     
     console.log("Migration successful, updating credentials");
+    console.log("Received access token length:", data.access_token.length);
+    console.log("Received refresh token length:", data.refresh_token.length);
     
     // Save the new tokens
     const updatedCredentials: FortnoxCredentials = {
@@ -65,12 +67,21 @@ export async function migrateLegacyToken(
       isLegacyToken: false
     };
     
-    // Update stored credentials - Convert FortnoxCredentials to a proper JSON object
+    // Create a simple object for storage - this ensures JSON serialization works properly
+    const storageObj = {
+      clientId: updatedCredentials.clientId,
+      clientSecret: updatedCredentials.clientSecret,
+      accessToken: updatedCredentials.accessToken,
+      refreshToken: updatedCredentials.refreshToken,
+      isLegacyToken: updatedCredentials.isLegacyToken
+    };
+    
+    // Update stored credentials with a proper JSON object
     const { error: saveError } = await supabase
       .from('system_settings')
       .upsert({
         id: 'fortnox_credentials',
-        settings: updatedCredentials as Record<string, any>
+        settings: storageObj
       }, {
         onConflict: 'id'
       });
@@ -81,6 +92,22 @@ export async function migrateLegacyToken(
         success: false,
         message: `Tokens migrated but could not be saved: ${saveError.message}`
       };
+    }
+    
+    // Verify that we saved the complete token
+    const { data: verifyData } = await supabase
+      .from('system_settings')
+      .select('settings')
+      .eq('id', 'fortnox_credentials')
+      .maybeSingle();
+      
+    if (verifyData && verifyData.settings && verifyData.settings.accessToken) {
+      const savedTokenLength = verifyData.settings.accessToken.length;
+      console.log(`Verification - Saved token length: ${savedTokenLength}`);
+      
+      if (savedTokenLength !== data.access_token.length) {
+        console.error(`Token length mismatch! Original: ${data.access_token.length}, Saved: ${savedTokenLength}`);
+      }
     }
     
     // Provide successful response
