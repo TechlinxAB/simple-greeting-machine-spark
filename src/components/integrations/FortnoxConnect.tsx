@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -372,11 +373,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             </div>
           </div>
           
-          <div className="bg-white rounded-lg border shadow-sm">
-            <FortnoxTokenInfo />
-          </div>
-
-          <div className="flex gap-2">
+          {/* Token information card - prominently displayed */}
+          <FortnoxTokenInfo />
+          
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="destructive" 
               onClick={handleDisconnect}
@@ -411,9 +411,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             <Button
               variant="secondary"
               onClick={handleManualRefresh}
-              disabled={isLoadingStatus}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
             >
-              <RefreshCcw className={`h-4 w-4 mr-2 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+              <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh Token
             </Button>
           </div>
