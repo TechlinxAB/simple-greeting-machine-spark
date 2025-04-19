@@ -1,4 +1,3 @@
-
 /**
  * Environment Configuration
  * 
@@ -49,7 +48,7 @@ export const environment: EnvironmentConfig = {
     apiUrl: 'https://api.fortnox.se/3',
     // Changed to just the path, without joining with origin
     redirectPath: '/settings?tab=fortnox',
-    refreshSecret: 'fortnox-refresh-secret-key' // This should be replaced with your actual secret
+    refreshSecret: 'fortnox-refresh-secret-key' // This will be replaced by the actual secret
   },
   storage: {
     avatarBucket: 'avatars',

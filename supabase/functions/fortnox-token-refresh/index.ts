@@ -1,9 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
-// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
@@ -13,7 +11,6 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log("Handling CORS preflight request");
     return new Response(null, {
       status: 204,
       headers: corsHeaders
@@ -21,8 +18,6 @@ serve(async (req) => {
   }
   
   try {
-    console.log("Received token refresh request");
-    
     // Validate API key
     const apiKey = req.headers.get("x-api-key");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
