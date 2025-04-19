@@ -1,6 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
-import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
+import { jwtVerify, decodeJwt } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
@@ -34,6 +34,29 @@ function isValidJwtFormat(token: string): boolean {
 // Utility function to validate refresh token
 function isValidRefreshToken(token: string): boolean {
   return typeof token === 'string' && token.trim().length > 20;
+}
+
+// Helper to check JWT expiration time
+function getTokenExpirationTime(token: string): number | null {
+  try {
+    const decoded = decodeJwt(token);
+    return decoded.exp || null;
+  } catch (err) {
+    console.error("Error decoding JWT:", err);
+    return null;
+  }
+}
+
+// Check if token needs refresh (less than 30 minutes remaining)
+function tokenNeedsRefresh(token: string): boolean {
+  const expTime = getTokenExpirationTime(token);
+  if (!expTime) return true; // If we can't determine expiration, refresh to be safe
+  
+  const now = Math.floor(Date.now() / 1000); // Current time in seconds
+  const timeRemaining = expTime - now;
+  const thirtyMinutesInSeconds = 30 * 60;
+  
+  return timeRemaining < thirtyMinutesInSeconds;
 }
 
 // Helper to log refresh attempts to the database
@@ -229,6 +252,36 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Check if token refresh is needed
+    const shouldRefresh = force || !credentials.accessToken || 
+                         !isValidJwtFormat(credentials.accessToken) || 
+                         tokenNeedsRefresh(credentials.accessToken);
+    
+    if (!shouldRefresh) {
+      console.log(`[${sessionId}] ✅ Token is still valid with more than 30 minutes remaining. No refresh needed.`);
+      
+      // Log the skipped refresh
+      await logRefreshAttempt(
+        supabase, 
+        true, 
+        "Token refresh skipped - token still valid with >30 minutes remaining", 
+        sessionId
+      );
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Token is still valid. No refresh needed.",
+          tokenLength: credentials.accessToken.length,
+          session_id: sessionId
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     // Make sure the refresh token is the correct length (40 chars for Fortnox)
     if (credentials.refreshToken.length !== 40) {
       console.warn(`[${sessionId}] ⚠️ Refresh token length (${credentials.refreshToken.length}) doesn't match expected 40 chars`);

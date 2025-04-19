@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials, getTokenRefreshHistory, triggerSystemTokenRefresh } from "@/integrations/fortnox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,25 +56,26 @@ export function FortnoxTokenInfo() {
   // Calculate the next scheduled refresh time
   useEffect(() => {
     if (credentials?.accessToken) {
-      // Assuming the cron job runs at 3:00 AM daily
+      // Cron job now runs every 30 minutes (0, 30)
       const calculateNextRefresh = () => {
         const now = new Date();
-        const todayRefreshTime = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          3, 0, 0
-        );
+        let nextRefresh = new Date(now);
         
-        // If it's already past 3 AM today, the next refresh is tomorrow at 3 AM
-        if (now > todayRefreshTime) {
-          todayRefreshTime.setDate(todayRefreshTime.getDate() + 1);
+        // Set minutes to either 0 or 30, whichever is next
+        if (now.getMinutes() < 30) {
+          nextRefresh.setMinutes(30, 0, 0);
+        } else {
+          nextRefresh.setHours(now.getHours() + 1, 0, 0, 0);
         }
         
-        setNextScheduledRefresh(todayRefreshTime);
+        setNextScheduledRefresh(nextRefresh);
       };
 
       calculateNextRefresh();
+      
+      // Recalculate every minute to keep the display up-to-date
+      const intervalId = setInterval(calculateNextRefresh, 60000);
+      return () => clearInterval(intervalId);
     }
   }, [credentials]);
 
@@ -197,7 +197,7 @@ export function FortnoxTokenInfo() {
           )}
           
           {/* Add manual refresh button */}
-          {health === "critical" && (
+          {health === "critical" || health === "warning" || health === "expired" ? (
             <Button 
               size="sm" 
               variant="secondary" 
@@ -208,7 +208,7 @@ export function FortnoxTokenInfo() {
               <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh Now
             </Button>
-          )}
+          ) : null}
         </div>
 
         {/* Refresh Token Information */}
@@ -245,7 +245,7 @@ export function FortnoxTokenInfo() {
           <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-200">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              The system automatically refreshes the access token daily at 3:00 AM and also proactively when it has less than 30 minutes before expiration.
+              The system automatically refreshes the access token every 30 minutes and also proactively when it has less than 30 minutes before expiration.
               The refresh token is valid for approximately 45 days.
             </AlertDescription>
           </Alert>

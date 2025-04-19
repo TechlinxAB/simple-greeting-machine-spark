@@ -10,6 +10,32 @@ import { getRedirectUri } from "@/config/environment";
 const MAX_REFRESH_RETRIES = 2;
 
 /**
+ * Checks if the token is about to expire (less than 5 minutes remaining)
+ */
+function isTokenAboutToExpire(token: string): boolean {
+  try {
+    // JWT tokens consist of three parts separated by dots
+    const parts = token.split('.');
+    if (parts.length !== 3) return true; // If not valid JWT format, consider it about to expire
+    
+    // Decode the payload
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.exp) return true; // If no expiration, consider it about to expire
+    
+    // Check if token expires in less than 5 minutes
+    const expirationTime = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    const timeUntilExpiry = expirationTime - now;
+    const fiveMinutesInMs = 5 * 60 * 1000;
+    
+    return timeUntilExpiry < fiveMinutesInMs;
+  } catch (error) {
+    console.error("Error checking token expiration:", error);
+    return true; // On error, consider token about to expire
+  }
+}
+
+/**
  * Make a request to the Fortnox API with automatic token refresh
  */
 export async function fortnoxApiRequest(
@@ -32,6 +58,39 @@ export async function fortnoxApiRequest(
         description: "Please connect to Fortnox from the settings page"
       });
       throw new Error("No valid Fortnox credentials found");
+    }
+    
+    // Check if token is about to expire and needs refreshing before making the request
+    if (isTokenAboutToExpire(credentials.accessToken) && retryCount < MAX_REFRESH_RETRIES) {
+      console.log("Access token is about to expire, refreshing proactively");
+      
+      // If we have no refresh token, we can't refresh
+      if (!credentials.refreshToken) {
+        console.error("No refresh token available");
+        toast.error("Fortnox authentication expired", {
+          description: "Please reconnect to Fortnox from the settings page"
+        });
+        throw new Error("No refresh token available");
+      }
+      
+      // Get redirect URI
+      const redirectUri = getRedirectUri();
+      
+      // Attempt to refresh the token
+      const refreshResult: RefreshResult = await refreshAccessToken(
+        credentials.refreshToken,
+        credentials.clientId,
+        credentials.clientSecret,
+        redirectUri
+      );
+      
+      if (refreshResult.success && refreshResult.accessToken) {
+        console.log("Token refresh successful, continuing with request");
+        return fortnoxApiRequest(endpoint, method, data, contentType, retryCount + 1);
+      } else {
+        console.error("Proactive token refresh failed:", refreshResult.message);
+        // Continue with request using existing token
+      }
     }
     
     // Use the Edge Function proxy to avoid CORS issues
