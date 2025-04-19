@@ -5,6 +5,7 @@ export interface FortnoxCredentials {
   accessToken?: string;
   refreshToken?: string;
   isLegacyToken?: boolean;
+  expiresAt?: string; // Add this property to track token expiration
 }
 
 export interface RefreshResult {
