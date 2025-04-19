@@ -62,22 +62,32 @@ Deno.serve(async (req) => {
 
     if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      
+      if (!supabaseAnonKey) {
+        console.error("❌ SUPABASE_ANON_KEY environment variable is not set");
+      } else {
+        console.log("✅ Using SUPABASE_ANON_KEY for JWT validation");
+      }
 
-      const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey!, {
+      const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey || '', {
         global: {
           headers: {
-            Authorization: authHeader!,
+            Authorization: authHeader,
           },
         },
       });
 
-      const { data: userData, error: userError } = await supabaseAuthClient.auth.getUser();
+      try {
+        const { data: userData, error: userError } = await supabaseAuthClient.auth.getUser();
 
-      if (userData?.user && !userError) {
-        console.log("✅ Authenticated via Supabase JWT:", userData.user.id);
-        userAuthenticated = true;
-      } else {
-        console.warn("❌ Supabase JWT auth failed", userError);
+        if (userData?.user && !userError) {
+          console.log("✅ Authenticated via Supabase JWT:", userData.user.id);
+          userAuthenticated = true;
+        } else {
+          console.warn("❌ Supabase JWT auth failed", userError);
+        }
+      } catch (authError) {
+        console.error("❌ Exception during Supabase auth:", authError);
       }
     }
 
