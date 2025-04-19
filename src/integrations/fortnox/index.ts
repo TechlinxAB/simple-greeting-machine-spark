@@ -3,13 +3,14 @@
 // This file serves as the main entry point for the Fortnox integration
 
 // Types
-export type { FortnoxCredentials, SystemSettings, TokenMigrationResponse, TokenMigrationError, RefreshResult } from './types';
+export type { FortnoxCredentials, RefreshResult, TokenMigrationResponse, TokenMigrationError, SystemSettings } from './types';
 
 // Authentication
 export { 
   exchangeCodeForTokens,
   refreshAccessToken,
-  forceTokenRefresh
+  forceTokenRefresh,
+  triggerSystemTokenRefresh
 } from './auth';
 
 // Credentials management

@@ -14,3 +14,22 @@ export interface RefreshResult {
   error?: any;
   requiresReconnect?: boolean;
 }
+
+export interface TokenMigrationResponse {
+  success: boolean;
+  message: string;
+  newCredentials?: Partial<FortnoxCredentials>;
+}
+
+export interface TokenMigrationError {
+  error: string;
+  message: string;
+  details?: any;
+}
+
+export interface SystemSettings {
+  id: string;
+  settings: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}

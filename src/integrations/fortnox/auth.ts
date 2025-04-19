@@ -1,7 +1,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { FortnoxCredentials } from "./types";
+import { FortnoxCredentials, RefreshResult } from "./types";
 import { environment } from "@/config/environment";
 
 /**
@@ -176,6 +176,80 @@ export async function exchangeCodeForTokens(
     }
     
     throw error;
+  }
+}
+
+/**
+ * Refresh Fortnox access token
+ * This function refreshes the access token using the refresh token
+ */
+export async function refreshAccessToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+): Promise<RefreshResult> {
+  try {
+    console.log("Refreshing Fortnox access token");
+    
+    // Call the token refresh edge function
+    const { data, error } = await supabase.functions.invoke('fortnox-token-refresh', {
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    if (error) {
+      console.error("Error refreshing token via edge function:", error);
+      
+      // Check if this is a refresh token invalid error
+      if (error.message && 
+         (error.message.includes('invalid_grant') || 
+          error.message.includes('Invalid refresh token'))) {
+        return {
+          success: false,
+          message: "Refresh token is invalid or expired",
+          requiresReconnect: true,
+          error
+        };
+      }
+      
+      return {
+        success: false,
+        message: error.message || "Unknown error refreshing token",
+        error
+      };
+    }
+    
+    if (!data || !data.access_token) {
+      console.error("Invalid response from token refresh:", data);
+      return {
+        success: false,
+        message: "Invalid response from token refresh service"
+      };
+    }
+    
+    console.log("Token refresh successful");
+    
+    return {
+      success: true,
+      message: "Token refreshed successfully",
+      credentials: {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token || refreshToken
+      }
+    };
+  } catch (error) {
+    console.error("Exception in refreshAccessToken:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error in token refresh",
+      error
+    };
   }
 }
 

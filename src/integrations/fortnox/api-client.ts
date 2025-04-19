@@ -1,7 +1,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { getFortnoxCredentials } from "./credentials";
-import { refreshAccessToken } from "./auth"; // Changed import to import from auth.ts
+import { refreshAccessToken } from "./auth";
 import { toast } from "sonner";
 import { RefreshResult } from "./types";
 
