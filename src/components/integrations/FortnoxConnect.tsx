@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -329,7 +328,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               <RefreshCcw className="mr-1 h-3 w-3 animate-spin" /> Checking...
             </Badge>
           ) : connected ? (
-            <Badge variant="default" className="bg-green-600">
+            <Badge variant="success">
               <Check className="mr-1 h-3 w-3" /> Connected
             </Badge>
           ) : (

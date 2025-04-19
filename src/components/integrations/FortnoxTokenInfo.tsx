@@ -14,11 +14,20 @@ export function FortnoxTokenInfo() {
   const [lastRefresh, setLastRefresh] = useState<Date>();
   const [refreshScheduled, setRefreshScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: credentials, isLoading } = useQuery({
+  const { data: credentials, isLoading: isLoadingCredentials } = useQuery({
     queryKey: ["fortnox-credentials"],
     queryFn: getFortnoxCredentials,
     refetchInterval: 60000, // Check every minute
+    onSuccess: (data) => {
+      setIsLoading(false);
+      console.log("Token info:", data?.expiresAt ? new Date(data.expiresAt) : "No expiration");
+    },
+    onError: (error) => {
+      console.error("Error fetching token info:", error);
+      setIsLoading(false);
+    }
   });
 
   useEffect(() => {
@@ -37,8 +46,10 @@ export function FortnoxTokenInfo() {
       if (timeUntilExpiry > 0 && timeUntilExpiry <= 30 * 60 * 1000) {
         console.log("Token expires soon, scheduling refresh");
         
-        // Calculate when the refresh will happen
-        const refreshTime = new Date(now + 1000); // simulate immediate refresh for testing
+        // Schedule refresh 5 minutes before expiration
+        const refreshDelay = Math.max(1000, timeUntilExpiry - (5 * 60 * 1000));
+        const refreshTime = new Date(now + refreshDelay);
+        
         setRefreshScheduled(true);
         setScheduledTime(refreshTime);
         
@@ -54,7 +65,7 @@ export function FortnoxTokenInfo() {
             setRefreshScheduled(false);
             setScheduledTime(null);
           }
-        }, 1000);
+        }, refreshDelay);
       }
     }
 
@@ -65,7 +76,7 @@ export function FortnoxTokenInfo() {
     };
   }, [credentials?.expiresAt, queryClient]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingCredentials) {
     return (
       <Card className="p-4">
         <div className="flex justify-center">

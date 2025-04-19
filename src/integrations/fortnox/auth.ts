@@ -1,26 +1,16 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
 import { environment } from "@/config/environment";
 
-// Add a delay utility function for token operations
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Exchange the authorization code for access and refresh tokens
- * @param code The authorization code from Fortnox
- * @param clientId The Fortnox client ID
- * @param clientSecret The Fortnox client secret
- * @param redirectUri The redirect URI used in the initial request
- */
 export async function exchangeCodeForTokens(
   code: string,
   clientId: string,
   clientSecret: string,
   redirectUri: string
 ): Promise<Partial<FortnoxCredentials>> {
-  // Generate a unique operation ID for tracing this token exchange
   const operationId = Math.random().toString(36).substring(2, 10);
   
   try {
@@ -43,7 +33,6 @@ export async function exchangeCodeForTokens(
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
     
-    // Additional validation for parameter lengths
     if (clientId.length < 5) {
       throw new Error("Client ID appears to be too short or invalid");
     }
@@ -56,7 +45,6 @@ export async function exchangeCodeForTokens(
       throw new Error("Authorization code appears to be too short or invalid");
     }
     
-    // Prepare the token request data for sending to our edge function
     const tokenExchangeData = {
       grant_type: 'authorization_code',
       code,
@@ -65,14 +53,11 @@ export async function exchangeCodeForTokens(
       redirect_uri: redirectUri,
     };
     
-    // Log the request details for debugging
     console.log(`[${operationId}] 🔄 Making token exchange request via Edge Function`);
     
     try {
-      // Make sure the function URL is correctly configured
       console.log(`[${operationId}] Using edge function URL from environment:`, environment.supabase.url);
       
-      // Now call the actual token exchange endpoint
       console.log(`[${operationId}] Calling token exchange edge function with code:`, `${code.substring(0, 5)}...`);
       
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-exchange', {
@@ -84,11 +69,9 @@ export async function exchangeCodeForTokens(
       if (proxyError) {
         console.error(`[${operationId}] Error calling Supabase Edge Function:`, proxyError);
         
-        // Try to extract more detailed error information
         let detailedError = proxyError.message || "Unknown edge function error";
         let errorData = null;
         
-        // Try to parse the error response if available
         try {
           if (typeof proxyError === 'object' && 'message' in proxyError) {
             const errorContent = proxyError.message as string || '';
@@ -135,11 +118,9 @@ export async function exchangeCodeForTokens(
         throw new Error("Empty response from edge function");
       }
       
-      // Check for Fortnox API errors in the response
       if (proxyResponse.error) {
         console.error(`[${operationId}] Fortnox API returned an error:`, proxyResponse);
         
-        // Special handling for expired code
         if (proxyResponse.error === 'invalid_grant' && 
             typeof proxyResponse.error_description === 'string' && 
             proxyResponse.error_description.includes('expired')) {
@@ -159,7 +140,6 @@ export async function exchangeCodeForTokens(
         throw new Error("Invalid response from proxy service - missing access token");
       }
       
-      // Check for debug information
       const debugInfo = proxyResponse._debug || {};
       
       console.log(`[${operationId}] ✅ Token exchange successful via Edge Function`);
@@ -174,23 +154,19 @@ export async function exchangeCodeForTokens(
         access_token_hash_excerpt: debugInfo.access_token_hash ? `${debugInfo.access_token_hash.substring(0, 10)}...` : 'none'
       });
       
-      // Wait a moment to ensure database synchronization before returning
       await delay(500);
       
-      // Return only the tokens needed
       return {
         accessToken: proxyResponse.access_token,
         refreshToken: proxyResponse.refresh_token
       };
     } catch (edgeFunctionError) {
-      // If edge function fails, log the error and throw it
       console.error(`[${operationId}] Edge function failed:`, edgeFunctionError);
       throw edgeFunctionError;
     }
   } catch (error) {
     console.error(`[${operationId}] Error exchanging code for tokens:`, error);
     
-    // Check if this is a CORS or network error
     if (error instanceof Error && 
         (error.message.includes('Failed to fetch') || 
          error.message.includes('NetworkError') ||
@@ -202,10 +178,6 @@ export async function exchangeCodeForTokens(
   }
 }
 
-/**
- * Refresh Fortnox access token
- * This function refreshes the access token using the refresh token
- */
 export async function refreshAccessToken(
   clientId: string,
   clientSecret: string,
@@ -214,7 +186,6 @@ export async function refreshAccessToken(
   try {
     console.log("Refreshing Fortnox access token");
     
-    // Call the token refresh edge function
     const { data, error } = await supabase.functions.invoke('fortnox-token-refresh', {
       body: JSON.stringify({
         client_id: clientId,
@@ -229,7 +200,6 @@ export async function refreshAccessToken(
     if (error) {
       console.error("Error refreshing token via edge function:", error);
       
-      // Check if this is a refresh token invalid error
       if (error.message && 
          (error.message.includes('invalid_grant') || 
           error.message.includes('Invalid refresh token'))) {
@@ -276,16 +246,11 @@ export async function refreshAccessToken(
   }
 }
 
-/**
- * Triggers a system-level token refresh via the scheduled refresh function
- * This is used to force a refresh of the token without requiring user authentication
- */
-export async function triggerSystemTokenRefresh(force: boolean = false): Promise<boolean> {
+export async function triggerSystemTokenRefresh(force = false): Promise<boolean> {
   try {
-    console.log("Triggering system-level token refresh");
+    console.log(`Triggering system token refresh (force: ${force})`);
     
-    // Call the scheduled refresh function with the force flag
-    const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
+    const { data: response, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
       body: JSON.stringify({ force }),
       headers: {
         'Content-Type': 'application/json',
@@ -293,45 +258,61 @@ export async function triggerSystemTokenRefresh(force: boolean = false): Promise
     });
     
     if (error) {
-      console.error("Error triggering system token refresh:", error);
+      console.error("Error in token refresh function:", error);
       return false;
     }
     
-    console.log("System token refresh response:", data);
-    return true;
+    console.log("Token refresh response:", response);
+    return response?.success || false;
   } catch (error) {
-    console.error("Failed to trigger system token refresh:", error);
+    console.error("Error during system token refresh:", error);
     return false;
   }
 }
 
-/**
- * Forces a refresh of the Fortnox access token
- * This function can be called from the frontend to trigger a manual token refresh
- * @returns {Promise<boolean>} True if the refresh was successful, false otherwise
- */
 export async function forceTokenRefresh(): Promise<boolean> {
   try {
-    console.log("Force refreshing Fortnox access token");
+    console.log("Forcing token refresh");
     
-    // Use the supabase.functions.invoke method instead of direct fetch
-    const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
-      body: JSON.stringify({ force: true }),
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    if (error) {
-      console.error("Failed to force refresh token:", error);
+    const credentials = await getFortnoxCredentials();
+    if (!credentials || !credentials.accessToken) {
+      console.error("No credentials available for token refresh");
       return false;
     }
     
-    console.log("Force token refresh result:", data);
+    const success = await triggerSystemTokenRefresh(true);
     
-    return !!data?.success;
+    if (success) {
+      console.log("Token refresh successful");
+      
+      const updatedCredentials = await getFortnoxCredentials();
+      if (updatedCredentials && updatedCredentials.accessToken) {
+        try {
+          const tokenParts = updatedCredentials.accessToken.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.exp) {
+              const expiresAt = new Date(payload.exp * 1000).toISOString();
+              console.log(`Setting token expiration to: ${expiresAt}`);
+              
+              await saveFortnoxCredentials({
+                ...updatedCredentials,
+                expiresAt
+              });
+            }
+          }
+        } catch (parseError) {
+          console.error("Error parsing JWT token:", parseError);
+        }
+      }
+      
+      return true;
+    } else {
+      console.error("Failed to trigger token refresh");
+      return false;
+    }
   } catch (error) {
-    console.error("Error in force refreshing token:", error);
+    console.error("Error during forced token refresh:", error);
     return false;
   }
 }
