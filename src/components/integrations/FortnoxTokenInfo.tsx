@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials, getTokenRefreshHistory, triggerSystemTokenRefresh } from "@/integrations/fortnox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

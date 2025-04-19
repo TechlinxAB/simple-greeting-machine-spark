@@ -1,4 +1,3 @@
-
 export interface FortnoxCredentials {
   clientId: string;
   clientSecret: string;
@@ -43,9 +42,9 @@ export interface SystemSettings {
 export interface TokenRefreshLog {
   id: string;
   success: boolean;
-  message?: string;
-  token_length?: number;
-  session_id?: string;
+  message: string | null;
+  token_length: number | null;
+  session_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify, decodeJwt } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
