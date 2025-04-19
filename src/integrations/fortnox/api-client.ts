@@ -34,88 +34,84 @@ export async function fortnoxApiRequest(
       throw new Error("No valid Fortnox credentials found");
     }
     
-    // Define request headers
-    const headers = {
-      'Authorization': `Bearer ${credentials.accessToken}`,
-      'Content-Type': contentType,
-      'Accept': 'application/json'
-    };
-    
-    let requestBody = data;
-    
-    // Convert data to JSON if content type is application/json
-    if (data && contentType === 'application/json') {
-      requestBody = JSON.stringify(data);
-    }
-    
-    // Make request to Fortnox API
-    const response = await fetch(`https://api.fortnox.se/3/${endpoint}`, {
-      method,
-      headers,
-      body: method !== 'GET' ? requestBody : undefined
+    // Use the Edge Function proxy to avoid CORS issues
+    const { data: responseData, error } = await supabase.functions.invoke('fortnox-proxy', {
+      body: JSON.stringify({
+        endpoint,
+        method,
+        data,
+        contentType,
+        accessToken: credentials.accessToken
+      })
     });
     
-    // If token is expired (401), try to refresh and retry
-    if (response.status === 401 && retryCount < MAX_REFRESH_RETRIES) {
-      console.log("Received 401, attempting to refresh token");
+    if (error) {
+      console.error("Edge Function error:", error);
       
-      // If we have no refresh token, we can't refresh
-      if (!credentials.refreshToken) {
-        console.error("No refresh token available");
-        toast.error("Fortnox authentication expired", {
-          description: "Please reconnect to Fortnox from the settings page"
-        });
-        throw new Error("No refresh token available");
-      }
-      
-      // Get redirect URI
-      const redirectUri = getRedirectUri();
-      
-      // Attempt to refresh the token
-      const refreshResult: RefreshResult = await refreshAccessToken(
-        credentials.refreshToken,
-        credentials.clientId,
-        credentials.clientSecret,
-        redirectUri
-      );
-      
-      if (refreshResult.success && refreshResult.accessToken) {
-        console.log("Token refresh successful, retrying request");
-        
-        // Retry the request with the new token
-        return fortnoxApiRequest(endpoint, method, data, contentType, retryCount + 1);
-      } else {
-        console.error("Token refresh failed:", refreshResult.message);
-        
-        // If the refresh token is invalid, prompt user to reconnect
-        if (refreshResult.requiresReconnect) {
-          toast.error("Fortnox connection needs to be reestablished", {
-            description: "Please reconnect to Fortnox from the settings page"
-          });
-        } else {
-          toast.error("Failed to refresh Fortnox authentication", {
-            description: refreshResult.message
-          });
+      // If the error is due to an expired token, try to refresh it
+      if (error.message && (error.message.includes("401") || error.message.includes("unauthorized") || error.message.includes("expired"))) {
+        if (retryCount < MAX_REFRESH_RETRIES) {
+          console.log("Received 401, attempting to refresh token");
+          
+          // If we have no refresh token, we can't refresh
+          if (!credentials.refreshToken) {
+            console.error("No refresh token available");
+            toast.error("Fortnox authentication expired", {
+              description: "Please reconnect to Fortnox from the settings page"
+            });
+            throw new Error("No refresh token available");
+          }
+          
+          // Get redirect URI
+          const redirectUri = getRedirectUri();
+          
+          // Attempt to refresh the token
+          const refreshResult: RefreshResult = await refreshAccessToken(
+            credentials.refreshToken,
+            credentials.clientId,
+            credentials.clientSecret,
+            redirectUri
+          );
+          
+          if (refreshResult.success && refreshResult.accessToken) {
+            console.log("Token refresh successful, retrying request");
+            
+            // Retry the request with the new token
+            return fortnoxApiRequest(endpoint, method, data, contentType, retryCount + 1);
+          } else {
+            console.error("Token refresh failed:", refreshResult.message);
+            
+            // If the refresh token is invalid, prompt user to reconnect
+            if (refreshResult.requiresReconnect) {
+              toast.error("Fortnox connection needs to be reestablished", {
+                description: "Please reconnect to Fortnox from the settings page"
+              });
+            } else {
+              toast.error("Failed to refresh Fortnox authentication", {
+                description: refreshResult.message
+              });
+            }
+            
+            throw new Error(`Token refresh failed: ${refreshResult.message}`);
+          }
         }
-        
-        throw new Error(`Token refresh failed: ${refreshResult.message}`);
       }
-    }
-    
-    // For any other error status, throw an error
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Fortnox API error ${response.status}:`, errorText);
       
-      let errorMessage = `Fortnox API error ${response.status}`;
+      // Handle Edge Function error
+      let errorMessage = error.message || "Unknown error";
       
+      // Try to parse nested error message if available
       try {
-        // Try to parse error response
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.ErrorInformation?.message || errorJson.message || errorMessage;
+        if (typeof error.message === 'string' && error.message.includes('{')) {
+          const errorJson = JSON.parse(error.message.substring(error.message.indexOf('{')));
+          if (errorJson.message) {
+            errorMessage = errorJson.message;
+          } else if (errorJson.error) {
+            errorMessage = errorJson.error;
+          }
+        }
       } catch (e) {
-        // If parsing fails, use the raw error text
-        errorMessage = errorText || errorMessage;
+        // If parsing fails, use the original error message
       }
       
       toast.error("Fortnox API error", {
@@ -125,10 +121,25 @@ export async function fortnoxApiRequest(
       throw new Error(errorMessage);
     }
     
-    // Parse and return the response
-    const responseData = await response.json();
+    // If there's an application-level error in the response
+    if (responseData.error) {
+      console.error("Fortnox API error:", responseData.error);
+      
+      let errorMessage = responseData.error;
+      if (responseData.details) {
+        errorMessage += `: ${responseData.details}`;
+      }
+      
+      toast.error("Fortnox API error", {
+        description: errorMessage.substring(0, 100)
+      });
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Return the response data
     console.log("Fortnox API request successful");
-    return responseData;
+    return responseData.data;
   } catch (error) {
     console.error("Error in Fortnox API request:", error);
     throw error;
