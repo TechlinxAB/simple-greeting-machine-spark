@@ -1,13 +1,17 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials, RefreshResult } from "./types";
-import { refreshAccessToken } from "./auth";
+import { refreshAccessToken, triggerSystemTokenRefresh } from "./auth";
 import { toast } from "sonner";
 
 // Constants for token refresh settings
 const TOKEN_REFRESH_BUFFER_DAYS = 7; // Days before expiration to refresh
 const MAX_REFRESH_FAILS = 3; // Maximum consecutive refresh failures before requiring reconnect
 const REFRESH_RETRY_INTERVAL = 30 * 60 * 1000; // 30 minutes between retries
+
+// Keep track of background refresh attempts
+let isBackgroundRefreshInProgress = false;
+let lastBackgroundRefreshAttempt = 0;
+const BACKGROUND_REFRESH_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Save Fortnox credentials to the database
@@ -43,6 +47,37 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
   } catch (error) {
     console.error('Error saving Fortnox credentials:', error);
     throw error;
+  }
+}
+
+/**
+ * Try to initiate a background system-level token refresh
+ * This is a non-blocking operation that doesn't rely on user auth
+ */
+async function tryBackgroundTokenRefresh(): Promise<void> {
+  // Don't attempt if another refresh is already in progress or if we've tried recently
+  const now = Date.now();
+  if (isBackgroundRefreshInProgress || (now - lastBackgroundRefreshAttempt < BACKGROUND_REFRESH_COOLDOWN)) {
+    console.log("Skipping background refresh - another refresh is in progress or cooldown active");
+    return;
+  }
+  
+  try {
+    console.log("Initiating background token refresh");
+    isBackgroundRefreshInProgress = true;
+    lastBackgroundRefreshAttempt = now;
+    
+    // This calls the system-level edge function that can refresh the token
+    const success = await triggerSystemTokenRefresh();
+    
+    console.log("Background token refresh completed:", success ? "success" : "failed");
+    
+    // No need to update local state - the next getFortnoxCredentials call will
+    // pull the latest credentials from the database
+  } catch (error) {
+    console.error("Background token refresh error:", error);
+  } finally {
+    isBackgroundRefreshInProgress = false;
   }
 }
 
@@ -130,6 +165,17 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       if (shouldRefresh) {
         console.log(`Access token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting refresh`);
         
+        // Try using a background refresh first (non-blocking, system level)
+        // This won't immediately update our local credentials but will update the database
+        tryBackgroundTokenRefresh();
+        
+        // If the tokens aren't actually expired yet, we can still use them while the background refresh happens
+        if (expiresInMinutes > 0) {
+          console.log("Using existing credentials while background refresh happens");
+          return settingsData;
+        }
+        
+        // If tokens are truly expired, we need to try a direct refresh and wait for the result
         try {
           if (!settingsData.refreshToken) {
             console.error("Cannot refresh: No refresh token available");
@@ -284,15 +330,18 @@ export async function isFortnoxConnected(): Promise<boolean> {
       
       // If token expires in less than 30 minutes or is already expired
       if (expiresInMinutes < 30) {
-        console.log(`Fortnox token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}, attempting to refresh`);
+        console.log(`Fortnox token ${expiresInMinutes < 0 ? 'expired' : 'expiring soon'}`);
         
-        // Token is expired or expiring soon, need to refresh
-        if (!credentials.refreshToken) {
-          console.log("No refresh token available");
-          return false;
+        // Try a background refresh first
+        tryBackgroundTokenRefresh();
+        
+        // If the token is not actually expired yet, we can still use it
+        if (expiresInMinutes > 0) {
+          console.log("Using existing token while refresh happens in background");
+          return true;
         }
         
-        // Check if refresh has failed too many times recently
+        // Token is expired, need to check if refresh failed too many times
         const refreshFailCount = credentials.refreshFailCount || 0;
         if (refreshFailCount >= MAX_REFRESH_FAILS) {
           const lastAttempt = credentials.lastRefreshAttempt || 0;
@@ -304,6 +353,12 @@ export async function isFortnoxConnected(): Promise<boolean> {
           }
           
           console.log("Retry period has passed, attempting refresh despite previous failures");
+        }
+        
+        // Try to refresh the token synchronously if expired
+        if (!credentials.refreshToken) {
+          console.log("No refresh token available");
+          return false;
         }
         
         try {
@@ -378,5 +433,56 @@ export async function disconnectFortnox(): Promise<void> {
   } catch (error) {
     console.error('Error disconnecting Fortnox:', error);
     throw error;
+  }
+}
+
+/**
+ * Function to manually force a token refresh
+ * This is useful for UI components that need to ensure tokens are fresh
+ */
+export async function forceTokenRefresh(): Promise<boolean> {
+  try {
+    console.log("Forcing token refresh");
+    
+    // Try system-level refresh first (non-blocking)
+    const systemRefreshStarted = await triggerSystemTokenRefresh(true);
+    
+    // If system refresh started successfully, return early
+    if (systemRefreshStarted) {
+      console.log("System-level token refresh started");
+      return true;
+    }
+    
+    // Fall back to manual refresh if system refresh fails
+    console.log("Falling back to manual refresh");
+    const credentials = await getFortnoxCredentials();
+    
+    if (!credentials || !credentials.refreshToken) {
+      console.log("No valid credentials for manual refresh");
+      return false;
+    }
+    
+    const refreshResult = await refreshAccessToken(
+      credentials.clientId,
+      credentials.clientSecret,
+      credentials.refreshToken
+    );
+    
+    if (!refreshResult.success) {
+      console.error("Manual refresh failed:", refreshResult.message);
+      return false;
+    }
+    
+    // Save the refreshed tokens
+    await saveFortnoxCredentials({
+      ...credentials,
+      ...refreshResult.credentials
+    });
+    
+    console.log("Manual token refresh completed successfully");
+    return true;
+  } catch (error) {
+    console.error("Error during forced token refresh:", error);
+    return false;
   }
 }

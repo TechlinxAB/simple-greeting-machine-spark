@@ -214,27 +214,22 @@ export async function refreshAccessToken(
       };
     }
     
-    // Similar approach as the token exchange - using the token-refresh edge function
+    // Prepare data for the token refresh request
     const refreshData = {
-      grant_type: 'refresh_token',
       client_id: clientId,
       client_secret: clientSecret,
       refresh_token: refreshToken,
     };
     
-    // Enhanced logging
-    const refreshSecret = environment.fortnox.refreshSecret;
-    console.log("Using refresh secret:", refreshSecret ? `${refreshSecret.substring(0, 3)}...${refreshSecret.substring(refreshSecret.length - 3)}` : 'Missing');
+    // Log refresh attempt
+    console.log("Attempting to refresh Fortnox token via Edge Function");
     
-    // Use the token-refresh edge function with API key authentication
     try {
-      console.log("Attempting to use Supabase Edge Function for token refresh");
-      
+      // Call the token-refresh edge function directly with credentials
       const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
         body: JSON.stringify(refreshData),
-        headers: {
-          'x-api-key': environment.fortnox.refreshSecret
-        }
+        // We no longer send the API key in the header as it's not available in the frontend
+        // The edge function will handle authentication differently
       });
       
       console.log("Edge function response received:", proxyResponse ? "success" : "empty");
@@ -363,5 +358,30 @@ export async function refreshAccessToken(
       message: `Unexpected error: ${error.message || 'Unknown error'}`,
       error
     };
+  }
+}
+
+/**
+ * Triggers a system-level token refresh via the scheduled refresh function
+ * This is used to force a refresh of the token without requiring user authentication
+ */
+export async function triggerSystemTokenRefresh(force: boolean = false): Promise<boolean> {
+  try {
+    console.log("Triggering system-level token refresh");
+    
+    const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
+      body: JSON.stringify({ force }),
+    });
+    
+    if (error) {
+      console.error("Error triggering system token refresh:", error);
+      return false;
+    }
+    
+    console.log("System token refresh response:", data);
+    return true;
+  } catch (error) {
+    console.error("Failed to trigger system token refresh:", error);
+    return false;
   }
 }

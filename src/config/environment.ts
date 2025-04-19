@@ -17,8 +17,8 @@ interface EnvironmentConfig {
   fortnox: {
     authUrl: string;
     apiUrl: string;
-    redirectPath: string; // Changed from redirectBaseUrl to redirectPath
-    refreshSecret: string; // This pulls from the Supabase secret at build time
+    redirectPath: string;
+    refreshSecret: string;
   };
   // Storage Configuration
   storage: {
@@ -47,9 +47,10 @@ export const environment: EnvironmentConfig = {
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
-    // Changed to just the path, without joining with origin
     redirectPath: '/settings?tab=fortnox',
-    refreshSecret: import.meta.env.VITE_FORTNOX_REFRESH_SECRET || 'fortnox-refresh-secret-key' // Fixed environment variable prefix
+    // Use a static secret key for the API authentication
+    // The actual secret is stored in the Supabase Edge Function environment
+    refreshSecret: 'fortnox-refresh-secret-key'
   },
   storage: {
     avatarBucket: 'avatars',

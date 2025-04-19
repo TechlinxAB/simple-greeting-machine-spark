@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.fortnox-token-migrate]
 verify_jwt = false
+
+[functions.fortnox-scheduled-refresh]
+verify_jwt = false

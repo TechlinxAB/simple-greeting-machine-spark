@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,8 @@ import {
   isFortnoxConnected,
   disconnectFortnox,
   getFortnoxCredentials,
-  saveFortnoxCredentials
+  saveFortnoxCredentials,
+  forceTokenRefresh
 } from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key, AlertTriangle } from "lucide-react";
@@ -34,28 +34,22 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Enhanced token lifecycle tracking
   const [tokenExpirationDate, setTokenExpirationDate] = useState<Date | null>(null);
   const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null);
   const [refreshTokenExpirationDate, setRefreshTokenExpirationDate] = useState<Date | null>(null);
   const [refreshTokenDaysLeft, setRefreshTokenDaysLeft] = useState<number | null>(null);
   const [refreshFailCount, setRefreshFailCount] = useState<number>(0);
 
-  // Set the redirect URI when component mounts - use the getRedirectUri function
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
     console.log("Setting Fortnox redirect URI:", fullRedirectUri);
     setRedirectUri(fullRedirectUri);
   }, []);
 
-  // Validate client ID and secret whenever they change
   useEffect(() => {
-    // Clear any previous validation errors
     setValidationError(null);
     
-    // Only validate if both values are provided
     if (clientId && clientSecret) {
-      // Simple validation for length
       if (clientId.trim().length < 5) {
         setValidationError("Client ID appears to be too short");
         return;
@@ -68,37 +62,38 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     }
   }, [clientId, clientSecret]);
 
-  // Get connection status with automatic retry
   const { data: connected = false, refetch: refetchStatus, isLoading: isLoadingStatus } = useQuery({
-    queryKey: ["fortnox-connection-status", connectionRetryCount], // Include retry count to force refresh
+    queryKey: ["fortnox-connection-status", connectionRetryCount],
     queryFn: async () => {
       if (!clientId || !clientSecret) return false;
       console.log(`Checking Fortnox connection (attempt ${connectionRetryCount + 1})`);
-      const result = await isFortnoxConnected();
-      console.log("Fortnox connection status:", result);
-      return result;
+      try {
+        const result = await isFortnoxConnected();
+        console.log("Fortnox connection status:", result);
+        return result;
+      } catch (error) {
+        console.error("Error checking Fortnox connection:", error);
+        return false;
+      }
     },
     enabled: !!clientId && !!clientSecret,
-    staleTime: 5000, // Reduced stale time to check more frequently
-    retry: 2, // Added retry attempts
+    staleTime: 5000,
+    retry: 2,
   });
 
-  // Get credentials for display
   const { data: credentials, isLoading: isLoadingCredentials } = useQuery({
-    queryKey: ["fortnox-credentials", connectionRetryCount], // Include retry count to force refresh
+    queryKey: ["fortnox-credentials", connectionRetryCount],
     queryFn: async () => {
       const creds = await getFortnoxCredentials();
       console.log("Retrieved Fortnox credentials:", creds ? "Found" : "Not found");
       return creds;
     },
-    enabled: connected || connectionRetryCount > 0, // Also fetch when explicitly refreshing
+    enabled: connected || connectionRetryCount > 0,
     staleTime: 10000,
   });
 
-  // Update token expiration tracking whenever credentials change
   useEffect(() => {
     if (credentials) {
-      // Access token expiration tracking
       if (credentials.expiresAt) {
         const expirationDate = new Date(credentials.expiresAt);
         const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
@@ -111,7 +106,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         setDaysUntilExpiration(null);
       }
       
-      // Refresh token expiration tracking
       if (credentials.refreshTokenExpiresAt) {
         const refreshExpirationDate = new Date(credentials.refreshTokenExpiresAt);
         const refreshExpiresInMinutes = (credentials.refreshTokenExpiresAt - Date.now()) / (1000 * 60);
@@ -124,67 +118,71 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         setRefreshTokenDaysLeft(null);
       }
       
-      // Refresh failure tracking
       setRefreshFailCount(credentials.refreshFailCount || 0);
     }
   }, [credentials]);
 
-  // Enhanced token validity check
   const checkTokenValidity = useCallback(async () => {
     console.log("🔍 Running comprehensive token validity check");
     
-    const credentials = await getFortnoxCredentials();
-    
-    if (credentials?.expiresAt) {
-      const currentTime = Date.now();
-      const expirationTime = credentials.expiresAt;
-      const expiresInMinutes = (expirationTime - currentTime) / (1000 * 60);
-      const expiresInDays = expiresInMinutes / (24 * 60);
+    try {
+      const credentials = await getFortnoxCredentials();
+      
+      if (credentials?.expiresAt) {
+        const currentTime = Date.now();
+        const expirationTime = credentials.expiresAt;
+        const expiresInMinutes = (expirationTime - currentTime) / (1000 * 60);
+        const expiresInDays = expiresInMinutes / (24 * 60);
 
-      // Update expiration tracking state
-      const expirationDate = new Date(expirationTime);
-      setTokenExpirationDate(expirationDate);
-      setDaysUntilExpiration(Math.round(expiresInDays * 100) / 100);
+        const expirationDate = new Date(expirationTime);
+        setTokenExpirationDate(expirationDate);
+        setDaysUntilExpiration(Math.round(expiresInDays * 100) / 100);
 
-      // Log detailed token lifecycle information
-      console.group("🕰️ Token Lifecycle Analysis");
-      console.log(`Current Time: ${new Date().toISOString()}`);
-      console.log(`Token Expiration: ${expirationDate.toISOString()}`);
-      console.log(`Days Until Expiration: ${Math.round(expiresInDays)}`);
-      console.log(`Minutes Until Expiration: ${Math.round(expiresInMinutes)}`);
-      console.groupEnd();
+        console.group("🕰️ Token Lifecycle Analysis");
+        console.log(`Current Time: ${new Date().toISOString()}`);
+        console.log(`Token Expiration: ${expirationDate.toISOString()}`);
+        console.log(`Days Until Expiration: ${Math.round(expiresInDays)}`);
+        console.log(`Minutes Until Expiration: ${Math.round(expiresInMinutes)}`);
+        console.groupEnd();
 
-      // Proactive refresh conditions
-      const shouldRefreshDueToTime = 
-        expiresInDays <= 7 || // Refresh if 7 days or less remaining
-        expiresInMinutes < 30; // Or if less than 30 minutes remaining
+        const shouldRefreshDueToTime = 
+          expiresInDays <= 7 || 
+          expiresInMinutes < 30;
 
-      if (shouldRefreshDueToTime) {
-        console.warn(`🚨 Proactive Token Refresh Required. Expires in ${Math.round(expiresInDays)} days`);
-        
-        try {
-          await refetchStatus();
+        if (shouldRefreshDueToTime) {
+          console.warn(`🚨 Proactive Token Refresh Required. Expires in ${Math.round(expiresInDays)} days`);
           
-          // Optional toast notification for transparency
-          toast.info("Fortnox connection automatically refreshed", {
-            description: `Previous token was expiring in ${Math.round(expiresInDays)} days`
-          });
-        } catch (error) {
-          console.error("Forced refresh failed:", error);
-          
-          toast.error("Failed to automatically refresh Fortnox connection", {
-            description: "Please manually reconnect to Fortnox"
-          });
+          try {
+            const refreshSuccess = await forceTokenRefresh();
+            
+            if (refreshSuccess) {
+              await Promise.all([
+                refetchStatus(),
+                queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
+              ]);
+              
+              toast.success("Fortnox token refreshed automatically", {
+                description: `Previous token was expiring in ${Math.round(expiresInDays)} days`
+              });
+            } else {
+              console.error("Forced refresh failed");
+              toast.error("Token refresh failed", {
+                description: "Please try again later or reconnect to Fortnox"
+              });
+            }
+          } catch (error) {
+            console.error("Error during forced refresh:", error);
+          }
         }
       }
+    } catch (error) {
+      console.error("Error checking token validity:", error);
     }
-  }, [refetchStatus]);
+  }, [refetchStatus, queryClient]);
 
-  // More aggressive interval setup with proactive refresh
   useEffect(() => {
-    const refreshInterval = window.setInterval(checkTokenValidity, 15 * 60 * 1000); // Every 15 minutes
+    const refreshInterval = window.setInterval(checkTokenValidity, 15 * 60 * 1000);
     
-    // Initial check on mount
     checkTokenValidity();
     
     return () => {
@@ -220,7 +218,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       return;
     }
     
-    // Check for validation errors
     if (validationError) {
       toast.error(validationError);
       return;
@@ -229,38 +226,29 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     try {
       setIsConnecting(true);
       
-      // Log the current origin and redirect URI
       console.log("Current origin:", window.location.origin);
       console.log("Using redirect URI:", redirectUri);
       
-      // First, save the credentials to the database
       console.log("Saving credentials to database before OAuth flow");
       await saveFortnoxCredentials({
         clientId,
         clientSecret
       });
       
-      // Force refresh credentials query
       queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
       
-      // Build the Fortnox authorization URL according to their documentation
       const FORTNOX_AUTH_URL = environment.fortnox.authUrl;
       
-      // Expanded scopes following the example from the Frappe implementation
       const scopes = [
         'companyinformation',
         'invoice',
         'customer',
-        'article' // For product data
+        'article'
       ];
       
-      // Generate a secure random state for CSRF protection
-      // Use crypto.randomUUID() for better security
       const state = crypto.randomUUID();
       
-      // Store the state in sessionStorage to verify when we come back - with explicit error handling
       try {
-        // Also save the origin with the state to help with cross-domain redirects
         const stateData = {
           state,
           origin: window.location.origin,
@@ -269,7 +257,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         
         sessionStorage.setItem('fortnox_oauth_state', JSON.stringify(stateData));
         console.log("Generated and stored secure state for OAuth:", state);
-        console.log("Stored OAuth state data:", stateData);
       } catch (storageError) {
         console.error("Failed to store OAuth state in sessionStorage:", storageError);
         toast.error("Failed to secure the authorization process. Please check your browser settings and try again.");
@@ -277,24 +264,20 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         return;
       }
       
-      // Build parameters following Fortnox's requirements
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
-        scope: scopes.join(' '), // Space-separated list of scopes
+        scope: scopes.join(' '),
         response_type: 'code',
         state: state,
-        access_type: 'offline' // Request refresh token
+        access_type: 'offline'
       });
       
       const authUrl = `${FORTNOX_AUTH_URL}?${params.toString()}`;
       
       console.log("Redirecting to Fortnox OAuth URL:", authUrl);
       
-      // Use direct window location change for most reliable redirect
       window.location.href = authUrl;
-      
-      // Not setting isConnecting to false here because we're redirecting away
     } catch (error) {
       console.error("Error generating Fortnox auth URL:", error);
       toast.error("Failed to generate Fortnox authorization URL");
@@ -309,7 +292,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       toast.success("Successfully disconnected from Fortnox");
       queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
       queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
-      setConnectionRetryCount(0); // Reset retry counter
+      setConnectionRetryCount(0);
     } catch (error) {
       toast.error("Failed to disconnect from Fortnox");
       console.error(error);
@@ -329,22 +312,39 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   };
 
   const handleRefreshStatus = () => {
-    setConnectionRetryCount(prev => prev + 1); // Increment retry counter to force a fresh check
+    setConnectionRetryCount(prev => prev + 1);
     queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
     queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
     toast.info("Refreshing Fortnox connection status...");
     
-    // Also trigger a token validity check
     checkTokenValidity();
   };
 
-  // Render token expiration information
+  const handleManualRefresh = async () => {
+    try {
+      toast.info("Manually refreshing Fortnox token...");
+      const success = await forceTokenRefresh();
+      
+      if (success) {
+        toast.success("Fortnox token refreshed successfully");
+        await Promise.all([
+          refetchStatus(),
+          queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
+        ]);
+      } else {
+        toast.error("Failed to refresh Fortnox token");
+      }
+    } catch (error) {
+      console.error("Error during manual token refresh:", error);
+      toast.error("Error refreshing token");
+    }
+  };
+
   const renderTokenExpirationInfo = () => {
     return (
       <div className="space-y-2 mt-4 p-3 bg-slate-50 rounded-md border">
         <h4 className="text-sm font-medium">Token Information</h4>
         
-        {/* Access Token */}
         {tokenExpirationDate && daysUntilExpiration !== null && (
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${
@@ -362,7 +362,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
           </div>
         )}
         
-        {/* Refresh Token */}
         {refreshTokenExpirationDate && refreshTokenDaysLeft !== null && (
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${
@@ -380,7 +379,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
           </div>
         )}
         
-        {/* Refresh Failures */}
         {refreshFailCount > 0 && (
           <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 p-1 rounded">
             <AlertTriangle className="h-3 w-3" />
@@ -494,7 +492,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
                     ...(credentials || {})
                   });
                   toast.success("Credentials updated successfully");
-                  // Force refresh status and credentials
                   setConnectionRetryCount(prev => prev + 1);
                   queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
                   queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
@@ -509,7 +506,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             </Button>
             <Button
               variant="secondary"
-              onClick={handleRefreshStatus}
+              onClick={handleManualRefresh}
               disabled={isLoadingStatus}
             >
               <RefreshCcw className={`h-4 w-4 mr-2 ${isLoadingStatus ? 'animate-spin' : ''}`} />

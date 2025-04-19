@@ -1,8 +1,13 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
+// Get Supabase configuration from environment (for database access)
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+// Fixed CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
@@ -19,118 +24,187 @@ serve(async (req) => {
   }
   
   try {
-    // Enhanced logging for API key validation
     console.log("Starting Fortnox token refresh process");
     
-    // Validate API key
+    // Get client credentials - either from request or directly from database
+    let requestData;
+    let clientId;
+    let clientSecret;
+    let refreshToken;
+    
+    // Two authentication modes:
+    // 1. API key for system-level refresh (cron job or scheduled task)
+    // 2. Direct request with provided credentials (from frontend)
+    
+    // Check for API key authentication first (system-level access)
     const apiKey = req.headers.get("x-api-key");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
     
-    console.log("API key validation:", {
+    console.log("Authentication check:", {
       apiKeyPresent: !!apiKey,
-      apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyPresent: !!validKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyLength: validKey ? validKey.length : 0,
-      headersPresent: Array.from(req.headers.keys())
+      requestMethod: req.method,
+      contentType: req.headers.get("content-type"),
+      headersPresent: Array.from(req.headers.keys()),
     });
     
-    if (!validKey) {
-      console.error("FORTNOX_REFRESH_SECRET environment variable is not set");
-      return new Response(
-        JSON.stringify({ 
-          error: "server_configuration_error", 
-          message: "Server is not properly configured. Missing refresh secret." 
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
+    const isSystemAuthenticated = validKey && apiKey === validKey;
     
-    if (!apiKey || apiKey !== validKey) {
-      console.error("Invalid or missing API key", {
-        apiKeyProvided: apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'missing',
-        validKeyHint: validKey ? `${validKey.substring(0, 3)}...${validKey.substring(validKey.length - 3)}` : 'missing',
-        match: apiKey === validKey
-      });
+    // If this is a system-level authenticated request, get credentials from database
+    if (isSystemAuthenticated) {
+      console.log("System-level authentication successful");
       
-      return new Response(
-        JSON.stringify({ 
-          error: "unauthorized", 
-          message: "Invalid or missing API key",
-          debug: {
-            api_key_present: !!apiKey,
-            valid_key_present: !!validKey,
-            headers_present: Array.from(req.headers.keys())
+      // Initialize Supabase client with service role for direct database access
+      if (!supabaseUrl || !supabaseServiceKey) {
+        console.error("Supabase URL or service key not configured");
+        return new Response(
+          JSON.stringify({ 
+            error: "server_configuration_error", 
+            message: "Server is not properly configured for system-level refresh" 
+          }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
-        }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Parse the request body
-    let requestData;
-    try {
-      requestData = await req.json();
-      console.log("Parsed request data successfully", {
-        hasRefreshToken: !!requestData.refresh_token,
-        hasClientId: !!requestData.client_id,
-        hasClientSecret: !!requestData.client_secret
-      });
-    } catch (e) {
-      console.error("Failed to parse request body:", e);
-      return new Response(
-        JSON.stringify({ error: "Invalid request body - could not parse JSON" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Validate required fields
-    if (!requestData.client_id || !requestData.client_secret || !requestData.refresh_token) {
-      const missingFields = [];
-      if (!requestData.client_id) missingFields.push('client_id');
-      if (!requestData.client_secret) missingFields.push('client_secret');
-      if (!requestData.refresh_token) missingFields.push('refresh_token');
+        );
+      }
       
-      console.error(`Missing required parameters: ${missingFields.join(', ')}`);
+      // Create Supabase client with admin privileges
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
-      return new Response(
-        JSON.stringify({ 
-          error: "Missing required parameters",
-          details: {
-            missing: missingFields,
-            client_id: requestData.client_id ? "present" : "missing",
-            client_secret: requestData.client_secret ? "present" : "missing",
-            refresh_token: requestData.refresh_token ? "present" : "missing"
+      // Get Fortnox credentials from system_settings table
+      console.log("Retrieving Fortnox credentials from database");
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('system_settings')
+        .select('settings')
+        .eq('id', 'fortnox_credentials')
+        .maybeSingle();
+      
+      if (settingsError || !settingsData) {
+        console.error("Error retrieving Fortnox credentials:", settingsError);
+        return new Response(
+          JSON.stringify({ 
+            error: "database_error", 
+            message: "Failed to retrieve Fortnox credentials from database",
+            details: settingsError
+          }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+        );
+      }
+      
+      // Extract credentials from settings
+      const credentials = settingsData.settings;
+      
+      if (!credentials || !credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
+        console.error("Invalid or incomplete credentials in database");
+        return new Response(
+          JSON.stringify({ 
+            error: "invalid_credentials", 
+            message: "Invalid or incomplete Fortnox credentials in database" 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // Set variables from database credentials
+      clientId = credentials.clientId;
+      clientSecret = credentials.clientSecret;
+      refreshToken = credentials.refreshToken;
+      
+      console.log("Successfully retrieved credentials from database");
+    } 
+    // Otherwise, parse credentials from request body
+    else {
+      // Validate API key if the environment has one configured
+      if (validKey && !isSystemAuthenticated) {
+        console.error("Invalid API key provided", {
+          apiKeyProvided: apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'missing',
+          validKeyHint: validKey ? `${validKey.substring(0, 3)}...${validKey.substring(validKey.length - 3)}` : 'missing',
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "unauthorized", 
+            message: "Invalid API key provided"
+          }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // If no API key is required (or not configured), parse the request body
+      try {
+        requestData = await req.json();
+        console.log("Parsing request data:", {
+          hasRefreshToken: !!requestData.refresh_token,
+          hasClientId: !!requestData.client_id,
+          hasClientSecret: !!requestData.client_secret
+        });
+      } catch (e) {
+        console.error("Failed to parse request body:", e);
+        return new Response(
+          JSON.stringify({ error: "Invalid request body - could not parse JSON" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // Validate required fields
+      if (!requestData.client_id || !requestData.client_secret || !requestData.refresh_token) {
+        const missingFields = [];
+        if (!requestData.client_id) missingFields.push('client_id');
+        if (!requestData.client_secret) missingFields.push('client_secret');
+        if (!requestData.refresh_token) missingFields.push('refresh_token');
+        
+        console.error(`Missing required parameters: ${missingFields.join(', ')}`);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "Missing required parameters",
+            details: {
+              missing: missingFields
+            }
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // Set variables from request body
+      clientId = requestData.client_id;
+      clientSecret = requestData.client_secret;
+      refreshToken = requestData.refresh_token;
     }
     
-    // Log received data (except sensitive data)
-    console.log("Token refresh data received:", {
-      refreshTokenLength: requestData.refresh_token ? requestData.refresh_token.length : 0,
-      clientIdLength: requestData.client_id ? requestData.client_id.length : 0,
-      clientSecretLength: requestData.client_secret ? requestData.client_secret.length : 0,
+    // Log token refresh attempt (obfuscate sensitive data)
+    console.log("Processing token refresh with:", {
+      clientIdLength: clientId.length,
+      clientSecretLength: clientSecret.length,
+      refreshTokenLength: refreshToken.length,
+      clientIdPrefix: clientId.substring(0, 3) + '...',
+      refreshTokenPrefix: refreshToken.substring(0, 3) + '...',
     });
     
-    // Prepare the form data
+    // Prepare the form data for token refresh
     const formData = new URLSearchParams({
       grant_type: 'refresh_token',
-      client_id: requestData.client_id,
-      client_secret: requestData.client_secret,
-      refresh_token: requestData.refresh_token,
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
     });
     
     console.log("Making token refresh request to Fortnox");
@@ -207,6 +281,55 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
+    }
+    
+    // If this was a system-level request, update the database with new tokens
+    if (isSystemAuthenticated && supabaseUrl && supabaseServiceKey) {
+      console.log("Updating tokens in database");
+      
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Get current credentials
+      const { data: currentData } = await supabase
+        .from('system_settings')
+        .select('settings')
+        .eq('id', 'fortnox_credentials')
+        .maybeSingle();
+      
+      if (currentData && currentData.settings) {
+        // Calculate expiration times
+        const expiresAt = Date.now() + (responseData.expires_in || 3600) * 1000;
+        const refreshTokenExpiresAt = Date.now() + (45 * 24 * 60 * 60 * 1000); // 45 days
+        
+        // Update with new tokens
+        const updatedCredentials = {
+          ...currentData.settings,
+          accessToken: responseData.access_token,
+          refreshToken: responseData.refresh_token || refreshToken, // Use new refresh token if provided
+          expiresAt,
+          expiresIn: responseData.expires_in,
+          refreshTokenExpiresAt,
+          refreshFailCount: 0, // Reset failure count on successful refresh
+          lastRefreshAttempt: Date.now()
+        };
+        
+        // Save updated credentials
+        const { error: updateError } = await supabase
+          .from('system_settings')
+          .upsert({
+            id: 'fortnox_credentials',
+            settings: updatedCredentials
+          }, {
+            onConflict: 'id'
+          });
+          
+        if (updateError) {
+          console.error("Error updating credentials in database:", updateError);
+          // Continue to return the tokens even if database update fails
+        } else {
+          console.log("Successfully updated tokens in database");
+        }
+      }
     }
     
     console.log("Token refresh successful, returning response");
