@@ -228,7 +228,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       console.log("Calling token refresh edge function...");
       
-      // Get current credentials before refresh to log and compare
       const currentCreds = await getFortnoxCredentials();
       if (currentCreds) {
         console.log("🔍 Current credentials before refresh:", {
@@ -252,7 +251,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       if (error) {
         console.error("Error in manual refresh:", error);
         
-        // Check if this is an invalid_grant error that requires reconnection
         if (typeof error === 'object' && error !== null && 'message' in error) {
           const errorMessage = error.message as string;
           if (errorMessage.includes('invalid_grant') || 
@@ -272,7 +270,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
 
       console.log("Token refresh response:", data);
 
-      // Explicitly check for requiresReconnect flag
       if (data?.requiresReconnect === true) {
         console.log("Token refresh requires reconnection");
         setNeedsReconnect(true);
@@ -287,7 +284,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         toast.success("Fortnox token refreshed successfully");
         setNeedsReconnect(false);
         
-        // Get updated credentials after refresh to verify
         const updatedCreds = await getFortnoxCredentials();
         if (updatedCreds) {
           console.log("🔍 Updated credentials after refresh:", {
@@ -300,7 +296,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               'none'
           });
           
-          // Verify refresh token hasn't changed unexpectedly
           if (currentCreds?.refreshToken && updatedCreds?.refreshToken &&
               currentCreds.refreshToken !== updatedCreds.refreshToken) {
             console.log("⚠️ Note: Refresh token was updated during refresh");
@@ -376,7 +371,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               </p>
             </div>
           </div>
-          <FortnoxTokenInfo />
+          
+          <div className="bg-white rounded-lg border shadow-sm">
+            <FortnoxTokenInfo />
+          </div>
+
           <div className="flex gap-2">
             <Button 
               variant="destructive" 
@@ -385,6 +384,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             >
               {isDisconnecting ? "Disconnecting..." : "Disconnect from Fortnox"}
             </Button>
+            
             <Button
               variant="outline"
               onClick={async () => {
@@ -407,6 +407,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             >
               Update Credentials
             </Button>
+            
             <Button
               variant="secondary"
               onClick={handleManualRefresh}

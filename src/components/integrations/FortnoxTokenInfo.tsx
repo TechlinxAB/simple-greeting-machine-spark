@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials } from "@/integrations/fortnox/credentials";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +75,7 @@ export function FortnoxTokenInfo() {
   const status = getExpiryStatus();
 
   return (
-    <Card className="p-4 mt-4">
+    <Card className="p-4">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
