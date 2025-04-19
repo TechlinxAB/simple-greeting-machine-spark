@@ -61,10 +61,12 @@ Deno.serve(async (req) => {
     let userAuthenticated = false;
 
     if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
-      const supabaseAuthClient = createClient(supabaseUrl, supabaseServiceKey, {
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+      const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey!, {
         global: {
           headers: {
-            Authorization: authHeader,
+            Authorization: authHeader!,
           },
         },
       });
