@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
@@ -60,17 +61,21 @@ Deno.serve(async (req) => {
     let userAuthenticated = false;
 
     if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
-      const userSupabase = createClient(supabaseUrl, supabaseServiceKey, {
-        global: { headers: { Authorization: authHeader } },
+      const supabaseAuthClient = createClient(supabaseUrl, supabaseServiceKey, {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
       });
 
-      const { data: authData, error: authError } = await userSupabase.auth.getUser();
+      const { data: userData, error: userError } = await supabaseAuthClient.auth.getUser();
 
-      if (authData?.user && !authError) {
+      if (userData?.user && !userError) {
+        console.log("✅ Authenticated via Supabase JWT:", userData.user.id);
         userAuthenticated = true;
-        console.log("Authenticated via Supabase JWT:", authData.user.id);
       } else {
-        console.warn("Supabase auth failed:", authError);
+        console.warn("❌ Supabase JWT auth failed", userError);
       }
     }
 
@@ -78,16 +83,10 @@ Deno.serve(async (req) => {
     const isAuthenticated = isSystemAuthenticated || userAuthenticated;
 
     if (!isAuthenticated) {
-      console.error("Unauthorized access to scheduled refresh function");
+      console.error("❌ Unauthorized access to Fortnox scheduled refresh");
       return new Response(
-        JSON.stringify({ 
-          error: "unauthorized", 
-          message: "Invalid or missing API key or user token"
-        }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
+        JSON.stringify({ error: "unauthorized", message: "Missing or invalid API key or user token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
