@@ -15,7 +15,8 @@ export async function saveFortnoxCredentials(credentials: FortnoxCredentials): P
       clientId: credentials.clientId,
       clientSecret: credentials.clientSecret,
       accessToken: credentials.accessToken,
-      refreshToken: credentials.refreshToken
+      refreshToken: credentials.refreshToken,
+      isLegacyToken: credentials.isLegacyToken
     };
     
     console.log("Saving Fortnox credentials to database");
@@ -85,23 +86,32 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Fix for TypeScript error - properly type-cast the JSON data to FortnoxCredentials
-    // First cast to unknown, then to FortnoxCredentials to avoid type errors
-    const settingsData = data.settings as unknown as FortnoxCredentials;
+    // Properly type-cast the JSON data to FortnoxCredentials
+    const settingsData = data.settings as Record<string, any>;
+    
+    // Construct a properly formatted FortnoxCredentials object
+    const credentials: FortnoxCredentials = {
+      clientId: settingsData.clientId,
+      clientSecret: settingsData.clientSecret,
+      accessToken: settingsData.accessToken,
+      refreshToken: settingsData.refreshToken,
+      isLegacyToken: settingsData.isLegacyToken
+    };
     
     // Validate credentials structure
-    if (!settingsData.clientId || !settingsData.clientSecret) {
+    if (!credentials.clientId || !credentials.clientSecret) {
       console.log("Invalid credentials format - missing client ID or secret");
       return null;
     }
     
     // Add detailed token type logging
     console.group("🔍 Token Type Analysis");
-    console.log("Access Token Present:", !!settingsData.accessToken);
-    console.log("Refresh Token Present:", !!settingsData.refreshToken);
+    console.log("Access Token Present:", !!credentials.accessToken);
+    console.log("Refresh Token Present:", !!credentials.refreshToken);
+    console.log("Explicitly Marked Legacy Token:", credentials.isLegacyToken);
     console.groupEnd();
     
-    return settingsData;
+    return credentials;
   } catch (error) {
     console.error('Error getting Fortnox credentials:', error);
     return null;

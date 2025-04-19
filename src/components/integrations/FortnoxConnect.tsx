@@ -31,6 +31,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [redirectUri, setRedirectUri] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -190,6 +191,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
       queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
       setConnectionRetryCount(0);
+      setNeedsReconnect(false);
     } catch (error) {
       toast.error("Failed to disconnect from Fortnox");
       console.error(error);
@@ -222,16 +224,35 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       if (error) {
         console.error("Error in manual refresh:", error);
+        
+        // Check if this is an invalid_grant error that requires reconnection
+        if (typeof error === 'object' && error !== null && 'message' in error) {
+          const errorMessage = error.message as string;
+          if (errorMessage.includes('invalid_grant') || errorMessage.includes('requires reconnect')) {
+            setNeedsReconnect(true);
+            toast.error("Your connection to Fortnox has expired. Please reconnect.", {
+              duration: 6000
+            });
+            return;
+          }
+        }
+        
         toast.error("Failed to refresh Fortnox token");
         return;
       }
 
       if (data?.success) {
         toast.success("Fortnox token refreshed successfully");
+        setNeedsReconnect(false);
         await Promise.all([
           refetchStatus(),
           queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
         ]);
+      } else if (data?.requiresReconnect) {
+        setNeedsReconnect(true);
+        toast.error("Your connection to Fortnox has expired. Please reconnect.", {
+          duration: 6000
+        });
       } else {
         console.error("Unexpected response:", data);
         toast.error("Failed to refresh Fortnox token");
@@ -271,6 +292,20 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
           </Button>
         </div>
       </div>
+
+      {needsReconnect && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700">Connection expired</p>
+              <p className="text-sm text-red-600 mt-1">
+                Your Fortnox connection has expired or been revoked. Please disconnect and connect again to reauthorize access.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {connected ? (
         <div className="space-y-4">

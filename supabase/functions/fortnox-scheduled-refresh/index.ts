@@ -133,11 +133,16 @@ Deno.serve(async (req) => {
     const credentials = settingsData.settings;
     
     if (!credentials || !credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
-      console.error("Invalid or incomplete credentials in database");
+      console.error("Invalid or incomplete credentials in database:", credentials);
       return new Response(
         JSON.stringify({ 
           error: "invalid_credentials", 
-          message: "Incomplete Fortnox credentials" 
+          message: "Incomplete Fortnox credentials",
+          details: {
+            clientIdExists: !!credentials?.clientId,
+            clientSecretExists: !!credentials?.clientSecret,
+            refreshTokenExists: !!credentials?.refreshToken
+          }
         }),
         { 
           status: 400, 
@@ -190,6 +195,23 @@ Deno.serve(async (req) => {
     
     if (!response.ok) {
       console.error("Fortnox API error:", responseData);
+      
+      // For invalid_grant (refresh token expired/invalid), we should handle this
+      // by telling the client they need to reconnect
+      if (responseData.error === 'invalid_grant') {
+        return new Response(
+          JSON.stringify({ 
+            error: responseData.error, 
+            message: "Refresh token is invalid or expired. Please reconnect to Fortnox.",
+            details: responseData,
+            requiresReconnect: true
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
       
       return new Response(
         JSON.stringify({ 

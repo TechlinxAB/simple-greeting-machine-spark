@@ -65,7 +65,7 @@ export async function migrateLegacyToken(
       isLegacyToken: false
     };
     
-    // Update stored credentials - Fix: Convert FortnoxCredentials to a proper JSON object
+    // Update stored credentials - Convert FortnoxCredentials to a proper JSON object
     const { error: saveError } = await supabase
       .from('system_settings')
       .upsert({
