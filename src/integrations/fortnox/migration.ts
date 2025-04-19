@@ -101,12 +101,20 @@ export async function migrateLegacyToken(
       .eq('id', 'fortnox_credentials')
       .maybeSingle();
       
-    if (verifyData && verifyData.settings && verifyData.settings.accessToken) {
-      const savedTokenLength = verifyData.settings.accessToken.length;
-      console.log(`Verification - Saved token length: ${savedTokenLength}`);
+    if (verifyData && verifyData.settings) {
+      // Type assertion to handle the database JSON data
+      const settings = verifyData.settings as { 
+        accessToken?: string; 
+        [key: string]: any 
+      };
       
-      if (savedTokenLength !== data.access_token.length) {
-        console.error(`Token length mismatch! Original: ${data.access_token.length}, Saved: ${savedTokenLength}`);
+      if (settings.accessToken) {
+        const savedTokenLength = settings.accessToken.length;
+        console.log(`Verification - Saved token length: ${savedTokenLength}`);
+        
+        if (savedTokenLength !== data.access_token.length) {
+          console.error(`Token length mismatch! Original: ${data.access_token.length}, Saved: ${savedTokenLength}`);
+        }
       }
     }
     
