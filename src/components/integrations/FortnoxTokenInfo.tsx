@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials, getTokenRefreshHistory, triggerSystemTokenRefresh } from "@/integrations/fortnox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +27,12 @@ export function FortnoxTokenInfo() {
     enabled: !!credentials?.accessToken,
   });
 
-  // Parse JWT to get expiration time
   const getTokenExpiration = (token?: string) => {
     if (!token) return null;
     try {
-      // JWT tokens consist of three parts separated by dots
       const parts = token.split('.');
       if (parts.length !== 3) return null;
       
-      // The second part contains the payload, which we need to decode
       const payload = JSON.parse(atob(parts[1]));
       if (!payload.exp) return null;
       
@@ -50,24 +46,19 @@ export function FortnoxTokenInfo() {
   const accessTokenExpiration = credentials?.accessToken ? 
     getTokenExpiration(credentials.accessToken) : null;
 
-  // Refresh tokens typically last 45 days
   const refreshTokenExpiration = credentials?.refreshToken ? 
     addDays(new Date(), 45) : null;
 
-  // Calculate the next scheduled refresh time
   useEffect(() => {
     if (credentials?.accessToken) {
-      // Cron job now runs every 15 minutes (0, 15, 30, 45)
       const calculateNextRefresh = () => {
         const now = new Date();
         let nextRefresh = new Date(now);
         
-        // Find the next 15-minute mark
         const currentMinute = now.getMinutes();
         const nextMinuteMark = Math.ceil(currentMinute / 15) * 15;
         
         if (nextMinuteMark === 60) {
-          // If we need to go to the next hour
           nextRefresh.setHours(now.getHours() + 1, 0, 0, 0);
         } else {
           nextRefresh.setMinutes(nextMinuteMark, 0, 0);
@@ -78,38 +69,36 @@ export function FortnoxTokenInfo() {
 
       calculateNextRefresh();
       
-      // Recalculate every minute to keep the display up-to-date
       const intervalId = setInterval(calculateNextRefresh, 60000);
       return () => clearInterval(intervalId);
     }
   }, [credentials]);
 
-  // Check if token needs to be refreshed proactively
   useEffect(() => {
     const checkTokenExpirationAndRefresh = async () => {
-      if (accessTokenExpiration) {
-        const now = new Date();
-        const minutesUntilExpiry = differenceInMinutes(accessTokenExpiration, now);
+      if (!accessTokenExpiration) return;
+
+      const now = new Date();
+      const minutesUntilExpiry = differenceInMinutes(accessTokenExpiration, now);
+      
+      if (minutesUntilExpiry <= 0 || minutesUntilExpiry < 20) {
+        console.log(`Token ${minutesUntilExpiry <= 0 ? 'is expired' : 'expires soon'} - attempting refresh`);
         
-        // If token expires in less than 20 minutes, trigger a refresh
-        // (made more aggressive from 30 minutes to ensure we refresh in time)
-        if (minutesUntilExpiry < 20 && minutesUntilExpiry > 0 && !isRefreshing) {
-          console.log(`Token expires in ${minutesUntilExpiry} minutes - triggering proactive refresh`);
-          
+        if (!isRefreshing) {
           setIsRefreshing(true);
           try {
             const success = await triggerSystemTokenRefresh(true);
             if (success) {
-              console.log("Proactive token refresh successful");
-              toast.success("Access token refreshed proactively");
+              console.log("Token refresh successful");
+              toast.success("Access token refreshed");
               queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
               queryClient.invalidateQueries({ queryKey: ["fortnox-token-refresh-history"] });
             } else {
-              console.error("Proactive token refresh failed");
+              console.error("Token refresh failed");
               toast.error("Failed to refresh access token");
             }
           } catch (error) {
-            console.error("Error during proactive token refresh:", error);
+            console.error("Error during token refresh:", error);
           } finally {
             setIsRefreshing(false);
           }
@@ -117,10 +106,10 @@ export function FortnoxTokenInfo() {
       }
     };
 
-    // Run the check immediately and set up an interval to check every 2 minutes
-    // (more frequent than before to catch expiring tokens faster)
     checkTokenExpirationAndRefresh();
-    const intervalId = setInterval(checkTokenExpirationAndRefresh, 2 * 60 * 1000);
+
+    const intervalTime = accessTokenExpiration && new Date() > accessTokenExpiration ? 60000 : 120000;
+    const intervalId = setInterval(checkTokenExpirationAndRefresh, intervalTime);
     
     return () => clearInterval(intervalId);
   }, [accessTokenExpiration, isRefreshing, queryClient]);
@@ -180,7 +169,6 @@ export function FortnoxTokenInfo() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Access Token Information */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Access Token</span>
@@ -203,7 +191,6 @@ export function FortnoxTokenInfo() {
             <p className="text-xs text-gray-600">Unable to determine token expiration</p>
           )}
           
-          {/* Add manual refresh button */}
           <Button 
             size="sm" 
             variant="secondary" 
@@ -216,7 +203,6 @@ export function FortnoxTokenInfo() {
           </Button>
         </div>
 
-        {/* Refresh Token Information */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Refresh Token</span>
@@ -234,7 +220,6 @@ export function FortnoxTokenInfo() {
           )}
         </div>
 
-        {/* Next Scheduled Refresh */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4 text-blue-600" />
@@ -256,7 +241,6 @@ export function FortnoxTokenInfo() {
           </Alert>
         </div>
 
-        {/* Token Refresh History */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-purple-600" />
