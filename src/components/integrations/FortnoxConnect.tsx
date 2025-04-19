@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { environment, getRedirectUri } from "@/config/environment";
 import { FortnoxCredentials } from "@/integrations/fortnox/types";
-import { supabase } from "@/config/supabase";
+import { supabase } from "@/lib/supabase"; // Updated import path
 
 interface FortnoxConnectProps {
   clientId: string;
