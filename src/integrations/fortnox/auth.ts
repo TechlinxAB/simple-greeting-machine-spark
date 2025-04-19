@@ -1,7 +1,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { FortnoxCredentials, RefreshResult } from "./types";
+import { FortnoxCredentials } from "./types";
 import { environment } from "@/config/environment";
 
 /**
@@ -155,19 +155,9 @@ export async function exchangeCodeForTokens(
       
       console.log("Token exchange successful via Edge Function");
       
-      // Calculate token expiration time
-      const expiresAt = Date.now() + (proxyResponse.expires_in || 3600) * 1000;
-      
       return {
         accessToken: proxyResponse.access_token,
-        refreshToken: proxyResponse.refresh_token,
-        expiresAt,
-        expiresIn: proxyResponse.expires_in,
-        // Set a default refresh token expiration - 45 days from now (in milliseconds)
-        refreshTokenExpiresAt: Date.now() + (45 * 24 * 60 * 60 * 1000),
-        // Reset refresh failure counters when getting a new token
-        refreshFailCount: 0,
-        lastRefreshAttempt: null
+        refreshToken: proxyResponse.refresh_token
       };
     } catch (edgeFunctionError) {
       // If edge function fails, log the error and throw it
@@ -186,178 +176,6 @@ export async function exchangeCodeForTokens(
     }
     
     throw error;
-  }
-}
-
-/**
- * Refresh the access token using the refresh token
- * Returns a RefreshResult object with success/failure details
- */
-export async function refreshAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string
-): Promise<RefreshResult> {
-  try {
-    console.log("Refreshing Fortnox access token");
-    
-    if (!clientId || !clientSecret || !refreshToken) {
-      const missingParams = [];
-      if (!clientId) missingParams.push('clientId');
-      if (!clientSecret) missingParams.push('clientSecret');
-      if (!refreshToken) missingParams.push('refreshToken');
-      
-      return {
-        success: false,
-        message: `Missing required parameters: ${missingParams.join(', ')}`,
-        requiresReconnect: true
-      };
-    }
-    
-    // Prepare data for the token refresh request
-    const refreshData = {
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-    };
-    
-    // Log refresh attempt
-    console.log("Attempting to refresh Fortnox token via Edge Function");
-    
-    try {
-      // Call the token-refresh edge function directly with credentials
-      const { data: proxyResponse, error: proxyError } = await supabase.functions.invoke('fortnox-token-refresh', {
-        body: JSON.stringify(refreshData),
-        // We no longer send the API key in the header as it's not available in the frontend
-        // The edge function will handle authentication differently
-      });
-      
-      console.log("Edge function response received:", proxyResponse ? "success" : "empty");
-      
-      if (proxyError) {
-        console.error("Error calling refresh token edge function:", proxyError);
-        
-        // Try to extract more detailed error information
-        let errorMessage = proxyError.message || "Unknown edge function error";
-        let errorData = null;
-        
-        // Try to parse the error response if available
-        try {
-          if (typeof proxyError === 'object' && 'message' in proxyError) {
-            const errorContent = proxyError.message as string || '';
-            if (errorContent.includes('{') && errorContent.includes('}')) {
-              const jsonStart = errorContent.indexOf('{');
-              const jsonEnd = errorContent.lastIndexOf('}') + 1;
-              
-              if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                errorData = JSON.parse(errorContent.substring(jsonStart, jsonEnd));
-                
-                if (errorData) {
-                  if (errorData.error === 'invalid_grant' && 
-                      typeof errorData.error_description === 'string' && 
-                      errorData.error_description.includes('expired')) {
-                    return {
-                      success: false,
-                      message: 'Invalid refresh token',
-                      error: errorData,
-                      requiresReconnect: true
-                    };
-                  }
-                  
-                  if (errorData.error) {
-                    errorMessage = `Fortnox API error: ${errorData.error}${
-                      errorData.error_description ? ' - ' + errorData.error_description : ''
-                    }`;
-                  }
-                }
-              }
-            }
-          }
-        } catch (parseError) {
-          console.error("Failed to parse error details:", parseError);
-        }
-        
-        return {
-          success: false,
-          message: errorMessage,
-          error: proxyError
-        };
-      }
-      
-      if (!proxyResponse) {
-        console.error("Empty response from edge function for refresh");
-        return {
-          success: false,
-          message: "Empty response from edge function"
-        };
-      }
-      
-      if (proxyResponse.error) {
-        console.error("Fortnox API error in refresh:", proxyResponse);
-        
-        // Check for invalid refresh token
-        if (proxyResponse.error === 'invalid_grant' && 
-            proxyResponse.error_description === 'Invalid refresh token') {
-          return {
-            success: false,
-            message: "Invalid refresh token - user needs to reconnect",
-            error: proxyResponse,
-            requiresReconnect: true
-          };
-        }
-        
-        return {
-          success: false,
-          message: `Fortnox API error: ${proxyResponse.error} - ${proxyResponse.error_description || ''}`,
-          error: proxyResponse
-        };
-      }
-      
-      if (!proxyResponse.access_token) {
-        console.error("Invalid response from edge function for refresh:", proxyResponse);
-        return {
-          success: false,
-          message: "Invalid response - missing access token"
-        };
-      }
-      
-      console.log("Token refresh successful via Edge Function");
-      
-      // Calculate token expiration time
-      const expiresAt = Date.now() + (proxyResponse.expires_in || 3600) * 1000;
-      
-      // Set refresh token expiration to 45 days from now
-      const refreshTokenExpiresAt = Date.now() + (45 * 24 * 60 * 60 * 1000);
-      
-      return {
-        success: true,
-        message: "Token refresh successful",
-        credentials: {
-          accessToken: proxyResponse.access_token,
-          refreshToken: proxyResponse.refresh_token || refreshToken, // Use new refresh token if provided
-          expiresAt,
-          expiresIn: proxyResponse.expires_in,
-          refreshTokenExpiresAt,
-          refreshFailCount: 0, // Reset failure count on successful refresh
-          lastRefreshAttempt: Date.now()
-        }
-      };
-    } catch (edgeFunctionError) {
-      // Log and return the error
-      console.error("Edge function for refresh token failed:", edgeFunctionError);
-      return {
-        success: false,
-        message: `Edge function error: ${edgeFunctionError.message || 'Unknown edge function error'}`,
-        error: edgeFunctionError
-      };
-    }
-  } catch (error) {
-    console.error('Error refreshing access token:', error);
-    return {
-      success: false,
-      message: `Unexpected error: ${error.message || 'Unknown error'}`,
-      error
-    };
   }
 }
 

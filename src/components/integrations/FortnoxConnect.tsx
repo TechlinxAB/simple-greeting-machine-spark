@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -10,7 +11,7 @@ import {
   forceTokenRefresh
 } from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key, AlertTriangle } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,17 +30,10 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [redirectUri, setRedirectUri] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [showToken, setShowToken] = useState(false);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  const [tokenExpirationDate, setTokenExpirationDate] = useState<Date | null>(null);
-  const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null);
-  const [refreshTokenExpirationDate, setRefreshTokenExpirationDate] = useState<Date | null>(null);
-  const [refreshTokenDaysLeft, setRefreshTokenDaysLeft] = useState<number | null>(null);
-  const [refreshFailCount, setRefreshFailCount] = useState<number>(0);
 
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
@@ -92,104 +86,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     enabled: connected || connectionRetryCount > 0,
     staleTime: 10000,
   });
-
-  useEffect(() => {
-    if (credentials) {
-      if (credentials.expiresAt) {
-        const expirationDate = new Date(credentials.expiresAt);
-        const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
-        const expiresInDays = expiresInMinutes / (24 * 60);
-        
-        setTokenExpirationDate(expirationDate);
-        setDaysUntilExpiration(Math.max(0, Math.round(expiresInDays * 100) / 100));
-      } else {
-        setTokenExpirationDate(null);
-        setDaysUntilExpiration(null);
-      }
-      
-      if (credentials.refreshTokenExpiresAt) {
-        const refreshExpirationDate = new Date(credentials.refreshTokenExpiresAt);
-        const refreshExpiresInMinutes = (credentials.refreshTokenExpiresAt - Date.now()) / (1000 * 60);
-        const refreshExpiresInDays = refreshExpiresInMinutes / (24 * 60);
-        
-        setRefreshTokenExpirationDate(refreshExpirationDate);
-        setRefreshTokenDaysLeft(Math.max(0, Math.round(refreshExpiresInDays * 100) / 100));
-      } else {
-        setRefreshTokenExpirationDate(null);
-        setRefreshTokenDaysLeft(null);
-      }
-      
-      setRefreshFailCount(credentials.refreshFailCount || 0);
-    }
-  }, [credentials]);
-
-  const checkTokenValidity = useCallback(async () => {
-    console.log("🔍 Running comprehensive token validity check");
-    
-    try {
-      const credentials = await getFortnoxCredentials();
-      
-      if (credentials?.expiresAt) {
-        const currentTime = Date.now();
-        const expirationTime = credentials.expiresAt;
-        const expiresInMinutes = (expirationTime - currentTime) / (1000 * 60);
-        const expiresInDays = expiresInMinutes / (24 * 60);
-
-        const expirationDate = new Date(expirationTime);
-        setTokenExpirationDate(expirationDate);
-        setDaysUntilExpiration(Math.round(expiresInDays * 100) / 100);
-
-        console.group("🕰️ Token Lifecycle Analysis");
-        console.log(`Current Time: ${new Date().toISOString()}`);
-        console.log(`Token Expiration: ${expirationDate.toISOString()}`);
-        console.log(`Days Until Expiration: ${Math.round(expiresInDays)}`);
-        console.log(`Minutes Until Expiration: ${Math.round(expiresInMinutes)}`);
-        console.groupEnd();
-
-        const shouldRefreshDueToTime = 
-          expiresInDays <= 7 || 
-          expiresInMinutes < 30;
-
-        if (shouldRefreshDueToTime) {
-          console.warn(`🚨 Proactive Token Refresh Required. Expires in ${Math.round(expiresInDays)} days`);
-          
-          try {
-            const refreshSuccess = await forceTokenRefresh();
-            
-            if (refreshSuccess) {
-              await Promise.all([
-                refetchStatus(),
-                queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
-              ]);
-              
-              toast.success("Fortnox token refreshed automatically", {
-                description: `Previous token was expiring in ${Math.round(expiresInDays)} days`
-              });
-            } else {
-              console.error("Forced refresh failed");
-              toast.error("Token refresh failed", {
-                description: "Please try again later or reconnect to Fortnox"
-              });
-            }
-          } catch (error) {
-            console.error("Error during forced refresh:", error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error checking token validity:", error);
-    }
-  }, [refetchStatus, queryClient]);
-
-  useEffect(() => {
-    const refreshInterval = window.setInterval(checkTokenValidity, 15 * 60 * 1000);
-    
-    checkTokenValidity();
-    
-    return () => {
-      clearInterval(refreshInterval);
-    };
-  }, [checkTokenValidity]);
 
   useEffect(() => {
     if (onStatusChange) {
@@ -307,18 +203,11 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
     toast.success("Redirect URI copied to clipboard");
   };
 
-  const copyToken = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${type} copied to clipboard`);
-  };
-
   const handleRefreshStatus = () => {
     setConnectionRetryCount(prev => prev + 1);
     queryClient.invalidateQueries({ queryKey: ["fortnox-connection-status"] });
     queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
     toast.info("Refreshing Fortnox connection status...");
-    
-    checkTokenValidity();
   };
 
   const handleManualRefresh = async () => {
@@ -351,59 +240,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       console.error("Error during manual token refresh:", error);
       toast.error("Error refreshing token");
     }
-  };
-
-  const renderTokenExpirationInfo = () => {
-    return (
-      <div className="space-y-2 mt-4 p-3 bg-slate-50 rounded-md border">
-        <h4 className="text-sm font-medium">Token Information</h4>
-        
-        {tokenExpirationDate && daysUntilExpiration !== null && (
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${
-              daysUntilExpiration <= 0.5 ? "bg-red-500" : 
-              daysUntilExpiration <= 3 ? "bg-orange-500" : 
-              "bg-green-500"
-            }`}></div>
-            <div className="text-xs">
-              <div className="font-medium">Access Token:</div>
-              <div>
-                Expires: {tokenExpirationDate.toLocaleString()} 
-                {' '}<span className="font-medium">({daysUntilExpiration} days)</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {refreshTokenExpirationDate && refreshTokenDaysLeft !== null && (
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${
-              refreshTokenDaysLeft <= 7 ? "bg-red-500" : 
-              refreshTokenDaysLeft <= 14 ? "bg-orange-500" : 
-              "bg-green-500"
-            }`}></div>
-            <div className="text-xs">
-              <div className="font-medium">Refresh Token:</div>
-              <div>
-                Expires: {refreshTokenExpirationDate.toLocaleString()} 
-                {' '}<span className="font-medium">({refreshTokenDaysLeft} days)</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {refreshFailCount > 0 && (
-          <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 p-1 rounded">
-            <AlertTriangle className="h-3 w-3" />
-            <span>Recent refresh failures: {refreshFailCount}</span>
-          </div>
-        )}
-        
-        <div className="text-xs text-slate-500 italic">
-          Tokens are automatically refreshed 7 days before expiration
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -443,48 +279,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               <p className="text-sm">
                 Connected to Fortnox. You can now export invoices directly to your Fortnox account.
               </p>
-              
-              {credentials?.accessToken && (
-                <div className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium flex items-center gap-1">
-                        <Key className="h-3 w-3 text-green-600" />
-                        <span>Access Token</span>
-                      </p>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setShowToken(!showToken)}
-                      >
-                        {showToken ? "Hide" : "Show"}
-                      </Button>
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="font-mono text-xs p-2 bg-black/10 rounded overflow-hidden whitespace-nowrap overflow-ellipsis">
-                        {showToken ? credentials.accessToken : '••••••••••••••••••••••••••••••••'}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                        onClick={() => copyToken(credentials.accessToken, 'Access Token')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    
-                    {credentials?.expiresAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Token expires: {new Date(credentials.expiresAt).toLocaleString()}
-                        {' '}
-                        (in {Math.max(0, Math.round((credentials.expiresAt - Date.now()) / (1000 * 60)))} minutes)
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -526,7 +320,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               Refresh Token
             </Button>
           </div>
-          {renderTokenExpirationInfo()}
         </div>
       ) : (
         <div className="space-y-4">

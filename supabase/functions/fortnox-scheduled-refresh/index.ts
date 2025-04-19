@@ -145,10 +145,6 @@ Deno.serve(async (req) => {
         }
       );
     }
-
-    // Important: Reset invalid token flag and fail count before attempting refresh
-    credentials.refreshTokenInvalid = false;
-    credentials.refreshFailCount = 0;
     
     // Prepare form data for token refresh
     const formData = new URLSearchParams({
@@ -195,24 +191,6 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       console.error("Fortnox API error:", responseData);
       
-      // Update credentials with error state
-      const updatedCredentials = {
-        ...credentials,
-        refreshFailCount: (credentials.refreshFailCount || 0) + 1,
-        lastRefreshAttempt: Date.now(),
-        refreshTokenInvalid: responseData.error === 'invalid_grant'
-      };
-      
-      // Save the error state
-      await supabase
-        .from('system_settings')
-        .upsert({
-          id: 'fortnox_credentials',
-          settings: updatedCredentials
-        }, {
-          onConflict: 'id'
-        });
-      
       return new Response(
         JSON.stringify({ 
           error: responseData.error, 
@@ -226,21 +204,11 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Calculate token expiration time
-    const expiresAt = Date.now() + (responseData.expires_in || 3600) * 1000;
-    const refreshTokenExpiresAt = Date.now() + (45 * 24 * 60 * 60 * 1000);
-    
-    // Update credentials with new tokens
+    // Update credentials with new tokens only
     const updatedCredentials = {
       ...credentials,
       accessToken: responseData.access_token,
-      refreshToken: responseData.refresh_token || credentials.refreshToken,
-      expiresAt,
-      expiresIn: responseData.expires_in,
-      refreshTokenExpiresAt,
-      refreshFailCount: 0,
-      lastRefreshAttempt: Date.now(),
-      refreshTokenInvalid: false
+      refreshToken: responseData.refresh_token || credentials.refreshToken
     };
     
     // Save updated credentials
@@ -273,9 +241,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Token refresh completed successfully",
-        expiresAt: new Date(expiresAt).toISOString(),
-        expiresIn: responseData.expires_in
+        message: "Token refresh completed successfully"
       }),
       { 
         status: 200, 
