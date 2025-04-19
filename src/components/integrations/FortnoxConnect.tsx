@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { environment, getRedirectUri } from "@/config/environment";
 import { FortnoxCredentials } from "@/integrations/fortnox/types";
+import { supabase } from "@/config/supabase";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -323,15 +324,27 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const handleManualRefresh = async () => {
     try {
       toast.info("Manually refreshing Fortnox token...");
-      const success = await forceTokenRefresh();
+      const { data, error } = await supabase.functions.invoke('fortnox-scheduled-refresh', {
+        body: JSON.stringify({ force: true }),
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       
-      if (success) {
+      if (error) {
+        console.error("Error in manual refresh:", error);
+        toast.error("Failed to refresh Fortnox token");
+        return;
+      }
+
+      if (data?.success) {
         toast.success("Fortnox token refreshed successfully");
         await Promise.all([
           refetchStatus(),
           queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] })
         ]);
       } else {
+        console.error("Unexpected response:", data);
         toast.error("Failed to refresh Fortnox token");
       }
     } catch (error) {

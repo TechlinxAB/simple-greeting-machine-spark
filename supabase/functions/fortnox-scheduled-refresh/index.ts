@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
@@ -15,7 +16,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// This function will be called by a scheduled cron job
+// This function will be called by a scheduled cron job or manually
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
   }
   
   try {
-    console.log("Starting scheduled Fortnox token refresh");
+    console.log("Starting Fortnox token refresh process");
     
     // Parse request body if it exists
     let force = false;
@@ -35,20 +36,14 @@ Deno.serve(async (req) => {
       force = !!body.force;
       console.log("Request body:", { force });
     } catch (e) {
-      // No body or invalid JSON - that's okay for this endpoint
       console.log("No valid request body found");
     }
     
     // Authentication check
-    // 1. Check for API key-based auth (system level)
-    // 2. Check for JWT-based auth (user level) as fallback
-    
-    // Get both authorization methods
     const apiKey = req.headers.get("x-api-key");
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
 
-    // Detailed logging to help debug authentication issues
     console.log("Authentication check:", {
       authHeaderPresent: !!req.headers.get("Authorization"),
       apiKeyPresent: !!apiKey,
@@ -74,11 +69,10 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Final authentication result - either system auth or user auth must be true
     const isAuthenticated = isSystemAuthenticated || userAuthenticated;
     
     if (!isAuthenticated) {
-      console.error("❌ Unauthorized access to Fortnox scheduled refresh");
+      console.error("❌ Unauthorized access to Fortnox token refresh");
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
@@ -91,19 +85,18 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Successfully authenticated! Now proceed with the token refresh
     console.log("✅ Authentication successful:", {
       systemAuth: isSystemAuthenticated,
       userAuth: userAuthenticated
     });
     
-    // Initialize Supabase client with service role for database access
+    // Initialize Supabase client
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Supabase URL or service key not configured");
+      console.error("Supabase configuration missing");
       return new Response(
         JSON.stringify({ 
           error: "server_configuration_error", 
-          message: "Server is not properly configured for database access" 
+          message: "Server configuration incomplete" 
         }),
         { 
           status: 500, 
@@ -114,7 +107,7 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get Fortnox credentials from system_settings table
+    // Get Fortnox credentials from database
     console.log("Retrieving Fortnox credentials from database");
     const { data: settingsData, error: settingsError } = await supabase
       .from('system_settings')
@@ -127,8 +120,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "database_error", 
-          message: "Failed to retrieve Fortnox credentials",
-          details: settingsError
+          message: "Failed to retrieve Fortnox credentials" 
         }),
         { 
           status: 500, 
@@ -137,7 +129,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Extract credentials from settings
+    // Extract and validate credentials
     const credentials = settingsData.settings;
     
     if (!credentials || !credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
@@ -145,7 +137,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "invalid_credentials", 
-          message: "Invalid or incomplete Fortnox credentials" 
+          message: "Incomplete Fortnox credentials" 
         }),
         { 
           status: 400, 
@@ -153,34 +145,12 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    // Important: Reset invalid token flag and fail count before attempting refresh
+    credentials.refreshTokenInvalid = false;
+    credentials.refreshFailCount = 0;
     
-    // Check if token needs refreshing
-    // Refresh if explicitly forced or if less than 7 days remaining
-    const expiresInMs = credentials.expiresAt ? credentials.expiresAt - Date.now() : 0;
-    const expiresInDays = expiresInMs / (1000 * 60 * 60 * 24);
-    const needsRefresh = force || !credentials.expiresAt || expiresInDays < 7;
-    
-    console.log("Token status:", {
-      expiresInDays: Math.round(expiresInDays * 10) / 10,
-      forceRefresh: force,
-      needsRefresh: needsRefresh
-    });
-    
-    // If token doesn't need refreshing yet, return early
-    if (!needsRefresh) {
-      return new Response(
-        JSON.stringify({ 
-          message: "Token doesn't need refreshing yet",
-          daysRemaining: Math.round(expiresInDays * 10) / 10
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Prepare the form data
+    // Prepare form data for token refresh
     const formData = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: credentials.clientId,
@@ -188,7 +158,7 @@ Deno.serve(async (req) => {
       refresh_token: credentials.refreshToken,
     });
     
-    console.log("Making scheduled token refresh request to Fortnox");
+    console.log("Making token refresh request to Fortnox");
     
     // Make the request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {
@@ -199,7 +169,7 @@ Deno.serve(async (req) => {
       body: formData,
     });
     
-    // Get the response body
+    // Get and parse response
     const responseText = await response.text();
     console.log("Fortnox response status:", response.status);
     
@@ -208,11 +178,12 @@ Deno.serve(async (req) => {
       responseData = JSON.parse(responseText);
       console.log("Successfully parsed Fortnox response");
     } catch (e) {
-      console.error("Failed to parse Fortnox response as JSON:", e);
+      console.error("Failed to parse Fortnox response:", e);
       return new Response(
         JSON.stringify({ 
-          error: "Failed to parse Fortnox response", 
-          rawResponse: responseText 
+          error: "invalid_response", 
+          message: "Invalid response from Fortnox",
+          raw: responseText
         }),
         { 
           status: 500, 
@@ -221,41 +192,31 @@ Deno.serve(async (req) => {
       );
     }
     
-    // If the response is not OK, return the error
     if (!response.ok) {
-      console.error("Fortnox API error:", response.status, responseData);
+      console.error("Fortnox API error:", responseData);
       
-      // If refresh token is invalid, mark it in the database
-      if (responseData.error === 'invalid_grant' && 
-          responseData.error_description === 'Invalid refresh token') {
-        
-        // Update credentials to indicate refresh token is invalid
-        const updatedCredentials = {
-          ...credentials,
-          refreshFailCount: (credentials.refreshFailCount || 0) + 1,
-          lastRefreshAttempt: Date.now(),
-          refreshTokenInvalid: true
-        };
-        
-        // Save the updated credentials
-        const { error: updateError } = await supabase
-          .from('system_settings')
-          .upsert({
-            id: 'fortnox_credentials',
-            settings: updatedCredentials
-          }, {
-            onConflict: 'id'
-          });
-          
-        if (updateError) {
-          console.error("Error updating invalid token status:", updateError);
-        }
-      }
+      // Update credentials with error state
+      const updatedCredentials = {
+        ...credentials,
+        refreshFailCount: (credentials.refreshFailCount || 0) + 1,
+        lastRefreshAttempt: Date.now(),
+        refreshTokenInvalid: responseData.error === 'invalid_grant'
+      };
+      
+      // Save the error state
+      await supabase
+        .from('system_settings')
+        .upsert({
+          id: 'fortnox_credentials',
+          settings: updatedCredentials
+        }, {
+          onConflict: 'id'
+        });
       
       return new Response(
         JSON.stringify({ 
-          error: "fortnox_api_error", 
-          status: response.status,
+          error: responseData.error, 
+          message: responseData.error_description || "Token refresh failed",
           details: responseData
         }),
         { 
@@ -265,13 +226,8 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Token refresh successful, update the database
-    console.log("Scheduled token refresh successful");
-    
     // Calculate token expiration time
     const expiresAt = Date.now() + (responseData.expires_in || 3600) * 1000;
-    
-    // Set refresh token expiration to 45 days from now
     const refreshTokenExpiresAt = Date.now() + (45 * 24 * 60 * 60 * 1000);
     
     // Update credentials with new tokens
@@ -312,11 +268,12 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Return success response
+    console.log("Token refresh completed successfully");
+    
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Scheduled token refresh completed successfully",
+        message: "Token refresh completed successfully",
         expiresAt: new Date(expiresAt).toISOString(),
         expiresIn: responseData.expires_in
       }),
@@ -325,8 +282,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
+    
   } catch (error) {
-    console.error("Server error in scheduled token refresh:", error);
+    console.error("Server error in token refresh:", error);
     return new Response(
       JSON.stringify({ 
         error: "server_error", 
