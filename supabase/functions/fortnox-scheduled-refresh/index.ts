@@ -1,5 +1,5 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
+import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
@@ -46,6 +46,8 @@ Deno.serve(async (req) => {
     const apiKey = req.headers.get("x-api-key");
     const authHeader = req.headers.get("Authorization");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+    const token = authHeader?.replace("Bearer ", "");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     // Detailed logging to help debug authentication issues
     console.log("Authentication check:", {
@@ -61,43 +63,14 @@ Deno.serve(async (req) => {
     // Check for user authentication via JWT
     let userAuthenticated = false;
     
-    if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-      
-      // Add more detailed logging about auth key presence
-      if (!supabaseAnonKey) {
-        console.error("❌ SUPABASE_ANON_KEY environment variable is not set");
-      } else {
-        console.log("✅ Using SUPABASE_ANON_KEY for JWT validation");
-      }
-      
-      // Create a client instance using the anon key for JWT validation
-      const supabaseClient = createClient(
-        supabaseUrl,
-        supabaseAnonKey || '',
-        {
-          global: {
-            headers: { Authorization: authHeader },
-          },
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          }
-        }
-      );
-      
+    if (!isSystemAuthenticated && token && supabaseAnonKey) {
       try {
-        // Attempt to retrieve the user from the JWT
-        const { data: user, error: userError } = await supabaseClient.auth.getUser();
-        
-        if (user?.user && !userError) {
-          console.log("✅ Authenticated via Supabase JWT:", user.user.id);
-          userAuthenticated = true;
-        } else {
-          console.error("❌ Supabase JWT auth failed", userError);
-        }
-      } catch (authError) {
-        console.error("❌ Exception during Supabase auth:", authError);
+        const encoder = new TextEncoder();
+        const { payload } = await jwtVerify(token, encoder.encode(supabaseAnonKey));
+        console.log("✅ JWT validated, user ID:", payload.sub);
+        userAuthenticated = true;
+      } catch (err) {
+        console.error("❌ JWT verification failed", err);
       }
     }
     
