@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
@@ -382,6 +381,39 @@ export async function triggerSystemTokenRefresh(force: boolean = false): Promise
     return true;
   } catch (error) {
     console.error("Failed to trigger system token refresh:", error);
+    return false;
+  }
+}
+
+/**
+ * Forces a refresh of the Fortnox access token
+ * This function can be called from the frontend to trigger a manual token refresh
+ * @returns {Promise<boolean>} True if the refresh was successful, false otherwise
+ */
+export async function forceTokenRefresh(): Promise<boolean> {
+  try {
+    console.log("Force refreshing Fortnox access token");
+    
+    // Call the edge function that handles token refresh
+    const response = await fetch('/functions/v1/fortnox-token-refresh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ force: true }),
+    });
+    
+    if (!response.ok) {
+      console.error("Failed to force refresh token:", response.status, await response.text());
+      return false;
+    }
+    
+    const result = await response.json();
+    console.log("Force token refresh result:", result);
+    
+    return !!result.success;
+  } catch (error) {
+    console.error("Error in force refreshing token:", error);
     return false;
   }
 }

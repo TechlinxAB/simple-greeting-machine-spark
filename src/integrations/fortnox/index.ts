@@ -8,7 +8,8 @@ export type { FortnoxCredentials, SystemSettings, TokenMigrationResponse, TokenM
 // Authentication
 export { 
   exchangeCodeForTokens,
-  refreshAccessToken
+  refreshAccessToken,
+  forceTokenRefresh
 } from './auth';
 
 // Credentials management
