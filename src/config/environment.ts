@@ -1,3 +1,4 @@
+
 /**
  * Environment Configuration
  * 
@@ -36,7 +37,7 @@ interface EnvironmentConfig {
 /**
  * Default configuration for cloud-hosted Supabase
  */
-export const environment = {
+export const environment: EnvironmentConfig = {
   supabase: {
     // Current cloud Supabase values (same as hardcoded in supabase.ts)
     url: 'https://xojrleypudfrbmvejpow.supabase.co',
