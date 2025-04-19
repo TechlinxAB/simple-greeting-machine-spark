@@ -1,5 +1,5 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
-import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
@@ -47,7 +47,6 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
     const token = authHeader?.replace("Bearer ", "");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     // Detailed logging to help debug authentication issues
     console.log("Authentication check:", {
@@ -63,14 +62,27 @@ Deno.serve(async (req) => {
     // Check for user authentication via JWT
     let userAuthenticated = false;
     
-    if (!isSystemAuthenticated && token && supabaseAnonKey) {
+    if (!isSystemAuthenticated && token) {
       try {
-        const encoder = new TextEncoder();
-        const { payload } = await jwtVerify(token, encoder.encode(supabaseAnonKey));
-        console.log("✅ JWT validated, user ID:", payload.sub);
-        userAuthenticated = true;
+        // Create a Supabase client with the service role key
+        // and pass the token in the Authorization header
+        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+          global: {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        });
+
+        // Use the getUser method to verify the token
+        const { data: user, error } = await supabaseClient.auth.getUser();
+
+        if (user?.user && !error) {
+          console.log("✅ Authenticated via Supabase JWT:", user.user.id);
+          userAuthenticated = true;
+        } else {
+          console.error("❌ Supabase JWT auth failed", error);
+        }
       } catch (err) {
-        console.error("❌ JWT verification failed", err);
+        console.error("❌ Exception during Supabase auth:", err);
       }
     }
     
