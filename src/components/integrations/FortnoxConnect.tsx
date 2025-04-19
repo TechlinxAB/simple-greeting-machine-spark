@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,12 @@ import {
   saveFortnoxCredentials
 } from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
-import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key } from "lucide-react";
+import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw, Key, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { environment, getRedirectUri } from "@/config/environment";
+import { FortnoxCredentials } from "@/integrations/fortnox/types";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -28,19 +30,18 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // New state for guaranteed refresh timing
-  const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number | null>(null);
-
   // Enhanced token lifecycle tracking
   const [tokenExpirationDate, setTokenExpirationDate] = useState<Date | null>(null);
   const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null);
+  const [refreshTokenExpirationDate, setRefreshTokenExpirationDate] = useState<Date | null>(null);
+  const [refreshTokenDaysLeft, setRefreshTokenDaysLeft] = useState<number | null>(null);
+  const [refreshFailCount, setRefreshFailCount] = useState<number>(0);
 
-  // Set the redirect URI when component mounts - use the new getRedirectUri function
+  // Set the redirect URI when component mounts - use the getRedirectUri function
   useEffect(() => {
     const fullRedirectUri = getRedirectUri();
     console.log("Setting Fortnox redirect URI:", fullRedirectUri);
@@ -90,9 +91,43 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       console.log("Retrieved Fortnox credentials:", creds ? "Found" : "Not found");
       return creds;
     },
-    enabled: connected,
+    enabled: connected || connectionRetryCount > 0, // Also fetch when explicitly refreshing
     staleTime: 10000,
   });
+
+  // Update token expiration tracking whenever credentials change
+  useEffect(() => {
+    if (credentials) {
+      // Access token expiration tracking
+      if (credentials.expiresAt) {
+        const expirationDate = new Date(credentials.expiresAt);
+        const expiresInMinutes = (credentials.expiresAt - Date.now()) / (1000 * 60);
+        const expiresInDays = expiresInMinutes / (24 * 60);
+        
+        setTokenExpirationDate(expirationDate);
+        setDaysUntilExpiration(Math.max(0, Math.round(expiresInDays * 100) / 100));
+      } else {
+        setTokenExpirationDate(null);
+        setDaysUntilExpiration(null);
+      }
+      
+      // Refresh token expiration tracking
+      if (credentials.refreshTokenExpiresAt) {
+        const refreshExpirationDate = new Date(credentials.refreshTokenExpiresAt);
+        const refreshExpiresInMinutes = (credentials.refreshTokenExpiresAt - Date.now()) / (1000 * 60);
+        const refreshExpiresInDays = refreshExpiresInMinutes / (24 * 60);
+        
+        setRefreshTokenExpirationDate(refreshExpirationDate);
+        setRefreshTokenDaysLeft(Math.max(0, Math.round(refreshExpiresInDays * 100) / 100));
+      } else {
+        setRefreshTokenExpirationDate(null);
+        setRefreshTokenDaysLeft(null);
+      }
+      
+      // Refresh failure tracking
+      setRefreshFailCount(credentials.refreshFailCount || 0);
+    }
+  }, [credentials]);
 
   // Enhanced token validity check
   const checkTokenValidity = useCallback(async () => {
@@ -109,7 +144,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       // Update expiration tracking state
       const expirationDate = new Date(expirationTime);
       setTokenExpirationDate(expirationDate);
-      setDaysUntilExpiration(Math.round(expiresInDays));
+      setDaysUntilExpiration(Math.round(expiresInDays * 100) / 100);
 
       // Log detailed token lifecycle information
       console.group("🕰️ Token Lifecycle Analysis");
@@ -305,17 +340,57 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
 
   // Render token expiration information
   const renderTokenExpirationInfo = () => {
-    if (!tokenExpirationDate || daysUntilExpiration === null) return null;
-
-    const warningLevel = 
-      daysUntilExpiration <= 7 ? "text-red-500" : 
-      daysUntilExpiration <= 14 ? "text-orange-500" : 
-      "text-green-500";
-
     return (
-      <div className={`text-sm ${warningLevel}`}>
-        Token Expires: {tokenExpirationDate.toLocaleDateString()} 
-        ({daysUntilExpiration} days remaining)
+      <div className="space-y-2 mt-4 p-3 bg-slate-50 rounded-md border">
+        <h4 className="text-sm font-medium">Token Information</h4>
+        
+        {/* Access Token */}
+        {tokenExpirationDate && daysUntilExpiration !== null && (
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${
+              daysUntilExpiration <= 0.5 ? "bg-red-500" : 
+              daysUntilExpiration <= 3 ? "bg-orange-500" : 
+              "bg-green-500"
+            }`}></div>
+            <div className="text-xs">
+              <div className="font-medium">Access Token:</div>
+              <div>
+                Expires: {tokenExpirationDate.toLocaleString()} 
+                {' '}<span className="font-medium">({daysUntilExpiration} days)</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Refresh Token */}
+        {refreshTokenExpirationDate && refreshTokenDaysLeft !== null && (
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${
+              refreshTokenDaysLeft <= 7 ? "bg-red-500" : 
+              refreshTokenDaysLeft <= 14 ? "bg-orange-500" : 
+              "bg-green-500"
+            }`}></div>
+            <div className="text-xs">
+              <div className="font-medium">Refresh Token:</div>
+              <div>
+                Expires: {refreshTokenExpirationDate.toLocaleString()} 
+                {' '}<span className="font-medium">({refreshTokenDaysLeft} days)</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Refresh Failures */}
+        {refreshFailCount > 0 && (
+          <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 p-1 rounded">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Recent refresh failures: {refreshFailCount}</span>
+          </div>
+        )}
+        
+        <div className="text-xs text-slate-500 italic">
+          Tokens are automatically refreshed 7 days before expiration
+        </div>
       </div>
     );
   };

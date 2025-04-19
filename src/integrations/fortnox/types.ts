@@ -20,6 +20,10 @@ export interface FortnoxCredentials {
   
   // Refresh token expiration time in milliseconds (epoch)
   refreshTokenExpiresAt?: number;
+  
+  // Track refresh token failures
+  refreshFailCount?: number;
+  lastRefreshAttempt?: number;
 }
 
 /**
@@ -50,4 +54,15 @@ export interface TokenMigrationError {
   error: string;
   error_description: string;
   status_code?: number;
+}
+
+/**
+ * Fortnox token refresh result
+ */
+export interface RefreshResult {
+  success: boolean;
+  message: string;
+  credentials?: Partial<FortnoxCredentials>;
+  error?: any;
+  requiresReconnect?: boolean;
 }

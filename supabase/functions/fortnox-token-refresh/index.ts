@@ -177,9 +177,27 @@ serve(async (req) => {
     // If the response is not OK, return the error
     if (!response.ok) {
       console.error("Fortnox API error:", response.status, responseData);
+      
+      // Add specific detection for invalid/expired refresh token
+      if (responseData.error === 'invalid_grant' && 
+          responseData.error_description === 'Invalid refresh token') {
+        return new Response(
+          JSON.stringify({ 
+            error: "refresh_token_invalid", 
+            error_description: "The refresh token is no longer valid. User needs to reconnect to Fortnox.",
+            status: response.status,
+            details: responseData
+          }),
+          { 
+            status: 401, // Use 401 for auth issues 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: "Fortnox API error", 
+          error: "fortnox_api_error", 
           status: response.status,
           details: responseData
         }),
@@ -204,7 +222,7 @@ serve(async (req) => {
     console.error("Server error in fortnox-token-refresh:", error);
     return new Response(
       JSON.stringify({ 
-        error: "Server error", 
+        error: "server_error", 
         message: error.message || "Unknown error",
         stack: error.stack || "No stack trace"
       }),
