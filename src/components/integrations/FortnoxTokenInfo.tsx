@@ -1,16 +1,20 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { getFortnoxCredentials, getTokenRefreshHistory } from "@/integrations/fortnox";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getFortnoxCredentials, getTokenRefreshHistory, triggerSystemTokenRefresh } from "@/integrations/fortnox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { formatDistanceToNow, format, addDays, parseISO } from "date-fns";
+import { formatDistanceToNow, format, addDays, parseISO, differenceInMinutes } from "date-fns";
 import { TokenRefreshLog } from "@/integrations/fortnox/types";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function FortnoxTokenInfo() {
   const [nextScheduledRefresh, setNextScheduledRefresh] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: credentials, isLoading: isLoadingCredentials } = useQuery({
     queryKey: ["fortnox-credentials"],
@@ -75,6 +79,45 @@ export function FortnoxTokenInfo() {
     }
   }, [credentials]);
 
+  // Check if token needs to be refreshed proactively
+  useEffect(() => {
+    const checkTokenExpirationAndRefresh = async () => {
+      if (accessTokenExpiration) {
+        const now = new Date();
+        const minutesUntilExpiry = differenceInMinutes(accessTokenExpiration, now);
+        
+        // If token expires in less than 30 minutes, trigger a refresh
+        if (minutesUntilExpiry < 30 && minutesUntilExpiry > 0 && !isRefreshing) {
+          console.log(`Token expires in ${minutesUntilExpiry} minutes - triggering proactive refresh`);
+          
+          setIsRefreshing(true);
+          try {
+            const success = await triggerSystemTokenRefresh(true);
+            if (success) {
+              console.log("Proactive token refresh successful");
+              toast.success("Access token refreshed proactively");
+              queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+              queryClient.invalidateQueries({ queryKey: ["fortnox-token-refresh-history"] });
+            } else {
+              console.error("Proactive token refresh failed");
+              toast.error("Failed to refresh access token");
+            }
+          } catch (error) {
+            console.error("Error during proactive token refresh:", error);
+          } finally {
+            setIsRefreshing(false);
+          }
+        }
+      }
+    };
+
+    // Run the check immediately and set up an interval to check every 5 minutes
+    checkTokenExpirationAndRefresh();
+    const intervalId = setInterval(checkTokenExpirationAndRefresh, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [accessTokenExpiration, isRefreshing, queryClient]);
+
   if (isLoadingCredentials || !credentials?.accessToken) {
     return null;
   }
@@ -98,6 +141,27 @@ export function FortnoxTokenInfo() {
     critical: "bg-red-100 text-red-800",
     expired: "bg-red-100 text-red-800",
     unknown: "bg-gray-100 text-gray-800"
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      toast.info("Manually refreshing token...");
+      const success = await triggerSystemTokenRefresh(true);
+      
+      if (success) {
+        toast.success("Token refreshed successfully");
+        queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+        queryClient.invalidateQueries({ queryKey: ["fortnox-token-refresh-history"] });
+      } else {
+        toast.error("Failed to refresh token");
+      }
+    } catch (error) {
+      console.error("Error in manual refresh:", error);
+      toast.error("Error refreshing token");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -130,6 +194,20 @@ export function FortnoxTokenInfo() {
           
           {!accessTokenExpiration && (
             <p className="text-xs text-gray-600">Unable to determine token expiration</p>
+          )}
+          
+          {/* Add manual refresh button */}
+          {health === "critical" && (
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="mt-1"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh Now
+            </Button>
           )}
         </div>
 
@@ -167,8 +245,8 @@ export function FortnoxTokenInfo() {
           <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-200">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              The system attempts to refresh the access token daily at 3:00 AM. 
-              The refresh token is used to get a new access token and is valid for approximately 45 days.
+              The system automatically refreshes the access token daily at 3:00 AM and also proactively when it has less than 30 minutes before expiration.
+              The refresh token is valid for approximately 45 days.
             </AlertDescription>
           </Alert>
         </div>

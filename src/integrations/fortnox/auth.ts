@@ -1,3 +1,4 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
@@ -98,6 +99,7 @@ export async function refreshAccessToken(
       if (errorBody.includes('invalid_grant')) {
         return { 
           success: false, 
+          message: 'Refresh token is invalid or expired',
           requiresReconnect: true,
           error: `Refresh token is invalid or expired: ${response.status} ${response.statusText} - ${errorBody}` 
         };
@@ -105,6 +107,7 @@ export async function refreshAccessToken(
       
       return { 
         success: false, 
+        message: 'Failed to refresh access token',
         requiresReconnect: false,
         error: `Failed to refresh access token: ${response.status} ${response.statusText} - ${errorBody}` 
       };
@@ -116,6 +119,7 @@ export async function refreshAccessToken(
       console.error('Incomplete token data received during refresh:', data);
       return { 
         success: false, 
+        message: 'Incomplete token data received from Fortnox',
         requiresReconnect: false,
         error: 'Incomplete token data received from Fortnox during refresh' 
       };
@@ -123,6 +127,7 @@ export async function refreshAccessToken(
     
     return {
       success: true,
+      message: 'Token refreshed successfully',
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresIn: data.expires_in,
@@ -131,7 +136,8 @@ export async function refreshAccessToken(
   } catch (error: any) {
     console.error('Error in refreshAccessToken:', error);
     return { 
-      success: false, 
+      success: false,
+      message: `Token refresh failed: ${error.message}`,
       requiresReconnect: false,
       error: `Token refresh failed: ${error.message}` 
     };
@@ -142,7 +148,7 @@ export async function refreshAccessToken(
  * Triggers a system token refresh by calling an edge function.
  * @returns A promise that resolves to void.
  */
-export async function triggerSystemTokenRefresh(force: boolean = false): Promise<void> {
+export async function triggerSystemTokenRefresh(force: boolean = false): Promise<boolean> {
   try {
     console.log("Attempting to trigger system token refresh via Edge Function");
     
@@ -159,9 +165,10 @@ export async function triggerSystemTokenRefresh(force: boolean = false): Promise
     }
 
     console.log("Edge Function invoked successfully:", data);
+    return true;
   } catch (error: any) {
     console.error("Error in triggerSystemTokenRefresh:", error);
-    throw new Error(`Failed to trigger token refresh: ${error.message}`);
+    return false;
   }
 }
 
@@ -181,7 +188,7 @@ export async function getSystemSettings(): Promise<SystemSettings | null> {
       return null;
     }
 
-    return data || null;
+    return data as SystemSettings || null;
   } catch (error) {
     console.error("Failed to fetch system settings:", error);
     return null;
@@ -197,7 +204,7 @@ export async function updateSystemSettings(settings: SystemSettings): Promise<vo
   try {
     const { error } = await supabase
       .from('system_settings')
-      .upsert(settings, { onConflict: 'key' });
+      .upsert(settings, { onConflict: 'id' });
 
     if (error) {
       console.error("Error updating system settings:", error);
@@ -227,7 +234,7 @@ export async function validateFortnoxCredentials(
       return false;
     }
 
-    if (isLegacyToken(credentials.refreshToken)) {
+    if (isLegacyToken(credentials)) {
       console.warn("Legacy token detected. Cannot validate legacy tokens.");
       return false;
     }
@@ -250,17 +257,6 @@ export async function validateFortnoxCredentials(
     console.error("Error validating Fortnox credentials:", error);
     return false;
   }
-}
-
-// Token refresh history log entry
-export interface TokenRefreshLog {
-  id: string;
-  success: boolean;
-  message?: string;
-  token_length?: number;
-  session_id?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 /**

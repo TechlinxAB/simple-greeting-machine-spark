@@ -1,3 +1,4 @@
+
 export interface FortnoxCredentials {
   clientId: string;
   clientSecret: string;
@@ -13,6 +14,10 @@ export interface RefreshResult {
   credentials?: Partial<FortnoxCredentials>;
   error?: any;
   requiresReconnect?: boolean;
+  // Add these properties to match the return values from refreshAccessToken
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 }
 
 export interface TokenMigrationResponse {
