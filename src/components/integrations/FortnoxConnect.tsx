@@ -372,7 +372,6 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
             </div>
           </div>
           
-          {/* Token information card - prominently displayed */}
           <FortnoxTokenInfo />
           
           <div className="flex flex-wrap gap-2">

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { FortnoxCredentials, RefreshResult } from "./types";
 import { environment } from "@/config/environment";
+import { getFortnoxCredentials, saveFortnoxCredentials } from "./credentials";
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 

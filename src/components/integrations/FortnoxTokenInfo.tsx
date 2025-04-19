@@ -2,11 +2,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFortnoxCredentials } from "@/integrations/fortnox/credentials";
 import { Badge } from "@/components/ui/badge";
-import { forceTokenRefresh } from "@/integrations/fortnox/auth";
+import { forceTokenRefresh } from "@/integrations/fortnox/credentials";
 import { Card } from "@/components/ui/card";
 import { Clock, RefreshCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function FortnoxTokenInfo() {
   const queryClient = useQueryClient();
@@ -20,15 +21,16 @@ export function FortnoxTokenInfo() {
     queryKey: ["fortnox-credentials"],
     queryFn: getFortnoxCredentials,
     refetchInterval: 60000, // Check every minute
-    onSuccess: (data) => {
-      setIsLoading(false);
-      console.log("Token info:", data?.expiresAt ? new Date(data.expiresAt) : "No expiration");
-    },
-    onError: (error) => {
-      console.error("Error fetching token info:", error);
+  });
+
+  useEffect(() => {
+    // Set loading status based on credentials query
+    if (!isLoadingCredentials) {
       setIsLoading(false);
     }
-  });
+    
+    console.log("Token info:", credentials?.expiresAt ? new Date(credentials.expiresAt) : "No expiration");
+  }, [credentials, isLoadingCredentials]);
 
   useEffect(() => {
     if (refreshTimeoutRef.current) {

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { FortnoxCredentials } from "./types";
 import { triggerSystemTokenRefresh } from "./auth";
