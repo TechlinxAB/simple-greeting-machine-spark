@@ -1,11 +1,12 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
+import { jwtVerify } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
 // Get Supabase configuration from environment
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabaseJwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
 
 // Fixed CORS headers
 const corsHeaders = {
@@ -54,6 +55,7 @@ Deno.serve(async (req) => {
       apiKeyPresent: !!apiKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyLength: validKey ? validKey.length : 0,
+      jwtSecretPresent: !!supabaseJwtSecret
     });
     
     // Check for system-level authentication via API key
@@ -62,27 +64,14 @@ Deno.serve(async (req) => {
     // Check for user authentication via JWT
     let userAuthenticated = false;
     
-    if (!isSystemAuthenticated && token) {
+    if (!isSystemAuthenticated && token && supabaseJwtSecret) {
       try {
-        // Create a Supabase client with the service role key
-        // and pass the token in the Authorization header
-        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-          global: {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        });
-
-        // Use the getUser method to verify the token
-        const { data: user, error } = await supabaseClient.auth.getUser();
-
-        if (user?.user && !error) {
-          console.log("✅ Authenticated via Supabase JWT:", user.user.id);
-          userAuthenticated = true;
-        } else {
-          console.error("❌ Supabase JWT auth failed", error);
-        }
+        const encoder = new TextEncoder();
+        const { payload } = await jwtVerify(token, encoder.encode(supabaseJwtSecret));
+        console.log("✅ JWT validated, user ID:", payload.sub);
+        userAuthenticated = true;
       } catch (err) {
-        console.error("❌ Exception during Supabase auth:", err);
+        console.error("❌ JWT verification failed", err);
       }
     }
     
