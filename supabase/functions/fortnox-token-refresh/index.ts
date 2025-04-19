@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
@@ -21,6 +22,20 @@ serve(async (req) => {
     // Validate API key
     const apiKey = req.headers.get("x-api-key");
     const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+    
+    if (!validKey) {
+      console.error("FORTNOX_REFRESH_SECRET environment variable is not set");
+      return new Response(
+        JSON.stringify({ 
+          error: "server_configuration_error", 
+          message: "Server is not properly configured. Missing refresh secret." 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     if (!apiKey || apiKey !== validKey) {
       console.error("Invalid or missing API key");
