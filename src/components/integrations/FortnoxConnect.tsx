@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { environment, getRedirectUri } from "@/config/environment";
 import { FortnoxCredentials } from "@/integrations/fortnox/types";
 import { supabase } from "@/lib/supabase";
+import { FortnoxTokenInfo } from "./FortnoxTokenInfo";
 
 interface FortnoxConnectProps {
   clientId: string;
@@ -375,6 +376,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
               </p>
             </div>
           </div>
+          <FortnoxTokenInfo />
           <div className="flex gap-2">
             <Button 
               variant="destructive" 
