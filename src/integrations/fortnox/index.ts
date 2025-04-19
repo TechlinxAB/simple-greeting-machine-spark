@@ -5,7 +5,8 @@ export {
   disconnectFortnox,
   getFortnoxCredentials,
   saveFortnoxCredentials,
-  forceTokenRefresh
+  forceTokenRefresh,
+  isLegacyToken
 } from './credentials';
 
 export {
@@ -13,6 +14,20 @@ export {
   refreshAccessToken,
   triggerSystemTokenRefresh
 } from './auth';
+
+// Export migration functions
+export {
+  migrateLegacyToken
+} from './migration';
+
+// Export types
+export type { 
+  FortnoxCredentials, 
+  RefreshResult, 
+  TokenMigrationResponse, 
+  TokenMigrationError,
+  SystemSettings 
+} from './types';
 
 // Export invoices related functions
 export * from './invoices';
