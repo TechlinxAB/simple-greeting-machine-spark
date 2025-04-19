@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
@@ -42,35 +41,48 @@ Deno.serve(async (req) => {
       console.log("No valid request body found");
     }
     
-    // Check for API key in Authorization header (if using supabase.functions.invoke)
-    const authHeader = req.headers.get("Authorization");
-    
-    // Check for API key in x-api-key header (direct HTTP call from cron)
+    // Get both authorization methods
     const apiKey = req.headers.get("x-api-key");
-    
+    const authHeader = req.headers.get("Authorization");
+    const validKey = Deno.env.get("FORTNOX_REFRESH_SECRET");
+
     console.log("Authentication check:", {
       authHeaderPresent: !!authHeader,
       apiKeyPresent: !!apiKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
-      validKeyLength: SYSTEM_API_KEY.length,
-      apiKeyMatches: apiKey === SYSTEM_API_KEY,
+      validKeyLength: validKey ? validKey.length : 0,
     });
     
-    // Determine if the request is authenticated through any valid method:
-    // 1. Either it has the correct system API key in x-api-key header (from cron job)
-    // 2. Or it's from the frontend with a valid Authorization header
-    const isAuthenticated = 
-      (apiKey === SYSTEM_API_KEY) ||
-      (authHeader && authHeader.startsWith("Bearer "));
-    
+    // Check for system-level authentication via API key
+    const isSystemAuthenticated = validKey && apiKey === validKey;
+
+    // Check for user authentication via JWT
+    let userAuthenticated = false;
+
+    if (!isSystemAuthenticated && authHeader?.startsWith("Bearer ")) {
+      const userSupabase = createClient(supabaseUrl, supabaseServiceKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: authData, error: authError } = await userSupabase.auth.getUser();
+
+      if (authData?.user && !authError) {
+        userAuthenticated = true;
+        console.log("Authenticated via Supabase JWT:", authData.user.id);
+      } else {
+        console.warn("Supabase auth failed:", authError);
+      }
+    }
+
+    // Final authentication check - either system or user auth must succeed
+    const isAuthenticated = isSystemAuthenticated || userAuthenticated;
+
     if (!isAuthenticated) {
-      console.error("Invalid or missing API key for scheduled refresh");
+      console.error("Unauthorized access to scheduled refresh function");
       return new Response(
         JSON.stringify({ 
           error: "unauthorized", 
-          message: "Invalid or missing API key for scheduled refresh",
-          apiKeyPresent: !!apiKey,
-          headerPresent: !!authHeader,
+          message: "Invalid or missing API key or user token"
         }),
         { 
           status: 401, 
