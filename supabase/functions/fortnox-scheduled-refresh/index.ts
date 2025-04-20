@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify, decodeJwt } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
@@ -59,6 +60,15 @@ function tokenNeedsRefresh(token: string): boolean {
   return timeRemaining < thirtyMinutesInSeconds;
 }
 
+// Helper to check if token is expired
+function isTokenExpired(token: string): boolean {
+  const expTime = getTokenExpirationTime(token);
+  if (!expTime) return true; // If we can't determine expiration, assume expired
+  
+  const now = Math.floor(Date.now() / 1000); // Current time in seconds
+  return now >= expTime;
+}
+
 // Helper to log refresh attempts to the database
 async function logRefreshAttempt(
   supabase, 
@@ -105,10 +115,12 @@ Deno.serve(async (req) => {
     
     // Parse request body if it exists
     let force = false;
+    let automatic = false;
     try {
       const body = await req.json();
       force = !!body.force;
-      console.log(`[${sessionId}] 📝 Request body:`, { force });
+      automatic = !!body.automatic;
+      console.log(`[${sessionId}] 📝 Request body:`, { force, automatic, scheduled: !!body.scheduled });
     } catch (e) {
       console.log(`[${sessionId}] ⚠️ No valid request body found`);
     }
@@ -123,53 +135,60 @@ Deno.serve(async (req) => {
       apiKeyPresent: !!apiKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
       validKeyLength: validKey ? validKey.length : 0,
-      jwtSecretPresent: !!jwtSecret
+      jwtSecretPresent: !!jwtSecret,
+      isAutomaticRefresh: automatic
     });
     
-    // Check for system-level authentication via API key
-    const isSystemAuthenticated = validKey && apiKey === validKey;
-    
-    // Check for user authentication via JWT token
-    let userAuthenticated = false;
-    
-    if (!isSystemAuthenticated && token && jwtSecret) {
-      try {
-        const encoder = new TextEncoder();
-        const { payload } = await jwtVerify(token, encoder.encode(jwtSecret));
-        console.log(`[${sessionId}] ✅ JWT manually validated via jose, user ID:`, payload.sub);
-        userAuthenticated = true;
-      } catch (err) {
-        console.error(`[${sessionId}] ❌ JWT verification failed (via jose):`, err);
-      }
-    }
-    
-    const isAuthenticated = isSystemAuthenticated || userAuthenticated;
-    
-    if (!isAuthenticated) {
-      console.error(`[${sessionId}] ❌ Unauthorized access to Fortnox token refresh`);
+    // For automatic refreshes, we'll always allow them without authentication
+    // This is critical for system stability when expired tokens are detected
+    if (automatic) {
+      console.log(`[${sessionId}] ✅ Automatic token refresh detected - proceeding without authentication`);
+    } else {
+      // Check for system-level authentication via API key
+      const isSystemAuthenticated = validKey && apiKey === validKey;
       
-      // Log unauthorized attempt
-      if (supabaseUrl && supabaseServiceKey) {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        await logRefreshAttempt(supabase, false, "Unauthorized access attempt", sessionId);
-      }
+      // Check for user authentication via JWT token
+      let userAuthenticated = false;
       
-      return new Response(
-        JSON.stringify({ 
-          error: "unauthorized", 
-          message: "Missing or invalid API key or user token" 
-        }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      if (!isSystemAuthenticated && token && jwtSecret) {
+        try {
+          const encoder = new TextEncoder();
+          const { payload } = await jwtVerify(token, encoder.encode(jwtSecret));
+          console.log(`[${sessionId}] ✅ JWT manually validated via jose, user ID:`, payload.sub);
+          userAuthenticated = true;
+        } catch (err) {
+          console.error(`[${sessionId}] ❌ JWT verification failed (via jose):`, err);
         }
-      );
+      }
+      
+      const isAuthenticated = isSystemAuthenticated || userAuthenticated;
+      
+      if (!isAuthenticated) {
+        console.error(`[${sessionId}] ❌ Unauthorized access to Fortnox token refresh`);
+        
+        // Log unauthorized attempt
+        if (supabaseUrl && supabaseServiceKey) {
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          await logRefreshAttempt(supabase, false, "Unauthorized access attempt", sessionId);
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "unauthorized", 
+            message: "Missing or invalid API key or user token" 
+          }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      console.log(`[${sessionId}] ✅ Authentication successful:`, {
+        systemAuth: isSystemAuthenticated,
+        userAuth: userAuthenticated
+      });
     }
-    
-    console.log(`[${sessionId}] ✅ Authentication successful:`, {
-      systemAuth: isSystemAuthenticated,
-      userAuth: userAuthenticated
-    });
     
     // Initialize Supabase client
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -253,15 +272,17 @@ Deno.serve(async (req) => {
     }
     
     // Check if token refresh is needed
-    // IMPORTANT: We've modified the logic to be more aggressive about refreshing
     // Always refresh if:
-    // 1. Force is true
-    // 2. No access token exists
-    // 3. Invalid token format
-    // 4. Token is expiring soon (less than 30 minutes)
-    // This ensures we maintain a valid token at all times
-    const shouldRefresh = force || !credentials.accessToken || 
+    // 1. Force is true (forced refresh from the UI)
+    // 2. Automatic is true (system detected expired token)
+    // 3. No access token exists
+    // 4. Invalid token format
+    // 5. Token is expired
+    // 6. Token is expiring soon (less than 30 minutes)
+    const isExpired = credentials.accessToken ? isTokenExpired(credentials.accessToken) : true;
+    const shouldRefresh = force || automatic || !credentials.accessToken || 
                          !isValidJwtFormat(credentials.accessToken) || 
+                         isExpired || 
                          tokenNeedsRefresh(credentials.accessToken);
     
     // Always log the token expiration status regardless of whether we refresh
@@ -272,7 +293,7 @@ Deno.serve(async (req) => {
         const timeRemaining = expTime - now;
         const minutes = Math.floor(timeRemaining / 60);
         const seconds = timeRemaining % 60;
-        console.log(`[${sessionId}] ⏰ Token expires in: ${minutes} minutes and ${seconds} seconds`);
+        console.log(`[${sessionId}] ⏰ Token expires in: ${minutes} minutes and ${seconds} seconds (expired: ${isExpired})`);
       }
     }
     
@@ -302,7 +323,7 @@ Deno.serve(async (req) => {
     }
 
     // If we got here, we need to refresh the token
-    console.log(`[${sessionId}] 🔄 Token needs refreshing - proceeding with refresh`);
+    console.log(`[${sessionId}] 🔄 Token needs refreshing ${isExpired ? '(EXPIRED)' : ''} - proceeding with refresh`);
 
     // Make sure the refresh token is the correct length (40 chars for Fortnox)
     if (credentials.refreshToken.length !== 40) {

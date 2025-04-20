@@ -1,3 +1,4 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
@@ -240,9 +241,9 @@ export async function validateFortnoxCredentials(
 
     const refreshResult = await refreshAccessToken(
       credentials.refreshToken,
-      redirectUri,
-      credentials.clientId,
-      credentials.clientSecret
+      clientId,
+      credentials.clientSecret,
+      redirectUri
     );
 
     if (!refreshResult.success) {

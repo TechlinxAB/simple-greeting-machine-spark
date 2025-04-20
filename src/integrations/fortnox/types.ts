@@ -1,3 +1,4 @@
+
 export interface FortnoxCredentials {
   clientId: string;
   clientSecret: string;
