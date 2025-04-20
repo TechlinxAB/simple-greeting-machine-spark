@@ -22,7 +22,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           description: "text-sm text-gray-600 mt-1",
           actionButton: "bg-primary text-white rounded px-2 py-1 text-xs font-medium",
           cancelButton: "bg-gray-100 text-gray-800 rounded px-2 py-1 text-xs font-medium",
-          closeButton: "absolute right-2 top-2 p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition-colors"
+          closeButton: "absolute right-2 top-0.5 p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition-colors"
         },
         style: {
           background: '#ffffff',
