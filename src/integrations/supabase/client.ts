@@ -9,9 +9,15 @@ export { supabase };
 // Also export any helper functions that might be useful
 export { signInUser, signUpUser } from "@/lib/supabase";
 
-// Export environment configuration for Supabase
+// Check for custom Supabase connection values in localStorage
+const customSupabaseUrl = localStorage.getItem("custom_supabase_url");
+const customSupabaseAnonKey = localStorage.getItem("custom_supabase_anon_key");
+
+// Export environment configuration for Supabase, preferring custom values if available
 export const supabaseConfig = {
-  url: environment.supabase.url,
-  anonKey: environment.supabase.anonKey,
-  projectRef: environment.supabase.projectRef
+  url: customSupabaseUrl || environment.supabase.url,
+  anonKey: customSupabaseAnonKey || environment.supabase.anonKey,
+  projectRef: customSupabaseUrl ? 
+    environment.supabase.projectRef : 
+    'xojrleypudfrbmvejpow'
 };
