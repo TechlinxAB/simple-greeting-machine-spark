@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { TabsContent } from "@/components/ui/tabs";
-import { Copy, Check, Info, Link } from "lucide-react";
+import { Copy, Check, Info, Link, Code } from "lucide-react";
 
 // These SQL snippets must be updated whenever you change your DB setup!
 const FULL_SQL_SETUP = `-- SYSTEM SETTINGS TABLE AND RLS
