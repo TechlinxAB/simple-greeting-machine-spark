@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -119,11 +120,9 @@ const translations = {
     yes: "Yes",
     no: "No",
     unit: "unit",
-    units: "units",
     minute: "minute",
     minutes: "minutes",
     hour: "hour",
-    hours: "hours",
   },
   auth: {
     email: "Email",
