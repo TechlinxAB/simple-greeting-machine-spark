@@ -241,7 +241,7 @@ export async function validateFortnoxCredentials(
 
     const refreshResult = await refreshAccessToken(
       credentials.refreshToken,
-      clientId,
+      credentials.clientId,
       credentials.clientSecret,
       redirectUri
     );
