@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { testSupabaseConnection, saveCustomEnvironment, resetToDefaultEnvironment, initializeCustomEnvironment } from "@/lib/setupEnvironment";
 import { environment } from "@/config/environment";
-import { InfoCircledIcon } from "@radix-ui/react-icons";
 import { AlertCircle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
