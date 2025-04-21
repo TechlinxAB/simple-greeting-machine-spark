@@ -1,3 +1,4 @@
+
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase, setupActivityTracking, clearInactivityTimer } from "@/lib/supabase";
@@ -42,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Add fallback admin login state
   const [usedFallbackAdmin, setUsedFallbackAdmin] = useState(false);
 
-  // Fallback admin credentials
+  // Fallback admin credentials - Using username/password style instead of email
   const FALLBACK_ADMIN_USER = "techlinxadmin";
   const FALLBACK_ADMIN_PASS = "Snowball9012@";
   
@@ -55,15 +56,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initialSession();
   };
 
-  // -- new fallback login function --
-  const fallbackAdminLogin = (email: string, password: string) => {
+  // -- updated fallback login function --
+  const fallbackAdminLogin = (username: string, password: string) => {
     if (
-      email === FALLBACK_ADMIN_USER &&
+      username === FALLBACK_ADMIN_USER &&
       password === FALLBACK_ADMIN_PASS
     ) {
+      console.log("Using fallback admin login");
       setUser({ // fake minimal User object just for "admin" access
         id: "fallback-admin",
-        email,
+        email: "admin@fallback.local", // Providing a fake email format
         aud: "authenticated",
         created_at: new Date().toISOString(),
         // ... minimal User props (can add more if needed), only what's read by Settings
@@ -211,15 +213,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate, location.pathname]);
 
   const signIn = async (email: string, password: string) => {
-    // Fallback admin login (if Supabase not yet configured/application bootstrapping)
+    console.log("Sign in attempt for:", email);
+    
+    // Check if this is the fallback admin login first
     if (fallbackAdminLogin(email, password)) {
+      console.log("Fallback admin login successful");
+      toast.success("Logged in with emergency admin access");
       // Instant "login", route to instance setup
       navigate("/settings?tab=setup");
       return;
     }
 
-    // ... normal sign-in as before
+    // Regular sign-in with Supabase
     try {
+      console.log("Attempting regular Supabase login");
       const { session, user } = await signInUser(email, password);
       if (session?.user) {
         await fetchUserProfile(session.user.id);
