@@ -792,10 +792,10 @@ CREATE EXTENSION IF NOT EXISTS "pg_net";`}
                       <TabsTrigger value="debug">debug</TabsTrigger>
                     </TabsList>
                     
+                    {/* Here's the fix - Removing the value prop from the div element */}
                     <div className="mt-2 border rounded-md p-4 bg-zinc-950">
-                      <div value="config" className="space-y-2 [&_div]:block">
-                        <Badge className="mb-2">supabase/config.toml</Badge>
-                        <pre className="whitespace-pre-wrap text-xs overflow-x-auto">
+                      <Badge className="mb-2">supabase/config.toml</Badge>
+                      <pre className="whitespace-pre-wrap text-xs overflow-x-auto">
 {`project_id = "your-project-id"
 
 [api]
@@ -845,8 +845,7 @@ verify_jwt = false
 
 [functions.get-all-users]
 verify_jwt = true`}
-                        </pre>
-                      </div>
+                      </pre>
                     </div>
                   
                     <div className="mt-4 border rounded-md p-4 bg-zinc-950">
