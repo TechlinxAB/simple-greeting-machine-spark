@@ -38,6 +38,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [loadingTimerId, setLoadingTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  // Add fallback admin login state
+  const [usedFallbackAdmin, setUsedFallbackAdmin] = useState(false);
+
+  // Fallback admin credentials
+  const FALLBACK_ADMIN_USER = "techlinxadmin";
+  const FALLBACK_ADMIN_PASS = "Snowball9012@";
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,6 +53,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setLoadingTimeout(false);
     initialSession();
+  };
+
+  // -- new fallback login function --
+  const fallbackAdminLogin = (email: string, password: string) => {
+    if (
+      email === FALLBACK_ADMIN_USER &&
+      password === FALLBACK_ADMIN_PASS
+    ) {
+      setUser({ // fake minimal User object just for "admin" access
+        id: "fallback-admin",
+        email,
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+        // ... minimal User props (can add more if needed), only what's read by Settings
+      } as unknown as User);
+      setRole("admin");
+      setSession(null);
+      setIsLoading(false);
+      setUsedFallbackAdmin(true);
+      return true;
+    }
+    return false;
   };
 
   const fetchUserProfile = async (userId: string, retries = 2) => {
@@ -182,6 +211,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate, location.pathname]);
 
   const signIn = async (email: string, password: string) => {
+    // Fallback admin login (if Supabase not yet configured/application bootstrapping)
+    if (fallbackAdminLogin(email, password)) {
+      // Instant "login", route to instance setup
+      navigate("/settings?tab=setup");
+      return;
+    }
+
+    // ... normal sign-in as before
     try {
       const { session, user } = await signInUser(email, password);
       if (session?.user) {
