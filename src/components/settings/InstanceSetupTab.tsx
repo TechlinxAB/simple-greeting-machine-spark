@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -37,9 +38,19 @@ export const InstanceSetupTab = () => {
   );
 
   return (
-    <TabsContent value="setup">
-      <SupabaseInstanceLinker />
+    <TabsContent value="setup" className="space-y-6">
+      {/* Supabase Instance Linking Section */}
+      <Card className="mb-6 border-2 border-primary/30">
+        <CardContent className="p-4 space-y-4">
+          <CardTitle>Link Your Supabase Instance</CardTitle>
+          <CardDescription>
+            Connect this frontend to your Supabase project by entering your project's API URL and Anon/Public Key.
+          </CardDescription>
+          <SupabaseInstanceLinker />
+        </CardContent>
+      </Card>
 
+      {/* Main Setup Tutorial Accordion */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -116,7 +127,7 @@ export const InstanceSetupTab = () => {
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Create Core Tables</h3>
                   <p>Run the following SQL in the Supabase SQL Editor to create all required tables:</p>
-                  
+
                   <CodeBlock 
                     label="Core Tables SQL"
                     code={`-- Create profiles table
@@ -241,7 +252,7 @@ CREATE TABLE public.news_posts (
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Create Database Functions</h3>
                   <p>Run the following SQL to create necessary database functions:</p>
-                  
+
                   <CodeBlock 
                     label="Database Functions SQL"
                     code={`-- Function to handle new users
@@ -384,7 +395,7 @@ $$;`}
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Create Triggers</h3>
                   <p>Run this SQL to create database triggers:</p>
-                  
+
                   <CodeBlock 
                     label="Database Triggers SQL"
                     code={`-- Trigger for new users
@@ -415,7 +426,7 @@ CREATE TRIGGER before_update_news_posts
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Configure Row Level Security (RLS)</h3>
                   <p>Run this SQL to enable and configure Row Level Security for all tables:</p>
-                  
+
                   <CodeBlock 
                     label="RLS Policies SQL"
                     code={`-- Enable RLS on all tables
@@ -596,7 +607,7 @@ CREATE POLICY "Admins can delete news posts"
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Set Up Storage for Files and Images</h3>
                   <p>Run this SQL to create and configure storage buckets:</p>
-                  
+
                   <CodeBlock 
                     label="Storage Buckets SQL"
                     code={`-- Create storage buckets
@@ -673,7 +684,7 @@ CREATE POLICY "Admins and managers can delete news images"
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Set Up Supabase Edge Functions</h3>
                   <p>Create the following edge functions in your Supabase dashboard:</p>
-                  
+
                   <h4 className="font-medium mt-4">1. fortnox-proxy</h4>
                   <CodeBlock 
                     label="fortnox-proxy function"
@@ -797,7 +808,7 @@ serve(async (req) => {
   }
 })`}
                   />
-                  
+
                   <h4 className="font-medium mt-4">2. fortnox-token-exchange</h4>
                   <CodeBlock 
                     label="fortnox-token-exchange function"
@@ -943,7 +954,7 @@ serve(async (req) => {
   }
 })`}
                   />
-                  
+
                   <h4 className="font-medium mt-4">3. fortnox-token-refresh</h4>
                   <CodeBlock 
                     label="fortnox-token-refresh function"
@@ -1175,7 +1186,7 @@ serve(async (req) => {
   }
 })`}
                   />
-                  
+
                   <h4 className="font-medium mt-4">4. get-all-users</h4>
                   <CodeBlock 
                     label="get-all-users function"
@@ -1318,7 +1329,7 @@ serve(async (req) => {
   }
 })`}
                   />
-                  
+
                   <h4 className="font-medium mt-4">5. Create shared CORS module</h4>
                   <CodeBlock 
                     label="cors.ts module"
@@ -1329,7 +1340,7 @@ serve(async (req) => {
 }`}
                   />
                 </div>
-                
+
                 <div className="space-y-2 mt-4">
                   <h3 className="text-md font-medium">Configure Edge Functions in supabase/config.toml</h3>
                   <CodeBlock 
@@ -1384,7 +1395,7 @@ verify_jwt = true`}
                     Set up the following secrets in your Supabase dashboard under
                     <b> Settings → API → Functions Settings </b>:
                   </p>
-                  
+
                   <div className="space-y-2 mt-4">
                     <Label>Required secrets:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
@@ -1396,7 +1407,7 @@ verify_jwt = true`}
                       <li><b>JWT_SECRET</b>: (Required by auth) Your project's JWT secret, can be copied from Supabase dashboard</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-amber-50 border border-amber-200 rounded p-4 mt-4">
                     <p className="text-amber-800 font-medium">⚠️ Important Security Note</p>
                     <p className="text-amber-700 text-sm mt-1">
@@ -1416,7 +1427,7 @@ verify_jwt = true`}
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Set Up Cron Job for Token Refresh</h3>
                   <p>Run the following SQL to set up a scheduled job for refreshing Fortnox tokens:</p>
-                  
+
                   <CodeBlock 
                     label="Fortnox Token Refresh Cron SQL"
                     code={`-- Enable required extensions
@@ -1439,7 +1450,7 @@ SELECT cron.schedule(
   $$
 );`}
                   />
-                  
+
                   <div className="bg-amber-50 border border-amber-200 rounded p-4 mt-4">
                     <p className="text-amber-800 font-medium">⚠️ Important</p>
                     <p className="text-amber-700 text-sm mt-1">
@@ -1461,7 +1472,7 @@ SELECT cron.schedule(
                 <div className="space-y-2">
                   <h3 className="text-md font-medium">Final Checklist</h3>
                   <p>Verify that the following components are properly set up:</p>
-                  
+
                   <div className="space-y-2 mt-4">
                     <Label>Database:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
@@ -1472,7 +1483,7 @@ SELECT cron.schedule(
                       <li>Storage buckets are created with appropriate policies</li>
                     </ul>
                   </div>
-                  
+
                   <div className="space-y-2 mt-4">
                     <Label>Edge Functions:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
@@ -1481,14 +1492,14 @@ SELECT cron.schedule(
                       <li>All required secrets are set</li>
                     </ul>
                   </div>
-                  
+
                   <div className="space-y-2 mt-4">
                     <Label>Scheduled Jobs:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
                       <li>Fortnox token refresh cron job is set up</li>
                     </ul>
                   </div>
-                  
+
                   <div className="space-y-2 mt-4">
                     <Label>Configuration:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
@@ -1496,7 +1507,7 @@ SELECT cron.schedule(
                       <li>Fortnox API credentials are stored in system_settings</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-green-50 border border-green-200 rounded p-4 mt-4">
                     <p className="text-green-800 font-medium">Congratulations!</p>
                     <p className="text-green-700 text-sm mt-1">
