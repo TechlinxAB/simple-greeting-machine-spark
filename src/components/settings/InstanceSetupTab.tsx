@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -8,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { Code, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import { SupabaseInstanceLinker } from './SupabaseInstanceLinker';
 
 export const InstanceSetupTab = () => {
   const [copied, setCopied] = useState<string | null>(null);
@@ -38,6 +38,8 @@ export const InstanceSetupTab = () => {
 
   return (
     <TabsContent value="setup">
+      <SupabaseInstanceLinker />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -45,7 +47,7 @@ export const InstanceSetupTab = () => {
             <span>Instance Setup Tutorial</span>
           </CardTitle>
           <CardDescription>
-            Follow this step-by-step guide to set up your own instance of this application
+            Follow this step-by-step guide to set up your own instance of this application.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1380,24 +1382,25 @@ verify_jwt = true`}
                   <h3 className="text-md font-medium">Configure Required Secrets</h3>
                   <p>
                     Set up the following secrets in your Supabase dashboard under
-                    Settings → API → Functions Settings:
+                    <b> Settings → API → Functions Settings </b>:
                   </p>
                   
                   <div className="space-y-2 mt-4">
                     <Label>Required secrets:</Label>
                     <ul className="list-disc list-inside space-y-1 ml-4">
-                      <li>SUPABASE_URL: Your Supabase project URL</li>
-                      <li>SUPABASE_ANON_KEY: Your Supabase anon/public key</li>
-                      <li>SUPABASE_SERVICE_ROLE_KEY: Your Supabase service role key</li>
-                      <li>FORTNOX_REFRESH_SECRET: A secure random string for authorizing the token refresh function</li>
+                      <li><b>SUPABASE_URL</b>: Your Supabase project URL (e.g., https://YOUR-project-id.supabase.co)</li>
+                      <li><b>SUPABASE_ANON_KEY</b>: Your Supabase anon/public key</li>
+                      <li><b>SUPABASE_SERVICE_ROLE_KEY</b>: Your Supabase service role key</li>
+                      <li><b>SUPABASE_DB_URL</b>: Full database connection string (required for edge functions/SQL migrations)</li>
+                      <li><b>FORTNOX_REFRESH_SECRET</b>: Secure random string for authorizing the token refresh function/cron</li>
+                      <li><b>JWT_SECRET</b>: (Required by auth) Your project's JWT secret, can be copied from Supabase dashboard</li>
                     </ul>
                   </div>
                   
                   <div className="bg-amber-50 border border-amber-200 rounded p-4 mt-4">
                     <p className="text-amber-800 font-medium">⚠️ Important Security Note</p>
                     <p className="text-amber-700 text-sm mt-1">
-                      Never expose your service role key to the client. This key has admin privileges
-                      and should only be used in secure server-side environments like Edge Functions.
+                      Never expose your service role key or JWT secret to the client. These keys should only be used in secure server-side environments like Edge Functions.
                     </p>
                   </div>
                 </div>
