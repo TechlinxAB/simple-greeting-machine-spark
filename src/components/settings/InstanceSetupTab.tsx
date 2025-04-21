@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -646,8 +647,7 @@ CREATE POLICY "Admin and manager can delete any time entry"
       SELECT 1 FROM public.profiles
       WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
     )
-  );
-`}
+  );`}
                     </pre>
                   </div>
 
@@ -946,3 +946,65 @@ serve(async (req) => {
     if (error) {
       console.error("Error listing users:", error);
       return new Response(JSON.stringify({ error: error.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    // Fetch profiles for all users to get additional user metadata
+    if (users) {
+      const userIds = users.users.map((u) => u.id);
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error("Error fetching user profiles:", profilesError);
+      }
+
+      // Create a map of user IDs to profiles for easy lookup
+      const profileMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+
+      // Combine user data with profile data
+      const enrichedUsers = users.users.map((user) => ({
+        ...user,
+        profile: profileMap[user.id] || null,
+      }));
+
+      return new Response(
+        JSON.stringify({ users: enrichedUsers }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ users: users.users }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error("Unexpected error in get-all-users:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    );
+  }
+})`}
+                      </pre>
+                    </div>
+                  </Tabs>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  );
+};
