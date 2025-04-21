@@ -1,16 +1,16 @@
-
 import React from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SupabaseInstanceLinker } from './SupabaseInstanceLinker';
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, AlertTriangle, Info, KeyRound, Database, ShieldAlert, Lock } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, KeyRound, Database, ShieldAlert, Lock, Code, FileCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const InstanceSetupTab = () => {
   const navigate = useNavigate();
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS public.token_refresh_logs (
   token_length INTEGER,
   message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now()
 );`}
                     </pre>
                   </div>
@@ -530,7 +530,135 @@ USING (
     WHERE id = auth.uid() AND role IN ('admin', 'manager')
   ))
 )
-ON CONFLICT DO NOTHING;`}
+ON CONFLICT DO NOTHING;
+
+-- Default RLS policies for other tables
+CREATE POLICY "All users can view clients"
+  ON public.clients
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Authenticated users can create clients"
+  ON public.clients
+  FOR INSERT
+  WITH CHECK (auth.role() != 'anon');
+
+CREATE POLICY "Admin and manager can update clients"
+  ON public.clients
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Admin and manager can delete clients"
+  ON public.clients
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "All users can view products"
+  ON public.products
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admin and manager can create products"
+  ON public.products
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Admin and manager can update products"
+  ON public.products
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Admin and manager can delete products"
+  ON public.products
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Users can view their own time entries"
+  ON public.time_entries
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admin and manager can view all time entries"
+  ON public.time_entries
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Users can create their own time entries"
+  ON public.time_entries
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own time entries"
+  ON public.time_entries
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admin and manager can update any time entry"
+  ON public.time_entries
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+
+CREATE POLICY "Users can delete their own time entries"
+  ON public.time_entries
+  FOR DELETE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admin and manager can delete any time entry"
+  ON public.time_entries
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND (profiles.role = 'admin' OR profiles.role = 'manager')
+    )
+  );
+`}
+                    </pre>
+                  </div>
+
+                  <div className="bg-muted p-3 rounded text-xs overflow-x-auto mt-4">
+                    <Badge className="mb-2">Extensions</Badge>
+                    <pre className="whitespace-pre-wrap">
+{`-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_cron";
+CREATE EXTENSION IF NOT EXISTS "pg_net";`}
                     </pre>
                   </div>
                 </AccordionContent>
@@ -646,81 +774,175 @@ ON CONFLICT DO NOTHING;`}
               <AccordionItem value="step-5">
                 <AccordionTrigger className="text-base">
                   <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    <span>5. Deploy Edge Functions</span>
+                    <FileCode className="h-4 w-4" />
+                    <span>5. Edge Functions & Code</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 text-sm">
+                <AccordionContent className="space-y-4 text-sm">
                   <p>Create and deploy the following edge functions in your Supabase project:</p>
-                  <div className="bg-muted p-3 rounded text-xs overflow-x-auto mt-2">
-                    <Badge className="mb-2">Function List</Badge>
-                    <ul className="list-disc pl-6 space-y-0.5">
-                      <li>fortnox-token-exchange</li>
-                      <li>fortnox-token-refresh</li>
-                      <li>fortnox-token-migrate</li>
-                      <li>fortnox-proxy</li>
-                      <li>get-all-users</li>
-                      <li>fortnox-token-debug</li>
-                      <li>fortnox-scheduled-refresh</li>
-                    </ul>
-                  </div>
-                  <p className="mt-2">Create these functions using the Supabase CLI or through the web interface.</p>
-                  <div className="pt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-xs" 
-                      onClick={() => window.open('https://supabase.com/dashboard/project/_/functions', '_blank')}
-                    >
-                      Go to Supabase Edge Functions
-                    </Button>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+                  
+                  <Tabs defaultValue="config">
+                    <TabsList className="grid w-full grid-cols-7">
+                      <TabsTrigger value="config">config.toml</TabsTrigger>
+                      <TabsTrigger value="get-all-users">get-all-users</TabsTrigger>
+                      <TabsTrigger value="token-exchange">token-exchange</TabsTrigger>
+                      <TabsTrigger value="token-refresh">token-refresh</TabsTrigger>
+                      <TabsTrigger value="token-migrate">token-migrate</TabsTrigger>
+                      <TabsTrigger value="proxy">proxy</TabsTrigger>
+                      <TabsTrigger value="debug">debug</TabsTrigger>
+                    </TabsList>
+                    
+                    <div className="mt-2 border rounded-md p-4 bg-zinc-950">
+                      <div value="config" className="space-y-2 [&_div]:block">
+                        <Badge className="mb-2">supabase/config.toml</Badge>
+                        <pre className="whitespace-pre-wrap text-xs overflow-x-auto">
+{`project_id = "your-project-id"
 
-              <AccordionItem value="step-6">
-                <AccordionTrigger className="text-base">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>6. Link Your New Instance</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-2 text-sm">
-                  <p>Finally, link this application to your new Supabase instance:</p>
-                  <ol className="list-decimal pl-6 space-y-1">
-                    <li>Copy your Supabase project URL</li>
-                    <li>Copy your Supabase anon/public key</li>
-                    <li>Paste them in the instance linker form above</li>
-                    <li>Click "Test Connection" to verify it works</li>
-                    <li>Click "Save & Use" to connect to your new instance</li>
-                  </ol>
-                  <p className="text-xs italic mt-2">
-                    For development and testing, you can log in to your new instance using the emergency admin credentials.
-                    This allows you to set up the first real user accounts.
-                  </p>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
 
-          <Separator />
+[db]
+port = 54322
 
-          <div className="space-y-2">
-            <h3 className="text-lg font-medium">Troubleshooting</h3>
-            <p className="text-sm text-muted-foreground">
-              If you encounter issues during setup, try these troubleshooting steps:
-            </p>
-            <ul className="list-disc pl-6 space-y-1 text-sm">
-              <li>Check that all required SQL has been executed successfully</li>
-              <li>Verify that all secrets have been configured correctly</li>
-              <li>Ensure auth settings are properly configured</li>
-              <li>Test auth functionality with a test user</li>
-              <li>Check console logs for detailed error messages</li>
-              <li>Use emergency admin access if database connection is unavailable</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
-    </TabsContent>
-  );
-};
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "https://your-app-url.com"
+
+[analytics]
+enabled = false
+
+[functions.fortnox-token-exchange]
+verify_jwt = false
+
+[functions.fortnox-token-migrate]
+verify_jwt = false
+
+[functions.fortnox-token-debug]
+verify_jwt = true
+
+[functions.fortnox-token-refresh]
+verify_jwt = false
+
+[functions.fortnox-proxy]
+verify_jwt = true
+
+[functions.fortnox-scheduled-refresh]
+verify_jwt = false
+
+[functions.get-all-users]
+verify_jwt = true`}
+                        </pre>
+                      </div>
+                    </div>
+                  
+                    <div className="mt-4 border rounded-md p-4 bg-zinc-950">
+                      <Badge className="mb-2">Function: get-all-users/index.ts</Badge>
+                      <pre className="whitespace-pre-wrap text-xs overflow-x-auto">
+{`import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0'
+
+// Updated CORS headers to ensure they work with all requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+}
+
+serve(async (req) => {
+  // Handle CORS preflight requests properly
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
+  }
+
+  try {
+    // Get Supabase connection details from environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseServiceRole) {
+      console.error("Missing Supabase environment variables");
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
+    
+    // Extract the JWT token from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+    
+    // Create a Supabase client with the service role key
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      supabaseServiceRole,
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    // Verify the user from the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Unauthorized access attempt:", userError?.message || "Auth session missing!");
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    // Check if the user is an admin or manager
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError);
+      return new Response(JSON.stringify({ error: 'Error fetching user profile' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+    
+    if (profile?.role !== 'admin' && profile?.role !== 'manager') {
+      console.error("Access denied: User is not an admin or manager");
+      return new Response(JSON.stringify({ error: 'Unauthorized. Only administrators and managers can access this function' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403,
+      });
+    }
+
+    // Get all users and their profiles
+    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (error) {
+      console.error("Error listing users:", error);
+      return new Response(JSON.stringify({ error: error.message }), {
