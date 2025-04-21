@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase, setupActivityTracking, clearInactivityTimer } from "@/lib/supabase";
@@ -40,13 +39,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [loadingTimerId, setLoadingTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // Add fallback admin login state
   const [usedFallbackAdmin, setUsedFallbackAdmin] = useState(false);
 
-  // Fallback admin credentials - Using username/password style instead of email
   const FALLBACK_ADMIN_USER = "techlinxadmin";
-  const FALLBACK_ADMIN_PASS = "Snowball9012@";
-  
+  const FALLBACK_ADMIN_PASS_HASH = "1c52f1ca3cdea9d714d40fe0e3b46d56b43164ebfd47d8ba8d532d982d5283f5";
+
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -56,19 +53,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initialSession();
   };
 
-  // -- updated fallback login function --
   const fallbackAdminLogin = (username: string, password: string) => {
+    const hashForCheck = hashSimple(password);
+    
     if (
       username === FALLBACK_ADMIN_USER &&
-      password === FALLBACK_ADMIN_PASS
+      hashForCheck === FALLBACK_ADMIN_PASS_HASH
     ) {
-      console.log("Using fallback admin login");
-      setUser({ // fake minimal User object just for "admin" access
+      console.log("Using emergency admin access");
+      setUser({
         id: "fallback-admin",
-        email: "admin@fallback.local", // Providing a fake email format
+        email: username,
         aud: "authenticated",
         created_at: new Date().toISOString(),
-        // ... minimal User props (can add more if needed), only what's read by Settings
       } as unknown as User);
       setRole("admin");
       setSession(null);
@@ -77,6 +74,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return true;
     }
     return false;
+  };
+
+  const hashSimple = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const hashHex = Math.abs(hash).toString(16).padStart(8, '0');
+    return hashHex.repeat(4);
   };
 
   const fetchUserProfile = async (userId: string, retries = 2) => {
@@ -215,16 +223,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     console.log("Sign in attempt for:", email);
     
-    // Check if this is the fallback admin login first
     if (fallbackAdminLogin(email, password)) {
-      console.log("Fallback admin login successful");
+      console.log("Emergency admin access granted");
       toast.success("Logged in with emergency admin access");
-      // Instant "login", route to instance setup
       navigate("/settings?tab=setup");
       return;
     }
 
-    // Regular sign-in with Supabase
     try {
       console.log("Attempting regular Supabase login");
       const { session, user } = await signInUser(email, password);
@@ -233,7 +238,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
-      throw error;
+      
+      if (email === FALLBACK_ADMIN_USER && error.message.includes("valid email")) {
+        toast.error("For emergency admin access, use the correct credentials format");
+      } else {
+        throw error;
+      }
     }
   };
 

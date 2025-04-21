@@ -32,7 +32,8 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
 
   try {
     // Basic validation of URL format
-    if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+    const urlPattern = /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co\/?$/;
+    if (!urlPattern.test(url)) {
       throw new Error('Invalid Supabase URL format. Should be like https://YOUR-project-id.supabase.co');
     }
 
