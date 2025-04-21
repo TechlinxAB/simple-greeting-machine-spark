@@ -98,3 +98,11 @@ export function resetToDefaultEnvironment(): void {
     toast.error("Failed to reset Supabase settings");
   }
 }
+
+/**
+ * Force reload of the app and Supabase client after environment config changes
+ */
+export function reloadSupabaseEnvironment() {
+  // Reload the page, which will cause all config to be re-read—in effect, linking the frontend to the chosen Supabase instance
+  window.location.reload();
+}

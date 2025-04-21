@@ -1,4 +1,3 @@
-
 /**
  * Environment Configuration
  * 
@@ -63,13 +62,10 @@ function extractProjectRef(url: string): string {
  */
 export const environment: EnvironmentConfig = {
   supabase: {
-    // Use custom values if available, else default
+    // Always use custom values if available, else default
     url: customSupabaseUrl || 'https://xojrleypudfrbmvejpow.supabase.co',
     anonKey: customSupabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvanJsZXlwdWRmcmJtdmVqcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzUzNjEsImV4cCI6MjA1OTcxMTM2MX0.Wzo_PseuNTU2Lk3qTRbrJxN8H-M1U2FhMLEc_h7yrUc',
-    // Extract project ref from the URL
-    projectRef: customSupabaseUrl ? 
-      extractProjectRef(customSupabaseUrl) : 
-      'xojrleypudfrbmvejpow',
+    projectRef: (customSupabaseUrl && extractProjectRef(customSupabaseUrl)) || extractProjectRef('https://xojrleypudfrbmvejpow.supabase.co'),
   },
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',

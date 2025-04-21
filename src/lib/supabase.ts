@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { environment } from '@/config/environment';
@@ -7,15 +6,14 @@ import { environment } from '@/config/environment';
 const customSupabaseUrl = localStorage.getItem("custom_supabase_url");
 const customSupabaseAnonKey = localStorage.getItem("custom_supabase_anon_key");
 
-// Use custom values if available, otherwise use environment defaults
-const supabaseUrl = customSupabaseUrl || environment.supabase.url;
-const supabaseAnonKey = customSupabaseAnonKey || environment.supabase.anonKey;
+// Always use values from environment (which reads custom values from localStorage)
+const supabaseUrl = environment.supabase.url;
+const supabaseAnonKey = environment.supabase.anonKey;
 
-// Log the current connection configuration (for debugging)
-if (customSupabaseUrl && customSupabaseAnonKey) {
-  console.log("Using custom Supabase connection:", customSupabaseUrl);
+if (localStorage.getItem("custom_supabase_url") && localStorage.getItem("custom_supabase_anon_key")) {
+  console.log("Using custom Supabase connection:", supabaseUrl);
 } else {
-  console.log("Using default Supabase connection:", environment.supabase.url);
+  console.log("Using default Supabase connection:", supabaseUrl);
 }
 
 // Create a single instance of the Supabase client with optimized configuration
