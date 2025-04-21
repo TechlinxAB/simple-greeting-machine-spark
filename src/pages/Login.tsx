@@ -17,10 +17,6 @@ import { DEFAULT_LOGO_PATH } from "@/utils/logoUtils";
 import LanguageSelector from "@/components/LanguageSelector";
 import { useTranslation } from "react-i18next";
 
-const SECRET_USER = "techlinxadmin";
-const SECRET_PASS = "Snowball9012@";
-const SECRET_FLAG = "secret_admin_logged_in";
-
 const Login = () => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +28,7 @@ const Login = () => {
 
   // Define schema for form validation
   const loginSchema = z.object({
-    email: z.string(),
+    email: z.string().email(t("auth.invalidCredentials")),
     password: z.string().min(1, t("auth.passwordRequired")),
   });
 
@@ -46,33 +42,12 @@ const Login = () => {
     },
   });
 
-  // Check if Supabase is not configured (i.e. localStorage not set)
-  function isSupabaseUnlinked() {
-    const customUrl = localStorage.getItem("custom_supabase_url");
-    const customKey = localStorage.getItem("custom_supabase_anon_key");
-    return !customUrl || !customKey;
-  }
-
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
-
-    // Secret user logic: allow login if not linked to Supabase
-    if (
-      values.email.trim().toLowerCase() === SECRET_USER &&
-      values.password === SECRET_PASS &&
-      isSupabaseUnlinked()
-    ) {
-      // Flag user as secret admin logged in
-      localStorage.setItem(SECRET_FLAG, "1");
-      toast.success("Secret admin login successful");
-      navigate("/settings?tab=setup");
-      setIsLoading(false);
-      return;
-    }
-
-    // Normal Supabase login otherwise
+    
     try {
+      console.log("Attempting login with:", values.email);
       await signIn(values.email, values.password);
       toast.success(t("auth.signInSuccessful"));
       navigate("/");
@@ -97,7 +72,7 @@ const Login = () => {
       <div className="absolute top-4 right-4">
         <LanguageSelector />
       </div>
-
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex justify-center">
@@ -123,7 +98,7 @@ const Login = () => {
             {t("auth.signInDescription")}
           </CardDescription>
         </CardHeader>
-
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
@@ -132,7 +107,7 @@ const Login = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
+            
               <FormField
                 control={form.control}
                 name="email"
@@ -140,10 +115,10 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>{t("auth.email")}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="name@example.com"
-                        {...field}
+                      <Input 
+                        type="email" 
+                        placeholder="name@example.com" 
+                        {...field} 
                         className="w-full"
                         autoComplete="email"
                       />
@@ -152,7 +127,7 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="password"
@@ -160,9 +135,9 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>{t("auth.password")}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        {...field}
+                      <Input 
+                        type="password" 
+                        {...field} 
                         className="w-full"
                         autoComplete="current-password"
                       />
@@ -172,7 +147,7 @@ const Login = () => {
                 )}
               />
             </CardContent>
-
+            
             <CardFooter className="flex flex-col space-y-4">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
@@ -184,7 +159,7 @@ const Login = () => {
                   t("auth.signIn")
                 )}
               </Button>
-
+              
               <div className="text-center text-sm">
                 {t("auth.createAccount")}{" "}
                 <Link to="/register" className="text-primary hover:underline">
@@ -197,6 +172,6 @@ const Login = () => {
       </Card>
     </div>
   );
-};
+}
 
 export default Login;

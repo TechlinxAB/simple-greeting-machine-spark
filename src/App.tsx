@@ -20,16 +20,13 @@ import { useEffect } from "react";
 import { useLanguage } from "./contexts/LanguageContext";
 import { Toaster } from "@/components/ui/toaster";
 
-const SECRET_FLAG = "secret_admin_logged_in";
-
 const App = () => {
   const { language } = useLanguage();
   
+  // Force language to be applied on app mount
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
-
-  const isSecretAdmin = typeof window !== "undefined" && localStorage.getItem(SECRET_FLAG) === "1";
 
   return (
     <TooltipProvider>
@@ -39,35 +36,43 @@ const App = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-
-            {isSecretAdmin ? (
-              <Route path="/settings" element={<Settings />} />
-            ) : (
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<TimeTracking />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/clients" element={<Clients />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/invoices" element={<Invoices />} />
-                <Route path="/administration" element={
-                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                    <Administration />
-                  </ProtectedRoute>
-                } />
-                <Route path="/user-stats/:userId" element={
-                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                    <UserStats />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <Settings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
-              </Route>
-            )}
+            
+            {/* Protected routes wrapped in AppLayout */}
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<TimeTracking />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/invoices" element={<Invoices />} />
+              
+              {/* Protected route requiring admin or manager role for Administration */}
+              <Route path="/administration" element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Administration />
+                </ProtectedRoute>
+              } />
+              
+              {/* User stats page - requires admin or manager role */}
+              <Route path="/user-stats/:userId" element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <UserStats />
+                </ProtectedRoute>
+              } />
+              
+              {/* Protected route requiring ONLY admin role for Settings */}
+              <Route path="/settings" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={<Profile />} />
+              
+              {/* Redirect old paths */}
+              <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
