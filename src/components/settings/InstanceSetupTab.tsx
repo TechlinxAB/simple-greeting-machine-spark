@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1048,9 +1047,13 @@ $$;
                     >
                       Open SQL Editor
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Important: After setting up the database, you must enable the required extensions (pg_cron and pg_net) and update the cron job queries with your actual project reference and anon key.
-                    </p>
+                    <Alert variant="default">
+                      <Info className="h-4 w-4" />
+                      <AlertTitle>Important</AlertTitle>
+                      <AlertDescription className="text-xs text-muted-foreground mt-2">
+                        After setting up the database, you must enable the required extensions (pg_cron and pg_net) and update the cron job queries with your actual project reference and anon key.
+                      </AlertDescription>
+                    </Alert>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -1805,7 +1808,7 @@ serve(async (req) => {
                     </TabsContent>
                   </Tabs>
                   
-                  <Alert variant="info" className="mt-4">
+                  <Alert variant="default">
                     <Info className="h-4 w-4" />
                     <AlertTitle>Edge Function Deployment</AlertTitle>
                     <AlertDescription className="text-xs">
@@ -1913,7 +1916,7 @@ serve(async (req) => {
                     <li>Set session expiry time (default: 1 week)</li>
                   </ul>
                   
-                  <Alert className="mt-4">
+                  <Alert variant="default">
                     <Info className="h-4 w-4" />
                     <AlertTitle>First User Setup</AlertTitle>
                     <AlertDescription className="text-xs">
@@ -2001,7 +2004,7 @@ $$;`}
                     These cron jobs will keep the Fortnox integration active by refreshing tokens periodically.
                   </p>
                   
-                  <Alert variant="info" className="mt-2">
+                  <Alert variant="default">
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-xs">
                       The cron job setup is only required if you plan to use the Fortnox integration. You can skip this step if you don't need Fortnox functionality.
