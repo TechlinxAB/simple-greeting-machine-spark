@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify, decodeJwt } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
@@ -9,7 +8,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const jwtSecret = Deno.env.get('JWT_SECRET');
 const dbPassword = Deno.env.get('DB_PASSWORD');
-const dbUrl = Deno.env.get('SUPABASE_DB_URL');
+const dbUrl = Deno.env.get('DB_URL');
 
 // Fixed CORS headers
 const corsHeaders = {
@@ -39,7 +38,7 @@ function logEnvironmentStatus() {
 // Log database connection details
 function logDatabaseDetails() {
   if (!dbUrl) {
-    console.error("SUPABASE_DB_URL is missing - database operations will fail");
+    console.error("DB_URL is missing - database operations will fail");
     return;
   }
   
