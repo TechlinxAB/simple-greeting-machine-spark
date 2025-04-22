@@ -1,707 +1,359 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2, Clock, Package, Edit, Trash2 } from "lucide-react";
+import { NoBadge, YesBadge } from "@/components/ui/YesNoBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
-import { formatTime } from "@/lib/formatTime";
-import { Settings, Clock, Tag, Eye, Calendar, User, Briefcase, Monitor, Check, X, AlertTriangle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
-import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
-import { toast } from "sonner";
-import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface TimeEntriesTableProps {
-  userId?: string;
-  clientId?: string;
-  selectedYear?: number;
-  selectedMonth?: number;
-  onTimeEntryUpdated?: () => void;
-  allTime?: boolean;
-  showClientColumn?: boolean;
-  showUserColumn?: boolean;
-  showActions?: boolean;
-  simplifiedView?: boolean;
-  hideInvoiced?: boolean;
-  // Add these new props to match what's being passed in Administration.tsx
-  fromDate?: Date;
-  toDate?: Date;
-  searchTerm?: string;
   bulkDeleteMode?: boolean;
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
-  onBulkDelete?: () => Promise<void>;
+  onBulkDelete?: () => void;
   isCompact?: boolean;
+  clientId?: string;
+  userId?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  searchTerm?: string;
 }
 
 export function TimeEntriesTable({
-  userId = null,
-  clientId = null,
-  selectedYear,
-  selectedMonth,
-  onTimeEntryUpdated,
-  allTime = false,
-  showClientColumn = true,
-  showUserColumn = true,
-  showActions = true,
-  simplifiedView = false,
-  hideInvoiced = false,
+  bulkDeleteMode,
+  selectedItems = [],
+  onItemSelect,
+  onSelectAll,
+  onBulkDelete,
+  isCompact,
+  clientId,
+  userId,
   fromDate,
   toDate,
-  searchTerm = "",
-  bulkDeleteMode = false,
-  selectedItems = [],
-  onItemSelect = () => {},
-  onSelectAll = () => {},
-  onBulkDelete = async () => {},
-  isCompact = false,
+  searchTerm,
 }: TimeEntriesTableProps) {
   const { t } = useTranslation();
-  const { user, role } = useAuth();
-  const queryClient = useQueryClient();
-
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
-  const [isInvoicedWarningOpen, setIsInvoicedWarningOpen] = useState(false);
-  const [entryToDelete, setEntryToDelete] = useState(null);
-  const [viewingEntryDetails, setViewingEntryDetails] = useState(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-
-  const canEdit = role === 'admin' || role === 'manager';
-
-  // Determine the date range to use
-  // Try to use fromDate and toDate first, fall back to selectedYear/selectedMonth
-  const effectiveFromDate = fromDate || (selectedYear && selectedMonth !== undefined 
-    ? new Date(selectedYear, selectedMonth, 1) 
-    : undefined);
-    
-  const effectiveToDate = toDate || (selectedYear && selectedMonth !== undefined 
-    ? new Date(selectedYear, selectedMonth + 1, 0)  // Last day of month
-    : undefined);
-
-  const queryFn = async () => {
-    try {
-      let query = supabase
-        .from("time_entries")
-        .select(`
-          id, description, start_time, end_time, quantity, 
-          created_at, invoiced, invoice_id, product_id, client_id, user_id
-        `);
-
-      if (!allTime && effectiveFromDate && effectiveToDate) {
-        query = query
-          .gte("created_at", effectiveFromDate.toISOString())
-          .lte("created_at", effectiveToDate.toISOString());
-      }
-
-      if (userId) {
-        query = query.eq("user_id", userId);
-      }
-
-      if (clientId) {
-        query = query.eq("client_id", clientId);
-      }
-
-      if (hideInvoiced) {
-        query = query.eq("invoiced", false);
-      }
-
-      if (searchTerm) {
-        query = query.ilike("description", `%${searchTerm}%`);
-      }
-
-      query = query.order("created_at", { ascending: false });
-
-      const { data: entries, error } = await query;
-
-      if (error) throw error;
-
-      const enhancedEntries = await Promise.all(
-        (entries || []).map(async (entry) => {
-          const clientPromise = entry.client_id
-            ? supabase
-                .from("clients")
-                .select("id, name")
-                .eq("id", entry.client_id)
-                .single()
-            : Promise.resolve({ data: null, error: null });
-
-          const productPromise = entry.product_id
-            ? supabase
-                .from("products")
-                .select("id, name, type, price")
-                .eq("id", entry.product_id)
-                .single()
-            : Promise.resolve({ data: null, error: null });
-
-          const userPromise = entry.user_id
-            ? supabase
-                .from("profiles")
-                .select("id, name")
-                .eq("id", entry.user_id)
-                .single()
-            : Promise.resolve({ data: null, error: null });
-
-          const [
-            { data: clientData },
-            { data: productData },
-            { data: userData }
-          ] = await Promise.all([
-            clientPromise,
-            productPromise,
-            userPromise
-          ]);
-
-          return {
-            ...entry,
-            client: clientData,
-            product: productData,
-            user: userData,
-          };
-        })
-      );
-
-      return enhancedEntries;
-    } catch (error) {
-      console.error("Error fetching time entries:", error);
-      return [];
-    }
-  };
-
-  // Update query key to include the new search parameters
-  const { data: timeEntries = [], isLoading, isError, refetch } = useQuery({
+  
+  const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: [
-      "all-time-entries",
-      userId,
+      "time-entries",
       clientId,
-      selectedYear,
-      selectedMonth,
-      allTime,
-      hideInvoiced,
-      fromDate?.toISOString(),
-      toDate?.toISOString(),
+      userId,
+      fromDate ? fromDate.toISOString() : null,
+      toDate ? toDate.toISOString() : null,
       searchTerm,
-      bulkDeleteMode
     ],
-    queryFn,
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from("time_entries")
+          .select(`
+            id, 
+            description, 
+            start_time, 
+            end_time, 
+            quantity, 
+            created_at, 
+            invoiced,
+            client_id,
+            product_id,
+            user_id,
+            invoice_id,
+            products:product_id (id, name, type, price),
+            clients:client_id (id, name)
+          `);
+        
+        if (clientId) {
+          query = query.eq("client_id", clientId);
+        }
+        
+        if (userId) {
+          query = query.eq("user_id", userId);
+        }
+        
+        if (fromDate) {
+          query = query.gte("created_at", fromDate.toISOString());
+        }
+        
+        if (toDate) {
+          query = query.lte("created_at", toDate.toISOString());
+        }
+        
+        if (searchTerm) {
+          query = query.or(`description.ilike.%${searchTerm}%,clients.name.ilike.%${searchTerm}%`);
+        }
+        
+        const { data, error } = await query.order("created_at", { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // Get usernames for each entry
+        const entriesWithUsernames = await Promise.all(
+          (data || []).map(async (entry) => {
+            let username = "Unknown";
+            
+            if (entry.user_id) {
+              try {
+                const { data: nameData, error: nameError } = await supabase.rpc(
+                  'get_username',
+                  { user_id: entry.user_id }
+                );
+                
+                if (!nameError && nameData) {
+                  username = nameData;
+                }
+              } catch (err) {
+                console.error("Error fetching username:", err);
+              }
+            }
+            
+            return {
+              ...entry,
+              username
+            };
+          })
+        );
+        
+        return entriesWithUsernames || [];
+      } catch (error) {
+        console.error("Error fetching time entries:", error);
+        return [];
+      }
+    },
+    refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    if (!isEditDialogOpen && !isInvoicedWarningOpen && !isViewDialogOpen) {
-      setIsDeleteDialogOpen(false);
-    }
-  }, [isEditDialogOpen, isInvoicedWarningOpen, isViewDialogOpen]);
-
-  const handleEditClick = (entry) => {
-    if (entry.invoiced) {
-      toast.warning(t("timeTracking.cannotEditInvoicedEntry"));
-      return;
-    }
-    setSelectedEntry(entry);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteClick = (entry) => {
-    if (entry.invoiced) {
-      setEntryToDelete(entry);
-      setIsInvoicedWarningOpen(true);
-      return;
-    }
-    
-    setEntryToDelete(entry);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!entryToDelete) return;
-    
-    try {
-      await deleteTimeEntry(entryToDelete.id);
-      
-      toast.success(t("timeTracking.timeEntryDeleted"));
-      queryClient.invalidateQueries({ queryKey: ["all-time-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-      
-      if (onTimeEntryUpdated) {
-        onTimeEntryUpdated();
-      }
-    } catch (error) {
-      toast.error(t("common.errorOccurred"));
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setIsInvoicedWarningOpen(false);
-      setEntryToDelete(null);
-    }
-  };
-
-  const handleEditSuccess = () => {
-    setIsEditDialogOpen(false);
-    setSelectedEntry(null);
-    queryClient.invalidateQueries({ queryKey: ["all-time-entries"] });
-    queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    
-    if (onTimeEntryUpdated) {
-      onTimeEntryUpdated();
-    }
-    
-    toast.success(t("timeTracking.timeEntryUpdated"));
-  };
-
-  const handleViewEntry = (entry) => {
-    setViewingEntryDetails(entry);
-    setIsViewDialogOpen(true);
-  };
-
-  const calculateDuration = (start, end) => {
-    if (!start || !end) return 0;
-    const startDate = typeof start === 'string' ? parseISO(start) : start;
-    const endDate = typeof end === 'string' ? parseISO(end) : end;
+  const calculateDuration = (start: string, end: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     return diffHours;
   };
 
-  const handleDeleteInvoicedEntry = () => {
-    handleDeleteConfirm();
+  const formatDuration = (hours: number) => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    
+    if (isCompact) {
+      return `${h}h ${m > 0 ? m + 'm' : ''}`;
+    }
+    
+    return `${h} ${t('timeTracking.hours')} ${m > 0 ? m + ' ' + t('timeTracking.minutes') : ''}`;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="text-center p-8 text-destructive">
-        <AlertTriangle className="h-10 w-10 mx-auto mb-2" />
-        <p>{t("common.errorLoadingData")}</p>
-      </div>
-    );
-  }
-
-  if (timeEntries.length === 0) {
-    return (
-      <div className="text-center p-8 text-muted-foreground">
-        <Monitor className="h-10 w-10 mx-auto mb-2 text-muted-foreground/60" />
-        <p>{t("timeTracking.noTimeEntriesFound")}</p>
-      </div>
-    );
-  }
-
-  // Add bulk selection features for Administration.tsx
-  const isSelected = (id) => {
-    return selectedItems.includes(id);
+  const getItemAmount = (entry: any) => {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
+      const hours = calculateDuration(entry.start_time, entry.end_time);
+      return formatDuration(hours);
+    } else if (entry.products?.type === "item" && entry.quantity) {
+      return `${entry.quantity} ${t('timeTracking.units')}`;
+    }
+    return "-";
   };
+
+  const getItemTotal = (entry: any) => {
+    if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
+      const hours = calculateDuration(entry.start_time, entry.end_time);
+      return formatCurrency(hours * entry.products.price);
+    } else if (entry.products?.type === "item" && entry.quantity) {
+      return formatCurrency(entry.quantity * entry.products.price);
+    }
+    return "-";
+  };
+
+  const filteredTimeEntries = timeEntries.filter(entry => {
+    if (!searchTerm) return true;
+    
+    const search = searchTerm.toLowerCase();
+    return (
+      entry.description?.toLowerCase().includes(search) ||
+      entry.clients?.name?.toLowerCase().includes(search) ||
+      entry.products?.name?.toLowerCase().includes(search) ||
+      entry.products?.type?.toLowerCase().includes(search) ||
+      entry.username?.toLowerCase().includes(search)
+    );
+  });
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>{t("timeTracking.timeEntries")}</CardTitle>
-          <CardDescription>
-            {!allTime && effectiveFromDate && effectiveToDate && (
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>
-                  {format(effectiveFromDate, "MMMM yyyy")}
-                </span>
-              </div>
-            )}
-            {userId && (
-              <div className="flex items-center mt-1">
-                <User className="h-4 w-4 mr-1" />
-                <span>{t("admin.filteredByUser")}</span>
-              </div>
-            )}
-            {clientId && (
-              <div className="flex items-center mt-1">
-                <Briefcase className="h-4 w-4 mr-1" />
-                <span>{t("admin.filteredByClient")}</span>
-              </div>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {bulkDeleteMode && (
-                  <TableHead className="w-[50px]">
-                    <input 
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300"
-                      onChange={(e) => onSelectAll(e.target.checked)}
-                      checked={selectedItems.length > 0 && selectedItems.length === timeEntries.length}
+    <div className="space-y-4">
+      <div className="rounded-md border overflow-x-auto">
+        <Table isCompact={isCompact}>
+          <TableHeader>
+            <TableRow isCompact={isCompact}>
+              {bulkDeleteMode && (
+                <TableHead isCompact={isCompact} className="w-[50px]">
+                  <input
+                    type="checkbox"
+                    className={`${
+                      isCompact ? "h-3 w-3" : "h-4 w-4"
+                    } rounded border-gray-300 cursor-pointer`}
+                    checked={
+                      timeEntries.length > 0 &&
+                      selectedItems.length === timeEntries.length
+                    }
+                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                  />
+                </TableHead>
+              )}
+              <TableHead isCompact={isCompact}>{t('clients.client')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('timeTracking.description')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('products.productType')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('invoices.amount')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('invoices.total')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('invoices.invoiced')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('administration.actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow isCompact={isCompact}>
+                <TableCell
+                  colSpan={bulkDeleteMode ? 8 : 7}
+                  className="h-24 text-center"
+                  isCompact={isCompact}
+                >
+                  <div className="flex justify-center items-center">
+                    <Loader2
+                      className={`${
+                        isCompact ? "h-5 w-5" : "h-6 w-6"
+                      } animate-spin text-primary`}
                     />
-                  </TableHead>
-                )}
-                {showUserColumn && (
-                  <TableHead>{t("common.user")}</TableHead>
-                )}
-                {showClientColumn && (
-                  <TableHead>{t("common.client")}</TableHead>
-                )}
-                <TableHead>{t("common.description")}</TableHead>
-                <TableHead>{t("common.type")}</TableHead>
-                <TableHead>{t("common.durationQty")}</TableHead>
-                {!simplifiedView && <TableHead>{t("common.price")}</TableHead>}
-                <TableHead>{t("common.date")}</TableHead>
-                {!simplifiedView && <TableHead>{t("common.invoiced")}</TableHead>}
-                {showActions && <TableHead className="text-right">{t("common.actions")}</TableHead>}
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timeEntries.map((entry) => (
-                <TableRow 
+            ) : filteredTimeEntries.length === 0 ? (
+              <TableRow isCompact={isCompact}>
+                <TableCell
+                  colSpan={bulkDeleteMode ? 8 : 7}
+                  className={`${
+                    isCompact ? "h-20" : "h-24"
+                  } text-center text-muted-foreground`}
+                  isCompact={isCompact}
+                >
+                  {searchTerm ? t('timeTracking.noMatchingEntries') : t('timeTracking.noTimeEntriesFound')}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredTimeEntries.map((entry) => (
+                <TableRow
                   key={entry.id}
+                  isCompact={isCompact}
                   data-entry-id={entry.id}
-                  className={bulkDeleteMode && isSelected(entry.id) ? "bg-primary/10" : ""}
                 >
                   {bulkDeleteMode && (
-                    <TableCell>
-                      <input 
+                    <TableCell isCompact={isCompact}>
+                      <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300"
-                        checked={isSelected(entry.id)}
-                        onChange={() => onItemSelect(entry.id)}
+                        className={`${
+                          isCompact ? "h-3 w-3" : "h-4 w-4"
+                        } rounded border-gray-300 cursor-pointer`}
+                        checked={selectedItems.includes(entry.id)}
+                        onChange={() => onItemSelect?.(entry.id)}
                       />
                     </TableCell>
                   )}
-                  {showUserColumn && (
-                    <TableCell>{entry.user?.name || t("common.unknown")}</TableCell>
-                  )}
-                  {showClientColumn && (
-                    <TableCell>{entry.client?.name || t("common.unknown")}</TableCell>
-                  )}
-                  <TableCell className="max-w-[200px] truncate">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-default">
-                          {entry.description || entry.product?.name || t("common.noDescription")}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs whitespace-normal">
-                            {entry.description || entry.product?.name || t("common.noDescription")}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <TableCell
+                    className="font-medium whitespace-nowrap"
+                    isCompact={isCompact}
+                  >
+                    {entry.clients?.name || t('clients.unknownClient')}
                   </TableCell>
-                  <TableCell>
-                    {entry.product?.type === 'activity' ? (
-                      <div className="flex items-center">
-                        <Clock className="h-3.5 w-3.5 mr-1 text-primary" />
-                        <span>{t("common.activity")}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <Tag className="h-3.5 w-3.5 mr-1 text-primary" />
-                        <span>{t("common.item")}</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {entry.product?.type === 'activity' && entry.start_time && entry.end_time ? (
-                      formatTime(calculateDuration(entry.start_time, entry.end_time), simplifiedView)
-                    ) : (
-                      entry.quantity ? entry.quantity.toString() : '0'
-                    )}
-                  </TableCell>
-                  {!simplifiedView && (
-                    <TableCell>
-                      {entry.product?.type === 'activity' && entry.start_time && entry.end_time ? (
-                        formatCurrency(calculateDuration(entry.start_time, entry.end_time) * (entry.product?.price || 0))
-                      ) : (
-                        entry.quantity ? formatCurrency(entry.quantity * (entry.product?.price || 0)) : formatCurrency(0)
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    {entry.created_at ? format(new Date(entry.created_at), "yyyy-MM-dd") : '-'}
-                  </TableCell>
-                  {!simplifiedView && (
-                    <TableCell>
-                      {entry.invoiced ? (
-                        <div className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-1" />
-                          <span className="text-xs text-green-700 dark:text-green-400">{t("common.yes")}</span>
+                  <TableCell className="max-w-[250px]" isCompact={isCompact}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="line-clamp-2 cursor-pointer">
+                          {entry.description ||
+                            (entry.products?.name || t('timeTracking.noDescription'))}
                         </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="max-w-[300px] p-4 text-wrap break-words">
+                        <p>{entry.description || (entry.products?.name || t('timeTracking.noDescription'))}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {t('timeTracking.createdBy')}: {entry.username || t('common.unknown')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t('timeTracking.createdAt')}: {format(new Date(entry.created_at), 'PPP p')}
+                        </p>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                  <TableCell isCompact={isCompact}>
+                    <div className="flex items-center gap-1">
+                      {entry.products ? (
+                        entry.products.type === 'activity' ? (
+                          <Clock className={isCompact ? "h-3 w-3 text-blue-500" : "h-4 w-4 text-blue-500"} />
+                        ) : (
+                          <Package className={isCompact ? "h-3 w-3 text-primary" : "h-4 w-4 text-primary"} />
+                        )
                       ) : (
-                        <div className="flex items-center">
-                          <X className="h-4 w-4 text-red-500 mr-1" />
-                          <span className="text-xs text-red-700 dark:text-red-400">{t("common.no")}</span>
-                        </div>
+                        <Package className={isCompact ? "h-3 w-3 text-amber-600" : "h-4 w-4 text-amber-600"} />
                       )}
-                    </TableCell>
-                  )}
-                  {showActions && (
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewEntry(entry)}
-                          className="h-7 w-7"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        
-                        {canEdit && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditClick(entry)}
-                              className={`h-7 w-7 ${entry.invoiced ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              disabled={entry.invoiced}
-                            >
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                            
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(entry)}
-                              className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  )}
+                      <span className="capitalize">
+                        {entry.products?.type === 'activity' 
+                          ? t('products.activity') 
+                          : entry.products?.type === 'item' 
+                            ? t('products.item') 
+                            : t('products.deletedProduct')}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell isCompact={isCompact}>{getItemAmount(entry)}</TableCell>
+                  <TableCell isCompact={isCompact} className="font-semibold">
+                    {getItemTotal(entry)}
+                  </TableCell>
+                  <TableCell isCompact={isCompact}>
+                    {entry.invoiced ? <YesBadge /> : <NoBadge />}
+                  </TableCell>
+                  <TableCell isCompact={isCompact}>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={isCompact ? "h-6 w-6" : "h-8 w-8"} 
+                        onClick={() => {
+                          // Handle edit action
+                        }}
+                        disabled={entry.invoiced}
+                      >
+                        <Edit className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={isCompact 
+                          ? "h-6 w-6 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
+                          : "h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                        } 
+                        onClick={() => {
+                          // Handle delete action
+                        }}
+                        disabled={entry.invoiced}
+                      >
+                        <Trash2 className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>{t("timeTracking.editTimeEntry")}</DialogTitle>
-            <DialogDescription>{t("timeTracking.editTimeEntryDesc")}</DialogDescription>
-          </DialogHeader>
-          
-          {selectedEntry && (
-            <TimeEntryEditForm
-              timeEntry={selectedEntry}
-              onSuccess={handleEditSuccess}
-              onCancel={() => setIsEditDialogOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("timeTracking.timeEntryDetails")}</DialogTitle>
-          </DialogHeader>
-          
-          {viewingEntryDetails && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium mb-1">{t("common.description")}</h4>
-                <p className="text-sm text-muted-foreground">
-                  {viewingEntryDetails.description || viewingEntryDetails.product?.name || t("common.noDescription")}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.type")}</h4>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {viewingEntryDetails.product?.type || t("common.unknown")}
-                  </p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.client")}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {viewingEntryDetails.client?.name || t("common.unknown")}
-                  </p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.user")}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {viewingEntryDetails.user?.name || t("common.unknown")}
-                  </p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.date")}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {viewingEntryDetails.created_at ? format(new Date(viewingEntryDetails.created_at), "yyyy-MM-dd") : '-'}
-                  </p>
-                </div>
-                
-                {viewingEntryDetails.product?.type === 'activity' ? (
-                  <>
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">{t("timeTracking.startTime")}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {viewingEntryDetails.start_time 
-                          ? format(new Date(viewingEntryDetails.start_time), "HH:mm") 
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">{t("timeTracking.endTime")}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {viewingEntryDetails.end_time 
-                          ? format(new Date(viewingEntryDetails.end_time), "HH:mm") 
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">{t("common.duration")}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {viewingEntryDetails.start_time && viewingEntryDetails.end_time
-                          ? formatTime(calculateDuration(viewingEntryDetails.start_time, viewingEntryDetails.end_time))
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">{t("common.quantity")}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {viewingEntryDetails.quantity || '0'}
-                    </p>
-                  </div>
-                )}
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.price")}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {formatCurrency(viewingEntryDetails.product?.price || 0)}
-                  </p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-1">{t("common.total")}</h4>
-                  <p className="text-sm font-medium">
-                    {viewingEntryDetails.product?.type === 'activity'
-                      ? formatCurrency(
-                          calculateDuration(
-                            viewingEntryDetails.start_time,
-                            viewingEntryDetails.end_time
-                          ) * (viewingEntryDetails.product?.price || 0)
-                        )
-                      : formatCurrency(
-                          (viewingEntryDetails.quantity || 0) * (viewingEntryDetails.product?.price || 0)
-                        )
-                    }
-                  </p>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">{t("common.status")}</h4>
-                <div className="flex items-center">
-                  {viewingEntryDetails.invoiced ? (
-                    <>
-                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                      <p className="text-sm text-muted-foreground">{t("common.invoiced")}</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="h-2 w-2 rounded-full bg-orange-500 mr-2"></div>
-                      <p className="text-sm text-muted-foreground">{t("common.notInvoiced")}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className="pt-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsViewDialogOpen(false)}
-                  className="w-full"
-                >
-                  {t("common.close")}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("timeTracking.deleteTimeEntry")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("timeTracking.deleteTimeEntryConfirmation")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isInvoicedWarningOpen} onOpenChange={setIsInvoicedWarningOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.invoicedWarningTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              <p className="mb-2">{t("invoices.invoicedWarningDesc1")}</p>
-              <p className="font-semibold text-destructive">{t("invoices.invoicedWarningDesc2")}</p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteInvoicedEntry}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {t("invoices.deleteAnyway")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
