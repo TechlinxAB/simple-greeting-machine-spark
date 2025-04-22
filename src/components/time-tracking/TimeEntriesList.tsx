@@ -71,15 +71,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   const startDate = startOfDay(selectedDate);
   const endDate = endOfDay(selectedDate);
   
-  const dateString = format(selectedDate, "yyyy-MM-dd");
-  const queryKey = ["time-entries", dateString];
-
-  useEffect(() => {
-    if (user) {
-      console.log(`Selected date changed to ${dateString}, refreshing time entries`);
-      queryClient.invalidateQueries({ queryKey: queryKey });
-    }
-  }, [dateString, user, queryClient]);
+  const queryKey = ["time-entries", format(selectedDate, "yyyy-MM-dd")];
 
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: queryKey,
@@ -88,12 +80,6 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
 
       try {
         console.log(`Fetching time entries for ${format(selectedDate, "yyyy-MM-dd")}`);
-        
-        const startIso = startDate.toISOString();
-        const endIso = endDate.toISOString();
-        
-        console.log(`Date range: ${startIso} to ${endIso}`);
-        
         const { data, error } = await supabase
           .from("time_entries")
           .select(`
@@ -111,8 +97,8 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
             clients:client_id (id, name)
           `)
           .eq("user_id", user.id)
-          .gte("created_at", startIso)
-          .lte("created_at", endIso)
+          .gte("created_at", startDate.toISOString())
+          .lte("created_at", endDate.toISOString())
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -155,9 +141,13 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
       }
     },
     enabled: !!user,
-    refetchOnMount: true,
-    staleTime: 0
   });
+
+  useEffect(() => {
+    if (!deleteDialogOpen && !invoicedWarningOpen) {
+      setIsDeleting(false);
+    }
+  }, [deleteDialogOpen, invoicedWarningOpen]);
 
   const calculateDuration = (start: string, end: string) => {
     const startDate = new Date(start);

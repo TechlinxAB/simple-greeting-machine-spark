@@ -52,12 +52,6 @@ export default function TimeTracking() {
     staleTime: 15000,
     refetchOnMount: "always",
   });
-  
-  // When the selected date changes, invalidate the time entries query
-  useEffect(() => {
-    const dateString = format(selectedDate, "yyyy-MM-dd");
-    queryClient.invalidateQueries({ queryKey: ["time-entries", dateString] });
-  }, [selectedDate, queryClient]);
 
   const handleClientCreated = () => {
     queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -66,8 +60,7 @@ export default function TimeTracking() {
   };
 
   const handleTimeEntryCreated = () => {
-    const dateString = format(selectedDate, "yyyy-MM-dd");
-    queryClient.invalidateQueries({ queryKey: ["time-entries", dateString] });
+    queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     toast.success(t("timeTracking.timeEntryAdded"));
   };
 
