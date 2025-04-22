@@ -1,12 +1,11 @@
-
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
-
-const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
+import { environment } from '@/config/environment';
 
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
+ * Using the Edge Function proxy to avoid CORS issues.
  * @param code The authorization code received from Fortnox.
  * @param clientId The client ID of the Fortnox application.
  * @param clientSecret The client secret of the Fortnox application.
@@ -20,29 +19,24 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    const params = new URLSearchParams();
-    params.append('grant_type', 'authorization_code');
-    params.append('code', code);
-    params.append('redirect_uri', redirectUri);
-
-    const authString = btoa(`${clientId}:${clientSecret}`);
-
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
+    console.log("Exchanging code for tokens via Edge Function proxy");
+    
+    const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
+      body: JSON.stringify({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri
+      }),
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${authString}`,
-      },
-      body: params.toString(),
+        'Content-Type': 'application/json',
+      }
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Error exchanging code for tokens:', response.status, response.statusText, errorBody);
-      throw new Error(`Failed to exchange code for tokens: ${response.status} ${response.statusText} - ${errorBody}`);
+    if (error) {
+      console.error('Error invoking edge function for token exchange:', error);
+      throw new Error(`Token exchange failed: ${error.message}`);
     }
-
-    const data = await response.json();
 
     if (!data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received:', data);
