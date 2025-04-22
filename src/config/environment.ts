@@ -1,13 +1,10 @@
+
 /**
  * Environment Configuration
  * 
  * This file centralizes all environment-specific configuration to make it easier
  * to switch between different environments (cloud Supabase, self-hosted Supabase).
  */
-
-// Check for custom Supabase connection from localStorage
-const customSupabaseUrl = localStorage.getItem("custom_supabase_url");
-const customSupabaseAnonKey = localStorage.getItem("custom_supabase_anon_key");
 
 interface EnvironmentConfig {
   // Supabase Configuration
@@ -38,34 +35,14 @@ interface EnvironmentConfig {
 }
 
 /**
- * Extract project reference from Supabase URL
- */
-function extractProjectRef(url: string): string {
-  try {
-    // Extract the subdomain from the URL
-    const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
-    if (match && match[1]) {
-      return match[1];
-    }
-    
-    // Default fallback for custom domains or invalid URLs
-    return 'current-project';
-  } catch (e) {
-    console.error("Error extracting project ref:", e);
-    return 'current-project';
-  }
-}
-
-/**
- * Environment configuration with a preference for custom values from localStorage
- * if available, otherwise fallback to default cloud-hosted Supabase values
+ * Default configuration for cloud-hosted Supabase
  */
 export const environment: EnvironmentConfig = {
   supabase: {
-    // Always use custom values if available, else default
-    url: customSupabaseUrl || 'https://xojrleypudfrbmvejpow.supabase.co',
-    anonKey: customSupabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvanJsZXlwdWRmcmJtdmVqcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzUzNjEsImV4cCI6MjA1OTcxMTM2MX0.Wzo_PseuNTU2Lk3qTRbrJxN8H-M1U2FhMLEc_h7yrUc',
-    projectRef: (customSupabaseUrl && extractProjectRef(customSupabaseUrl)) || extractProjectRef('https://xojrleypudfrbmvejpow.supabase.co'),
+    // Current cloud Supabase values (same as hardcoded in supabase.ts)
+    url: 'https://xojrleypudfrbmvejpow.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvanJsZXlwdWRmcmJtdmVqcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzUzNjEsImV4cCI6MjA1OTcxMTM2MX0.Wzo_PseuNTU2Lk3qTRbrJxN8H-M1U2FhMLEc_h7yrUc',
+    projectRef: 'xojrleypudfrbmvejpow',
   },
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
@@ -77,8 +54,8 @@ export const environment: EnvironmentConfig = {
   },
   storage: {
     avatarBucket: 'avatars',
-    logosBucket: 'application-logo',
-    newsBucket: 'news_images',
+    logosBucket: 'logos',
+    newsBucket: 'news',
   },
   features: {
     enableEdgeFunctions: true,
@@ -90,6 +67,43 @@ export const environment: EnvironmentConfig = {
     'localhost:5173', // For local development
   ]
 };
+
+/**
+ * To switch to a self-hosted Supabase instance:
+ * 
+ * 1. Uncomment the block below
+ * 2. Update the values to match your self-hosted instance
+ * 3. Comment out or remove the cloud config above
+ */
+
+/*
+export const environment: EnvironmentConfig = {
+  supabase: {
+    // Replace with your self-hosted Supabase values
+    url: 'https://supabase.techlinx.se',
+    anonKey: 'your-anon-key-here',
+    projectRef: 'your-project-ref-here',
+  },
+  fortnox: {
+    authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
+    apiUrl: 'https://api.fortnox.se/3',
+    redirectPath: '/settings?tab=fortnox',
+  },
+  storage: {
+    avatarBucket: 'avatars',
+    logosBucket: 'logos',
+    newsBucket: 'news',
+  },
+  features: {
+    // Set to false if your self-hosted instance doesn't have edge functions
+    enableEdgeFunctions: true,
+  },
+  allowedDomains: [
+    'timetracking.techlinx.se',
+    'your-other-domain.com',
+  ]
+};
+*/
 
 /**
  * Get the fully qualified redirect URI for OAuth flows

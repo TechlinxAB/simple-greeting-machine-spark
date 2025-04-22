@@ -38,12 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [loadingTimerId, setLoadingTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
-
-  const [usedFallbackAdmin, setUsedFallbackAdmin] = useState(false);
-
-  const FALLBACK_ADMIN_USER = "techlinxadmin";
-  const FALLBACK_ADMIN_PASS_HASH = "1c52f1ca3cdea9d714d40fe0e3b46d56b43164ebfd47d8ba8d532d982d5283f5";
-
+  
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -51,40 +46,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setLoadingTimeout(false);
     initialSession();
-  };
-
-  const fallbackAdminLogin = (username: string, password: string) => {
-    const hashForCheck = hashSimple(password);
-    
-    if (
-      username === FALLBACK_ADMIN_USER &&
-      hashForCheck === FALLBACK_ADMIN_PASS_HASH
-    ) {
-      console.log("Using emergency admin access");
-      setUser({
-        id: "fallback-admin",
-        email: username,
-        aud: "authenticated",
-        created_at: new Date().toISOString(),
-      } as unknown as User);
-      setRole("admin");
-      setSession(null);
-      setIsLoading(false);
-      setUsedFallbackAdmin(true);
-      return true;
-    }
-    return false;
-  };
-
-  const hashSimple = (str: string): string => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    const hashHex = Math.abs(hash).toString(16).padStart(8, '0');
-    return hashHex.repeat(4);
   };
 
   const fetchUserProfile = async (userId: string, retries = 2) => {
@@ -221,29 +182,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate, location.pathname]);
 
   const signIn = async (email: string, password: string) => {
-    console.log("Sign in attempt for:", email);
-    
-    if (fallbackAdminLogin(email, password)) {
-      console.log("Emergency admin access granted");
-      toast.success("Logged in with emergency admin access");
-      navigate("/settings?tab=setup");
-      return;
-    }
-
     try {
-      console.log("Attempting regular Supabase login");
       const { session, user } = await signInUser(email, password);
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
-      
-      if (email === FALLBACK_ADMIN_USER && error.message.includes("valid email")) {
-        toast.error("For emergency admin access, use the correct credentials format");
-      } else {
-        throw error;
-      }
+      throw error;
     }
   };
 

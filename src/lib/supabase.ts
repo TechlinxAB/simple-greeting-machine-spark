@@ -2,19 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { environment } from '@/config/environment';
 
-// Check for custom Supabase connection values in localStorage
-const customSupabaseUrl = localStorage.getItem("custom_supabase_url");
-const customSupabaseAnonKey = localStorage.getItem("custom_supabase_anon_key");
-
-// Always use values from environment (which reads custom values from localStorage)
+// Get configuration from the centralized environment file
 const supabaseUrl = environment.supabase.url;
 const supabaseAnonKey = environment.supabase.anonKey;
-
-if (localStorage.getItem("custom_supabase_url") && localStorage.getItem("custom_supabase_anon_key")) {
-  console.log("Using custom Supabase connection:", supabaseUrl);
-} else {
-  console.log("Using default Supabase connection:", supabaseUrl);
-}
 
 // Create a single instance of the Supabase client with optimized configuration
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
