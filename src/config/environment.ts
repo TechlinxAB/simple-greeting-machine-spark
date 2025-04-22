@@ -64,6 +64,7 @@ export const environment: EnvironmentConfig = {
   allowedDomains: [
     'timetracking.techlinx.se',
     '5a7b22d3-f455-4d7b-888a-7f87ae8dba3f.lovableproject.com',
+    'id-preview-e5b44963--5a7b22d3-f455-4d7b-888a-7f87ae8dba3f.lovable.app',
     'localhost:5173', // For local development
   ]
 };
