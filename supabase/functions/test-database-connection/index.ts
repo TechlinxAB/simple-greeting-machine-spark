@@ -19,7 +19,7 @@ serve(async (req) => {
       );
     }
 
-    // === UPDATED: Only use DB_URL ===
+    // ONLY use DB_URL for connection
     const dbUrl = Deno.env.get("DB_URL");
 
     if (!dbUrl) {
@@ -27,7 +27,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           error: "Missing environment variables",
-          details: "The following environment variables are missing: DB_URL"
+          details: "The DB_URL environment variable is missing"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -36,24 +36,13 @@ serve(async (req) => {
     console.log(`[${sessionId}] DB_URL check:`, {
       dbUrlExists: !!dbUrl,
       dbUrlLength: dbUrl?.length || 0,
-      dbUrlFormat: dbUrl?.substring(0, 10) + "..."
+      dbUrlPrefix: dbUrl?.substring(0, 12) + "..." // Only log prefix for security
     });
 
-    // Pattern detection as before
-    const patterns = {
-      hasPasswordPlaceholder: dbUrl.includes(":password@"),
-      hasPasswordParam: dbUrl.includes("password="),
-      hasDoubleColon: dbUrl.includes("::") || false
-    };
-
-    console.log(`[${sessionId}] Connection string patterns:`, patterns);
-
-    let connectionString = dbUrl;
-
-    // Main test: use dbUrl as connection string
+    // Use the DB_URL directly without any manipulation
     console.log(`[${sessionId}] Creating connection pool and attempting to connect...`);
 
-    const pool = new Pool(connectionString, 1);
+    const pool = new Pool(dbUrl, 1);
     let client = null;
 
     try {
@@ -70,8 +59,7 @@ serve(async (req) => {
           message: "Successfully connected to database",
           connectionDetails: {
             successful: true,
-            data: result.rows[0],
-            patterns: patterns
+            data: result.rows[0]
           }
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -79,16 +67,16 @@ serve(async (req) => {
     } catch (dbError) {
       console.error(`[${sessionId}] ❌ Database connection error with DB_URL:`, dbError);
 
-      const sanitizedConnectionString = connectionString.replace(/:[^:@]*@/, ":****@");
+      // Sanitize the connection string to not expose password in logs
+      const sanitizedConnectionString = dbUrl.replace(/:[^:@]*@/, ":****@");
 
       return new Response(
         JSON.stringify({
-          error: "All database connection attempts failed",
+          error: "Database connection failed",
           message: dbError instanceof Error ? dbError.message : "Unknown database error",
           connectionDetails: {
             successful: false,
-            patterns: patterns,
-            sanitizedConnectionString: sanitizedConnectionString
+            sanitizedUrl: sanitizedConnectionString
           }
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 import { jwtVerify, decodeJwt } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
@@ -7,7 +8,6 @@ const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const jwtSecret = Deno.env.get('JWT_SECRET');
-const dbPassword = Deno.env.get('DB_PASSWORD');
 const dbUrl = Deno.env.get('DB_URL');
 
 // Fixed CORS headers
@@ -28,24 +28,9 @@ function logEnvironmentStatus() {
     supabaseUrlPresent: !!supabaseUrl,
     supabaseServiceKeyPresent: !!supabaseServiceKey,
     jwtSecretPresent: !!jwtSecret,
-    dbPasswordPresent: !!dbPassword,
     dbUrlPresent: !!dbUrl,
     supabaseUrlPrefix: supabaseUrl ? supabaseUrl.substring(0, 10) + "..." : "missing",
     dbUrlPrefix: dbUrl ? dbUrl.substring(0, 10) + "..." : "missing"
-  });
-}
-
-// Log database connection details
-function logDatabaseDetails() {
-  if (!dbUrl) {
-    console.error("DB_URL is missing - database operations will fail");
-    return;
-  }
-  
-  console.log("Database URL pattern analysis:", {
-    hasPasswordPlaceholder: dbUrl.includes(":password@"),
-    hasPasswordParam: dbUrl.includes("password="),
-    urlFormat: dbUrl.startsWith("postgres") ? "postgres://" : "other"
   });
 }
 
@@ -143,7 +128,6 @@ Deno.serve(async (req) => {
     
     // Log environment status at the start
     logEnvironmentStatus();
-    logDatabaseDetails();
     
     // Parse request body if it exists
     let force = false;
@@ -209,7 +193,6 @@ Deno.serve(async (req) => {
         message: "Environment verification successful",
         environment: {
           supabaseAvailable: true,
-          dbPasswordSet: !!dbPassword,
           dbUrlSet: !!dbUrl,
           sessionId: sessionId
         }
@@ -230,7 +213,6 @@ Deno.serve(async (req) => {
         environment: {
           supabaseUrlSet: !!supabaseUrl,
           serviceKeySet: !!supabaseServiceKey,
-          dbPasswordSet: !!dbPassword,
           dbUrlSet: !!dbUrl
         }
       }),

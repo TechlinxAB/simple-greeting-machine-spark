@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// === UPDATED: Only uses DB_URL for Postgres connection! ===
-
 interface TokenRefreshRequest {
   force?: boolean;
   token?: string;
@@ -41,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    // === UPDATE: Use only DB_URL ===
+    // ONLY use DB_URL for database connection
     const dbUrl = Deno.env.get("DB_URL");
 
     // Log credential availability without exposing actual values
@@ -63,14 +61,8 @@ serve(async (req) => {
 
     console.log("Initiating Fortnox token refresh, force =", requestData.force ? "true" : "false");
 
-    // For now, we’re simulating the token refresh process as previously
-    // The real refresh logic would use dbUrl
-
-    console.log("Connection string pattern:", {
-      hasPasswordPlaceholder: dbUrl.includes(":password@"),
-      hasPasswordParam: dbUrl.includes("password="),
-      urlType: dbUrl.startsWith("postgres") ? "postgres://" : "other"
-    });
+    // For now, we're simulating the token refresh process
+    // The real refresh logic would use dbUrl directly
 
     return new Response(
       JSON.stringify({
@@ -79,11 +71,7 @@ serve(async (req) => {
         details: "Database credentials verified. Implement actual token refresh logic here.",
         timestamp: new Date().toISOString(),
         dbConfiguration: {
-          urlExists: !!dbUrl,
-          connectionPatterns: {
-            hasPasswordPlaceholder: dbUrl.includes(":password@"),
-            hasPasswordParam: dbUrl.includes("password=")
-          }
+          urlExists: !!dbUrl
         }
       }),
       {
