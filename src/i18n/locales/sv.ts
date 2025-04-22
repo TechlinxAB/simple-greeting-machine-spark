@@ -103,12 +103,16 @@ const translations = {
     searchInvoices: "Sök fakturor...",
     searchUsers: "Sök användare...",
     units: "enheter",
+    unit: "enhet",
     noDescription: "Ingen beskrivning",
     createInvoice: "Skapa faktura",
     createAndExport: "Skapa & exportera",
     errorCreatingInvoice: "Fel vid skapande av faktura",
     administration: "Administration",
-    users: "Användare"
+    users: "Användare",
+    price: "Pris",
+    yes: "Ja",
+    no: "Nej",
   },
   auth: {
     email: "E-post",
@@ -309,6 +313,10 @@ const translations = {
     deleteTimer: "Radera timer",
     convertToTimeEntry: "Konvertera till tidsrapport",
     activitiesFor: "Aktiviteter för",
+    timeEntries: "Tidrapporter",
+    editTimeEntryDesc: "Gör ändringar i din tidsrapport nedan.",
+    timeEntryDetails: "Tidsrapportsdetaljer",
+    deleteTimeEntryConfirmation: "Är du säker på att du vill radera denna tidsrapport?",
   },
   invoices: {
     title: "Fakturering",
@@ -351,7 +359,11 @@ const translations = {
     connectFortnox: "Anslut till Fortnox",
     fortnoxDisconnected: "Fortnox-integrationen är inte ansluten.",
     connectFortnoxAdmin: "Gå till Inställningar för att ansluta ditt Fortnox-konto.",
-    connectFortnoxUser: "Be en administratör att ansluta Fortnox-integrationen i Inställningar."
+    connectFortnoxUser: "Be en administratör att ansluta Fortnox-integrationen i Inställningar.",
+    invoicedWarningTitle: "Denna rapport är fakturerad",
+    invoicedWarningDesc1: "Denna tidrapport är redan inkluderad i en faktura.",
+    invoicedWarningDesc2: "Att radera den kan orsaka problem med faktureringen. Vill du fortsätta?",
+    deleteAnyway: "Radera ändå",
   },
   reports: {
     title: "Rapporter",

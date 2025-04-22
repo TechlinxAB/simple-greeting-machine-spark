@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link, Upload, Trash } from "lucide-react";
+import { RefreshCw, RotateCcw, Save, Settings as SettingsIcon, Brush, Link, Upload, Trash, Code } from "lucide-react";
 import { FortnoxConnect } from "@/components/integrations/FortnoxConnect";
 import { FortnoxCallbackHandler } from "@/components/integrations/FortnoxCallbackHandler";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -36,6 +36,7 @@ import {
   LOGO_DATA_URL_KEY
 } from "@/utils/logoUtils";
 import { FortnoxTokenMigration } from "@/components/integrations/FortnoxTokenMigration";
+import { InstanceSetupTab } from "@/components/settings/InstanceSetupTab";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(1, "Application name is required"),
@@ -90,7 +91,7 @@ export default function Settings() {
   useEffect(() => {
     if (tabParam === 'fortnox' && isAdmin) {
       setActiveTab("integrations");
-    } else if (tabParam && ["appearance", "integrations"].includes(tabParam)) {
+    } else if (tabParam && ["appearance", "integrations", "setup"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam, isAdmin]);
@@ -551,6 +552,10 @@ export default function Settings() {
               <span>Integrations</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="setup" className="flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            <span>Instance Setup</span>
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="appearance">
@@ -884,6 +889,8 @@ export default function Settings() {
             </Card>
           </TabsContent>
         )}
+        
+        <InstanceSetupTab />
       </Tabs>
       
       <ConfirmDialog

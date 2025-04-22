@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -114,7 +115,14 @@ const translations = {
     deleting: "Deleting...",
     filterByClient: "Filter by Client",
     filterByUser: "Filter by User",
-    dateFilter: "Date Filter"
+    dateFilter: "Date Filter",
+    price: "Price",
+    yes: "Yes",
+    no: "No",
+    unit: "unit",
+    minute: "minute",
+    minutes: "minutes",
+    hour: "hour",
   },
   auth: {
     email: "Email",
@@ -323,7 +331,13 @@ const translations = {
     hour: "hour",
     hours: "hours",
     minute: "minute",
-    minutes: "minutes"
+    minutes: "minutes",
+    units: "units",
+    unit: "unit",
+    timeEntries: "Time Entries",
+    editTimeEntryDesc: "Make changes to your time entry below.",
+    timeEntryDetails: "Time Entry Details",
+    deleteTimeEntryConfirmation: "Are you sure you want to delete this time entry?",
   },
   invoices: {
     title: "Invoices",
@@ -363,7 +377,11 @@ const translations = {
     allInvoices: "All Invoices",
     confirmDelete: "Are you sure you want to delete this invoice?",
     issueDate: "Issue Date",
-    searchInvoices: "Search invoices..."
+    searchInvoices: "Search invoices...",
+    invoicedWarningTitle: "This entry is invoiced",
+    invoicedWarningDesc1: "This time entry has already been included in an invoice.",
+    invoicedWarningDesc2: "Deleting it may cause inconsistencies in your invoices. Are you sure you want to proceed?",
+    deleteAnyway: "Delete anyway",
   },
   reports: {
     title: "Reports",

@@ -44,15 +44,12 @@ Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log(`[${sessionId}] Handling CORS preflight request`);
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { headers: corsHeaders });
   }
   
   console.log(`[${sessionId}] ===== TOKEN EXCHANGE FUNCTION CALLED =====`);
   console.log(`[${sessionId}] Request method:`, req.method);
-  console.log(`[${sessionId}] Request headers:`, Object.fromEntries([...req.headers.entries()]));
+  console.log(`[${sessionId}] Request headers:`, req.headers);
   console.log(`[${sessionId}] Content-Type:`, req.headers.get("Content-Type"));
   
   try {
