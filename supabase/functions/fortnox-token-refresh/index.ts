@@ -2,18 +2,15 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// Using the exact environment variable names from the screenshot
-// Required environment variables for this function:
-// SUPABASE_URL - Supabase project URL
-// SUPABASE_ANON_KEY - Supabase anon key
-// SUPABASE_SERVICE_ROLE_KEY - Supabase service role key
-// FORTNOX_REFRESH_SECRET - Secret used to authenticate refresh requests
-// SUPABASE_DB_URL - Full Postgres connection string
-// DB_PASSWORD - Database password
+// Fortnox Token Refresh API endpoint
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
 
 interface TokenRefreshRequest {
+  refresh_token: string;
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
   force?: boolean;
-  token?: string;
 }
 
 serve(async (req) => {
@@ -31,110 +28,154 @@ serve(async (req) => {
       );
     }
 
+    // Generate a unique session ID for tracing
+    const sessionId = crypto.randomUUID().substring(0, 8);
+    console.log(`[${sessionId}] ===== TOKEN REFRESH FUNCTION CALLED =====`);
+
     // Parse request body
-    const requestData: TokenRefreshRequest = await req.json();
-    
-    // Check if the request includes a token for authentication
-    // This is used when the request comes from outside the system (e.g., scheduler)
-    const authHeader = req.headers.get("Authorization");
-    const providedToken = authHeader?.replace("Bearer ", "") || requestData.token;
-    
-    // Verify the token matches our refresh secret
-    // This ensures only authorized systems can trigger token refresh
-    const refreshSecret = Deno.env.get("FORTNOX_REFRESH_SECRET");
-    if (!refreshSecret) {
-      console.error("FORTNOX_REFRESH_SECRET is not set in environment");
+    let requestData: TokenRefreshRequest;
+    try {
+      const rawText = await req.text();
+      console.log(`[${sessionId}] Raw request body:`, rawText);
+      requestData = JSON.parse(rawText);
+      console.log(`[${sessionId}] 📦 Parsed refresh request:`, {
+        hasRefreshToken: !!requestData.refresh_token,
+        hasClientId: !!requestData.client_id,
+        hasClientSecret: !!requestData.client_secret,
+        hasRedirectUri: !!requestData.redirect_uri,
+        force: !!requestData.force
+      });
+    } catch (e) {
+      console.error(`[${sessionId}] Error parsing request body:`, e);
       return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: 'invalid_request', message: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // If token is provided, validate it
-    if (providedToken && providedToken !== refreshSecret) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Verify database credentials existence with correct variable names
-    const dbUrl = Deno.env.get("SUPABASE_DB_URL");
-    const dbPassword = Deno.env.get("DB_PASSWORD");
-    
-    // Log credential availability without exposing actual values
-    console.log("Database credential check:", {
-      dbUrlExists: !!dbUrl,
-      dbPasswordExists: !!dbPassword,
-      dbUrlLength: dbUrl?.length || 0
-    });
-    
-    if (!dbUrl || !dbPassword) {
-      console.error("Database credentials missing. SUPABASE_DB_URL and DB_PASSWORD must be set.");
+    // Validate required parameters
+    if (!requestData.refresh_token || !requestData.client_id || !requestData.client_secret) {
+      console.error(`[${sessionId}] Missing required parameters`);
+      
       return new Response(
         JSON.stringify({ 
-          error: "Database configuration missing",
-          details: "Make sure SUPABASE_DB_URL and DB_PASSWORD are set in the Edge Function secrets"
+          success: false,
+          message: 'Missing required parameters for token refresh',
+          requiresReconnect: false,
+          error: 'Missing refresh_token, client_id, or client_secret' 
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Log that we're about to attempt the token refresh
-    console.log("Initiating Fortnox token refresh, force =", requestData.force ? "true" : "false");
-    
-    // For now, we're simulating the token refresh process
-    // Later we'll implement the full token refresh logic that connects to the database
-    
-    // Additionally, we should create a test connection to verify database connectivity
-    let connectionString = dbUrl;
-    if (dbUrl.includes(":password@")) {
-      connectionString = dbUrl.replace(/:password@/, `:${dbPassword}@`);
-    } else if (dbUrl.includes("password=password")) {
-      connectionString = dbUrl.replace(/password=password/, `password=${dbPassword}`);
-    } else if (dbUrl.includes("password=")) {
-      connectionString = dbUrl.replace(/password=([^&]*)/, `password=${dbPassword}`);
-    }
-    
-    // Log connection string pattern (without exposing the actual password)
-    console.log("Connection string pattern:", {
-      hasPasswordPlaceholder: dbUrl.includes(":password@"),
-      hasPasswordParam: dbUrl.includes("password="),
-      urlType: dbUrl.startsWith("postgres") ? "postgres://" : "other"
+    // Prepare request to Fortnox API
+    const formData = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: requestData.refresh_token,
+      redirect_uri: requestData.redirect_uri
     });
     
+    // Create the Authorization header with Basic auth
+    const authString = `${requestData.client_id}:${requestData.client_secret}`;
+    const base64Auth = btoa(authString);
+    const authHeader = `Basic ${base64Auth}`;
+    
+    // Log key info for debugging
+    console.log(`[${sessionId}] 🔄 Sending token refresh request to Fortnox:`);
+    console.log(`[${sessionId}] URL:`, FORTNOX_TOKEN_URL);
+    console.log(`[${sessionId}] Method: POST`);
+    console.log(`[${sessionId}] Authorization: Basic •••`);
+    
+    // Make request to Fortnox
+    const response = await fetch(FORTNOX_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'Authorization': authHeader
+      },
+      body: formData
+    });
+    
+    console.log(`[${sessionId}] 📬 Fortnox responded with status:`, response.status);
+    
+    // Get response body as text
+    const responseText = await response.text();
+    console.log(`[${sessionId}] 🧾 Fortnox response body:`, responseText);
+    
+    // Parse response JSON
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      console.error(`[${sessionId}] Error parsing Fortnox response:`, e);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          message: 'Invalid response from Fortnox',
+          requiresReconnect: false,
+          error: 'Could not parse Fortnox API response' 
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Handle error response from Fortnox
+    if (!response.ok) {
+      console.error(`[${sessionId}] Fortnox API returned error status ${response.status}:`, responseData);
+      
+      // Check if the error is due to an invalid grant (e.g., refresh token expired or revoked)
+      const errorText = responseText || '';
+      const isInvalidGrant = errorText.includes('invalid_grant');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          message: isInvalidGrant ? 'Refresh token is invalid or expired' : 'Failed to refresh token',
+          requiresReconnect: isInvalidGrant,
+          error: `Fortnox API error: ${response.status} ${response.statusText}` 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Validate the tokens received from Fortnox
+    if (!responseData.access_token) {
+      console.error(`[${sessionId}] Missing access_token in Fortnox response:`, responseData);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          message: 'Missing access token in response',
+          requiresReconnect: false,
+          error: 'Incomplete token data received from Fortnox' 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Return successful response with new tokens
+    console.log(`[${sessionId}] 🔑 Token refresh successful`);
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Token refresh simulation completed", 
-        details: "Database credentials verified. Implement actual token refresh logic here.",
-        timestamp: new Date().toISOString(),
-        dbConfiguration: {
-          urlExists: !!dbUrl,
-          passwordExists: !!dbPassword,
-          connectionPatterns: {
-            hasPasswordPlaceholder: dbUrl.includes(":password@"),
-            hasPasswordParam: dbUrl.includes("password=")
-          }
-        }
+      JSON.stringify({
+        success: true,
+        message: 'Token refreshed successfully',
+        accessToken: responseData.access_token,
+        refreshToken: responseData.refresh_token,
+        expiresIn: responseData.expires_in || 3600,
+        requiresReconnect: false
       }),
-      { 
-        status: 200, 
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        } 
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
     
   } catch (error) {
-    console.error("Error in token refresh:", error);
+    console.error("Unexpected error in token refresh:", error);
     
     return new Response(
       JSON.stringify({ 
-        error: "Internal server error", 
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined
+        success: false, 
+        message: 'Internal server error during token refresh',
+        requiresReconnect: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       { 
         status: 500, 
