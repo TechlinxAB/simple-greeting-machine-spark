@@ -29,9 +29,15 @@ serve(async (req) => {
       );
     }
     
-    // Get database connection details from environment using correct variable names
-    const dbUrl = Deno.env.get("SUPABASE_DB_URL"); // Match exact name from screenshot
-    const dbPassword = Deno.env.get("DB_PASSWORD"); // Match exact name from screenshot
+    // Get database connection details from environment
+    const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+    const dbPassword = Deno.env.get("DB_PASSWORD");
+    
+    console.log("Database connection attempt with:", { 
+      dbUrlExists: !!dbUrl, 
+      dbPasswordExists: !!dbPassword,
+      dbUrlPreview: dbUrl ? `${dbUrl.substring(0, 20)}...` : "missing"
+    });
     
     if (!dbUrl) {
       return new Response(
@@ -54,7 +60,30 @@ serve(async (req) => {
     }
     
     // Replace password placeholder with actual password
-    const connectionString = dbUrl.replace(/:password@/, `:${dbPassword}@`);
+    // This is critical - ensure we're looking for the right pattern in the connection string
+    let connectionString = dbUrl;
+    
+    // Check for different possible patterns and log what we find
+    console.log("Original connection string pattern check:", {
+      hasPasswordPlaceholder: dbUrl.includes(":password@"),
+      hasPasswordParam: dbUrl.includes("password="),
+      containsDoubleColon: dbUrl.includes("::"),
+    });
+    
+    // Try different replacement patterns to ensure we catch the right format
+    if (dbUrl.includes(":password@")) {
+      connectionString = dbUrl.replace(/:password@/, `:${dbPassword}@`);
+      console.log("Replaced :password@ pattern in connection string");
+    } else if (dbUrl.includes("password=password")) {
+      connectionString = dbUrl.replace(/password=password/, `password=${dbPassword}`);
+      console.log("Replaced password=password pattern in connection string");
+    } else if (dbUrl.includes("password=")) {
+      // More generic replacement for password parameter
+      connectionString = dbUrl.replace(/password=([^&]*)/, `password=${dbPassword}`);
+      console.log("Replaced generic password= pattern in connection string");
+    } else {
+      console.log("No standard password pattern found, connection might fail");
+    }
     
     console.log("Attempting database connection test...");
     
@@ -64,10 +93,15 @@ serve(async (req) => {
     
     try {
       // Get a connection from the pool
+      console.log("Attempting to connect to database...");
       client = await pool.connect();
+      
+      console.log("Successfully connected to database, executing test query");
       
       // Test query
       const result = await client.queryObject("SELECT current_timestamp as time, current_database() as database");
+      
+      console.log("Database connection test successful!");
       
       return new Response(
         JSON.stringify({ 
@@ -76,6 +110,10 @@ serve(async (req) => {
           data: result.rows[0],
           connectionDetails: {
             url: dbUrl.replace(/:[^:]*@/, ":****@"), // Mask password in URL
+            patterns: {
+              hasPasswordPlaceholder: dbUrl.includes(":password@"),
+              hasPasswordParam: dbUrl.includes("password="),
+            }
           }
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -84,12 +122,21 @@ serve(async (req) => {
     } catch (dbError) {
       console.error("Database connection error:", dbError);
       
+      // Log additional debug information about the connection string
+      // (without exposing the actual password)
+      const sanitizedConnectionString = connectionString.replace(/:[^:@]*@/, ":****@");
+      
       return new Response(
         JSON.stringify({ 
           error: "Database connection failed", 
           message: dbError instanceof Error ? dbError.message : "Unknown database error",
           connectionDetails: {
             url: dbUrl.replace(/:[^:]*@/, ":****@"), // Mask password in URL
+            sanitizedConnectionString: sanitizedConnectionString,
+            patterns: {
+              hasPasswordPlaceholder: dbUrl.includes(":password@"),
+              hasPasswordParam: dbUrl.includes("password=")
+            }
           }
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
