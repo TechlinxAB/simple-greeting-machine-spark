@@ -16,7 +16,13 @@ const config = getEnvironmentConfig();
 export const supabaseConfig = {
   url: config.supabase.url,
   anonKey: config.supabase.anonKey,
-  projectRef: config.supabase.projectRef
+  projectRef: config.supabase.projectRef,
+  // Database connection details
+  dbUrl: config.supabase.dbUrl,
+  dbHost: config.supabase.dbHost,
+  dbPort: config.supabase.dbPort,
+  dbName: config.supabase.dbName,
+  dbUser: config.supabase.dbUser
 };
 
 /**
@@ -28,6 +34,11 @@ export function updateSupabaseConfig(newConfig: {
   url?: string;
   anonKey?: string;
   projectRef?: string;
+  dbUrl?: string;
+  dbHost?: string;
+  dbPort?: number;
+  dbName?: string;
+  dbUser?: string;
 }): void {
   // Store the new config in localStorage
   const config = getEnvironmentConfig();
@@ -50,6 +61,11 @@ export function getCurrentSupabaseConfig() {
   return {
     url: config.supabase.url,
     anonKey: config.supabase.anonKey,
-    projectRef: config.supabase.projectRef
+    projectRef: config.supabase.projectRef,
+    dbUrl: config.supabase.dbUrl,
+    dbHost: config.supabase.dbHost,
+    dbPort: config.supabase.dbPort,
+    dbName: config.supabase.dbName,
+    dbUser: config.supabase.dbUser
   };
 }

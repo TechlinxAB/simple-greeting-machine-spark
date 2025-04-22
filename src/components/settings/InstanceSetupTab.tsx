@@ -42,6 +42,7 @@ const REQUIRED_SECRETS = [
   "FORTNOX_REFRESH_SECRET",
   "JWT_SECRET",
   "SUPABASE_DB_URL",
+  "SUPABASE_DB_PASSWORD",
 ];
 
 const instanceSetupSchema = z.object({
@@ -49,6 +50,12 @@ const instanceSetupSchema = z.object({
   supabaseUrl: z.string().url("Must be a valid URL").min(1, "Required"),
   supabaseAnonKey: z.string().min(1, "Required"),
   supabaseProjectRef: z.string().min(1, "Required"),
+  // Database
+  dbUrl: z.string().optional(),
+  dbHost: z.string().optional(),
+  dbPort: z.coerce.number().optional(),
+  dbName: z.string().optional(),
+  dbUser: z.string().optional(),
   // Fortnox
   fortnoxAuthUrl: z.string().url("Must be a valid URL").min(1, "Required"),
   fortnoxApiUrl: z.string().url("Must be a valid URL").min(1, "Required"),
@@ -85,6 +92,11 @@ export function InstanceSetupTab() {
       supabaseUrl: "",
       supabaseAnonKey: "",
       supabaseProjectRef: "",
+      dbUrl: "",
+      dbHost: "",
+      dbPort: 5432,
+      dbName: "",
+      dbUser: "",
       fortnoxAuthUrl: "",
       fortnoxApiUrl: "",
       fortnoxRedirectPath: "",
@@ -109,6 +121,11 @@ export function InstanceSetupTab() {
       supabaseUrl: config.supabase.url,
       supabaseAnonKey: config.supabase.anonKey,
       supabaseProjectRef: config.supabase.projectRef,
+      dbUrl: config.supabase.dbUrl,
+      dbHost: config.supabase.dbHost,
+      dbPort: config.supabase.dbPort,
+      dbName: config.supabase.dbName,
+      dbUser: config.supabase.dbUser,
       fortnoxAuthUrl: config.fortnox.authUrl,
       fortnoxApiUrl: config.fortnox.apiUrl,
       fortnoxRedirectPath: config.fortnox.redirectPath,
@@ -174,6 +191,11 @@ export function InstanceSetupTab() {
           url: data.supabaseUrl,
           anonKey: data.supabaseAnonKey,
           projectRef: data.supabaseProjectRef,
+          dbUrl: data.dbUrl,
+          dbHost: data.dbHost,
+          dbPort: data.dbPort,
+          dbName: data.dbName,
+          dbUser: data.dbUser,
         },
         fortnox: {
           authUrl: data.fortnoxAuthUrl,
@@ -254,6 +276,7 @@ ${REQUIRED_SECRETS.map(secret => `     - ${secret}`).join('\n')}
 
 3. **Update Instance Configuration**
    - Enter your new Supabase URL, Anon Key, and Project Ref in the Supabase section
+   - Enter your database connection details (host, port, database name, user)
    - Test the connection to verify it works
    - Update any other environment-specific values
    - Save the configuration
@@ -357,6 +380,85 @@ ${REQUIRED_SECRETS.map(secret => `     - ${secret}`).join('\n')}
                           </FormItem>
                         )}
                       />
+
+                      <h4 className="text-md font-semibold mt-4">Database Configuration</h4>
+                      
+                      <FormField
+                        control={form.control}
+                        name="dbUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Database URL (Connection String)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="postgresql://postgres:password@localhost:5432/postgres" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              The full database connection string
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="dbHost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Database Host</FormLabel>
+                              <FormControl>
+                                <Input placeholder="localhost" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="dbPort"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Database Port</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="5432" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="dbName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Database Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="postgres" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="dbUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Database User</FormLabel>
+                              <FormControl>
+                                <Input placeholder="postgres" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       
                       <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800">
                         <h4 className="font-semibold mb-2">Required Supabase Secrets</h4>
@@ -368,6 +470,9 @@ ${REQUIRED_SECRETS.map(secret => `     - ${secret}`).join('\n')}
                             <li key={secret}>{secret}</li>
                           ))}
                         </ul>
+                        <p className="mt-2 text-red-700 font-semibold">
+                          Note: Database password (SUPABASE_DB_PASSWORD) must be set as a secret in Supabase for security reasons.
+                        </p>
                       </div>
                       
                       <Button 
@@ -756,7 +861,7 @@ ${REQUIRED_SECRETS.map(secret => `     - ${secret}`).join('\n')}
                   className="h-72 font-mono text-xs"
                 />
                 {importError && (
-                  <p className="text-destructive text-sm">{importError}</p>
+                  <p className="text-sm text-destructive">{importError}</p>
                 )}
               </div>
               

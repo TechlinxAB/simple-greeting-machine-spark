@@ -12,6 +12,12 @@ export interface EnvironmentConfig {
     url: string;
     anonKey: string;
     projectRef: string;
+    // Database connection details
+    dbUrl?: string;
+    dbHost?: string;
+    dbPort?: number;
+    dbName?: string;
+    dbUser?: string;
     // The following sensitive values should be set in Supabase Secrets
     // These are placeholders to remind admins what needs to be configured
     serviceRoleKey?: string;
@@ -73,6 +79,12 @@ export const environment: EnvironmentConfig = {
     url: 'https://xojrleypudfrbmvejpow.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvanJsZXlwdWRmcmJtdmVqcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzUzNjEsImV4cCI6MjA1OTcxMTM2MX0.Wzo_PseuNTU2Lk3qTRbrJxN8H-M1U2FhMLEc_h7yrUc',
     projectRef: 'xojrleypudfrbmvejpow',
+    // Database connection details
+    dbUrl: 'postgresql://postgres:postgres@localhost:5432/postgres',
+    dbHost: 'localhost',
+    dbPort: 5432,
+    dbName: 'postgres',
+    dbUser: 'postgres',
   },
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
