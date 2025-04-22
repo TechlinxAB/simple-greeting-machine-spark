@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 import { environment } from '@/config/environment';
 
+const FORTNOX_TOKEN_URL = `${environment.fortnox.apiUrl}/oauth-v2/token`;
+
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
  * Using the Edge Function proxy to avoid CORS issues.
