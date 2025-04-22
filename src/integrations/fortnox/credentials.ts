@@ -3,7 +3,6 @@ import { FortnoxCredentials } from "./types";
 import { triggerSystemTokenRefresh } from "./auth";
 import { toast } from "sonner";
 
-// Add a delay utility function
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
@@ -12,17 +11,14 @@ const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
  */
 export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredentials>): Promise<void> {
   try {
-    // Generate a unique operation ID to trace this save operation
     const operationId = Math.random().toString(36).substring(2, 10);
     console.log(`[${operationId}] 💾 Starting Fortnox credentials save operation`);
     
-    // Ensure all credentials are strings and we're not passing any unexpected fields
     const credentialsObj: Record<string, any> = {
       clientId: credentials.clientId,
       clientSecret: credentials.clientSecret,
     };
     
-    // Only add these fields if they exist
     if (credentials.accessToken) {
       credentialsObj.accessToken = credentials.accessToken;
       console.log(`[${operationId}] 🔑 Saving access token, length:`, credentials.accessToken.length);
@@ -36,7 +32,6 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
       console.log(`[${operationId}] 🔑 Refresh token preview:`, 
         `${credentials.refreshToken.substring(0, 10)}...${credentials.refreshToken.substring(credentials.refreshToken.length - 5)}`);
       
-      // Check if the refreshToken appears to be truncated or malformed
       if (credentials.refreshToken.length !== 40) {
         console.warn(`[${operationId}] ⚠️ Warning: Refresh token length is ${credentials.refreshToken.length}, expected 40 chars`);
       }
@@ -48,7 +43,6 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
     
     console.log(`[${operationId}] 💾 Saving Fortnox credentials to database`);
     
-    // Save the credentials - use stringified JSON to ensure full data integrity
     const stringifiedSettings = JSON.stringify(credentialsObj);
     console.log(`[${operationId}] 📐 Stringified settings length:`, stringifiedSettings.length);
     
@@ -66,11 +60,8 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
       throw error;
     }
     
-    // Add a small delay to ensure database consistency before verifying
     await delay(500);
     
-    // Verify the saved credentials
-    console.log(`[${operationId}] 🔍 Verifying saved credentials after delay`);
     const { data: verifyData, error: verifyError } = await supabase
       .from('system_settings')
       .select('settings')
@@ -80,7 +71,6 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
     if (verifyError) {
       console.error(`[${operationId}] ❌ Error verifying saved credentials:`, verifyError);
     } else if (verifyData && verifyData.settings) {
-      // Type assertion for the JSON data
       const settings = verifyData.settings as Record<string, any>;
       
       console.log(`[${operationId}] ✅ Verification - Saved credentials:`, {
@@ -90,12 +80,10 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
         refreshTokenLength: settings.refreshToken?.length
       });
       
-      // Check if tokens match what we tried to save
       if (credentials.accessToken && settings.accessToken !== credentials.accessToken) {
         console.error(`[${operationId}] ❌ Access token mismatch after save!`);
         console.error(`[${operationId}] Original length: ${credentials.accessToken.length}, Saved length: ${settings.accessToken?.length}`);
         
-        // Compare first and last 20 chars
         const origStart = credentials.accessToken.substring(0, 20);
         const savedStart = settings.accessToken?.substring(0, 20);
         const origEnd = credentials.accessToken.substring(credentials.accessToken.length - 20);
@@ -109,7 +97,6 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
         console.error(`[${operationId}] ❌ Refresh token mismatch after save!`);
         console.error(`[${operationId}] Original length: ${credentials.refreshToken.length}, Saved length: ${settings.refreshToken?.length}`);
         
-        // Compare first and last 5 chars
         const origStart = credentials.refreshToken.substring(0, 5);
         const savedStart = settings.refreshToken?.substring(0, 5);
         const origEnd = credentials.refreshToken.substring(credentials.refreshToken.length - 5);
@@ -122,19 +109,14 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
     
     console.log(`[${operationId}] ✅ Fortnox credentials saved successfully`);
     
-    // Make a second verification call to ensure data consistency
     await delay(1000);
     await verifyFortnoxCredentials(credentials, operationId);
-    
   } catch (error) {
     console.error('❌ Error saving Fortnox credentials:', error);
     throw error;
   }
 }
 
-/**
- * Additional verification function to ensure credentials were properly saved
- */
 async function verifyFortnoxCredentials(
   originalCredentials: Partial<FortnoxCredentials>, 
   operationId: string
@@ -158,10 +140,8 @@ async function verifyFortnoxCredentials(
       return false;
     }
     
-    // Type assertion for the JSON data
     const settings = data.settings as Record<string, any>;
     
-    // Verify refresh token integrity
     if (originalCredentials.refreshToken && settings.refreshToken) {
       const originalLength = originalCredentials.refreshToken.length;
       const savedLength = settings.refreshToken.length;
@@ -189,14 +169,10 @@ async function verifyFortnoxCredentials(
   }
 }
 
-/**
- * Get stored Fortnox credentials
- */
 export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null> {
   try {
     console.log("📚 Fetching Fortnox credentials from database");
     
-    // Add retry mechanism for database connectivity issues
     let retries = 3;
     let data = null;
     let error = null;
@@ -215,7 +191,6 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
         console.error(`❌ Error fetching Fortnox credentials (${4-retries}/3):`, error);
         retries--;
         if (retries > 0) {
-          // Wait before retrying
           await delay(1000);
         }
       } else {
@@ -233,10 +208,8 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       return null;
     }
     
-    // Properly type-cast the JSON data to FortnoxCredentials
     const settingsData = data.settings as Record<string, any>;
     
-    // Construct a properly formatted FortnoxCredentials object
     const credentials: FortnoxCredentials = {
       clientId: settingsData.clientId,
       clientSecret: settingsData.clientSecret,
@@ -245,49 +218,41 @@ export async function getFortnoxCredentials(): Promise<FortnoxCredentials | null
       isLegacyToken: settingsData.isLegacyToken
     };
     
-    // Validate credentials structure
     if (!credentials.clientId || !credentials.clientSecret) {
       console.log("❌ Invalid credentials format - missing client ID or secret");
       return null;
     }
     
-    // Debug access token integrity
     if (credentials.accessToken) {
       console.log(`📝 Access token retrieved from DB - Length: ${credentials.accessToken.length}`);
       console.log(`📝 Access token preview: ${credentials.accessToken.substring(0, 20)}...${credentials.accessToken.substring(credentials.accessToken.length - 20)}`);
       
-      // Check if the token appears truncated (contains literal "...")
       if (credentials.accessToken.includes('...') && 
           !credentials.accessToken.startsWith('...') && 
           !credentials.accessToken.endsWith('...')) {
         console.error("⚠️ Access token appears to be truncated in the database");
       }
       
-      // Check for reasonable token length
       if (credentials.accessToken.length < 100) {
         console.error("⚠️ Access token appears suspiciously short, expected ~2400+ chars but got:", credentials.accessToken.length);
       }
     }
     
-    // Debug refresh token integrity
     if (credentials.refreshToken) {
       console.log(`📝 Refresh token retrieved from DB - Length: ${credentials.refreshToken.length}`);
       console.log(`📝 Refresh token preview: ${credentials.refreshToken.substring(0, 10)}...${credentials.refreshToken.substring(credentials.refreshToken.length - 5)}`);
       
-      // Check if the refresh token appears truncated
       if (credentials.refreshToken.includes('...') && 
           !credentials.refreshToken.startsWith('...') && 
           !credentials.refreshToken.endsWith('...')) {
         console.error("⚠️ Refresh token appears to be truncated in the database");
       }
       
-      // Check expected length for refresh token (should be 40 chars)
       if (credentials.refreshToken.length !== 40) {
         console.warn(`⚠️ Refresh token length is ${credentials.refreshToken.length}, expected 40 chars`);
       }
     }
     
-    // Add detailed token type logging
     console.log("🔍 Token Type Analysis");
     console.log("Access Token Present:", !!credentials.accessToken);
     console.log("Refresh Token Present:", !!credentials.refreshToken);
@@ -306,19 +271,16 @@ export function isLegacyToken(credentials: FortnoxCredentials | null): boolean {
     return false;
   }
   
-  // Detailed token type logging
   console.log("🔍 Token Type Analysis");
   console.log("Access Token Present:", !!credentials.accessToken);
   console.log("Refresh Token Present:", !!credentials.refreshToken);
   console.log("Explicitly Marked Legacy Token:", credentials.isLegacyToken);
   
-  // If explicitly marked as legacy token
   if (credentials.isLegacyToken === true) {
     console.log("✅ Token Type: LEGACY (Explicitly Marked)");
     return true;
   }
   
-  // If we have an access token but no refresh token, it's likely a legacy token
   if (credentials.accessToken && !credentials.refreshToken) {
     console.log("⚠️ Token Type: LEGACY (No Refresh Token)");
     return true;
@@ -328,20 +290,17 @@ export function isLegacyToken(credentials: FortnoxCredentials | null): boolean {
   return false;
 }
 
-/**
- * Check if Fortnox integration is connected and has valid credentials
- */
-export async function isFortnoxConnected(): Promise<boolean> {
+export async function isConnected(credentials?: FortnoxCredentials | null): Promise<boolean> {
   try {
     console.log("Checking Fortnox connection status");
-    const credentials = await getFortnoxCredentials();
+    const creds = credentials || await getFortnoxCredentials();
     
-    if (!credentials) {
+    if (!creds) {
       console.log("Fortnox not connected: No credentials found");
       return false;
     }
     
-    if (!credentials.accessToken) {
+    if (!creds.accessToken) {
       console.log("Fortnox not connected: No access token");
       return false;
     }
@@ -354,15 +313,12 @@ export async function isFortnoxConnected(): Promise<boolean> {
   }
 }
 
-/**
- * Disconnect Fortnox integration
- * This function should only be callable by admins (enforced at the UI level)
- */
-export async function disconnectFortnox(): Promise<void> {
+export const isFortnoxConnected = isConnected;
+
+export async function clearFortnoxCredentials(): Promise<void> {
   try {
     console.log("Disconnecting Fortnox integration");
     
-    // Direct query to delete the system settings
     const { error } = await supabase
       .from('system_settings')
       .delete()
@@ -377,14 +333,12 @@ export async function disconnectFortnox(): Promise<void> {
   }
 }
 
-/**
- * Function to manually force a token refresh
- */
+export const disconnectFortnox = clearFortnoxCredentials;
+
 export async function forceTokenRefresh(): Promise<boolean> {
   try {
     console.log("Forcing token refresh");
     
-    // Call the system-level refresh with force flag
     const success = await triggerSystemTokenRefresh(true);
     
     if (success) {

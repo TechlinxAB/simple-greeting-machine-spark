@@ -1,4 +1,3 @@
-
 export interface FortnoxCredentials {
   clientId: string;
   clientSecret: string;
@@ -48,4 +47,10 @@ export interface TokenRefreshLog {
   session_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Add a connection status interface
+export interface FortnoxConnectionStatus {
+  isConnected: boolean;
+  error?: string;
 }

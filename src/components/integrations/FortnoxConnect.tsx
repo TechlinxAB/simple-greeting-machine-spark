@@ -46,9 +46,10 @@ export function FortnoxConnect({ clientId, clientSecret }: FortnoxConnectProps) 
     queryKey: ["fortnox-connection-status"],
     queryFn: async () => {
       if (!credentials) {
-        return { isConnected: false };
+        return { isConnected: false } as FortnoxConnectionStatus;
       }
-      return { isConnected: await isConnected(credentials) };
+      const connected = await isConnected(credentials);
+      return { isConnected: connected } as FortnoxConnectionStatus;
     },
     enabled: !!credentials,
     staleTime: 60000,
@@ -181,10 +182,7 @@ export function FortnoxConnect({ clientId, clientSecret }: FortnoxConnectProps) 
           </Button>
         </div>
         
-        <FortnoxTokenInfo 
-          credentials={credentials} 
-          refreshHistory={refreshHistory} 
-        />
+        <FortnoxTokenInfo />
       </div>
     );
   }
