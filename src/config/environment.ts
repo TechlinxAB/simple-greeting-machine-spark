@@ -5,8 +5,6 @@
  * to switch between different environments (cloud Supabase, self-hosted Supabase).
  */
 
-import { EnvironmentConfig } from './environment';
-
 export interface EnvironmentConfig {
   // Supabase Configuration
   supabase: {
