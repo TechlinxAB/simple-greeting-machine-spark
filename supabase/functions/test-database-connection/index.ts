@@ -19,7 +19,7 @@ serve(async (req) => {
       );
     }
 
-    // ONLY use DB_URL for connection
+    // Use ONLY DB_URL for database connection
     const dbUrl = Deno.env.get("DB_URL");
 
     if (!dbUrl) {
@@ -33,7 +33,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[${sessionId}] DB_URL check:`, {
+    console.log(`[${sessionId}] DB_URL availability check:`, {
       dbUrlExists: !!dbUrl,
       dbUrlLength: dbUrl?.length || 0,
       dbUrlPrefix: dbUrl?.substring(0, 12) + "..." // Only log prefix for security
