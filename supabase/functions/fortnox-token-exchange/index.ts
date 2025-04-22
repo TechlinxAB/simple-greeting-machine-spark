@@ -1,6 +1,5 @@
 
 // Import required modules
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Configure Fortnox OAuth token endpoint
@@ -38,7 +37,7 @@ async function computeHash(text: string): Promise<string> {
 }
 
 // Main handler function
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Generate a unique session ID for tracing this exchange session
   const sessionId = crypto.randomUUID().substring(0, 8);
   
@@ -50,13 +49,15 @@ serve(async (req) => {
   
   console.log(`[${sessionId}] ===== TOKEN EXCHANGE FUNCTION CALLED =====`);
   console.log(`[${sessionId}] Request method:`, req.method);
+  console.log(`[${sessionId}] Request headers:`, req.headers);
+  console.log(`[${sessionId}] Content-Type:`, req.headers.get("Content-Type"));
   
   try {
     // Parse the request body
     let body;
     try {
       const rawText = await req.text();
-      console.log(`[${sessionId}] Raw request body:`, rawText);
+      console.log(`[${sessionId}] Raw JSON body:`, rawText);
       body = JSON.parse(rawText);
       console.log(`[${sessionId}] 📦 Parsed JSON body:`, {
         client_id: body.client_id ? `${body.client_id.substring(0, 10)}...` : undefined,
@@ -87,6 +88,17 @@ serve(async (req) => {
       );
     }
     
+    // Log key info for debugging
+    console.log(`[${sessionId}] 🔄 Sending request to Fortnox:`);
+    console.log(`[${sessionId}] URL:`, FORTNOX_TOKEN_URL);
+    console.log(`[${sessionId}] Method: POST`);
+    console.log(`[${sessionId}] Headers:`, {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+      Authorization: "Basic •••"
+    });
+    console.log(`[${sessionId}] Body (form data):`, `grant_type=authorization_code&code=${body.code}&redirect_uri=${encodeURIComponent(body.redirect_uri)}`);
+    
     // Prepare request to Fortnox API
     const formData = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -98,12 +110,6 @@ serve(async (req) => {
     const authString = `${body.client_id}:${body.client_secret}`;
     const base64Auth = btoa(authString);
     const authHeader = `Basic ${base64Auth}`;
-    
-    // Log key info for debugging
-    console.log(`[${sessionId}] 🔄 Sending request to Fortnox:`);
-    console.log(`[${sessionId}] URL:`, FORTNOX_TOKEN_URL);
-    console.log(`[${sessionId}] Method: POST`);
-    console.log(`[${sessionId}] Authorization: Basic •••`);
     
     // Make request to Fortnox
     const response = await fetch(FORTNOX_TOKEN_URL, {

@@ -6,9 +6,7 @@ export {
   getFortnoxCredentials,
   saveFortnoxCredentials,
   forceTokenRefresh,
-  isLegacyToken,
-  isConnected,
-  clearFortnoxCredentials
+  isLegacyToken
 } from './credentials';
 
 export {
@@ -30,8 +28,7 @@ export type {
   TokenMigrationResponse, 
   TokenMigrationError,
   SystemSettings,
-  TokenRefreshLog,
-  FortnoxConnectionStatus
+  TokenRefreshLog
 } from './types';
 
 // Export invoices related functions

@@ -1,6 +1,9 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
+
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
 
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
@@ -17,27 +20,31 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    console.log("Exchanging code for tokens via Edge Function");
-    
-    // Use our edge function as a proxy instead of direct API call
-    const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
-      body: JSON.stringify({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri
-      }),
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
+
+    const authString = btoa(`${clientId}:${clientSecret}`);
+
+    const response = await fetch(FORTNOX_TOKEN_URL, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-      }
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authString}`,
+      },
+      body: params.toString(),
     });
 
-    if (error) {
-      console.error('Error invoking token exchange function:', error);
-      throw new Error(`Failed to exchange code for tokens: ${error.message}`);
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error('Error exchanging code for tokens:', response.status, response.statusText, errorBody);
+      throw new Error(`Failed to exchange code for tokens: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    if (!data || !data.access_token || !data.refresh_token) {
+    const data = await response.json();
+
+    if (!data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received:', data);
       throw new Error('Incomplete token data received from Fortnox');
     }
@@ -45,7 +52,7 @@ export async function exchangeCodeForTokens(
     return {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
-      expires_in: data.expires_in || 3600,
+      expires_in: data.expires_in,
     };
   } catch (error: any) {
     console.error('Error in exchangeCodeForTokens:', error);
@@ -68,45 +75,62 @@ export async function refreshAccessToken(
   redirectUri: string
 ): Promise<RefreshResult> {
   try {
-    // Use our edge function as a proxy instead of direct API call
-    const { data, error } = await supabase.functions.invoke('fortnox-token-refresh', {
-      body: JSON.stringify({
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri
-      }),
+    const params = new URLSearchParams();
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refreshToken);
+    params.append('redirect_uri', redirectUri);
+
+    const authString = btoa(`${clientId}:${clientSecret}`);
+
+    const response = await fetch(FORTNOX_TOKEN_URL, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-      }
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authString}`,
+      },
+      body: params.toString(),
     });
 
-    if (error) {
-      console.error('Error invoking token refresh function:', error);
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error('Error refreshing access token:', response.status, response.statusText, errorBody);
+      
+      // Check if the error is due to an invalid grant (e.g., refresh token expired or revoked)
+      if (errorBody.includes('invalid_grant')) {
+        return { 
+          success: false, 
+          message: 'Refresh token is invalid or expired',
+          requiresReconnect: true,
+          error: `Refresh token is invalid or expired: ${response.status} ${response.statusText} - ${errorBody}` 
+        };
+      }
+      
       return { 
         success: false, 
-        message: `Failed to refresh access token: ${error.message}`,
+        message: 'Failed to refresh access token',
         requiresReconnect: false,
-        error: `Failed to refresh access token: ${error.message}` 
+        error: `Failed to refresh access token: ${response.status} ${response.statusText} - ${errorBody}` 
       };
     }
 
-    if (!data.success) {
-      console.error('Token refresh failed:', data.message);
-      return {
-        success: false,
-        message: data.message || 'Failed to refresh token',
-        requiresReconnect: data.requiresReconnect || false,
-        error: data.error || 'Unknown error during token refresh'
+    const data = await response.json();
+
+    if (!data.access_token || !data.refresh_token || !data.expires_in) {
+      console.error('Incomplete token data received during refresh:', data);
+      return { 
+        success: false, 
+        message: 'Incomplete token data received from Fortnox',
+        requiresReconnect: false,
+        error: 'Incomplete token data received from Fortnox during refresh' 
       };
     }
-
+    
     return {
       success: true,
-      message: data.message || 'Token refreshed successfully',
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      expiresIn: data.expiresIn,
+      message: 'Token refreshed successfully',
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
       requiresReconnect: false
     };
   } catch (error: any) {
