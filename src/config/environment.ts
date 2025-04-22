@@ -1,10 +1,11 @@
-
 /**
  * Environment Configuration
  * 
  * This file centralizes all environment-specific configuration to make it easier
  * to switch between different environments (cloud Supabase, self-hosted Supabase).
  */
+
+import { EnvironmentConfig } from './environment';
 
 export interface EnvironmentConfig {
   // Supabase Configuration
@@ -18,10 +19,9 @@ export interface EnvironmentConfig {
     dbPort?: number;
     dbName?: string;
     dbUser?: string;
-    // The following sensitive values should be set in Supabase Secrets
-    // These are placeholders to remind admins what needs to be configured
-    serviceRoleKey?: string;
+    // Changed from SUPABASE_DB_PASSWORD to DB_PASSWORD
     dbPassword?: string;
+    serviceRoleKey?: string;
     jwtSecret?: string;
   };
   // Fortnox Configuration
@@ -85,6 +85,7 @@ export const environment: EnvironmentConfig = {
     dbPort: 5432,
     dbName: 'postgres',
     dbUser: 'postgres',
+    dbPassword: 'postgres', // Default placeholder value
   },
   fortnox: {
     authUrl: 'https://apps.fortnox.se/oauth-v1/auth',

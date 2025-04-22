@@ -30,14 +30,14 @@ serve(async (req) => {
     }
     
     // Get database connection details from environment
-    const dbUrl = Deno.env.get("SUPABASE_DB_URL");
-    const dbPassword = Deno.env.get("SUPABASE_DB_PASSWORD");
+    const dbUrl = Deno.env.get("DB_URL");
+    const dbPassword = Deno.env.get("DB_PASSWORD");
     
     if (!dbUrl) {
       return new Response(
         JSON.stringify({ 
           error: "Database URL missing",
-          details: "SUPABASE_DB_URL environment variable is not set"
+          details: "DB_URL environment variable is not set"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -47,7 +47,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Database password missing",
-          details: "SUPABASE_DB_PASSWORD environment variable is not set"
+          details: "DB_PASSWORD environment variable is not set"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
