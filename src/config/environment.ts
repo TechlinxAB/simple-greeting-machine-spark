@@ -65,6 +65,7 @@ export const environment: EnvironmentConfig = {
     'timetracking.techlinx.se',
     '5a7b22d3-f455-4d7b-888a-7f87ae8dba3f.lovableproject.com',
     'localhost:5173', // For local development
+    'lovable.app', // For Lovable preview domains
   ]
 };
 
@@ -121,7 +122,8 @@ export function getRedirectUri(): string {
     // Check if any allowed domain is contained in the current domain
     const isDomainAllowed = environment.allowedDomains.some(
       allowedDomain => currentDomain.includes(allowedDomain) || 
-                        currentDomain === allowedDomain.replace(/:\d+$/, '')
+                        currentDomain === allowedDomain.replace(/:\d+$/, '') ||
+                        currentDomain.endsWith(allowedDomain)
     );
     
     if (!isDomainAllowed) {
