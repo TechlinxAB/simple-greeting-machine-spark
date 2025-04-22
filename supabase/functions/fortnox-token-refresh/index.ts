@@ -2,13 +2,13 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// Update environment variable names
+// Using the correct environment variable names from the screenshot
 // Required environment variables for this function:
 // SUPABASE_URL - Supabase project URL
 // SUPABASE_ANON_KEY - Supabase anon key
 // SUPABASE_SERVICE_ROLE_KEY - Supabase service role key
 // FORTNOX_REFRESH_SECRET - Secret used to authenticate refresh requests
-// DB_URL - Full Postgres connection string
+// SUPABASE_DB_URL - Full Postgres connection string
 // DB_PASSWORD - Database password
 
 interface TokenRefreshRequest {
@@ -58,16 +58,16 @@ serve(async (req) => {
       );
     }
     
-    // Check if database credentials are available
-    const dbUrl = Deno.env.get("DB_URL");
+    // Check if database credentials are available with correct variable names
+    const dbUrl = Deno.env.get("SUPABASE_DB_URL");
     const dbPassword = Deno.env.get("DB_PASSWORD");
     
     if (!dbUrl || !dbPassword) {
-      console.error("Database credentials missing. DB_URL and DB_PASSWORD must be set.");
+      console.error("Database credentials missing. SUPABASE_DB_URL and DB_PASSWORD must be set.");
       return new Response(
         JSON.stringify({ 
           error: "Database configuration missing",
-          details: "Make sure DB_URL and DB_PASSWORD are set in the Edge Function secrets"
+          details: "Make sure SUPABASE_DB_URL and DB_PASSWORD are set in the Edge Function secrets"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

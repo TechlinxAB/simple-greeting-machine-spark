@@ -1,3 +1,4 @@
+
 /**
  * Environment Configuration
  * 
@@ -17,7 +18,7 @@ export interface EnvironmentConfig {
     dbPort?: number;
     dbName?: string;
     dbUser?: string;
-    // Changed from SUPABASE_DB_PASSWORD to DB_PASSWORD
+    // Using DB_PASSWORD as shown in the secrets screenshot
     dbPassword?: string;
     serviceRoleKey?: string;
     jwtSecret?: string;
