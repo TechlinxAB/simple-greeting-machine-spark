@@ -6,7 +6,8 @@ export {
   getFortnoxCredentials,
   saveFortnoxCredentials,
   forceTokenRefresh,
-  clearFortnoxCredentials  // Add this line
+  clearFortnoxCredentials,
+  isLegacyToken  // Re-add this export that was accidentally removed
 } from './credentials';
 
 export {
