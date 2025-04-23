@@ -4,6 +4,10 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 serve(async (req) => {
+  // Generate a unique session ID for tracing
+  const sessionId = crypto.randomUUID().slice(0, 8);
+  console.log(`[${sessionId}] Database connection test function called`);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -13,7 +17,7 @@ serve(async (req) => {
     const refreshSecret = Deno.env.get("FORTNOX_REFRESH_SECRET");
 
     if (!refreshSecret) {
-      console.error("FORTNOX_REFRESH_SECRET is not set in environment");
+      console.error(`[${sessionId}] FORTNOX_REFRESH_SECRET is not set in environment`);
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -21,21 +25,23 @@ serve(async (req) => {
     }
 
     if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.replace("Bearer ", "") !== refreshSecret) {
+      console.error(`[${sessionId}] Invalid or missing authorization token`);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ONLY use DB_URL for database connection
+    // Get DB_URL for database connection
     const dbUrl = Deno.env.get("DB_URL");
 
-    console.log("Database connection attempt with:", {
+    console.log(`[${sessionId}] Database connection attempt with:`, {
       dbUrlExists: !!dbUrl,
       dbUrlPreview: dbUrl ? `${dbUrl.substring(0, 12)}...` : "missing"
     });
 
     if (!dbUrl) {
+      console.error(`[${sessionId}] Database URL missing`);
       return new Response(
         JSON.stringify({
           error: "Database URL missing",
@@ -46,17 +52,17 @@ serve(async (req) => {
     }
 
     // Attempt connection directly using DB_URL
-    console.log("Attempting database connection test...");
+    console.log(`[${sessionId}] Attempting database connection test...`);
 
     const pool = new Pool(dbUrl, 1);
     let client;
 
     try {
       client = await pool.connect();
-      console.log("Successfully connected to database, executing test query");
+      console.log(`[${sessionId}] Successfully connected to database, executing test query`);
       const result = await client.queryObject("SELECT current_timestamp as time, current_database() as database");
 
-      console.log("Database connection test successful!");
+      console.log(`[${sessionId}] Database connection test successful!`);
 
       return new Response(
         JSON.stringify({
@@ -67,7 +73,7 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } catch (dbError) {
-      console.error("Database connection error:", dbError);
+      console.error(`[${sessionId}] Database connection error:`, dbError);
 
       const sanitizedConnectionString = dbUrl.replace(/:[^:@]*@/, ":****@");
 
@@ -89,7 +95,7 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error("Error in database connection test:", error);
+    console.error(`[${sessionId}] Error in database connection test:`, error);
 
     return new Response(
       JSON.stringify({

@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 interface TokenRefreshRequest {
   force?: boolean;
@@ -8,6 +9,10 @@ interface TokenRefreshRequest {
 }
 
 serve(async (req) => {
+  // Generate a unique session ID for tracing
+  const sessionId = crypto.randomUUID().slice(0, 8);
+  console.log(`[${sessionId}] Fortnox token refresh function called`);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,30 +31,32 @@ serve(async (req) => {
 
     const refreshSecret = Deno.env.get("FORTNOX_REFRESH_SECRET");
     if (!refreshSecret) {
-      console.error("FORTNOX_REFRESH_SECRET is not set in environment");
+      console.error(`[${sessionId}] FORTNOX_REFRESH_SECRET is not set in environment`);
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
     if (providedToken && providedToken !== refreshSecret) {
+      console.error(`[${sessionId}] Invalid authorization token provided`);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ONLY use DB_URL for database connection
+    // Get DB_URL
     const dbUrl = Deno.env.get("DB_URL");
 
     // Log credential availability without exposing actual values
-    console.log("Database credential check:", {
+    console.log(`[${sessionId}] Database credential check:`, {
       dbUrlExists: !!dbUrl,
       dbUrlLength: dbUrl?.length || 0
     });
 
     if (!dbUrl) {
-      console.error("Database credentials missing. DB_URL must be set.");
+      console.error(`[${sessionId}] Database credentials missing. DB_URL must be set.`);
       return new Response(
         JSON.stringify({
           error: "Database configuration missing",
@@ -59,7 +66,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("Initiating Fortnox token refresh, force =", requestData.force ? "true" : "false");
+    console.log(`[${sessionId}] Initiating Fortnox token refresh, force = ${requestData.force ? "true" : "false"}`);
 
     // For now, we're simulating the token refresh process
     // The real refresh logic would use dbUrl directly
@@ -83,7 +90,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in token refresh:", error);
+    console.error(`[${sessionId}] Error in token refresh:`, error);
 
     return new Response(
       JSON.stringify({
