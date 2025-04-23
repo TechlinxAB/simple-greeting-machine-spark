@@ -1,9 +1,7 @@
-
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
-// Define the Fortnox OAuth token endpoint
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
 /**
@@ -33,31 +31,29 @@ export async function exchangeCodeForTokens(
       
       throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
-    
+
     console.log("Request parameters:", {
       codeLength: code?.length || 0,
       clientIdLength: clientId?.length || 0,
       clientSecretLength: clientSecret?.length || 0,
       redirectUri
     });
-    
-    // Create the request payload
+
     const requestBody = {
       code,
       client_id: clientId,
       client_secret: clientSecret,
       redirect_uri: redirectUri
     };
-    
-    console.log("📦 Request payload (sanitized):", {
+
+    console.log("📦 Request body (lengths for security):", {
       codeLength: code.length,
-      code: `${code.substring(0, 5)}...${code.substring(code.length - 5)}`,
+      codeSample: `${code.substring(0, 5)}...${code.substring(code.length - 5)}`,
       clientIdPrefix: clientId.substring(0, 5) + '...',
       clientSecretPrefix: clientSecret.substring(0, 3) + '...',
       redirectUri
     });
-    
-    // Call our edge function with explicit content type header
+
     const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
       body: JSON.stringify(requestBody),
       headers: {
@@ -75,8 +71,11 @@ export async function exchangeCodeForTokens(
       throw new Error('No data returned from token exchange function');
     }
 
-    console.log("Token exchange response received:", data ? "Success" : "No data returned");
-    
+    if (data.error || data.message) {
+      console.error('Edge function returned error body:', data);
+      throw new Error(data.message || 'Token exchange failed');
+    }
+
     if (!data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received from edge function:', data);
       throw new Error('Incomplete token data received from Fortnox');
@@ -134,7 +133,6 @@ export async function refreshAccessToken(
       const errorBody = await response.text();
       console.error('Error refreshing access token:', response.status, response.statusText, errorBody);
       
-      // Check if the error is due to an invalid grant (e.g., refresh token expired or revoked)
       if (errorBody.includes('invalid_grant')) {
         return { 
           success: false, 
