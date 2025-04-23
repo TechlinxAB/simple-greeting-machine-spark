@@ -1,3 +1,4 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
@@ -21,6 +22,12 @@ export async function exchangeCodeForTokens(
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
     console.log("Calling fortnox-token-exchange edge function...");
+    console.log("Request parameters:", {
+      codeLength: code?.length || 0,
+      clientIdLength: clientId?.length || 0,
+      clientSecretLength: clientSecret?.length || 0,
+      redirectUri
+    });
     
     // Call our edge function instead of directly calling Fortnox
     const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
@@ -40,10 +47,18 @@ export async function exchangeCodeForTokens(
       throw new Error(`Token exchange failed: ${error.message}`);
     }
 
+    console.log("Token exchange response:", data ? "Success" : "No data returned");
+    
     if (!data || !data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received from edge function:', data);
       throw new Error('Incomplete token data received from Fortnox');
     }
+    
+    console.log("Token details:", {
+      accessTokenLength: data.access_token.length,
+      refreshTokenLength: data.refresh_token.length,
+      expiresIn: data.expires_in
+    });
 
     return {
       access_token: data.access_token,

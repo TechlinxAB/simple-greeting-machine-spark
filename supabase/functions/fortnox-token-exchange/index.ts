@@ -20,12 +20,42 @@ Deno.serve(async (req) => {
   console.log(`[${sessionId}] Request method:`, req.method);
   
   try {
-    // Parse the request body
+    // Parse the request body with better error handling
     let body;
     try {
-      const rawText = await req.text();
+      // Check if request body is empty
+      const clonedReq = req.clone();
+      const rawText = await clonedReq.text();
+      console.log(`[${sessionId}] Raw request body:`, rawText);
+      
+      if (!rawText || rawText.trim() === '') {
+        console.error(`[${sessionId}] Empty request body received`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'invalid_request', 
+            message: 'Empty request body',
+            details: 'The request body is empty or not properly formatted JSON'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       console.log(`[${sessionId}] Raw request body length:`, rawText.length);
-      body = JSON.parse(rawText);
+      
+      try {
+        body = JSON.parse(rawText);
+      } catch (parseError) {
+        console.error(`[${sessionId}] Error parsing JSON:`, parseError);
+        return new Response(
+          JSON.stringify({ 
+            error: 'invalid_request', 
+            message: 'Invalid JSON format',
+            details: parseError.message 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       console.log(`[${sessionId}] 📦 Parsed request body:`, {
         client_id: body.client_id ? `${body.client_id.substring(0, 5)}...` : undefined,
         client_secret: body.client_secret ? '•••' : undefined,
@@ -33,9 +63,13 @@ Deno.serve(async (req) => {
         redirect_uri: body.redirect_uri
       });
     } catch (e) {
-      console.error(`[${sessionId}] Error parsing request body:`, e);
+      console.error(`[${sessionId}] Error handling request body:`, e);
       return new Response(
-        JSON.stringify({ error: 'invalid_request', message: 'Invalid request body' }),
+        JSON.stringify({ 
+          error: 'invalid_request', 
+          message: 'Invalid request body',
+          details: e.message
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -50,7 +84,11 @@ Deno.serve(async (req) => {
       });
       
       return new Response(
-        JSON.stringify({ error: 'invalid_request', message: 'Missing required parameters' }),
+        JSON.stringify({ 
+          error: 'invalid_request', 
+          message: 'Missing required parameters',
+          details: 'code, client_id, client_secret, and redirect_uri are all required'
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -94,8 +132,14 @@ Deno.serve(async (req) => {
       responseData = JSON.parse(responseText);
     } catch (e) {
       console.error(`[${sessionId}] Error parsing Fortnox response:`, e);
+      console.error(`[${sessionId}] Raw response text:`, responseText);
       return new Response(
-        JSON.stringify({ error: 'invalid_response', message: 'Invalid response from Fortnox' }),
+        JSON.stringify({ 
+          error: 'invalid_response', 
+          message: 'Invalid response from Fortnox',
+          details: e.message,
+          rawResponse: responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '')
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -104,7 +148,11 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       console.error(`[${sessionId}] Fortnox API returned error status ${response.status}:`, responseData);
       return new Response(
-        JSON.stringify(responseData),
+        JSON.stringify({
+          error: responseData.error || 'api_error',
+          message: responseData.error_description || 'Error from Fortnox API',
+          status: response.status
+        }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -113,7 +161,10 @@ Deno.serve(async (req) => {
     if (!responseData.access_token) {
       console.error(`[${sessionId}] Missing access_token in Fortnox response:`, responseData);
       return new Response(
-        JSON.stringify({ error: 'invalid_response', message: 'Missing access token in response' }),
+        JSON.stringify({ 
+          error: 'invalid_response', 
+          message: 'Missing access token in response'
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -147,7 +198,11 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error(`[${sessionId}] Unexpected error:`, error);
     return new Response(
-      JSON.stringify({ error: 'server_error', message: error.message || 'An unexpected error occurred' }),
+      JSON.stringify({ 
+        error: 'server_error', 
+        message: error.message || 'An unexpected error occurred',
+        stack: error.stack || ''
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
