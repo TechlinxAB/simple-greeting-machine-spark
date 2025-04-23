@@ -44,7 +44,7 @@ export const environment: EnvironmentConfig = {
     projectRef: 'xojrleypudfrbmvejpow',
   },
   fortnox: {
-    authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
+    authUrl: 'https://apps.fortnox.se/oauth-v2/auth',
     apiUrl: 'https://api.fortnox.se/3',
     redirectPath: '/settings?tab=fortnox',
     // Use a static secret key for the API authentication

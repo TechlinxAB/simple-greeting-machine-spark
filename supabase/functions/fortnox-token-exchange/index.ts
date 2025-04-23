@@ -1,38 +1,13 @@
+
 // Import required modules
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Configure Fortnox OAuth token endpoint
 const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
 
-// Function to check if a value is a valid JWT
-function isValidJwtFormat(token: string): boolean {
-  if (typeof token !== 'string') return false;
-  if (token.length < 20) return false; // Arbitrary minimum length
-  
-  // JWT should have 3 parts separated by dots
-  const parts = token.split('.');
-  return parts.length === 3;
-}
-
-// Function to validate refresh token
-function isValidRefreshToken(token: string): boolean {
-  return typeof token === 'string' && token.trim().length > 20;
-}
-
 // Simple delay function for async operations
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Function to compute SHA-256 hash for token validation
-async function computeHash(text: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  
-  // Convert to hex string
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Main handler function
@@ -56,11 +31,20 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { code, client_id, client_secret, redirect_uri } = body;
 
+    console.log(`[${sessionId}] Request body validation:`, {
+      hasCode: !!code,
+      hasClientId: !!client_id,
+      hasClientSecret: !!client_secret,
+      hasRedirectUri: !!redirect_uri,
+      codeLength: code?.length,
+      redirectUri: redirect_uri
+    });
+
     if (!code || !client_id || !client_secret || !redirect_uri) {
       console.error(`[${sessionId}] Missing required parameters`);
       return new Response(
         JSON.stringify({ error: 'Missing required parameters' }),
-        { status: 400, headers: { ...corsHeaders } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -74,7 +58,12 @@ Deno.serve(async (req) => {
     const authString = `${client_id}:${client_secret}`;
     const base64Auth = btoa(authString);
 
-    console.log(`[${sessionId}] Making token exchange request to Fortnox`);
+    console.log(`[${sessionId}] Making token exchange request to Fortnox:`, {
+      tokenUrl: FORTNOX_TOKEN_URL,
+      redirectUri: redirect_uri,
+      authStringLength: authString.length,
+      grantType: 'authorization_code'
+    });
     
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
@@ -86,27 +75,82 @@ Deno.serve(async (req) => {
       body: params
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log(`[${sessionId}] Fortnox response status:`, response.status);
+    console.log(`[${sessionId}] Response headers:`, Object.fromEntries(response.headers));
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log(`[${sessionId}] Response parsed successfully:`, {
+        hasAccessToken: !!data.access_token,
+        hasRefreshToken: !!data.refresh_token,
+        hasExpiresIn: !!data.expires_in,
+        error: data.error,
+        errorDescription: data.error_description
+      });
+    } catch (e) {
+      console.error(`[${sessionId}] Failed to parse response:`, e);
+      console.log(`[${sessionId}] Raw response:`, responseText);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response from Fortnox',
+          details: responseText
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     if (!response.ok) {
       console.error(`[${sessionId}] Fortnox API error:`, data);
       return new Response(
-        JSON.stringify(data),
-        { status: response.status, headers: { ...corsHeaders } }
+        JSON.stringify({
+          error: 'Fortnox API error',
+          status: response.status,
+          details: data
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (!data.access_token || !data.refresh_token) {
+      console.error(`[${sessionId}] Invalid token data received:`, data);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid token data received from Fortnox',
+          details: 'Missing access_token or refresh_token'
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
     console.log(`[${sessionId}] Token exchange successful`);
     return new Response(
       JSON.stringify(data),
-      { status: 200, headers: { ...corsHeaders } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error(`[${sessionId}] Error:`, error);
+    console.error(`[${sessionId}] Server error:`, error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders } }
+      JSON.stringify({ 
+        error: 'server_error', 
+        message: error.message || 'Unknown error',
+        stack: error.stack || 'No stack trace'
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });
