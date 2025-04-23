@@ -3,7 +3,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Configure Fortnox OAuth token endpoint
-const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
+const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth/token';
 
 // Simple delay function for async operations
 function delay(ms: number): Promise<void> {
@@ -26,9 +26,37 @@ Deno.serve(async (req) => {
 
   const sessionId = crypto.randomUUID().substring(0, 8);
   console.log(`[${sessionId}] Token exchange request received`);
-
+  
   try {
-    const body = await req.json();
+    // Parse request body
+    let body;
+    try {
+      const textBody = await req.text();
+      console.log(`[${sessionId}] Request body (raw):`, textBody);
+      
+      try {
+        body = JSON.parse(textBody);
+      } catch (parseError) {
+        console.error(`[${sessionId}] JSON parse error:`, parseError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid JSON in request body', details: parseError.message }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } catch (bodyError) {
+      console.error(`[${sessionId}] Error reading request body:`, bodyError);
+      return new Response(
+        JSON.stringify({ error: 'Could not read request body', details: bodyError.message }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     const { code, client_id, client_secret, redirect_uri } = body;
 
     console.log(`[${sessionId}] Request body validation:`, {
