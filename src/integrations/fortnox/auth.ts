@@ -1,12 +1,12 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
-const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
 
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
- * Uses an edge function to handle the OAuth code exchange to avoid CORS issues.
  * @param code The authorization code received from Fortnox.
  * @param clientId The client ID of the Fortnox application.
  * @param clientSecret The client secret of the Fortnox application.
@@ -20,80 +20,35 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    console.log("Calling fortnox-token-exchange edge function with explicit parameters");
-    console.log("Using client ID:", clientId.substring(0, 4) + "...");
-    console.log("Using redirect URI:", redirectUri);
-    console.log("Code length:", code.length);
-    
-    // Validate input parameters
-    if (!code || !clientId || !clientSecret || !redirectUri) {
-      const missingParams = [];
-      if (!code) missingParams.push('code');
-      if (!clientId) missingParams.push('clientId');
-      if (!clientSecret) missingParams.push('clientSecret');
-      if (!redirectUri) missingParams.push('redirectUri');
-      
-      const errorMsg = `Missing required parameters: ${missingParams.join(', ')}`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
 
-    // Prepare request body as a simple object
-    const requestBody = {
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri
-    };
+    const authString = btoa(`${clientId}:${clientSecret}`);
 
-    console.log("Request body ready, stringified length:", JSON.stringify(requestBody).length);
-
-    // Make the request to the edge function with explicit options
-    const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
-      body: JSON.stringify(requestBody),
+    const response = await fetch(FORTNOX_TOKEN_URL, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authString}`,
+      },
+      body: params.toString(),
     });
 
-    // Handle edge function errors
-    if (error) {
-      console.error('Error in token exchange edge function:', error);
-      throw new Error(`Token exchange failed: ${error.message}`);
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error('Error exchanging code for tokens:', response.status, response.statusText, errorBody);
+      throw new Error(`Failed to exchange code for tokens: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    // Validate response data
-    if (!data) {
-      console.error('No data returned from edge function');
-      throw new Error('No data returned from token exchange function');
-    }
+    const data = await response.json();
 
-    console.log("Received response from edge function:", {
-      hasError: !!data.error,
-      hasAccessToken: !!data.access_token,
-      hasRefreshToken: !!data.refresh_token
-    });
-
-    // Check for error response
-    if (data.error || data.message) {
-      console.error('Edge function returned error:', data);
-      throw new Error(data.message || 'Token exchange failed');
-    }
-
-    // Validate token data
     if (!data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received:', data);
       throw new Error('Incomplete token data received from Fortnox');
     }
-    
-    // Log token information (sanitized)
-    console.log("Token exchange successful:", {
-      accessTokenLength: data.access_token.length,
-      refreshTokenLength: data.refresh_token.length,
-      expiresIn: data.expires_in
-    });
 
-    // Return token data
     return {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
@@ -140,6 +95,7 @@ export async function refreshAccessToken(
       const errorBody = await response.text();
       console.error('Error refreshing access token:', response.status, response.statusText, errorBody);
       
+      // Check if the error is due to an invalid grant (e.g., refresh token expired or revoked)
       if (errorBody.includes('invalid_grant')) {
         return { 
           success: false, 
