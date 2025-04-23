@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -138,8 +139,8 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       
       console.log("Saving credentials to database before OAuth flow");
       await saveFortnoxCredentials({
-        clientId,
-        clientSecret
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim()
       });
       
       queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
@@ -159,11 +160,13 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         const stateData = {
           state,
           origin: window.location.origin,
-          path: environment.fortnox.redirectPath
+          path: environment.fortnox.redirectPath,
+          timestamp: Date.now()
         };
         
         sessionStorage.setItem('fortnox_oauth_state', JSON.stringify(stateData));
         console.log("Generated and stored secure state for OAuth:", state);
+        console.log("State data:", stateData);
       } catch (storageError) {
         console.error("Failed to store OAuth state in sessionStorage:", storageError);
         toast.error("Failed to secure the authorization process. Please check your browser settings and try again.");
@@ -172,7 +175,7 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       }
       
       const params = new URLSearchParams({
-        client_id: clientId,
+        client_id: clientId.trim(),
         redirect_uri: redirectUri,
         scope: scopes.join(' '),
         response_type: 'code',

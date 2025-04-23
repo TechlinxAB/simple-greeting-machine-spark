@@ -3,6 +3,7 @@ import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } fr
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
+// Define the Fortnox OAuth token endpoint
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
 /**
@@ -29,14 +30,25 @@ export async function exchangeCodeForTokens(
       redirectUri
     });
     
+    // Create the request payload as an object
+    const requestBody = {
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri
+    };
+    
+    console.log("📦 Request payload:", {
+      codeLength: code.length,
+      code: `${code.substring(0, 10)}...${code.substring(code.length - 10)}`,
+      clientIdPrefix: clientId.substring(0, 5),
+      secretPrefix: '•••••',
+      redirectUri
+    });
+    
     // Call our edge function instead of directly calling Fortnox
     const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
-      body: JSON.stringify({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri
-      }),
+      body: JSON.stringify(requestBody),
       headers: {
         'Content-Type': 'application/json'
       }

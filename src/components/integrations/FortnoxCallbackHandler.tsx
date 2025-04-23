@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -30,7 +29,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
     { id: "verify", label: "✅ Verifying connection", status: "pending" }
   ]);
   
-  // Use a ref to prevent multiple executions
   const hasHandled = useRef(false);
 
   const updateStep = (id: string, update: Partial<FlowStep>) => {
@@ -41,16 +39,13 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
 
   useEffect(() => {
     async function handleCallback() {
-      // Prevent multiple executions
       if (hasHandled.current) return;
       hasHandled.current = true;
       
-      // Generate a unique session ID for tracing this flow
       const sessionId = Math.random().toString(36).substring(2, 8);
       console.log(`[${sessionId}] 🔄 Starting Fortnox callback handling process`);
       
       try {
-        // Update first step status
         updateStep("auth", { status: "processing" });
         
         const code = searchParams.get("code");
@@ -65,7 +60,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           codeLength: code?.length
         });
 
-        // Check for error from Fortnox
         if (errorParam) {
           const message = errorDescription ? 
             `Fortnox error: ${errorParam} - ${errorDescription}` : 
@@ -82,7 +76,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        // Check for missing code
         if (!code) {
           const message = "Missing authorization code from Fortnox";
           console.error(`[${sessionId}] ${message}`);
@@ -96,17 +89,19 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        // Verify state parameter
+        console.log(`[${sessionId}] Code details:`, {
+          length: code.length,
+          preview: `${code.substring(0, 8)}...${code.substring(code.length - 8)}`
+        });
+        
         let expectedState: string | null = null;
         try {
-          // Get the state from sessionStorage
           const stateJson = sessionStorage.getItem('fortnox_oauth_state');
           if (stateJson) {
             try {
               const stateData = JSON.parse(stateJson);
               expectedState = stateData.state;
               
-              // Log state verification
               console.log(`[${sessionId}] Verifying OAuth state:`, {
                 receivedState: stateParam,
                 expectedState: expectedState,
@@ -114,7 +109,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
                 currentOrigin: window.location.origin
               });
               
-              // Check for domain mismatch and log it (but don't fail)
               if (stateData.origin && stateData.origin !== window.location.origin) {
                 console.warn(
                   `[${sessionId}] OAuth redirect received on different origin than initiated.`,
@@ -124,7 +118,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
               }
             } catch (parseError) {
               console.error(`[${sessionId}] Error parsing stored OAuth state:`, parseError);
-              // Fallback to using raw value if JSON parsing fails
               expectedState = stateJson;
             }
           }
@@ -137,7 +130,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
             throw new Error("Security validation failed: state parameter mismatch");
           }
           
-          // Authentication step successful
           updateStep("auth", { status: "success" });
         } catch (stateError) {
           console.error(`[${sessionId}] State verification error:`, stateError);
@@ -151,7 +143,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        // Get existing credentials to access client ID and secret
         const credentials = await getFortnoxCredentials();
         
         if (!credentials || !credentials.clientId || !credentials.clientSecret) {
@@ -167,16 +158,13 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        // Start tokens step
         updateStep("tokens", { status: "processing" });
         
-        // Get the redirect URI using our common function
         const redirectUri = getRedirectUri();
         console.log(`[${sessionId}] Using redirect URI for token exchange:`, redirectUri);
         
-        // Exchange code for tokens
         console.log(`[${sessionId}] Exchanging authorization code for tokens...`);
-        console.log(`[${sessionId}] Authorization code:`, code);
+        console.log(`[${sessionId}] Authorization code:`, `${code.substring(0, 10)}...${code.substring(code.length - 10)}`);
         console.log(`[${sessionId}] Authorization code length:`, code.length);
         
         const tokens = await exchangeCodeForTokens(
@@ -199,7 +187,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        // Tokens step successful
         updateStep("tokens", { status: "success" });
         
         console.log(`[${sessionId}] 🔑 Received tokens from Fortnox:`, {
@@ -211,11 +198,8 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
             'none'
         });
         
-        // Start save step
         updateStep("save", { status: "processing" });
         
-        // Save tokens
-        console.log(`[${sessionId}] Saving Fortnox tokens...`);
         await saveFortnoxCredentials({
           ...credentials,
           accessToken: tokens.access_token,
@@ -223,13 +207,10 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           isLegacyToken: false
         });
         
-        // Save step successful
         updateStep("save", { status: "success" });
         
-        // Start verification step
         updateStep("verify", { status: "processing" });
         
-        // Verify tokens were saved correctly
         const savedCredentials = await getFortnoxCredentials();
         if (savedCredentials) {
           console.log(`[${sessionId}] ✅ Saved credentials verification:`, {
@@ -243,7 +224,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
               (tokens.refresh_token && savedCredentials.refreshToken !== tokens.refresh_token)) {
             console.error(`[${sessionId}] ⚠️ Token mismatch after save!`);
             
-            // Log the differences
             if (savedCredentials.accessToken !== tokens.access_token) {
               console.error(`[${sessionId}] Access token length - Original: ${tokens.access_token.length}, Saved: ${savedCredentials.accessToken?.length}`);
             }
@@ -252,13 +232,11 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
               console.error(`[${sessionId}] Refresh token length - Original: ${tokens.refresh_token.length}, Saved: ${savedCredentials.refreshToken?.length}`);
             }
             
-            // Set warning in the verification step but don't fail the overall process
             updateStep("verify", { 
               status: "success",
               message: "Connection established, but token verification showed minor discrepancies" 
             });
           } else {
-            // Full verification success
             updateStep("verify", { status: "success" });
           }
         } else {
@@ -275,7 +253,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           onSuccess();
         }
         
-        // Clean up the state from sessionStorage
         sessionStorage.removeItem('fortnox_oauth_state');
         
       } catch (error) {
@@ -289,7 +266,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
         
         setErrorMessage(message);
         
-        // Update the current step to error
         const currentStep = steps.find(s => s.status === "processing");
         if (currentStep) {
           updateStep(currentStep.id, { status: "error", message });
@@ -302,9 +278,8 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
     }
     
     handleCallback();
-  }, [searchParams, onSuccess, onError]);
+  }, [searchParams, onSuccess, onError, steps]);
 
-  // Render step-by-step status indicators
   const renderSteps = () => {
     return (
       <div className="space-y-2 mb-4">
@@ -333,7 +308,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
     );
   };
 
-  // Render appropriate status indicator
   if (status === "processing") {
     return (
       <Alert className="bg-blue-50 border-blue-200">
