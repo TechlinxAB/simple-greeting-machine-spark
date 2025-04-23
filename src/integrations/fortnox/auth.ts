@@ -1,4 +1,3 @@
-
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
@@ -22,6 +21,9 @@ export async function exchangeCodeForTokens(
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
     console.log("Calling fortnox-token-exchange edge function with explicit parameters");
+    console.log("Using client ID:", clientId.substring(0, 4) + "...");
+    console.log("Using redirect URI:", redirectUri);
+    console.log("Code length:", code.length);
     
     // Validate input parameters
     if (!code || !clientId || !clientSecret || !redirectUri) {
@@ -36,15 +38,7 @@ export async function exchangeCodeForTokens(
       throw new Error(errorMsg);
     }
 
-    // Detailed parameter logging (sanitized)
-    console.log("Request parameters:", {
-      codeLength: code.length,
-      clientIdLength: clientId.length,
-      clientSecretLength: clientSecret.length,
-      redirectUri
-    });
-
-    // Prepare request body
+    // Prepare request body as a simple object
     const requestBody = {
       code,
       client_id: clientId,
@@ -52,16 +46,9 @@ export async function exchangeCodeForTokens(
       redirect_uri: redirectUri
     };
 
-    // Sanitized logging
-    console.log("📦 Request body (sanitized):", {
-      codeLength: code.length,
-      codeSample: `${code.substring(0, 5)}...${code.substring(code.length - 5)}`,
-      clientIdPrefix: clientId.substring(0, 5) + '...',
-      clientSecretLength: clientSecret.length,
-      redirectUri
-    });
+    console.log("Request body ready, stringified length:", JSON.stringify(requestBody).length);
 
-    // Make the request to the edge function
+    // Make the request to the edge function with explicit options
     const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
       body: JSON.stringify(requestBody),
       headers: {
@@ -80,6 +67,12 @@ export async function exchangeCodeForTokens(
       console.error('No data returned from edge function');
       throw new Error('No data returned from token exchange function');
     }
+
+    console.log("Received response from edge function:", {
+      hasError: !!data.error,
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token
+    });
 
     // Check for error response
     if (data.error || data.message) {
