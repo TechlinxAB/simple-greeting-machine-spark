@@ -40,31 +40,49 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Log all headers
-  console.log(`[${sessionId}] Headers:`);
+  // Log all headers for debugging
+  console.log(`[${sessionId}] Request Headers:`);
   for (const [key, value] of req.headers.entries()) {
     console.log(`[${sessionId}] ${key}: ${value}`);
   }
-  console.log(`[${sessionId}] Content-Length:`, req.headers.get('content-length') || 'null');
 
-  // Strictly read and parse JSON body
-  let rawText = '';
+  // Get and log content length
+  const contentLength = req.headers.get('content-length');
+  console.log(`[${sessionId}] Content-Length: ${contentLength || 'not provided'}`);
+  
+  if (!contentLength || parseInt(contentLength) === 0) {
+    console.error(`[${sessionId}] Empty request body detected (content-length: ${contentLength})`);
+    return new Response(
+      JSON.stringify({ 
+        error: 'empty_body', 
+        message: 'Request body is empty',
+        sessionId
+      }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Read request body with extra validation
+  let rawText;
   try {
     rawText = await req.text();
     console.log(`[${sessionId}] Raw request body length: ${rawText.length}`);
-    if (rawText.length < 5) {
-      console.error(`[${sessionId}] Empty or very short request body.`);
+    console.log(`[${sessionId}] Raw request body first 100 chars: ${rawText.substring(0, 100)}`);
+    
+    if (!rawText || rawText.length < 5) {
+      console.error(`[${sessionId}] Empty or extremely short request body: "${rawText}"`);
       return new Response(
         JSON.stringify({ 
           error: 'empty_body', 
           message: 'Request body is empty or too short',
-          sessionId
+          sessionId,
+          bodyLength: rawText?.length || 0
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   } catch (textError) {
-    console.error(`[${sessionId}] Error reading request body as text: ${textError.message}`);
+    console.error(`[${sessionId}] Error reading request body as text:`, textError);
     return new Response(
       JSON.stringify({ 
         error: 'invalid_request', 
@@ -76,18 +94,35 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Parse the body based on content type
   let body;
+  const contentType = req.headers.get('content-type') || '';
+  
   try {
-    body = JSON.parse(rawText);
+    if (contentType.includes('application/json')) {
+      body = JSON.parse(rawText);
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      body = Object.fromEntries(new URLSearchParams(rawText));
+    } else {
+      // Try to parse as JSON first, then as form data if that fails
+      try {
+        body = JSON.parse(rawText);
+      } catch (e) {
+        body = Object.fromEntries(new URLSearchParams(rawText));
+      }
+    }
+    
     console.log(`[${sessionId}] Parsed request body fields:`, Object.keys(body));
   } catch (parseError) {
-    console.error(`[${sessionId}] Error parsing JSON: ${parseError.message}`);
+    console.error(`[${sessionId}] Error parsing request body:`, parseError);
     console.error(`[${sessionId}] Raw body content: ${rawText.length > 250 ? rawText.substring(0, 250) + '...' : rawText}`);
+    
     return new Response(
       JSON.stringify({ 
         error: 'invalid_request', 
-        message: 'Invalid JSON format',
+        message: 'Invalid request format',
         details: parseError.message,
+        contentType,
         rawContent: rawText.length > 100 ? rawText.substring(0, 100) + '...' : rawText,
         sessionId
       }),
@@ -101,36 +136,40 @@ Deno.serve(async (req) => {
   if (!body.client_id) missingParams.push('client_id');
   if (!body.client_secret) missingParams.push('client_secret');
   if (!body.redirect_uri) missingParams.push('redirect_uri');
+  
   if (missingParams.length > 0) {
-    console.error(`[${sessionId}] Missing required parameters: ${missingParams.join(', ')}`);
+    console.error(`[${sessionId}] Missing required parameters:`, missingParams);
+    console.log(`[${sessionId}] Received parameters:`, Object.keys(body));
+    
     return new Response(
       JSON.stringify({ 
         error: 'invalid_request', 
         message: `Missing required parameters: ${missingParams.join(', ')}`,
+        receivedParams: Object.keys(body),
         sessionId
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // Log parameter lengths to avoid leaking secrets
+  // Log parameter details (sanitized)
   console.log(`[${sessionId}] 🔄 Preparing token exchange request:`);
   console.log(`[${sessionId}] Code length: ${body.code.length}`);
-  console.log(`[${sessionId}] Client ID: ${body.client_id.substring(0, 5)}...`);
+  console.log(`[${sessionId}] Client ID (first 4 chars): ${body.client_id.substring(0, 4)}...`);
   console.log(`[${sessionId}] Redirect URI: ${body.redirect_uri}`);
 
   // Prepare request to Fortnox API
-  const formData = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: body.code,
-    redirect_uri: body.redirect_uri
-  });
+  const formData = new URLSearchParams();
+  formData.append('grant_type', 'authorization_code');
+  formData.append('code', body.code);
+  formData.append('redirect_uri', body.redirect_uri);
 
   const authString = `${body.client_id}:${body.client_secret}`;
   const base64Auth = btoa(authString);
 
   console.log(`[${sessionId}] Making request to Fortnox with authorization code grant`);
 
+  // Call Fortnox API
   let response;
   try {
     response = await fetch(FORTNOX_TOKEN_URL, {
@@ -142,8 +181,11 @@ Deno.serve(async (req) => {
       },
       body: formData.toString()
     });
+    
+    console.log(`[${sessionId}] Fortnox API response status: ${response.status}`);
   } catch (fetchError) {
-    console.error(`[${sessionId}] Network error during token fetch: ${fetchError.message}`);
+    console.error(`[${sessionId}] Network error during token fetch:`, fetchError);
+    
     return new Response(
       JSON.stringify({ 
         error: 'network_error', 
@@ -155,9 +197,13 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Process Fortnox response
   const responseText = await response.text();
-  console.log(`[${sessionId}] Fortnox response status: ${response.status}`);
-  console.log(`[${sessionId}] Response body length: ${responseText.length}`);
+  console.log(`[${sessionId}] Fortnox response body length: ${responseText.length}`);
+  
+  if (responseText.length < 10) {
+    console.error(`[${sessionId}] Unusually short response from Fortnox: "${responseText}"`);
+  }
 
   let responseData;
   try {
@@ -177,8 +223,9 @@ Deno.serve(async (req) => {
       );
     }
   } catch (parseError) {
-    console.error(`[${sessionId}] Error parsing Fortnox response: ${parseError.message}`);
+    console.error(`[${sessionId}] Error parsing Fortnox response:`, parseError);
     console.error(`[${sessionId}] Raw response: ${responseText.substring(0, 300)}${responseText.length > 300 ? '...' : ''}`);
+    
     return new Response(
       JSON.stringify({ 
         error: 'invalid_response', 
@@ -194,7 +241,8 @@ Deno.serve(async (req) => {
 
   // Handle error response from Fortnox
   if (!response.ok) {
-    console.error(`[${sessionId}] Fortnox API returned error status ${response.status}:`, responseData);
+    console.error(`[${sessionId}] Fortnox API error response:`, responseData);
+    
     return new Response(
       JSON.stringify({
         error: responseData.error || 'api_error',
@@ -207,8 +255,10 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Validate response data
   if (!responseData.access_token) {
-    console.error(`[${sessionId}] Missing access_token in Fortnox response:`, responseData);
+    console.error(`[${sessionId}] Missing access_token in successful Fortnox response:`, responseData);
+    
     return new Response(
       JSON.stringify({ 
         error: 'invalid_response', 
@@ -220,14 +270,15 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Log token details (sanitizing secret fields)
-  console.log(`[${sessionId}] 🔑 Received tokens:`, {
+  // Log token details (sanitized)
+  console.log(`[${sessionId}] 🔑 Token exchange successful:`, {
     accessTokenLength: responseData.access_token.length,
     refreshTokenLength: responseData.refresh_token?.length || 0,
     tokenType: responseData.token_type,
     expiresIn: responseData.expires_in
   });
 
+  // Return successful response
   return new Response(
     JSON.stringify({
       access_token: responseData.access_token,
