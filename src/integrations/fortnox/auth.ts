@@ -19,41 +19,31 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    const params = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: redirectUri,
+    console.log('Exchanging code for tokens via edge function');
+    
+    const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
+      body: {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri
+      }
     });
 
-    const authString = btoa(`${clientId}:${clientSecret}`);
-
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${authString}`,
-        'Accept': 'application/json'
-      },
-      body: params.toString(),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Error exchanging code for tokens:', response.status, response.statusText, errorBody);
-      throw new Error(`Failed to exchange code for tokens: ${response.status} ${response.statusText} - ${errorBody}`);
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(`Token exchange failed: ${error.message}`);
     }
 
-    const data = await response.json();
-
-    if (!data.access_token || !data.refresh_token || !data.expires_in) {
-      console.error('Incomplete token data received:', data);
-      throw new Error('Incomplete token data received from Fortnox');
+    if (!data.access_token || !data.refresh_token) {
+      console.error('Invalid token data received:', data);
+      throw new Error('Invalid token data received from exchange');
     }
 
     return {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
-      expires_in: data.expires_in,
+      expires_in: data.expires_in
     };
   } catch (error: any) {
     console.error('Error in exchangeCodeForTokens:', error);
