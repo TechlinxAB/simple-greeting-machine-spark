@@ -6,6 +6,16 @@ import { toast } from "sonner";
 // Add a delay utility function
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
+export async function clearFortnoxCredentials(): Promise<void> {
+  try {
+    console.log("Clearing all Fortnox credentials from system_settings");
+    await supabase.from('system_settings').delete().eq('id', 'fortnox_credentials');
+    console.log("Fortnox credentials cleared successfully.");
+  } catch (error) {
+    console.error('Failed to clear Fortnox credentials:', error);
+  }
+}
+
 /**
  * Save Fortnox credentials to the database
  * This function should only be callable by admins (enforced at the UI level)
@@ -44,6 +54,13 @@ export async function saveFortnoxCredentials(credentials: Partial<FortnoxCredent
     
     if (credentials.isLegacyToken !== undefined) {
       credentialsObj.isLegacyToken = credentials.isLegacyToken;
+    }
+
+    // NEW - if doing a full save after OAuth, require all mandatory fields
+    if ((!!credentials.accessToken || !!credentials.refreshToken)) {
+      if (!credentials.clientId || !credentials.clientSecret || !credentials.accessToken || !credentials.refreshToken) {
+        throw new Error('All of clientId, clientSecret, accessToken and refreshToken must be provided after OAuth.');
+      }
     }
     
     console.log(`[${operationId}] 💾 Saving Fortnox credentials to database`);

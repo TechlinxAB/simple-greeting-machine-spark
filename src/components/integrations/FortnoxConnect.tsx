@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,8 @@ import {
   disconnectFortnox,
   getFortnoxCredentials,
   saveFortnoxCredentials,
-  forceTokenRefresh
+  forceTokenRefresh,
+  clearFortnoxCredentials
 } from "@/integrations/fortnox"; 
 import { Badge } from "@/components/ui/badge";
 import { Link, ArrowUpRight, Check, X, Copy, AlertCircle, ExternalLink, RefreshCcw } from "lucide-react";
@@ -103,6 +103,25 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
       onStatusChange(connected);
     }
   }, [connected, onStatusChange]);
+
+  const incompleteCredentials =
+    credentials &&
+    (
+      !credentials.accessToken ||
+      !credentials.refreshToken ||
+      !credentials.clientId ||
+      !credentials.clientSecret
+    );
+
+  const handleFullDisconnectAndConnect = async () => {
+    await clearFortnoxCredentials();
+    setConnectionRetryCount(prev => prev + 1);
+    queryClient.invalidateQueries({ queryKey: ["fortnox-credentials"] });
+    toast.info("Old Fortnox credentials removed. Continue with a fresh connection.");
+    setTimeout(() => {
+      handleConnect();
+    }, 500);
+  };
 
   const handleConnect = async () => {
     if (!user) {
@@ -351,15 +370,19 @@ export function FortnoxConnect({ clientId, clientSecret, onStatusChange }: Fortn
         </div>
       </div>
 
-      {needsReconnect && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+      {incompleteCredentials && (
+        <div className="mb-4 p-4 bg-orange-50 border border-orange-300 rounded-md">
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-red-700">Connection expired</p>
-              <p className="text-sm text-red-600 mt-1">
-                Your Fortnox connection has expired or been revoked. Please disconnect and connect again to reauthorize access.
+              <p className="text-sm font-medium text-orange-700">Incomplete Fortnox Credentials</p>
+              <p className="text-sm text-orange-600 mt-1">
+                The current Fortnox connection is missing required fields and cannot proceed.<br />
+                Please click <strong>Force Disconnect &amp; New Connect</strong> to reset and start a clean connection.
               </p>
+              <Button variant="destructive" className="mt-2" onClick={handleFullDisconnectAndConnect}>
+                Force Disconnect &amp; New Connect
+              </Button>
             </div>
           </div>
         </div>
