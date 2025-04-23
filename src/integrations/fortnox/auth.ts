@@ -22,7 +22,18 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    console.log("Calling fortnox-token-exchange edge function...");
+    console.log("Calling fortnox-token-exchange edge function with explicit parameters");
+    
+    if (!code || !clientId || !clientSecret || !redirectUri) {
+      const missingParams = [];
+      if (!code) missingParams.push('code');
+      if (!clientId) missingParams.push('clientId');
+      if (!clientSecret) missingParams.push('clientSecret');
+      if (!redirectUri) missingParams.push('redirectUri');
+      
+      throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+    }
+    
     console.log("Request parameters:", {
       codeLength: code?.length || 0,
       clientIdLength: clientId?.length || 0,
@@ -30,7 +41,7 @@ export async function exchangeCodeForTokens(
       redirectUri
     });
     
-    // Create the request payload as an object
+    // Create the request payload
     const requestBody = {
       code,
       client_id: clientId,
@@ -38,15 +49,15 @@ export async function exchangeCodeForTokens(
       redirect_uri: redirectUri
     };
     
-    console.log("📦 Request payload:", {
+    console.log("📦 Request payload (sanitized):", {
       codeLength: code.length,
-      code: `${code.substring(0, 10)}...${code.substring(code.length - 10)}`,
-      clientIdPrefix: clientId.substring(0, 5),
-      secretPrefix: '•••••',
+      code: `${code.substring(0, 5)}...${code.substring(code.length - 5)}`,
+      clientIdPrefix: clientId.substring(0, 5) + '...',
+      clientSecretPrefix: clientSecret.substring(0, 3) + '...',
       redirectUri
     });
     
-    // Call our edge function instead of directly calling Fortnox
+    // Call our edge function with explicit content type header
     const { data, error } = await supabase.functions.invoke('fortnox-token-exchange', {
       body: JSON.stringify(requestBody),
       headers: {
@@ -59,14 +70,19 @@ export async function exchangeCodeForTokens(
       throw new Error(`Token exchange failed: ${error.message}`);
     }
 
-    console.log("Token exchange response:", data ? "Success" : "No data returned");
+    if (!data) {
+      console.error('No data returned from edge function');
+      throw new Error('No data returned from token exchange function');
+    }
+
+    console.log("Token exchange response received:", data ? "Success" : "No data returned");
     
-    if (!data || !data.access_token || !data.refresh_token || !data.expires_in) {
+    if (!data.access_token || !data.refresh_token || !data.expires_in) {
       console.error('Incomplete token data received from edge function:', data);
       throw new Error('Incomplete token data received from Fortnox');
     }
     
-    console.log("Token details:", {
+    console.log("Token details (sanitized):", {
       accessTokenLength: data.access_token.length,
       refreshTokenLength: data.refresh_token.length,
       expiresIn: data.expires_in

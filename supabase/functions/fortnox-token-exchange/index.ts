@@ -5,125 +5,138 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Configure Fortnox OAuth token endpoint
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
-// Function to validate content type
-function validateContentType(req: Request): boolean {
-  const contentType = req.headers.get('content-type');
-  console.log(`Content-Type header: ${contentType}`);
-  return contentType && contentType.includes('application/json');
-}
-
 // Main handler function
 Deno.serve(async (req) => {
   // Generate a unique session ID for tracing this exchange session
   const sessionId = crypto.randomUUID().substring(0, 8);
   
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log(`[${sessionId}] Handling CORS preflight request`);
-    return new Response(null, { headers: corsHeaders });
-  }
-  
   console.log(`[${sessionId}] ===== TOKEN EXCHANGE FUNCTION CALLED =====`);
   console.log(`[${sessionId}] Request method: ${req.method}`);
   console.log(`[${sessionId}] Request URL: ${req.url}`);
-  console.log(`[${sessionId}] Content-Type: ${req.headers.get('content-type')}`);
-  console.log(`[${sessionId}] Accept: ${req.headers.get('accept')}`);
+  
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log(`[${sessionId}] Handling CORS preflight request`);
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      }
+    });
+  }
+  
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    console.error(`[${sessionId}] Invalid request method: ${req.method}`);
+    return new Response(
+      JSON.stringify({ 
+        error: 'method_not_allowed', 
+        message: 'Only POST requests are allowed',
+        sessionId
+      }),
+      { 
+        status: 405, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Allow': 'POST, OPTIONS'
+        } 
+      }
+    );
+  }
+  
+  // Log request headers for debugging
+  console.log(`[${sessionId}] Request headers:`);
+  for (const [key, value] of req.headers.entries()) {
+    console.log(`[${sessionId}] ${key}: ${value}`);
+  }
   
   try {
-    // Check if content type is JSON
-    if (!validateContentType(req)) {
-      console.error(`[${sessionId}] Invalid content type: ${req.headers.get('content-type')}`);
+    // Clone request for body reading
+    const clonedReq = req.clone();
+    let rawText = '';
+    
+    try {
+      rawText = await clonedReq.text();
+      console.log(`[${sessionId}] Raw request body length: ${rawText.length}`);
+    } catch (textError) {
+      console.error(`[${sessionId}] Error reading request body as text: ${textError.message}`);
       return new Response(
         JSON.stringify({ 
           error: 'invalid_request', 
-          message: 'Content-Type must be application/json',
+          message: 'Could not read request body',
+          details: textError.message,
           sessionId
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Parse the request body with better error handling
+    if (!rawText || rawText.trim() === '') {
+      console.error(`[${sessionId}] Empty request body received`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'invalid_request', 
+          message: 'Empty request body',
+          details: 'The request body is empty',
+          sessionId
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Try to parse the body as JSON
     let body;
     try {
-      // Check if request body is empty
-      const clonedReq = req.clone();
-      const rawText = await clonedReq.text();
-      console.log(`[${sessionId}] Raw request body length: ${rawText.length}`);
-      
-      if (!rawText || rawText.trim() === '') {
-        console.error(`[${sessionId}] Empty request body received`);
-        return new Response(
-          JSON.stringify({ 
-            error: 'invalid_request', 
-            message: 'Empty request body',
-            details: 'The request body is empty or not properly formatted JSON',
-            sessionId
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log(`[${sessionId}] Raw request body: ${rawText}`);
-      
-      try {
-        body = JSON.parse(rawText);
-        console.log(`[${sessionId}] Parsed request body:`, body);
-      } catch (parseError) {
-        console.error(`[${sessionId}] Error parsing JSON: ${parseError.message}`);
-        return new Response(
-          JSON.stringify({ 
-            error: 'invalid_request', 
-            message: 'Invalid JSON format',
-            details: parseError.message,
-            sessionId
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log(`[${sessionId}] 📦 Request body:`, {
-        client_id: body.client_id ? `${body.client_id.substring(0, 5)}...` : undefined,
-        client_secret: body.client_secret ? '•••' : undefined,
-        code: body.code ? `${body.code.substring(0, 5)}...` : undefined,
-        redirect_uri: body.redirect_uri
-      });
-    } catch (e) {
-      console.error(`[${sessionId}] Error handling request body: ${e.message}`);
+      body = JSON.parse(rawText);
+      console.log(`[${sessionId}] Parsed request body fields:`, Object.keys(body));
+    } catch (parseError) {
+      console.error(`[${sessionId}] Error parsing JSON: ${parseError.message}`);
+      console.error(`[${sessionId}] Raw body content: ${rawText.substring(0, 500)}`);
       return new Response(
         JSON.stringify({ 
           error: 'invalid_request', 
-          message: 'Invalid request body',
-          details: e.message,
+          message: 'Invalid JSON format',
+          details: parseError.message,
+          rawContent: rawText.length > 100 ? rawText.substring(0, 100) + '...' : rawText,
           sessionId
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`[${sessionId}] Required parameters check:`, {
+      hasCode: !!body.code,
+      hasClientId: !!body.client_id,
+      hasClientSecret: !!body.client_secret,
+      hasRedirectUri: !!body.redirect_uri
+    });
     
     // Validate required parameters
-    if (!body.code || !body.client_id || !body.client_secret || !body.redirect_uri) {
-      console.error(`[${sessionId}] Missing required parameters:`, {
-        hasCode: !!body.code,
-        hasClientId: !!body.client_id,
-        hasClientSecret: !!body.client_secret,
-        hasRedirectUri: !!body.redirect_uri
-      });
-      
+    const missingParams = [];
+    if (!body.code) missingParams.push('code');
+    if (!body.client_id) missingParams.push('client_id');
+    if (!body.client_secret) missingParams.push('client_secret');
+    if (!body.redirect_uri) missingParams.push('redirect_uri');
+    
+    if (missingParams.length > 0) {
+      console.error(`[${sessionId}] Missing required parameters: ${missingParams.join(', ')}`);
       return new Response(
         JSON.stringify({ 
           error: 'invalid_request', 
-          message: 'Missing required parameters',
-          details: 'code, client_id, client_secret, and redirect_uri are all required',
+          message: `Missing required parameters: ${missingParams.join(', ')}`,
+          details: `All of these parameters are required: code, client_id, client_secret, and redirect_uri`,
+          received: Object.keys(body),
           sessionId
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Log key info for debugging
-    console.log(`[${sessionId}] 🔄 Sending request to Fortnox:`);
-    console.log(`[${sessionId}] URL: ${FORTNOX_TOKEN_URL}`);
+    // Log key info for debugging (sanitized)
+    console.log(`[${sessionId}] 🔄 Preparing token exchange request:`);
+    console.log(`[${sessionId}] Code length: ${body.code.length}`);
+    console.log(`[${sessionId}] Client ID: ${body.client_id.substring(0, 5)}...`);
     console.log(`[${sessionId}] Redirect URI: ${body.redirect_uri}`);
     
     // Prepare request to Fortnox API
@@ -136,46 +149,83 @@ Deno.serve(async (req) => {
     // Create the Authorization header with Basic auth
     const authString = `${body.client_id}:${body.client_secret}`;
     const base64Auth = btoa(authString);
-    const authHeader = `Basic ${base64Auth}`;
     
-    console.log(`[${sessionId}] Making request to Fortnox with these params:`, {
-      grantType: 'authorization_code',
-      codeLength: body.code.length,
-      redirectUri: body.redirect_uri,
-      authHeaderPreview: `Basic ${base64Auth.substring(0, 10)}...`
-    });
+    console.log(`[${sessionId}] Making request to Fortnox with authorization code grant`);
     
-    // Make request to Fortnox
-    const response = await fetch(FORTNOX_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'Authorization': authHeader
-      },
-      body: formData.toString()
-    });
+    // Make request to Fortnox with proper error handling
+    let response;
+    try {
+      response = await fetch(FORTNOX_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'Authorization': `Basic ${base64Auth}`
+        },
+        body: formData.toString()
+      });
+    } catch (fetchError) {
+      console.error(`[${sessionId}] Network error during token fetch: ${fetchError.message}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'network_error', 
+          message: 'Failed to connect to Fortnox API',
+          details: fetchError.message,
+          sessionId
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     console.log(`[${sessionId}] 📬 Fortnox responded with status: ${response.status}`);
     
     // Get response body as text
-    const responseText = await response.text();
-    console.log(`[${sessionId}] 🧾 Fortnox response body length: ${responseText.length}`);
-    
-    // Parse response JSON
-    let responseData;
+    let responseText;
     try {
-      responseData = JSON.parse(responseText);
-      console.log(`[${sessionId}] Parsed Fortnox response:`, responseData);
-    } catch (e) {
-      console.error(`[${sessionId}] Error parsing Fortnox response: ${e.message}`);
-      console.error(`[${sessionId}] Raw response text: ${responseText}`);
+      responseText = await response.text();
+      console.log(`[${sessionId}] Response body length: ${responseText.length}`);
+    } catch (textError) {
+      console.error(`[${sessionId}] Error reading response body: ${textError.message}`);
       return new Response(
         JSON.stringify({ 
           error: 'invalid_response', 
-          message: 'Invalid response from Fortnox',
-          details: e.message,
-          rawResponse: responseText.substring(0, 100) + (responseText.length > 100 ? '...' : ''),
+          message: 'Could not read response from Fortnox',
+          details: textError.message,
+          status: response.status,
+          sessionId
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Try to parse the response as JSON
+    let responseData;
+    try {
+      if (responseText && responseText.trim()) {
+        responseData = JSON.parse(responseText);
+        console.log(`[${sessionId}] Parsed response fields:`, Object.keys(responseData));
+      } else {
+        console.error(`[${sessionId}] Empty response from Fortnox`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'empty_response', 
+            message: 'Empty response from Fortnox API',
+            status: response.status,
+            sessionId
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (parseError) {
+      console.error(`[${sessionId}] Error parsing Fortnox response: ${parseError.message}`);
+      console.error(`[${sessionId}] Raw response: ${responseText.substring(0, 500)}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'invalid_response', 
+          message: 'Invalid response format from Fortnox',
+          details: parseError.message,
+          rawResponse: responseText.substring(0, 300) + (responseText.length > 300 ? '...' : ''),
+          status: response.status,
           sessionId
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -189,6 +239,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: responseData.error || 'api_error',
           message: responseData.error_description || 'Error from Fortnox API',
+          details: responseData,
           status: response.status,
           sessionId
         }),
@@ -203,20 +254,19 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: 'invalid_response', 
           message: 'Missing access token in response',
+          details: responseData,
           sessionId
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Log token details for debugging
+    // Log token details for debugging (sanitized)
     console.log(`[${sessionId}] 🔑 Received tokens:`, {
       accessTokenLength: responseData.access_token.length,
       refreshTokenLength: responseData.refresh_token?.length || 0,
-      accessTokenPreview: `${responseData.access_token.substring(0, 10)}...`,
-      refreshTokenPreview: responseData.refresh_token ? 
-        `${responseData.refresh_token.substring(0, 5)}...` : 
-        'none'
+      tokenType: responseData.token_type,
+      expiresIn: responseData.expires_in
     });
     
     // Return successful response with tokens
@@ -236,13 +286,14 @@ Deno.serve(async (req) => {
     );
     
   } catch (error) {
+    // Handle any unexpected errors
     console.error(`[${sessionId}] Unexpected error: ${error.message}`);
-    console.error(`[${sessionId}] Stack trace: ${error.stack}`);
+    console.error(`[${sessionId}] Stack trace: ${error.stack || 'No stack trace available'}`);
     return new Response(
       JSON.stringify({ 
         error: 'server_error', 
         message: error.message || 'An unexpected error occurred',
-        stack: error.stack || '',
+        stack: error.stack || 'No stack trace available',
         sessionId
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

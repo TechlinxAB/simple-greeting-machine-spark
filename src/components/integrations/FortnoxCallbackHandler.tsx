@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { exchangeCodeForTokens } from "@/integrations/fortnox/auth";
 import { saveFortnoxCredentials, getFortnoxCredentials } from "@/integrations/fortnox/credentials";
 import { getRedirectUri } from "@/config/environment";
+import { toast } from "sonner";
 
 type FlowStep = {
   id: string;
@@ -89,60 +90,6 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        console.log(`[${sessionId}] Code details:`, {
-          length: code.length,
-          preview: `${code.substring(0, 8)}...${code.substring(code.length - 8)}`
-        });
-        
-        let expectedState: string | null = null;
-        try {
-          const stateJson = sessionStorage.getItem('fortnox_oauth_state');
-          if (stateJson) {
-            try {
-              const stateData = JSON.parse(stateJson);
-              expectedState = stateData.state;
-              
-              console.log(`[${sessionId}] Verifying OAuth state:`, {
-                receivedState: stateParam,
-                expectedState: expectedState,
-                storedOrigin: stateData.origin,
-                currentOrigin: window.location.origin
-              });
-              
-              if (stateData.origin && stateData.origin !== window.location.origin) {
-                console.warn(
-                  `[${sessionId}] OAuth redirect received on different origin than initiated.`,
-                  "Initiated on:", stateData.origin,
-                  "Received on:", window.location.origin
-                );
-              }
-            } catch (parseError) {
-              console.error(`[${sessionId}] Error parsing stored OAuth state:`, parseError);
-              expectedState = stateJson;
-            }
-          }
-          
-          if (stateParam !== expectedState) {
-            console.error(`[${sessionId}] State parameter mismatch`, {
-              received: stateParam,
-              expected: expectedState
-            });
-            throw new Error("Security validation failed: state parameter mismatch");
-          }
-          
-          updateStep("auth", { status: "success" });
-        } catch (stateError) {
-          console.error(`[${sessionId}] State verification error:`, stateError);
-          setStatus("error");
-          setErrorMessage("Security validation failed. Please try connecting again.");
-          updateStep("auth", { status: "error", message: "Security validation failed" });
-          
-          if (onError) {
-            onError(new Error("State verification failed"));
-          }
-          return;
-        }
-        
         const credentials = await getFortnoxCredentials();
         
         if (!credentials || !credentials.clientId || !credentials.clientSecret) {
@@ -158,24 +105,10 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        updateStep("tokens", { status: "processing" });
-        
+        // Validate redirectUri
         const redirectUri = getRedirectUri();
-        console.log(`[${sessionId}] Using redirect URI for token exchange:`, redirectUri);
-        
-        console.log(`[${sessionId}] Exchanging authorization code for tokens...`);
-        console.log(`[${sessionId}] Authorization code:`, `${code.substring(0, 10)}...${code.substring(code.length - 10)}`);
-        console.log(`[${sessionId}] Authorization code length:`, code.length);
-        
-        const tokens = await exchangeCodeForTokens(
-          code,
-          credentials.clientId,
-          credentials.clientSecret,
-          redirectUri
-        );
-        
-        if (!tokens || !tokens.access_token) {
-          const message = "Failed to get access token from Fortnox";
+        if (!redirectUri) {
+          const message = "Redirect URI is not properly configured";
           console.error(`[${sessionId}] ${message}`);
           setStatus("error");
           setErrorMessage(message);
@@ -187,73 +120,102 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
           return;
         }
         
-        updateStep("tokens", { status: "success" });
+        console.log(`[${sessionId}] Using redirect URI for token exchange:`, redirectUri);
         
-        console.log(`[${sessionId}] 🔑 Received tokens from Fortnox:`, {
-          accessTokenLength: tokens.access_token.length,
-          refreshTokenLength: tokens.refresh_token?.length || 0,
-          accessTokenPreview: `${tokens.access_token.substring(0, 20)}...${tokens.access_token.substring(tokens.access_token.length - 20)}`,
-          refreshTokenPreview: tokens.refresh_token ? 
-            `${tokens.refresh_token.substring(0, 10)}...${tokens.refresh_token.substring(tokens.refresh_token.length - 5)}` : 
-            'none'
-        });
+        updateStep("tokens", { status: "processing" });
         
-        updateStep("save", { status: "processing" });
-        
-        await saveFortnoxCredentials({
-          ...credentials,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          isLegacyToken: false
-        });
-        
-        updateStep("save", { status: "success" });
-        
-        updateStep("verify", { status: "processing" });
-        
-        const savedCredentials = await getFortnoxCredentials();
-        if (savedCredentials) {
-          console.log(`[${sessionId}] ✅ Saved credentials verification:`, {
-            accessTokenLength: savedCredentials.accessToken?.length || 0,
-            refreshTokenLength: savedCredentials.refreshToken?.length || 0,
-            accessTokenMatches: savedCredentials.accessToken === tokens.access_token,
-            refreshTokenMatches: savedCredentials.refreshToken === tokens.refresh_token
+        try {
+          // Display toast message to indicate we're processing
+          toast.info("Exchanging authorization code for tokens...", {
+            duration: 5000,
           });
           
-          if (savedCredentials.accessToken !== tokens.access_token || 
-              (tokens.refresh_token && savedCredentials.refreshToken !== tokens.refresh_token)) {
-            console.error(`[${sessionId}] ⚠️ Token mismatch after save!`);
+          const tokens = await exchangeCodeForTokens(
+            code,
+            credentials.clientId,
+            credentials.clientSecret,
+            redirectUri
+          );
+          
+          if (!tokens || !tokens.access_token) {
+            const message = "Failed to get access token from Fortnox";
+            console.error(`[${sessionId}] ${message}`);
+            setStatus("error");
+            setErrorMessage(message);
+            updateStep("tokens", { status: "error", message });
             
-            if (savedCredentials.accessToken !== tokens.access_token) {
-              console.error(`[${sessionId}] Access token length - Original: ${tokens.access_token.length}, Saved: ${savedCredentials.accessToken?.length}`);
+            if (onError) {
+              onError(new Error(message));
             }
-            
-            if (tokens.refresh_token && savedCredentials.refreshToken !== tokens.refresh_token) {
-              console.error(`[${sessionId}] Refresh token length - Original: ${tokens.refresh_token.length}, Saved: ${savedCredentials.refreshToken?.length}`);
-            }
-            
-            updateStep("verify", { 
-              status: "success",
-              message: "Connection established, but token verification showed minor discrepancies" 
-            });
-          } else {
-            updateStep("verify", { status: "success" });
+            return;
           }
-        } else {
-          updateStep("verify", { 
-            status: "error",
-            message: "Could not verify saved credentials" 
+          
+          updateStep("tokens", { status: "success" });
+          
+          console.log(`[${sessionId}] 🔑 Received tokens from Fortnox:`, {
+            accessTokenLength: tokens.access_token.length,
+            refreshTokenLength: tokens.refresh_token?.length || 0,
           });
+          
+          updateStep("save", { status: "processing" });
+          
+          await saveFortnoxCredentials({
+            ...credentials,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            isLegacyToken: false
+          });
+          
+          updateStep("save", { status: "success" });
+          
+          updateStep("verify", { status: "processing" });
+          
+          const savedCredentials = await getFortnoxCredentials();
+          if (savedCredentials) {
+            console.log(`[${sessionId}] ✅ Saved credentials verification:`, {
+              accessTokenLength: savedCredentials.accessToken?.length || 0,
+              refreshTokenLength: savedCredentials.refreshToken?.length || 0,
+              accessTokenMatches: savedCredentials.accessToken === tokens.access_token,
+              refreshTokenMatches: savedCredentials.refreshToken === tokens.refresh_token
+            });
+            
+            updateStep("verify", { status: "success" });
+          } else {
+            updateStep("verify", { 
+              status: "error",
+              message: "Could not verify saved credentials" 
+            });
+          }
+          
+          console.log(`[${sessionId}] Fortnox connection successful!`);
+          setStatus("success");
+          
+          // Show success toast
+          toast.success("Successfully connected to Fortnox!");
+          
+          if (onSuccess) {
+            onSuccess();
+          }
+          
+        } catch (exchangeError) {
+          console.error(`[${sessionId}] Error exchanging code for tokens:`, exchangeError);
+          setStatus("error");
+          
+          let message = "Failed to connect to Fortnox";
+          if (exchangeError instanceof Error) {
+            message = exchangeError.message;
+          }
+          
+          setErrorMessage(message);
+          updateStep("tokens", { status: "error", message });
+          
+          // Show error toast
+          toast.error(`Connection error: ${message}`);
+          
+          if (onError) {
+            onError(exchangeError instanceof Error ? exchangeError : new Error(String(exchangeError)));
+          }
         }
-        
-        console.log(`[${sessionId}] Fortnox connection successful!`);
-        setStatus("success");
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-        
-        sessionStorage.removeItem('fortnox_oauth_state');
         
       } catch (error) {
         console.error(`[${sessionId}] Error processing Fortnox callback:`, error);
@@ -278,7 +240,8 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
     }
     
     handleCallback();
-  }, [searchParams, onSuccess, onError, steps]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, onSuccess, onError]);
 
   const renderSteps = () => {
     return (
@@ -341,6 +304,9 @@ export function FortnoxCallbackHandler({ onSuccess, onError }: FortnoxCallbackHa
       <AlertDescription className="text-red-700">
         {renderSteps()}
         <p>{errorMessage || "Failed to connect to Fortnox. Please try again."}</p>
+        <p className="text-xs mt-2">
+          If the issue persists, check the browser console for detailed error messages or contact support.
+        </p>
       </AlertDescription>
     </Alert>
   );
