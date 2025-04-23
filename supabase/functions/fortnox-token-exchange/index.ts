@@ -1,9 +1,8 @@
-
 // Import required modules
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Configure Fortnox OAuth token endpoint
-const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
 
 // Function to check if a value is a valid JWT
 function isValidJwtFormat(token: string): boolean {

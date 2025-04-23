@@ -1,9 +1,8 @@
-
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
-const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/3/oauth-v2/token';
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
 
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.
@@ -20,10 +19,11 @@ export async function exchangeCodeForTokens(
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   try {
-    const params = new URLSearchParams();
-    params.append('grant_type', 'authorization_code');
-    params.append('code', code);
-    params.append('redirect_uri', redirectUri);
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: redirectUri,
+    });
 
     const authString = btoa(`${clientId}:${clientSecret}`);
 
@@ -32,6 +32,7 @@ export async function exchangeCodeForTokens(
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${authString}`,
+        'Accept': 'application/json'
       },
       body: params.toString(),
     });
@@ -75,10 +76,10 @@ export async function refreshAccessToken(
   redirectUri: string
 ): Promise<RefreshResult> {
   try {
-    const params = new URLSearchParams();
-    params.append('grant_type', 'refresh_token');
-    params.append('refresh_token', refreshToken);
-    params.append('redirect_uri', redirectUri);
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken
+    });
 
     const authString = btoa(`${clientId}:${clientSecret}`);
 
@@ -87,6 +88,7 @@ export async function refreshAccessToken(
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${authString}`,
+        'Accept': 'application/json'
       },
       body: params.toString(),
     });

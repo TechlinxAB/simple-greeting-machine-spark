@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.2';
 
-const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
+const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
 
 // Get Supabase configuration from environment (for database access)
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -227,21 +227,25 @@ serve(async (req) => {
       refreshTokenPrefix: refreshToken.substring(0, 3) + '...',
     });
     
-    // Prepare the form data for token refresh
+    // Update the form data for v2 endpoint
     const formData = new URLSearchParams({
       grant_type: 'refresh_token',
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
+      refresh_token: refreshToken
     });
+
+    // Add Basic Auth header for v2
+    const authString = `${clientId}:${clientSecret}`;
+    const base64Auth = btoa(authString);
     
     console.log("Making token refresh request to Fortnox");
     
-    // Make the request to Fortnox
+    // Make the request to Fortnox with v2 headers
     const response = await fetch(FORTNOX_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${base64Auth}`,
+        'Accept': 'application/json'
       },
       body: formData,
     });
