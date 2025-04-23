@@ -1,8 +1,9 @@
+
 import { SystemSettings, FortnoxCredentials, RefreshResult, TokenRefreshLog } from './types';
 import { supabase } from '@/lib/supabase';
 import { isLegacyToken } from './credentials';
 
-const FORTNOX_TOKEN_URL = 'https://api.fortnox.se/oauth-v2/token';
+const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
 /**
  * Exchanges an authorization code for access and refresh tokens from Fortnox.

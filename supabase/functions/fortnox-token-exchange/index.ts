@@ -3,7 +3,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Configure Fortnox OAuth token endpoint
-const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth/token';
+const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 
 // Simple delay function for async operations
 function delay(ms: number): Promise<void> {

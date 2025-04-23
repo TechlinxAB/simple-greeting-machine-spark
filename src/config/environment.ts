@@ -45,8 +45,8 @@ export const environment: EnvironmentConfig = {
     projectRef: 'xojrleypudfrbmvejpow',
   },
   fortnox: {
-    // Updated to use standard OAuth endpoint without version specifier
-    authUrl: 'https://apps.fortnox.se/oauth/auth', // Changed from oauth-v2/auth to oauth/auth
+    // Updated to use Fortnox's OAuth v1 endpoint that supports OAuth 2.0
+    authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
     redirectPath: '/settings?tab=fortnox',
     // Use a static secret key for the API authentication
@@ -86,7 +86,7 @@ export const environment: EnvironmentConfig = {
     projectRef: 'your-project-ref-here',
   },
   fortnox: {
-    authUrl: 'https://apps.fortnox.se/oauth/auth',
+    authUrl: 'https://apps.fortnox.se/oauth-v1/auth',
     apiUrl: 'https://api.fortnox.se/3',
     redirectPath: '/settings?tab=fortnox',
   },
