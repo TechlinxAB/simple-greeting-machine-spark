@@ -1,6 +1,7 @@
 
 // Import required modules
 import { corsHeaders } from "../_shared/cors.ts";
+import { generateUUID } from "../_shared/utils.ts";
 
 // Configure Fortnox OAuth token endpoint
 const FORTNOX_TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
@@ -24,7 +25,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  const sessionId = crypto.randomUUID().substring(0, 8);
+  // Use the polyfill to generate a session ID for logging
+  const sessionId = generateUUID().substring(0, 8);
   console.log(`[${sessionId}] Token exchange request received`);
   
   try {
