@@ -145,7 +145,7 @@ serve(async (req) => {
         let errorDetails = responseData;
         
         if (responseData.ErrorInformation) {
-          errorMessage = responseData.ErrorInformation.message || errorMessage;
+          errorMessage = responseData.ErrorInformation.message || responseData.ErrorInformation.Message || errorMessage;
           errorDetails = responseData.ErrorInformation;
           console.error("Error details:", JSON.stringify(errorDetails));
         } else if (responseData.error) {
@@ -154,11 +154,44 @@ serve(async (req) => {
         
         console.error(`Fortnox API error: ${errorMessage}`);
         
+        // Check for article not found with code 2000428
+        if (response.status === 404 && url.includes('articles/') && 
+            (responseData.ErrorInformation?.Code === 2000428 || 
+             responseData.ErrorInformation?.code === 2001302 ||
+             (errorMessage && errorMessage.includes("hitta artikel")))) {
+          // Extract the article number from the URL
+          const match = url.match(/articles\/([^\/]+)/);
+          const articleNumber = match ? match[1] : null;
+          
+          if (articleNumber) {
+            return addCorsHeaders(
+              new Response(
+                JSON.stringify({
+                  error: "article_not_found",
+                  message: "Article not found in Fortnox",
+                  status: response.status,
+                  articleDetails: {
+                    articleNumber,
+                    description: "This article must be created in Fortnox"
+                  }
+                }),
+                {
+                  status: 404,
+                  headers: { "Content-Type": "application/json" },
+                }
+              )
+            );
+          }
+        }
+        
         // Special handling for account-related errors
-        if (responseText.includes("konto") && (responseText.includes("existerar inte") || responseText.includes("inte hitta konto"))) {
-          // This is an account not found error
+        if ((errorMessage && errorMessage.includes("momssatsen")) || 
+            (errorMessage && errorMessage.includes("konto") && 
+             (errorMessage.includes("existerar inte") || errorMessage.includes("inte hitta konto")))) {
+          // This is an account related error
           // Extract the invalid account number if possible
-          const accountMatch = responseText.match(/konto\s+["']?(\d+)["']?/i);
+          const accountMatch = errorMessage.match(/konto\s+["']?(\d+)["']?/i) || 
+                              errorMessage.match(/[Aa]ccount\s+["']?(\d+)["']?/i);
           const accountNumber = accountMatch ? accountMatch[1] : null;
           
           return addCorsHeaders(
@@ -182,36 +215,7 @@ serve(async (req) => {
           );
         }
         
-        // Special handling for article not found error
-        if (response.status === 404) {
-          // Check for specific article not found error
-          if (responseText.includes("article") && responseText.includes("not found")) {
-            // Extract the article number from the URL if possible
-            const match = url.match(/articles\/([^\/]+)/);
-            const articleNumber = match ? match[1] : null;
-            
-            return addCorsHeaders(
-              new Response(
-                JSON.stringify({
-                  error: "article_not_found",
-                  message: "Article not found in Fortnox",
-                  status: response.status,
-                  articleDetails: {
-                    articleNumber,
-                    description: "Auto-created by Techlinx app",
-                    accountNumber: "3001", // Default account
-                    vat: 25 // Default VAT
-                  }
-                }),
-                {
-                  status: 404,
-                  headers: { "Content-Type": "application/json" },
-                }
-              )
-            );
-          }
-        }
-        
+        // General error response
         return addCorsHeaders(
           new Response(
             JSON.stringify({

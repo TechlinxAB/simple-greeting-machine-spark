@@ -24,6 +24,15 @@ interface FortnoxInvoiceRow {
   Unit?: string; // Add unit field for Fortnox
 }
 
+// Interface for the response from Fortnox invoice creation
+interface FortnoxInvoiceResponse {
+  DocumentNumber: string;
+  InvoiceDate: string;
+  DueDate: string;
+  Total: number;
+  // Add other fields that might come back from the Fortnox API
+}
+
 // Interface for Fortnox customer creation - WITHOUT CustomerNumber
 interface FortnoxCustomerData {
   Name: string;
@@ -290,6 +299,25 @@ export async function checkFortnoxArticle(articleNumber: string): Promise<boolea
     return true;
   } catch (error) {
     console.log(`Article with ArticleNumber ${articleNumber} not found in Fortnox`);
+    return false;
+  }
+}
+
+/**
+ * Verify an article exists in Fortnox but don't auto-create
+ * Returns true if exists, false if not
+ */
+export async function verifyFortnoxArticle(product: Product): Promise<boolean> {
+  try {
+    // Check if the product has an article number
+    if (product.article_number) {
+      // Check if this article exists in Fortnox
+      const exists = await checkFortnoxArticle(product.article_number);
+      return exists;
+    }
+    return false;
+  } catch (error: any) {
+    console.error("Error verifying Fortnox article:", error);
     return false;
   }
 }
@@ -580,7 +608,7 @@ export async function createFortnoxInvoice(
       console.log(`Updated local client record with new Fortnox CustomerNumber: ${customerNumber}`);
     }
     
-    // Get all products used in the time entries to ensure they exist in Fortnox
+    // Get all products used in the time entries to verify they exist in Fortnox
     const { data: timeEntries, error: timeEntriesError } = await supabase
       .from("time_entries")
       .select(`
@@ -591,7 +619,8 @@ export async function createFortnoxInvoice(
       
     if (timeEntriesError) throw timeEntriesError;
     
-    // Ensure all products have valid article numbers in Fortnox
+    // Verify all products have valid article numbers in Fortnox
+    const missingArticles: string[] = [];
     if (timeEntries && timeEntries.length > 0) {
       // Create a unique list of products
       const uniqueProducts = new Map();
@@ -601,9 +630,19 @@ export async function createFortnoxInvoice(
         }
       });
       
-      // Ensure each product exists in Fortnox
+      // Verify each product exists in Fortnox
       for (const product of uniqueProducts.values()) {
-        await ensureFortnoxArticle(product as Product);
+        const exists = await verifyFortnoxArticle(product as Product);
+        if (!exists) {
+          const productName = (product as Product).name || "Unknown product";
+          const articleNumber = (product as Product).article_number || "No article number";
+          missingArticles.push(`${productName} (${articleNumber})`);
+        }
+      }
+      
+      // If any articles are missing, throw an error
+      if (missingArticles.length > 0) {
+        throw new Error(`Missing Fortnox articles: ${missingArticles.join(", ")}. Please create these articles in Fortnox before continuing.`);
       }
     }
     
@@ -636,6 +675,8 @@ export async function createFortnoxInvoice(
       if (!response || !response.Invoice) {
         throw new Error("Failed to create invoice in Fortnox");
       }
+      
+      const fortnoxInvoiceResponse = response.Invoice as FortnoxInvoiceResponse;
       
       // Update or create invoice record
       let invoice;
@@ -671,13 +712,13 @@ export async function createFortnoxInvoice(
           const { data: updatedInvoice, error: updateError } = await supabase
             .from("invoices")
             .update({
-              invoice_number: fortnoxInvoice.DocumentNumber,
+              invoice_number: fortnoxInvoiceResponse.DocumentNumber,
               status: "sent",
-              issue_date: fortnoxInvoice.InvoiceDate,
-              due_date: fortnoxInvoice.DueDate,
-              total_amount: fortnoxInvoice.Total,
+              issue_date: fortnoxInvoiceResponse.InvoiceDate,
+              due_date: fortnoxInvoiceResponse.DueDate,
+              total_amount: fortnoxInvoiceResponse.Total,
               exported_to_fortnox: true,
-              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+              fortnox_invoice_id: fortnoxInvoiceResponse.DocumentNumber
             })
             .eq("id", existingInvoice.id)
             .select()
@@ -691,13 +732,13 @@ export async function createFortnoxInvoice(
             .from("invoices")
             .insert({
               client_id: clientId,
-              invoice_number: fortnoxInvoice.DocumentNumber,
+              invoice_number: fortnoxInvoiceResponse.DocumentNumber,
               status: "sent",
-              issue_date: fortnoxInvoice.InvoiceDate,
-              due_date: fortnoxInvoice.DueDate,
-              total_amount: fortnoxInvoice.Total,
+              issue_date: fortnoxInvoiceResponse.InvoiceDate,
+              due_date: fortnoxInvoiceResponse.DueDate,
+              total_amount: fortnoxInvoiceResponse.Total,
               exported_to_fortnox: true,
-              fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+              fortnox_invoice_id: fortnoxInvoiceResponse.DocumentNumber
             })
             .select()
             .single();
@@ -721,13 +762,13 @@ export async function createFortnoxInvoice(
           .from("invoices")
           .insert({
             client_id: clientId,
-            invoice_number: fortnoxInvoice.DocumentNumber,
+            invoice_number: fortnoxInvoiceResponse.DocumentNumber,
             status: "sent",
-            issue_date: fortnoxInvoice.InvoiceDate,
-            due_date: fortnoxInvoice.DueDate,
-            total_amount: fortnoxInvoice.Total,
+            issue_date: fortnoxInvoiceResponse.InvoiceDate,
+            due_date: fortnoxInvoiceResponse.DueDate,
+            total_amount: fortnoxInvoiceResponse.Total,
             exported_to_fortnox: true,
-            fortnox_invoice_id: fortnoxInvoice.DocumentNumber
+            fortnox_invoice_id: fortnoxInvoiceResponse.DocumentNumber
           })
           .select()
           .single();
@@ -749,7 +790,7 @@ export async function createFortnoxInvoice(
       }
       
       return {
-        invoiceNumber: fortnoxInvoice.DocumentNumber,
+        invoiceNumber: fortnoxInvoiceResponse.DocumentNumber,
         invoiceId: invoice.id
       };
     } catch (error: any) {
@@ -781,17 +822,8 @@ export async function createFortnoxInvoice(
         const errorResponse = error.response;
         
         if (errorResponse && errorResponse.error === "article_not_found" && errorResponse.articleDetails) {
-          console.log("Article not found in Fortnox, automatically creating it:", errorResponse.articleDetails);
-          
-          // Create the article using the details provided
-          const createdArticleNumber = await createArticleFromDetails(errorResponse.articleDetails);
-          
-          if (createdArticleNumber) {
-            console.log(`Successfully created article: ${createdArticleNumber}, retrying invoice creation...`);
-            
-            // Retry the invoice creation now that the article has been created
-            return await createFortnoxInvoice(clientId, timeEntryIds, isResend);
-          }
+          console.log("Article not found in Fortnox:", errorResponse.articleDetails);
+          throw new Error(`Article ${errorResponse.articleDetails.articleNumber} not found in Fortnox. Please create it in Fortnox before continuing.`);
         }
       }
       

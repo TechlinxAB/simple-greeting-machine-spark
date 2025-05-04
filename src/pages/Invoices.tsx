@@ -274,11 +274,11 @@ export default function Invoices() {
       
       const timeEntryIds = includedEntries.map(entry => entry.id);
       
-      setProcessingStatus("Checking and creating products in Fortnox...");
+      setProcessingStatus("Verifying articles in Fortnox...");
       const result = await createFortnoxInvoice(selectedClient, timeEntryIds);
       
       toast.success(`Invoice #${result.invoiceNumber} created and exported to Fortnox`, {
-        description: "Any missing products were automatically created"
+        description: "Invoice has been successfully created in Fortnox"
       });
       
       setIsCreatingInvoice(false);
@@ -292,6 +292,8 @@ export default function Invoices() {
       
       if (errorMsg.includes("Edge Function")) {
         setErrorMessage("Error connecting to Fortnox API. Please check your Fortnox connection in Settings.");
+      } else if (errorMsg.includes("Article not found") || errorMsg.includes("Missing Fortnox articles")) {
+        setErrorMessage(`${errorMsg} Please create the missing article(s) in Fortnox before proceeding.`);
       } else {
         setErrorMessage(errorMsg);
       }
