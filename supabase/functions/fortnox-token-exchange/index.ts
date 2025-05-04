@@ -73,7 +73,15 @@ Deno.serve(async (req) => {
     if (!code || !client_id || !client_secret || !redirect_uri) {
       console.error(`[${sessionId}] Missing required parameters`);
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ 
+          error: 'Missing required parameters',
+          validationDetails: {
+            hasCode: !!code,
+            hasClientId: !!client_id, 
+            hasClientSecret: !!client_secret,
+            hasRedirectUri: !!redirect_uri
+          }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,7 +133,8 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Invalid response from Fortnox',
-          details: responseText
+          details: responseText,
+          parseError: e.message
         }),
         { 
           status: 500, 
@@ -140,7 +149,8 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: 'Fortnox API error',
           status: response.status,
-          details: data
+          details: data,
+          message: data.error_description || data.error || 'Unknown error'
         }),
         { 
           status: response.status, 
@@ -154,7 +164,12 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Invalid token data received from Fortnox',
-          details: 'Missing access_token or refresh_token'
+          details: 'Missing access_token or refresh_token',
+          receivedData: {
+            hasAccessToken: !!data.access_token,
+            hasRefreshToken: !!data.refresh_token,
+            hasExpiresIn: !!data.expires_in
+          }
         }),
         { 
           status: 500, 

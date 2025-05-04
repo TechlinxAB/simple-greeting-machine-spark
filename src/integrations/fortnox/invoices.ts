@@ -381,6 +381,25 @@ export async function createArticleFromDetails(articleDetails: any): Promise<str
 }
 
 /**
+ * Validate and possibly correct account number
+ * If account number is invalid or not present, return the default account
+ */
+function validateAccountNumber(accountNumber?: string): string {
+  if (!accountNumber) {
+    return VALID_ACCOUNTS.revenue.default;
+  }
+  
+  // Check if it's a valid revenue account (3000-3999)
+  const accountNum = parseInt(accountNumber, 10);
+  if (isNaN(accountNum) || accountNum < VALID_ACCOUNTS.revenue.min || accountNum > VALID_ACCOUNTS.revenue.max) {
+    console.warn(`Invalid account number: ${accountNumber}, using default: ${VALID_ACCOUNTS.revenue.default}`);
+    return VALID_ACCOUNTS.revenue.default;
+  }
+  
+  return accountNumber;
+}
+
+/**
  * Create or update an article in Fortnox if needed
  * Modified to preserve original article numbers and account numbers
  */
@@ -398,15 +417,15 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // Article doesn't exist, create it with the original article number
       console.log(`Creating new article with original article number: ${product.article_number}`);
       
-      // Use the account number from the product or the default
-      const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
+      // Use the account number from the product or the default, ensuring it's valid
+      const accountNumber = validateAccountNumber(product.account_number);
       
       // Format the article data with the original article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: product.article_number, // Use the original article number
         Type: "SERVICE", // Default to SERVICE type for all products
-        SalesAccount: accountNumber, // Use the account number from the product
+        SalesAccount: accountNumber, // Use the validated account number
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false // Set to false for service products
       };
@@ -431,15 +450,15 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       // No article number provided, generate one
       const generatedArticleNumber = await generateNumericArticleNumber();
       
-      // Use the account number from the product or the default
-      const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
+      // Use the account number from the product or the default, ensuring it's valid
+      const accountNumber = validateAccountNumber(product.account_number);
       
       // Format the article data with the generated article number
       const articleData: FortnoxArticleData = {
         Description: product.name || "Service",
         ArticleNumber: generatedArticleNumber,
         Type: "SERVICE",
-        SalesAccount: accountNumber, // Use the account number from the product
+        SalesAccount: accountNumber, // Use the validated account number
         VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false
       };
@@ -466,8 +485,29 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       
       return newArticleNumber;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error ensuring Fortnox article:", error);
+    
+    // Special handling for account-related errors
+    if (error && error.message && error.message.includes("account_not_found")) {
+      console.log("Account not found, retrying with default account number");
+      
+      // Update the product account number to the default and try again
+      const updatedProduct = {
+        ...product,
+        account_number: VALID_ACCOUNTS.revenue.default
+      };
+      
+      // Update the product in the database with the correct account number
+      await supabase
+        .from("products")
+        .update({ account_number: VALID_ACCOUNTS.revenue.default })
+        .eq("id", product.id);
+        
+      // Retry with the updated product
+      return ensureFortnoxArticle(updatedProduct);
+    }
+    
     return null;
   }
 }
@@ -580,6 +620,15 @@ export async function createFortnoxInvoice(
     // Create invoice in Fortnox - IMPORTANT: Wrapping in Invoice object as per API spec
     console.log("Sending invoice data to Fortnox wrapped in Invoice object as per API spec");
     try {
+      // Validate all account numbers before sending
+      if (invoiceData.InvoiceRows) {
+        invoiceData.InvoiceRows.forEach(row => {
+          if (row.AccountNumber) {
+            row.AccountNumber = validateAccountNumber(row.AccountNumber);
+          }
+        });
+      }
+      
       const response = await fortnoxApiRequest("/invoices", "POST", {
         Invoice: invoiceData
       });
@@ -587,8 +636,6 @@ export async function createFortnoxInvoice(
       if (!response || !response.Invoice) {
         throw new Error("Failed to create invoice in Fortnox");
       }
-      
-      const fortnoxInvoice = response.Invoice;
       
       // Update or create invoice record
       let invoice;
@@ -706,6 +753,28 @@ export async function createFortnoxInvoice(
         invoiceId: invoice.id
       };
     } catch (error: any) {
+      // Check if this is an account not found error
+      if (error.message && error.message.includes("account_not_found") && error.accountDetails) {
+        console.log("Account not found in Fortnox:", error.accountDetails);
+        
+        // Update all products with the suggested account
+        for (const entry of timeEntries || []) {
+          if (entry.products && entry.products.account_number === error.accountDetails.accountNumber) {
+            console.log(`Updating product account number from ${entry.products.account_number} to ${error.accountDetails.suggestedAccount}`);
+            
+            // Update the product with the suggested account number
+            await supabase
+              .from("products")
+              .update({ account_number: error.accountDetails.suggestedAccount })
+              .eq("id", entry.product_id);
+          }
+        }
+        
+        // Retry the invoice creation
+        console.log("Retrying invoice creation with corrected account numbers");
+        return createFortnoxInvoice(clientId, timeEntryIds, isResend);
+      }
+      
       // Check if this is an article not found error from our proxy
       if (error.message && error.message.includes("Edge Function")) {
         // Try to extract response from error

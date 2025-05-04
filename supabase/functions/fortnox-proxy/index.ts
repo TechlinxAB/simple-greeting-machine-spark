@@ -14,7 +14,7 @@ function addCorsHeaders(response: Response): Response {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -147,17 +147,43 @@ serve(async (req) => {
         if (responseData.ErrorInformation) {
           errorMessage = responseData.ErrorInformation.message || errorMessage;
           errorDetails = responseData.ErrorInformation;
+          console.error("Error details:", JSON.stringify(errorDetails));
         } else if (responseData.error) {
           errorMessage = responseData.error;
         }
         
         console.error(`Fortnox API error: ${errorMessage}`);
-        console.error(`Error details:`, JSON.stringify(errorDetails));
         
-        // Special handling for common errors
-        if (response.status === 401) {
-          errorMessage = "Fortnox authentication expired";
-        } else if (response.status === 404) {
+        // Special handling for account-related errors
+        if (responseText.includes("konto") && (responseText.includes("existerar inte") || responseText.includes("inte hitta konto"))) {
+          // This is an account not found error
+          // Extract the invalid account number if possible
+          const accountMatch = responseText.match(/konto\s+["']?(\d+)["']?/i);
+          const accountNumber = accountMatch ? accountMatch[1] : null;
+          
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({
+                error: "account_not_found",
+                message: errorMessage,
+                status: response.status,
+                accountDetails: {
+                  accountNumber: accountNumber,
+                  suggestedAccount: "3001", // Default sales account
+                  endpoint: endpoint,
+                  method: method
+                }
+              }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+        
+        // Special handling for article not found error
+        if (response.status === 404) {
           // Check for specific article not found error
           if (responseText.includes("article") && responseText.includes("not found")) {
             // Extract the article number from the URL if possible
@@ -172,7 +198,6 @@ serve(async (req) => {
                   status: response.status,
                   articleDetails: {
                     articleNumber,
-                    // Include additional details that might be useful for creating the article
                     description: "Auto-created by Techlinx app",
                     accountNumber: "3001", // Default account
                     vat: 25 // Default VAT
