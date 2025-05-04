@@ -1,6 +1,8 @@
+
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
+import { toast } from "sonner";
 
 // Interface for Fortnox invoice creation
 interface FortnoxInvoiceData {
@@ -63,6 +65,9 @@ const VALID_ACCOUNTS = {
     default: "3001" // Default revenue account
   }
 };
+
+// Allowed VAT rates in Fortnox (Sweden)
+const VALID_VAT_RATES = [25, 12, 6, 0];
 
 /**
  * Format time entries for export to Fortnox
@@ -159,9 +164,8 @@ export async function formatTimeEntriesForFortnox(
       // Format description with a dash after product name
       const description = sanitizeFortnoxDescription(`${productName} - ${baseDescription} - ${userName}${timeInfo ? ' - ' + timeInfo : ''}`);
       
-      // Ensure VAT is one of the allowed values (25, 12, 6)
-      const validVatRates = [25, 12, 6];
-      const vat = validVatRates.includes(product.vat_percentage) ? product.vat_percentage : 25;
+      // Ensure VAT is one of the allowed values (25, 12, 6, 0)
+      const vat = VALID_VAT_RATES.includes(product.vat_percentage) ? product.vat_percentage : 25;
       
       // Use the account number from the product if it exists
       const accountNumber = product.account_number || VALID_ACCOUNTS.revenue.default;
@@ -427,6 +431,7 @@ function validateAccountNumber(accountNumber?: string): string {
 
 /**
  * Create an article in Fortnox if needed
+ * This function automatically creates missing articles
  */
 export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
   try {
@@ -440,7 +445,7 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       }
       
       // Article doesn't exist, create it with the original article number
-      console.log(`Creating new article with original article number: ${product.article_number}`);
+      console.log(`Article ${product.article_number} not found in Fortnox, creating it automatically`);
       
       // Use the account number from the product or the default, ensuring it's valid
       const accountNumber = validateAccountNumber(product.account_number);
@@ -451,25 +456,36 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
         ArticleNumber: product.article_number, // Use the original article number
         Type: "SERVICE", // Default to SERVICE type for all products
         SalesAccount: accountNumber, // Use the validated account number
-        VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
+        VAT: VALID_VAT_RATES.includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false // Set to false for service products
       };
       
       // Create the article in Fortnox with the original article number
       console.log("Creating new article in Fortnox with original number:", articleData);
-      const response = await fortnoxApiRequest("/articles", "POST", {
-        Article: articleData
-      });
-      
-      if (!response || !response.Article) {
-        console.error("Failed to create article in Fortnox");
-        return null;
+      try {
+        const response = await fortnoxApiRequest("/articles", "POST", {
+          Article: articleData
+        });
+        
+        if (!response || !response.Article) {
+          console.error("Failed to create article in Fortnox");
+          return null;
+        }
+        
+        const newArticleNumber = response.Article.ArticleNumber;
+        console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
+        
+        return newArticleNumber;
+      } catch (error: any) {
+        // Handle VAT error specially - this requires user intervention
+        if (error.error === "vat_error" || 
+            (error.message && (error.message.includes("VAT") || 
+                              error.message.includes("moms")))) {
+          console.error("VAT error creating article:", error);
+          throw new Error(`VAT error: ${error.message || "The VAT rate must match the VAT code on the sales account"}. Please update the account or VAT rate in Fortnox.`);
+        }
+        throw error;
       }
-      
-      const newArticleNumber = response.Article.ArticleNumber;
-      console.log(`Article created in Fortnox with number: ${newArticleNumber}`);
-      
-      return newArticleNumber;
     } else {
       // No article number provided, generate one
       const generatedArticleNumber = await generateNumericArticleNumber();
@@ -483,56 +499,60 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
         ArticleNumber: generatedArticleNumber,
         Type: "SERVICE",
         SalesAccount: accountNumber, // Use the validated account number
-        VAT: [25, 12, 6].includes(product.vat_percentage) ? product.vat_percentage : 25,
+        VAT: VALID_VAT_RATES.includes(product.vat_percentage) ? product.vat_percentage : 25,
         StockGoods: false
       };
       
       // Create the article in Fortnox with the generated number
       console.log("Creating new article in Fortnox with generated number:", articleData);
-      const response = await fortnoxApiRequest("/articles", "POST", {
-        Article: articleData
-      });
-      
-      if (!response || !response.Article) {
-        console.error("Failed to create article in Fortnox");
-        return null;
+      try {
+        const response = await fortnoxApiRequest("/articles", "POST", {
+          Article: articleData
+        });
+        
+        if (!response || !response.Article) {
+          console.error("Failed to create article in Fortnox");
+          return null;
+        }
+        
+        const newArticleNumber = response.Article.ArticleNumber;
+        console.log(`Article created in Fortnox with generated number: ${newArticleNumber}`);
+        
+        // Update our local product with the new article number
+        await supabase
+          .from("products")
+          .update({ article_number: newArticleNumber })
+          .eq("id", product.id);
+        
+        return newArticleNumber;
+      } catch (error: any) {
+        // Handle VAT error specially - this requires user intervention
+        if (error.error === "vat_error" || 
+            (error.message && (error.message.includes("VAT") || 
+                              error.message.includes("moms")))) {
+          console.error("VAT error creating article:", error);
+          throw new Error(`VAT error: ${error.message || "The VAT rate must match the VAT code on the sales account"}. Please update the account or VAT rate in Fortnox.`);
+        }
+        throw error;
       }
-      
-      const newArticleNumber = response.Article.ArticleNumber;
-      console.log(`Article created in Fortnox with generated number: ${newArticleNumber}`);
-      
-      // Update our local product with the new article number
-      await supabase
-        .from("products")
-        .update({ article_number: newArticleNumber })
-        .eq("id", product.id);
-      
-      return newArticleNumber;
     }
   } catch (error: any) {
     console.error("Error ensuring Fortnox article:", error);
     
     // Special handling for account-related errors
-    if (error && error.message && error.message.includes("account_not_found")) {
-      console.log("Account not found, retrying with default account number");
+    if (error && error.message && 
+        (error.message.includes("account_not_found") || 
+         error.message.includes("konto") || 
+         error.message.includes("account"))) {
+      console.log("Account not found or related error. User needs to handle this manually in Fortnox.");
       
-      // Update the product account number to the default and try again
-      const updatedProduct = {
-        ...product,
-        account_number: VALID_ACCOUNTS.revenue.default
-      };
-      
-      // Update the product in the database with the correct account number
-      await supabase
-        .from("products")
-        .update({ account_number: VALID_ACCOUNTS.revenue.default })
-        .eq("id", product.id);
-        
-      // Retry with the updated product
-      return ensureFortnoxArticle(updatedProduct);
+      // Let this error bubble up so the UI can inform the user
+      throw new Error(
+        `Account error: ${error.message}. Please create the account in Fortnox or update the product to use an existing account.`
+      );
     }
     
-    return null;
+    throw error;
   }
 }
 
@@ -632,7 +652,21 @@ export async function createFortnoxInvoice(
         
         if (!exists) {
           console.log(`Article ${typedProduct.article_number || "(no number)"} for product ${typedProduct.name} not found in Fortnox, creating it...`);
-          await ensureFortnoxArticle(typedProduct);
+          try {
+            await ensureFortnoxArticle(typedProduct);
+          } catch (error: any) {
+            // If this is an account or VAT error, we need to inform the user
+            if (error.message && (
+                error.message.includes("account") || 
+                error.message.includes("konto") ||
+                error.message.includes("VAT") ||
+                error.message.includes("moms"))) {
+              throw new Error(
+                `Error creating article for ${typedProduct.name}: ${error.message}. Please update the account number or VAT rate in Fortnox.`
+              );
+            }
+            throw error;
+          }
         }
       }
     }
@@ -785,29 +819,43 @@ export async function createFortnoxInvoice(
         invoiceId: invoice.id
       };
     } catch (error: any) {
-      // Check if this is an account not found error
-      if (error.message && error.message.includes("account_not_found") && error.accountDetails) {
+      console.error("Error creating invoice in Fortnox:", error);
+      
+      // Check if this is an account not found error - requires user intervention
+      if (error.error === "account_not_found" || 
+          (error.message && error.message.includes("account_not_found"))) {
         console.log("Account not found in Fortnox:", error.accountDetails);
         
-        // This should be handled manually by the user
-        throw new Error(`Account ${error.accountDetails.accountNumber} not found in Fortnox. Please create this account in Fortnox manually or select a different account number for the product.`);
+        // Let this error bubble up so the UI can inform the user
+        throw new Error(
+          `Account error: ${error.message || "Account not found in Fortnox"}. Please create the account in Fortnox or update the product to use an existing account.`
+        );
       }
       
-      // Handle article not found error
-      if ((error.error === "article_not_found" || 
-          (error.message && error.message.includes("article_not_found"))) && 
-          error.articleDetails) {
-        console.log("Article not found in Fortnox:", error.articleDetails);
+      // Handle article not found error - automatic creation
+      if (error.error === "article_not_found" || 
+          (error.message && error.message.includes("article_not_found"))) {
+        console.log("Article not found in Fortnox, attempting automatic creation");
         
-        // Auto-create the article and retry
-        const newArticleNumber = await createArticleFromDetails(error.articleDetails);
-        if (newArticleNumber) {
-          console.log(`Successfully created article ${newArticleNumber}, retrying invoice creation`);
-          return createFortnoxInvoice(clientId, timeEntryIds, isResend);
+        if (error.articleDetails) {
+          // Auto-create the article and retry
+          const newArticleNumber = await createArticleFromDetails(error.articleDetails);
+          if (newArticleNumber) {
+            console.log(`Successfully created article ${newArticleNumber}, retrying invoice creation`);
+            return createFortnoxInvoice(clientId, timeEntryIds, isResend);
+          }
         }
       }
       
-      console.error("Error creating invoice in Fortnox:", error);
+      // Handle VAT error - requires user intervention
+      if (error.error === "vat_error" || 
+          (error.message && (error.message.includes("VAT") || 
+                           error.message.includes("moms")))) {
+        throw new Error(
+          `VAT error: ${error.message || "The VAT rate must match the VAT code on the sales account"}. Please update the VAT rate in Fortnox.`
+        );
+      }
+      
       throw error;
     }
   } catch (error) {

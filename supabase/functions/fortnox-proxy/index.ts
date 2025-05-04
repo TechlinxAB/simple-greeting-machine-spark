@@ -158,13 +158,18 @@ serve(async (req) => {
         // Check for article not found with code 2000428 or 2001302
         if (response.status === 404 && url.includes('articles/') && 
             (responseData.ErrorInformation?.Code === 2000428 || 
+             responseData.ErrorInformation?.code === 2000428 ||
+             responseData.ErrorInformation?.Code === 2001302 || 
              responseData.ErrorInformation?.code === 2001302 ||
-             (errorMessage && errorMessage.includes("hitta artikel")))) {
+             (errorMessage && (errorMessage.includes("hitta artikel") || 
+                              errorMessage.includes("not find article") ||
+                              errorMessage.includes("article not found"))))) {
           // Extract the article number from the URL
           const match = url.match(/articles\/([^\/]+)/);
           const articleNumber = match ? match[1] : null;
           
           if (articleNumber) {
+            console.log(`Article ${articleNumber} not found in Fortnox, returning special response for automatic creation`);
             return addCorsHeaders(
               new Response(
                 JSON.stringify({
@@ -173,7 +178,7 @@ serve(async (req) => {
                   status: response.status,
                   articleDetails: {
                     articleNumber,
-                    description: "This article must be created in Fortnox"
+                    description: "This article will be automatically created in Fortnox"
                   }
                 }),
                 {
@@ -187,6 +192,7 @@ serve(async (req) => {
         
         // Special handling for account-related errors
         if ((errorMessage && errorMessage.includes("momssatsen")) || 
+            (errorMessage && errorMessage.includes("VAT rate")) ||
             (errorMessage && errorMessage.includes("konto") && 
              (errorMessage.includes("existerar inte") || errorMessage.includes("inte hitta konto")))) {
           // This is an account related error
@@ -194,6 +200,8 @@ serve(async (req) => {
           const accountMatch = errorMessage.match(/konto\s+["']?(\d+)["']?/i) || 
                                errorMessage.match(/[Aa]ccount\s+["']?(\d+)["']?/i);
           const accountNumber = accountMatch ? accountMatch[1] : null;
+          
+          console.log(`Account error detected with number: ${accountNumber}, prompting user to create it in Fortnox`);
           
           return addCorsHeaders(
             new Response(
@@ -205,7 +213,8 @@ serve(async (req) => {
                   accountNumber: accountNumber,
                   suggestedAccount: "3001", // Default sales account
                   endpoint: endpoint,
-                  method: method
+                  method: method,
+                  needsUserIntervention: true
                 }
               }),
               {
@@ -218,13 +227,15 @@ serve(async (req) => {
         
         // Check for VAT related errors
         if (errorMessage && (errorMessage.includes("VAT") || errorMessage.includes("moms"))) {
+          console.log(`VAT error detected: ${errorMessage}`);
           return addCorsHeaders(
             new Response(
               JSON.stringify({
                 error: "vat_error",
                 message: errorMessage,
                 status: response.status,
-                details: errorDetails
+                details: errorDetails,
+                needsUserIntervention: true
               }),
               {
                 status: 400,
