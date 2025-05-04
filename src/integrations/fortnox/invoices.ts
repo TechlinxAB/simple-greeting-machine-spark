@@ -106,7 +106,7 @@ export async function formatTimeEntriesForFortnox(
       throw new Error("No time entries found");
     }
     
-    // Get user profiles in a separate query to avoid the relationship error
+    // Get user profiles in a separate query
     const userIds = timeEntries.map(entry => entry.user_id);
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
@@ -187,13 +187,13 @@ export async function formatTimeEntriesForFortnox(
       return row;
     }));
     
-    // Prepare the invoice data with only CustomerNumber, not full Customer object
+    // Prepare the invoice data
     const invoiceData: FortnoxInvoiceData = {
       CustomerNumber: client.client_number || "", // Will be set after customer validation
       InvoiceRows: invoiceRows,
       InvoiceDate: new Date().toISOString().split('T')[0],
       DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-      VATIncluded: false, // Changed from PricesIncludeVAT to VATIncluded
+      VATIncluded: false, 
       Currency: "SEK", // Swedish Krona
       Language: "SV", // Swedish
       InvoiceType: "INVOICE" // Regular invoice
@@ -304,7 +304,7 @@ export async function checkFortnoxArticle(articleNumber: string): Promise<boolea
 }
 
 /**
- * Verify an article exists in Fortnox but don't auto-create
+ * Verify an article exists in Fortnox
  * Returns true if exists, false if not
  */
 export async function verifyFortnoxArticle(product: Product): Promise<boolean> {
@@ -323,7 +323,7 @@ export async function verifyFortnoxArticle(product: Product): Promise<boolean> {
 }
 
 /**
- * Create a customer in Fortnox - no longer sends CustomerNumber
+ * Create a customer in Fortnox
  */
 export async function createFortnoxCustomer(client: Client): Promise<string> {
   try {
@@ -359,7 +359,6 @@ export async function createFortnoxCustomer(client: Client): Promise<string> {
 
 /**
  * Generate a unique numeric article number
- * This is now only used as a fallback if no article_number is provided
  */
 export async function generateNumericArticleNumber(): Promise<string> {
   // Start with a base number (current timestamp last 6 digits for uniqueness)
@@ -410,7 +409,6 @@ export async function createArticleFromDetails(articleDetails: any): Promise<str
 
 /**
  * Validate and possibly correct account number
- * If account number is invalid or not present, return the default account
  */
 function validateAccountNumber(accountNumber?: string): string {
   if (!accountNumber) {
@@ -428,8 +426,7 @@ function validateAccountNumber(accountNumber?: string): string {
 }
 
 /**
- * Create or update an article in Fortnox if needed
- * Modified to preserve original article numbers and account numbers
+ * Create an article in Fortnox if needed
  */
 export async function ensureFortnoxArticle(product: Product): Promise<string | null> {
   try {
@@ -459,7 +456,6 @@ export async function ensureFortnoxArticle(product: Product): Promise<string | n
       };
       
       // Create the article in Fortnox with the original article number
-      // Important: Don't include SalesPrice as it's read-only in Fortnox API
       console.log("Creating new article in Fortnox with original number:", articleData);
       const response = await fortnoxApiRequest("/articles", "POST", {
         Article: articleData
@@ -619,8 +615,7 @@ export async function createFortnoxInvoice(
       
     if (timeEntriesError) throw timeEntriesError;
     
-    // Verify all products have valid article numbers in Fortnox
-    const missingArticles: string[] = [];
+    // Check if any articles don't exist in Fortnox, and create them if needed
     if (timeEntries && timeEntries.length > 0) {
       // Create a unique list of products
       const uniqueProducts = new Map();
@@ -630,19 +625,15 @@ export async function createFortnoxInvoice(
         }
       });
       
-      // Verify each product exists in Fortnox
+      // Auto-create any missing products
       for (const product of uniqueProducts.values()) {
-        const exists = await verifyFortnoxArticle(product as Product);
+        const typedProduct = product as Product;
+        const exists = await verifyFortnoxArticle(typedProduct);
+        
         if (!exists) {
-          const productName = (product as Product).name || "Unknown product";
-          const articleNumber = (product as Product).article_number || "No article number";
-          missingArticles.push(`${productName} (${articleNumber})`);
+          console.log(`Article ${typedProduct.article_number || "(no number)"} for product ${typedProduct.name} not found in Fortnox, creating it...`);
+          await ensureFortnoxArticle(typedProduct);
         }
-      }
-      
-      // If any articles are missing, throw an error
-      if (missingArticles.length > 0) {
-        throw new Error(`Missing Fortnox articles: ${missingArticles.join(", ")}. Please create these articles in Fortnox before continuing.`);
       }
     }
     
@@ -798,32 +789,21 @@ export async function createFortnoxInvoice(
       if (error.message && error.message.includes("account_not_found") && error.accountDetails) {
         console.log("Account not found in Fortnox:", error.accountDetails);
         
-        // Update all products with the suggested account
-        for (const entry of timeEntries || []) {
-          if (entry.products && entry.products.account_number === error.accountDetails.accountNumber) {
-            console.log(`Updating product account number from ${entry.products.account_number} to ${error.accountDetails.suggestedAccount}`);
-            
-            // Update the product with the suggested account number
-            await supabase
-              .from("products")
-              .update({ account_number: error.accountDetails.suggestedAccount })
-              .eq("id", entry.product_id);
-          }
-        }
-        
-        // Retry the invoice creation
-        console.log("Retrying invoice creation with corrected account numbers");
-        return createFortnoxInvoice(clientId, timeEntryIds, isResend);
+        // This should be handled manually by the user
+        throw new Error(`Account ${error.accountDetails.accountNumber} not found in Fortnox. Please create this account in Fortnox manually or select a different account number for the product.`);
       }
       
-      // Check if this is an article not found error from our proxy
-      if (error.message && error.message.includes("Edge Function")) {
-        // Try to extract response from error
-        const errorResponse = error.response;
+      // Handle article not found error
+      if ((error.error === "article_not_found" || 
+          (error.message && error.message.includes("article_not_found"))) && 
+          error.articleDetails) {
+        console.log("Article not found in Fortnox:", error.articleDetails);
         
-        if (errorResponse && errorResponse.error === "article_not_found" && errorResponse.articleDetails) {
-          console.log("Article not found in Fortnox:", errorResponse.articleDetails);
-          throw new Error(`Article ${errorResponse.articleDetails.articleNumber} not found in Fortnox. Please create it in Fortnox before continuing.`);
+        // Auto-create the article and retry
+        const newArticleNumber = await createArticleFromDetails(error.articleDetails);
+        if (newArticleNumber) {
+          console.log(`Successfully created article ${newArticleNumber}, retrying invoice creation`);
+          return createFortnoxInvoice(clientId, timeEntryIds, isResend);
         }
       }
       

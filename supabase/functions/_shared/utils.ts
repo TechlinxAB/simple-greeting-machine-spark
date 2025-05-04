@@ -15,3 +15,25 @@ export function generateUUID(): string {
     return v.toString(16);
   });
 }
+
+/**
+ * Format error response for edge functions
+ */
+export function formatErrorResponse(error: any, status: number = 400): Response {
+  // Extract meaningful error message
+  let errorMessage = error?.message || "Unknown error occurred";
+  let errorDetails = error;
+  
+  // Format the error response
+  return new Response(
+    JSON.stringify({
+      error: errorMessage,
+      details: errorDetails,
+      status: status
+    }),
+    {
+      status: status,
+      headers: { "Content-Type": "application/json" }
+    }
+  );
+}

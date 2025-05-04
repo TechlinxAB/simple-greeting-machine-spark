@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.184.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { generateUUID } from "../_shared/utils.ts";
 
 // Add CORS headers to response
 function addCorsHeaders(response: Response): Response {
@@ -154,7 +155,7 @@ serve(async (req) => {
         
         console.error(`Fortnox API error: ${errorMessage}`);
         
-        // Check for article not found with code 2000428
+        // Check for article not found with code 2000428 or 2001302
         if (response.status === 404 && url.includes('articles/') && 
             (responseData.ErrorInformation?.Code === 2000428 || 
              responseData.ErrorInformation?.code === 2001302 ||
@@ -191,7 +192,7 @@ serve(async (req) => {
           // This is an account related error
           // Extract the invalid account number if possible
           const accountMatch = errorMessage.match(/konto\s+["']?(\d+)["']?/i) || 
-                              errorMessage.match(/[Aa]ccount\s+["']?(\d+)["']?/i);
+                               errorMessage.match(/[Aa]ccount\s+["']?(\d+)["']?/i);
           const accountNumber = accountMatch ? accountMatch[1] : null;
           
           return addCorsHeaders(
@@ -206,6 +207,24 @@ serve(async (req) => {
                   endpoint: endpoint,
                   method: method
                 }
+              }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+        
+        // Check for VAT related errors
+        if (errorMessage && (errorMessage.includes("VAT") || errorMessage.includes("moms"))) {
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({
+                error: "vat_error",
+                message: errorMessage,
+                status: response.status,
+                details: errorDetails
               }),
               {
                 status: 400,
