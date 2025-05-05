@@ -1,16 +1,12 @@
 
 import { toast } from "sonner";
 
-// Add a custom click handler to dismiss toasts when clicking on them
-const originalToast = toast;
+// Create a custom hook that returns the toast functions
+export const useToast = () => {
+  return { 
+    toast
+  };
+};
 
-const enhancedToast = Object.assign(
-  (...args: Parameters<typeof originalToast>) => {
-    return originalToast(...args);
-  },
-  {
-    ...originalToast,
-  }
-);
-
-export { enhancedToast as toast };
+// Re-export the toast function directly for convenience
+export { toast };

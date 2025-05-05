@@ -229,7 +229,7 @@ export const useTimer = () => {
     }
   };
   
-  // Only update the convertTimerToTimeEntry function to fix the error
+  // Fixed version of convertTimerToTimeEntry function
   const convertTimerToTimeEntry = async (timerId: string, actualDuration?: number, roundedDuration?: number) => {
     if (!user) return false;
     
@@ -259,7 +259,7 @@ export const useTimer = () => {
           client_id: timerData.client_id,
           product_id: timerData.product_id,
           description: timerData.description,
-          custom_price: timerData.custom_price ?? null, // Safe access with nullish coalescing
+          custom_price: timerData.custom_price || null, // Safe access with nullish coalescing
           start_time: originalStartTime,
           end_time: originalEndTime,
           original_start_time: originalStartTime,
