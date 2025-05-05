@@ -787,7 +787,7 @@ export default function Invoices() {
           <TimeEntryEditForm 
             entry={timeEntryToEdit} 
             onSuccess={handleEditSuccess} 
-            onCancel={() => setEditDialogOpen(false)}
+            onCancel={() => setIsEditDialogOpen(false)}
           />
         </DialogWrapper>
       )}

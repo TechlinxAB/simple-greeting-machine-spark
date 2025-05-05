@@ -119,7 +119,7 @@ export function TimeEntriesTable({
           (data || []).map(async (entry) => {
             let username = "Unknown";
             
-            if (entry.user_id) {
+            if (entry && entry.user_id) { // Add a check if entry exists and has user_id
               try {
                 const { data: nameData, error: nameError } = await supabase.rpc(
                   'get_username',
@@ -134,10 +134,11 @@ export function TimeEntriesTable({
               }
             }
             
-            return {
+            // Only spread entry if it's an object
+            return entry ? {
               ...entry,
               username
-            };
+            } : { username };
           })
         );
         
