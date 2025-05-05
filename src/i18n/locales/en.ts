@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 
 const en = {
@@ -68,7 +67,7 @@ const en = {
     topActivities: 'Top Activities',
     topProducts: 'Top Products',
     overview: 'Overview',
-    overviewDescription: 'Here's an overview of your business metrics.',
+    overviewDescription: "Here is an overview of your business metrics.",
     newTimeEntry: 'New Time Entry',
     activeClients: 'Active Clients',
   },

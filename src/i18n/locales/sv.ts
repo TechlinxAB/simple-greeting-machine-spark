@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 
 const sv = {
@@ -68,7 +67,7 @@ const sv = {
     topActivities: 'Populära aktiviteter',
     topProducts: 'Populära produkter',
     overview: 'Översikt',
-    overviewDescription: 'Här är en översikt över dina affärsmetrik.',
+    overviewDescription: "Här är en översikt över dina affärsmetrik.",
     newTimeEntry: 'Ny tidspost',
     activeClients: 'Aktiva kunder',
   },
