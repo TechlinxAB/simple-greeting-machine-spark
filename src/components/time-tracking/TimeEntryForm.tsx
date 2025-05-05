@@ -18,6 +18,7 @@ import { isToday } from "date-fns";
 import { cn } from "@/lib/utils"; 
 import { useIsLaptop } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 let filteredProducts: any[] = [];
 
@@ -564,7 +565,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                             <SelectContent>
                               {filteredProductsList.map((product) => (
                                 <SelectItem key={product.id} value={product.id}>
-                                  {product.name}
+                                  {product.name} - {formatCurrency(product.price)}
                                 </SelectItem>
                               ))}
                             </SelectContent>

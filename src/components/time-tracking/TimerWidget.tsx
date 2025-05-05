@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Timer as TimerType } from '@/types/timer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '@/lib/formatCurrency';
 
 interface CompletedTimer extends TimerType {
   _calculatedDuration?: number;
@@ -59,7 +61,7 @@ export function TimerWidget() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name')
+        .select('id, name, price')
         .eq('type', 'activity')
         .order('name');
       
@@ -247,7 +249,7 @@ export function TimerWidget() {
                     <SelectContent>
                       {activities.map((activity) => (
                         <SelectItem key={activity.id} value={activity.id}>
-                          {activity.name}
+                          {activity.name} - {formatCurrency(activity.price)}
                         </SelectItem>
                       ))}
                     </SelectContent>
