@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -349,6 +348,7 @@ export function useTimer() {
           original_start_time: originalStartTime,
           original_end_time: originalEndTime,
           description: timerRecord.description,
+          // Make sure to include the custom_price from the timer record
           custom_price: timerRecord.custom_price,
         });
 

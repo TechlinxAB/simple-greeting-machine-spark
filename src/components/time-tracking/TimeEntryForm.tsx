@@ -196,6 +196,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     return endTime;
   };
 
+  // Function to handle start time completion
   const handleStartTimeComplete = useCallback(() => {
     console.log("Start time complete, focusing end time field");
     if (endTimeRef.current) {
@@ -206,6 +207,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     }
   }, []);
 
+  // Function to handle end time completion
   const handleEndTimeComplete = useCallback(() => {
     console.log("End time complete, focusing description field");
     
@@ -281,12 +283,8 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         description: values.description || null,
       };
       
-      // Only set custom price for items, not for activities
-      if (product.type === "item") {
-        timeEntryData.custom_price = values.customPrice || null;
-      } else {
-        timeEntryData.custom_price = null;
-      }
+      // Set custom price for ALL product types, not just items
+      timeEntryData.custom_price = values.customPrice || null;
 
       const selectedYear = selectedDate.getFullYear();
       const selectedMonth = selectedDate.getMonth();
@@ -404,6 +402,29 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               )}
             />
           </div>
+          
+          <FormField
+            control={form.control}
+            name="customPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder={selectedProductPrice?.toString()}
+                    {...field}
+                    value={field.value === null ? '' : field.value}
+                    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                    className={compact ? "h-8 text-xs" : ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </>
       );
     }
@@ -551,6 +572,15 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                               form.setValue("startTime", undefined);
                               form.setValue("endTime", undefined);
                               form.setValue("quantity", undefined);
+                              
+                              // Reset custom price when product changes
+                              form.setValue("customPrice", null);
+                              
+                              // Set the selected product price
+                              const selectedProduct = products.find(p => p.id === value);
+                              if (selectedProduct) {
+                                setSelectedProductPrice(selectedProduct.price);
+                              }
                             }}
                             defaultValue={field.value}
                             value={field.value}
@@ -622,7 +652,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     {t("common.saving")}...
                   </>
                 ) : (
-                  t("timeTracking.saveTimer")
+                  t("timeTracking.saveTimeEntry")
                 )}
               </Button>
             </div>
