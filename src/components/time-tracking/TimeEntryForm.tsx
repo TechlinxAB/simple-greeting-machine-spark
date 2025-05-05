@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -283,8 +284,11 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         description: values.description || null,
       };
       
-      // Set custom price for ALL product types, not just items
-      timeEntryData.custom_price = values.customPrice || null;
+      // Always include custom price for both product types if it's provided
+      // This ensures we prioritize the custom price when set
+      timeEntryData.custom_price = values.customPrice !== undefined ? values.customPrice : null;
+      
+      console.log("Custom price value:", values.customPrice);
 
       const selectedYear = selectedDate.getFullYear();
       const selectedMonth = selectedDate.getMonth();
@@ -317,10 +321,16 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         timeEntryData.end_time = finalEndTime.toISOString();
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
+        timeEntryData.start_time = null;
+        timeEntryData.end_time = null;
+        timeEntryData.original_start_time = null;
+        timeEntryData.original_end_time = null;
       }
 
       const createdAtDate = new Date(selectedYear, selectedMonth, selectedDay);
       timeEntryData.created_at = createdAtDate.toISOString();
+
+      console.log("Saving time entry with data:", timeEntryData);
 
       const { error } = await supabase
         .from("time_entries")

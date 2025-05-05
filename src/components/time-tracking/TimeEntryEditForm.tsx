@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -323,13 +322,12 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         description: values.description,
       };
       
-      // Only apply custom price for items, not for activities
-      if (selectedProductType === "item") {
-        timeEntryData.custom_price = values.customPrice;
-      } else {
-        timeEntryData.custom_price = null;
-      }
+      // Always apply custom price if it exists, for both product types
+      // This ensures custom price is prioritized when provided
+      timeEntryData.custom_price = values.customPrice;
       
+      console.log("Custom price value being saved:", values.customPrice);
+
       if (selectedProductType === "activity") {
         timeEntryData.start_time = startTime;
         timeEntryData.end_time = endTime;

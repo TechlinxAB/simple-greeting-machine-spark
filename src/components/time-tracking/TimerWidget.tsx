@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Timer as TimerType } from '@/types/timer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { Input } from '@/components/ui/input';
 
 interface CompletedTimer extends TimerType {
   _calculatedDuration?: number;
@@ -23,6 +25,7 @@ export function TimerWidget() {
   const [clientId, setClientId] = useState<string>('');
   const [productId, setProductId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [customPrice, setCustomPrice] = useState<string>('');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [completedTimer, setCompletedTimer] = useState<CompletedTimer | null>(null);
   const { t } = useTranslation();
@@ -72,8 +75,9 @@ export function TimerWidget() {
   const handleStartTimer = async () => {
     if (!clientId || !productId) return;
     
-    // Pass the description to the startTimer function
-    await startTimer(clientId, productId, description);
+    // Pass the description and customPrice to the startTimer function
+    const customPriceValue = customPrice ? parseFloat(customPrice) : null;
+    await startTimer(clientId, productId, description, customPriceValue);
   };
 
   const handleStopTimer = async () => {
@@ -111,7 +115,10 @@ export function TimerWidget() {
     setClientId('');
     setProductId('');
     setDescription('');
+    setCustomPrice('');
   };
+
+  const selectedActivity = activities.find(a => a.id === productId);
 
   if (isLoading) {
     return (
@@ -256,6 +263,21 @@ export function TimerWidget() {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {selectedActivity && (
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">{t("products.customPrice")} ({t("products.defaultPrice")}: {formatCurrency(selectedActivity.price)})</label>
+                    <Input
+                      type="number"
+                      value={customPrice}
+                      onChange={(e) => setCustomPrice(e.target.value)}
+                      placeholder={selectedActivity.price.toString()}
+                      min="0"
+                      step="0.01"
+                      className="w-full"
+                    />
+                  </div>
+                )}
                 
                 <div>
                   <label className="text-sm font-medium mb-1 block">{t("timeTracking.descriptionOptional")}</label>

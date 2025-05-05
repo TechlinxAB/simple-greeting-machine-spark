@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -337,6 +338,9 @@ export function useTimer() {
       }
       
       // Create the time entry with both original and rounded times
+      // Ensure we pass the custom price from the timer record
+      console.log("Timer record custom price:", timerRecord.custom_price);
+      
       const { error: insertError } = await supabase
         .from('time_entries')
         .insert({
