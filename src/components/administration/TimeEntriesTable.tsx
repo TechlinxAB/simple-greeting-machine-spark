@@ -118,7 +118,8 @@ export function TimeEntriesTable({
           (data || []).map(async (entry) => {
             let username = "Unknown";
             
-            if (entry && entry.user_id) { // Add a check if entry exists and has user_id
+            if (entry && typeof entry === 'object' && entry !== null && 'user_id' in entry) { 
+              // Check if entry exists and has user_id property
               try {
                 const { data: nameData, error: nameError } = await supabase.rpc(
                   'get_username',
@@ -133,11 +134,23 @@ export function TimeEntriesTable({
               }
             }
             
-            // Only spread entry if it's an object
-            return typeof entry === 'object' && entry !== null ? {
-              ...entry,
-              username
-            } : { username, id: 'unknown' }; // Provide a fallback id for typing
+            // Only spread entry if it's an object with expected properties
+            if (entry && typeof entry === 'object' && entry !== null) {
+              return {
+                ...entry,
+                username
+              };
+            } else {
+              // Provide a fallback object with required id for typing
+              return { 
+                username, 
+                id: 'unknown',
+                clients: null,
+                products: null,
+                description: null,
+                created_at: new Date().toISOString()
+              }; 
+            }
           })
         );
         
