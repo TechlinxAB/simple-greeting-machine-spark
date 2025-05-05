@@ -191,7 +191,7 @@ export default function Administration() {
     : invoices;
 
   const refetchTimeEntries = () => {
-    // This function is empty because the TimeEntriesTable
+    // This function is a placeholder since the TimeEntriesTable
     // component handles its own data fetching and refreshing
   };
 
@@ -216,20 +216,9 @@ export default function Administration() {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedItems.length === 0) return;
-    
-    try {
-      const promises = selectedItems.map(id => deleteTimeEntry(id, true));
-      await Promise.all(promises);
-      
-      toast.success(`Successfully deleted ${selectedItems.length} time entries`);
-      setSelectedItems([]);
-      setBulkDeleteMode(false);
-      refetchTimeEntries();
-    } catch (error) {
-      console.error("Error deleting time entries in bulk:", error);
-      toast.error("Failed to delete some time entries");
-    }
+    // Don't do anything here - the actual delete happens in the TimeEntriesTable component
+    // This is just to clear state after deletion
+    setSelectedItems([]);
   };
 
   const toggleBulkDeleteMode = () => {
@@ -299,16 +288,16 @@ export default function Administration() {
                             onClick={toggleBulkDeleteMode}
                             className={isLaptop ? "text-xs h-8 px-2" : ""}
                           >
-                            Cancel
+                            {t('common.cancel')}
                           </Button>
                           <Button
                             variant="destructive"
                             size={isLaptop ? "sm" : "default"}
-                            onClick={handleBulkDelete}
+                            onClick={() => selectedItems.length > 0 && handleBulkDelete()}
                             disabled={selectedItems.length === 0}
                             className={isLaptop ? "text-xs h-8 px-2" : ""}
                           >
-                            Delete Selected ({selectedItems.length})
+                            {t('common.deleteSelected', { count: selectedItems.length })}
                           </Button>
                         </>
                       ) : (
@@ -319,7 +308,7 @@ export default function Administration() {
                           onClick={toggleBulkDeleteMode}
                         >
                           <Trash2 className={isLaptop ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                          <span>Bulk Delete</span>
+                          <span>{t('common.bulkDelete')}</span>
                         </Button>
                       )}
                     </div>

@@ -58,6 +58,14 @@ const translations = {
       november: "November",
       december: "December"
     },
+    bulkDelete: "Bulk Delete",
+    deleteSelected: "Delete Selected ({count})",
+    selectClient: "Select Client",
+    unknown: "Unknown",
+    units: "units",
+    minute: "minute",
+    minutes: "minutes",
+    hour: "hour",
     administration: "Administration",
     users: "Users",
     invoices: "Invoices",
@@ -88,7 +96,6 @@ const translations = {
     noTimeEntriesFilter: "No time entries found for the selected filter.",
     selectAllEntries: "Select all",
     deleteSelected: "Delete selected",
-    bulkDelete: "Bulk delete",
     duration: "Duration",
     quantity: "Quantity",
     status: "Status",
@@ -339,6 +346,10 @@ const translations = {
     editTimeEntryDesc: "Make changes to your time entry below.",
     timeEntryDetails: "Time Entry Details",
     deleteTimeEntryConfirmation: "Are you sure you want to delete this time entry?",
+    noMatchingEntries: "No matching time entries found",
+    noDescription: "No description",
+    createdBy: "Created by",
+    createdAt: "Created at",
   },
   invoices: {
     title: "Invoices",
@@ -421,7 +432,9 @@ const translations = {
     lastActive: "Last Active",
     actions: "Actions",
     rolePermissions: "Role Permissions",
-    systemSettings: "System Settings"
+    systemSettings: "System Settings",
+    confirmBulkDelete: "Are you sure you want to delete these {count} time entries?",
+    entriesDeleted: "Successfully deleted {count} time entries"
   },
   settings: {
     title: "Settings",

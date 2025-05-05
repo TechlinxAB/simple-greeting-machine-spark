@@ -1,5 +1,6 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
   Table,
@@ -16,6 +17,12 @@ import { format } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { toast } from "sonner";
+import { BulkDeleteConfirmDialog } from "./BulkDeleteConfirmDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TimeEntryEditForm } from "../time-tracking/TimeEntryEditForm";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface TimeEntriesTableProps {
   bulkDeleteMode?: boolean;
@@ -45,6 +52,15 @@ export function TimeEntriesTable({
   searchTerm,
 }: TimeEntriesTableProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [selectedEntries, setSelectedEntries] = useState<any[]>([]);
   
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: [
@@ -194,6 +210,82 @@ export function TimeEntriesTable({
     );
   });
 
+  const handleEditClick = (entry: any) => {
+    setSelectedEntry(entry);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (entry: any) => {
+    setSelectedEntry(entry);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEntry) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const success = await deleteTimeEntry(selectedEntry.id, selectedEntry.invoiced);
+      
+      if (success) {
+        setIsDeleteDialogOpen(false);
+        await refetch();
+        toast.success(t('timeTracking.timeEntryDeleted'));
+      } else {
+        toast.error(t('error.somethingWentWrong'));
+      }
+    } catch (error) {
+      console.error("Error deleting time entry:", error);
+      toast.error(t('error.somethingWentWrong'));
+    } finally {
+      setIsDeleting(false);
+      setSelectedEntry(null);
+    }
+  };
+
+  const handleEditSuccess = async () => {
+    setIsEditDialogOpen(false);
+    setSelectedEntry(null);
+    await refetch();
+    toast.success(t('timeTracking.timeEntryUpdated'));
+  };
+
+  const handleBulkDeleteClick = async () => {
+    if (selectedItems.length === 0) return;
+    
+    // Get the full entry data for each selected item
+    const entries = filteredTimeEntries.filter(entry => selectedItems.includes(entry.id));
+    setSelectedEntries(entries);
+    setIsBulkDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    setIsBulkDeleting(true);
+    
+    try {
+      const promises = selectedItems.map(id => {
+        const entry = filteredTimeEntries.find(e => e.id === id);
+        return deleteTimeEntry(id, entry?.invoiced || false);
+      });
+      
+      await Promise.all(promises);
+      
+      await queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      await refetch();
+      
+      setIsBulkDeleteDialogOpen(false);
+      if (onBulkDelete) onBulkDelete();
+      
+      toast.success(t('administration.entriesDeleted', { count: selectedItems.length }));
+    } catch (error) {
+      console.error("Error deleting entries in bulk:", error);
+      toast.error(t('error.somethingWentWrong'));
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border overflow-x-auto">
@@ -208,8 +300,8 @@ export function TimeEntriesTable({
                       isCompact ? "h-3 w-3" : "h-4 w-4"
                     } rounded border-gray-300 cursor-pointer`}
                     checked={
-                      timeEntries.length > 0 &&
-                      selectedItems.length === timeEntries.length
+                      filteredTimeEntries.length > 0 &&
+                      selectedItems.length === filteredTimeEntries.length
                     }
                     onChange={(e) => onSelectAll?.(e.target.checked)}
                   />
@@ -330,9 +422,7 @@ export function TimeEntriesTable({
                         variant="ghost" 
                         size="icon" 
                         className={isCompact ? "h-6 w-6" : "h-8 w-8"} 
-                        onClick={() => {
-                          // Handle edit action
-                        }}
+                        onClick={() => handleEditClick(entry)}
                         disabled={entry.invoiced}
                       >
                         <Edit className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
@@ -344,9 +434,7 @@ export function TimeEntriesTable({
                           ? "h-6 w-6 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
                           : "h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                         } 
-                        onClick={() => {
-                          // Handle delete action
-                        }}
+                        onClick={() => handleDeleteClick(entry)}
                         disabled={entry.invoiced}
                       >
                         <Trash2 className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
@@ -359,6 +447,51 @@ export function TimeEntriesTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>{t('timeTracking.editTimeEntry')}</DialogTitle>
+            <DialogDescription>
+              {t('timeTracking.editTimeEntryDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedEntry && (
+            <TimeEntryEditForm 
+              timeEntry={selectedEntry} 
+              onSuccess={handleEditSuccess} 
+              onCancel={() => setIsEditDialogOpen(false)}
+              isCompact={isCompact}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title={t('timeTracking.deleteTimeEntry')}
+        description={t('timeTracking.deleteConfirmation')}
+        actionLabel={isDeleting ? t('common.deleting') : t('common.delete')}
+        onAction={handleDelete}
+        variant="destructive"
+        disabled={isDeleting}
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      {bulkDeleteMode && (
+        <BulkDeleteConfirmDialog 
+          open={isBulkDeleteDialogOpen}
+          onOpenChange={setIsBulkDeleteDialogOpen}
+          selectedEntries={selectedEntries}
+          onConfirm={handleBulkDeleteConfirm}
+          isDeleting={isBulkDeleting}
+          isCompact={isCompact}
+        />
+      )}
     </div>
   );
 }

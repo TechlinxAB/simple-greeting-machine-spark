@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Laddar...",
@@ -272,7 +271,7 @@ const translations = {
     defaultPrice: "Standardpris"
   },
   timeTracking: {
-    title: "Tidsredovisning",
+    title: "Tidrapportering",
     addTimeEntry: "Lägg till tidsrapport",
     selectClient: "Välj kund",
     activity: "Aktivitet",
@@ -320,6 +319,10 @@ const translations = {
     editTimeEntryDesc: "Gör ändringar i din tidsrapport nedan.",
     timeEntryDetails: "Tidsrapportsdetaljer",
     deleteTimeEntryConfirmation: "Är du säker på att du vill radera denna tidsrapport?",
+    noMatchingEntries: "Inga matchande tidsposter hittades",
+    noDescription: "Ingen beskrivning",
+    createdBy: "Skapad av",
+    createdAt: "Skapad den",
   },
   invoices: {
     title: "Fakturering",
