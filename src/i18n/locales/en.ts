@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -338,6 +337,15 @@ const translations = {
     editTimeEntryDesc: "Make changes to your time entry below.",
     timeEntryDetails: "Time Entry Details",
     deleteTimeEntryConfirmation: "Are you sure you want to delete this time entry?",
+    customPrice: "Custom Price",
+    defaultPrice: "Default price",
+    defaultActivityPrice: "Default hourly rate",
+    defaultItemPrice: "Default price per unit", 
+    timeEntryUpdated: "Time entry updated successfully",
+    timeEntryDeleted: "Time entry deleted successfully",
+    deleteError: "Error deleting time entry",
+    confirmDelete: "Delete Time Entry",
+    deleteWarning: "Are you sure you want to delete this time entry? This action cannot be undone.",
   },
   invoices: {
     title: "Invoices",
@@ -505,4 +513,4 @@ const translations = {
   }
 };
 
-export default translations;
+export default translations as const;

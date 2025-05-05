@@ -27,6 +27,7 @@ const timeEntrySchema = z.object({
   startTime: z.date().optional(),
   endTime: z.date().optional(),
   quantity: z.number().optional(),
+  customPrice: z.number().optional().nullable(),
   description: z.string().optional(),
 }).refine((data) => {
   const product = filteredProducts.find(p => p.id === data.productId);
@@ -57,6 +58,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const autoIsLaptop = useIsLaptop();
   const { t } = useTranslation();
   
@@ -79,6 +81,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
       clientId: "",
       productId: "",
       description: "",
+      customPrice: null,
     },
     mode: "onSubmit"
   });
@@ -87,6 +90,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const watchClientId = form.watch("clientId");
   const watchStartTime = form.watch("startTime");
   const watchEndTime = form.watch("endTime");
+  const watchCustomPrice = form.watch("customPrice");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,6 +131,17 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
       }
     }
   }, [selectedProductType, products, form, watchProductId]);
+
+  useEffect(() => {
+    if (watchProductId) {
+      const product = getProductById(watchProductId);
+      if (product) {
+        setSelectedProductPrice(product.price || 0);
+      }
+    } else {
+      setSelectedProductPrice(null);
+    }
+  }, [watchProductId]);
 
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
@@ -270,6 +285,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         product_id: values.productId,
         user_id: user.id,
         description: values.description || null,
+        custom_price: values.customPrice || null,
       };
 
       const selectedYear = selectedDate.getFullYear();
@@ -321,6 +337,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         clientId: currentClientId,
         productId: currentProductId,
         description: "",
+        customPrice: null,
       });
       
       if (product.type === "activity") {
@@ -340,6 +357,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     }
   };
 
+  // Replace the renderProductSpecificFields function to include a custom price input for items
   const renderProductSpecificFields = () => {
     const product = getProductById(watchProductId);
     
@@ -347,71 +365,125 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     
     if (product.type === "activity") {
       return (
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("timeTracking.fromTime")}:</FormLabel>
-                <FormControl>
-                  <TimePicker 
-                    value={field.value || null} 
-                    onChange={field.onChange}
-                    roundOnBlur={false}
-                    onComplete={handleStartTimeComplete}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("timeTracking.fromTime")}:</FormLabel>
+                  <FormControl>
+                    <TimePicker 
+                      value={field.value || null} 
+                      onChange={field.onChange}
+                      roundOnBlur={false}
+                      onComplete={handleStartTimeComplete}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem ref={endTimeRef}>
+                  <FormLabel>{t("timeTracking.toTime")}:</FormLabel>
+                  <FormControl>
+                    <TimePicker 
+                      value={field.value || null} 
+                      onChange={field.onChange}
+                      roundOnBlur={false}
+                      onComplete={handleEndTimeComplete}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           
           <FormField
             control={form.control}
-            name="endTime"
+            name="customPrice"
             render={({ field }) => (
-              <FormItem ref={endTimeRef}>
-                <FormLabel>{t("timeTracking.toTime")}:</FormLabel>
+              <FormItem>
+                <FormLabel>{t("timeTracking.customPrice")} ({t("common.optional")})</FormLabel>
                 <FormControl>
-                  <TimePicker 
-                    value={field.value || null} 
-                    onChange={field.onChange}
-                    roundOnBlur={false}
-                    onComplete={handleEndTimeComplete}
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder={selectedProductPrice !== null ? selectedProductPrice.toString() : t("timeTracking.defaultPrice")}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
                   />
                 </FormControl>
+                <p className="text-sm text-muted-foreground">
+                  {t("timeTracking.defaultActivityPrice")}: {selectedProductPrice || 0} {t("common.currency")}
+                </p>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
+        </>
       );
     }
     
     if (product.type === "item") {
       return (
-        <FormField
-          control={form.control}
-          name="quantity"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("timeTracking.quantity")}</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder={t("timeTracking.quantityPlaceholder")}
-                  {...field}
-                  value={field.value || ""}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <>
+          <FormField
+            control={form.control}
+            name="quantity"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("timeTracking.quantity")}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder={t("timeTracking.quantityPlaceholder")}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="customPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("timeTracking.customPrice")} ({t("common.optional")})</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder={selectedProductPrice !== null ? selectedProductPrice.toString() : t("timeTracking.defaultPrice")}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                  />
+                </FormControl>
+                <p className="text-sm text-muted-foreground">
+                  {t("timeTracking.defaultItemPrice")}: {selectedProductPrice || 0} {t("common.currency")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
       );
     }
     
@@ -508,6 +580,9 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                               form.setValue("startTime", undefined);
                               form.setValue("endTime", undefined);
                               form.setValue("quantity", undefined);
+                              form.setValue("customPrice", null);
+                              const product = getProductById(value);
+                              setSelectedProductPrice(product?.price || 0);
                             }}
                             defaultValue={field.value}
                             value={field.value}

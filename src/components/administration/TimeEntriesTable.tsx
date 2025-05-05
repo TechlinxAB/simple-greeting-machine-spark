@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -16,6 +17,11 @@ import { format } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
+import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface TimeEntriesTableProps {
   bulkDeleteMode?: boolean;
@@ -45,6 +51,10 @@ export function TimeEntriesTable({
   searchTerm,
 }: TimeEntriesTableProps) {
   const { t } = useTranslation();
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: [
@@ -71,6 +81,9 @@ export function TimeEntriesTable({
             product_id,
             user_id,
             invoice_id,
+            custom_price,
+            original_start_time,
+            original_end_time,
             products:product_id (id, name, type, price),
             clients:client_id (id, name)
           `);
@@ -169,11 +182,45 @@ export function TimeEntriesTable({
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = calculateDuration(entry.start_time, entry.end_time);
-      return formatCurrency(hours * entry.products.price);
+      const price = entry.custom_price || entry.products.price;
+      return formatCurrency(hours * price);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return formatCurrency(entry.quantity * entry.products.price);
+      const price = entry.custom_price || entry.products.price;
+      return formatCurrency(entry.quantity * price);
     }
     return "-";
+  };
+
+  const handleEditClick = (entry: any) => {
+    setEditingEntry(entry);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setEditingEntry(null);
+    refetch();
+    toast.success(t("timeTracking.timeEntryUpdated"));
+  };
+
+  const handleDeleteClick = (entryId: string) => {
+    setEntryToDelete(entryId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!entryToDelete) return;
+    
+    const success = await deleteTimeEntry(entryToDelete);
+    if (success) {
+      toast.success(t("timeTracking.timeEntryDeleted"));
+      refetch();
+    } else {
+      toast.error(t("timeTracking.deleteError"));
+    }
+    
+    setEntryToDelete(null);
+    setIsDeleteDialogOpen(false);
   };
 
   const filteredTimeEntries = timeEntries.filter(entry => {
@@ -325,9 +372,7 @@ export function TimeEntriesTable({
                         variant="ghost" 
                         size="icon" 
                         className={isCompact ? "h-6 w-6" : "h-8 w-8"} 
-                        onClick={() => {
-                          // Handle edit action
-                        }}
+                        onClick={() => handleEditClick(entry)}
                         disabled={entry.invoiced}
                       >
                         <Edit className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
@@ -339,9 +384,7 @@ export function TimeEntriesTable({
                           ? "h-6 w-6 text-destructive hover:text-destructive/90 hover:bg-destructive/10" 
                           : "h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                         } 
-                        onClick={() => {
-                          // Handle delete action
-                        }}
+                        onClick={() => handleDeleteClick(entry.id)}
                         disabled={entry.invoiced}
                       >
                         <Trash2 className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
@@ -354,6 +397,28 @@ export function TimeEntriesTable({
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          {editingEntry && (
+            <TimeEntryEditForm 
+              entry={editingEntry} 
+              onSuccess={handleEditSuccess} 
+              onCancel={() => setIsEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title={t('timeTracking.confirmDelete')}
+        description={t('timeTracking.deleteWarning')}
+        actionLabel={t('common.delete')}
+        onAction={handleConfirmDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

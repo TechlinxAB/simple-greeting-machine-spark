@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Timer as TimerType } from '@/types/timer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
 
 interface CompletedTimer extends TimerType {
   _calculatedDuration?: number;
@@ -22,6 +24,8 @@ export function TimerWidget() {
   const [clientId, setClientId] = useState<string>('');
   const [productId, setProductId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [customPrice, setCustomPrice] = useState<string>('');
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [completedTimer, setCompletedTimer] = useState<CompletedTimer | null>(null);
   const { t } = useTranslation();
@@ -59,7 +63,7 @@ export function TimerWidget() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name')
+        .select('id, name, price')
         .eq('type', 'activity')
         .order('name');
       
@@ -70,7 +74,8 @@ export function TimerWidget() {
 
   const handleStartTimer = async () => {
     if (!clientId || !productId) return;
-    await startTimer(clientId, productId, description);
+    const customPriceValue = customPrice ? parseFloat(customPrice) : null;
+    await startTimer(clientId, productId, description, customPriceValue);
   };
 
   const handleStopTimer = async () => {
@@ -108,6 +113,18 @@ export function TimerWidget() {
     setClientId('');
     setProductId('');
     setDescription('');
+    setCustomPrice('');
+    setSelectedProductPrice(null);
+  };
+
+  const handleProductChange = (value: string) => {
+    setProductId(value);
+    const product = activities.find(p => p.id === value);
+    if (product) {
+      setSelectedProductPrice(product.price || 0);
+    } else {
+      setSelectedProductPrice(null);
+    }
   };
 
   if (isLoading) {
@@ -160,6 +177,13 @@ export function TimerWidget() {
                   </div>
                 </div>
               </div>
+              
+              {activeTimer.custom_price && (
+                <div className="mt-1 text-sm">
+                  <span className="font-medium">{t("timeTracking.customPrice")}:</span>{' '}
+                  {activeTimer.custom_price} {t("common.currency")}
+                </div>
+              )}
               
               {activeTimer.description && (
                 <div>
@@ -240,7 +264,7 @@ export function TimerWidget() {
               <>
                 <div>
                   <label className="text-sm font-medium mb-1 block">{t("timeTracking.selectActivity")}</label>
-                  <Select value={productId} onValueChange={setProductId}>
+                  <Select value={productId} onValueChange={handleProductChange}>
                     <SelectTrigger>
                       <SelectValue placeholder={t("timeTracking.selectActivity")} />
                     </SelectTrigger>
@@ -253,6 +277,24 @@ export function TimerWidget() {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {productId && (
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">{t("timeTracking.customPrice")} ({t("common.optional")})</label>
+                    <Input
+                      type="number"
+                      value={customPrice}
+                      onChange={(e) => setCustomPrice(e.target.value)}
+                      placeholder={selectedProductPrice !== null ? selectedProductPrice.toString() : t("timeTracking.defaultPrice")}
+                      min="0"
+                    />
+                    {selectedProductPrice !== null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("timeTracking.defaultActivityPrice")}: {selectedProductPrice} {t("common.currency")}
+                      </p>
+                    )}
+                  </div>
+                )}
                 
                 <div>
                   <label className="text-sm font-medium mb-1 block">{t("timeTracking.descriptionOptional")}</label>
@@ -313,6 +355,12 @@ export function TimerWidget() {
                         </span>
                       )}
                     </div>
+                    {completedTimer?.custom_price && (
+                      <div className="col-span-2">
+                        <span className="font-medium">{t("timeTracking.customPrice")}:</span>{' '}
+                        {completedTimer.custom_price} {t("common.currency")}
+                      </div>
+                    )}
                     {completedTimer?.description && (
                       <div className="col-span-2">
                         <span className="font-medium">{t("timeTracking.description")}:</span>{' '}

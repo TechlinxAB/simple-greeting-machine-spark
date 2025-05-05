@@ -1,203 +1,92 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { TimePicker } from "@/components/time-tracking/TimePicker";
-import { Loader2 } from "lucide-react";
-import { format, parse, differenceInMinutes } from "date-fns";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { useIsLaptop } from "@/hooks/use-mobile";
+import { TimePicker } from "./TimePicker";
 import { useTranslation } from "react-i18next";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-const formSchema = z.object({
-  clientId: z.string().uuid("Please select a client"),
-  productId: z.string().uuid("Please select a product or activity"),
+const timeEntrySchema = z.object({
+  startTime: z.date().optional(),
+  endTime: z.date().optional(),
+  customPrice: z.number().optional().nullable(),
+  quantity: z.number().optional(),
   description: z.string().optional(),
-  quantity: z.coerce.number().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
 
 interface TimeEntryEditFormProps {
-  timeEntry: any;
+  entry: any;
   onSuccess: () => void;
   onCancel: () => void;
-  isCompact?: boolean;
 }
 
-export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
-  const startTimeRef = useRef<HTMLInputElement>(null);
-  const endTimeRef = useRef<HTMLInputElement>(null);
-  const autoIsLaptop = useIsLaptop();
+export function TimeEntryEditForm({ entry, onSuccess, onCancel }: TimeEntryEditFormProps) {
+  const { user } = useAuth();
   const { t } = useTranslation();
-  
-  const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
-  
-  const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
-  const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
-  const [calculatedDuration, setCalculatedDuration] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
 
-  // Use the original times for display if available, otherwise fall back to rounded times
-  const displayStartTime = timeEntry?.original_start_time || timeEntry?.start_time;
-  const displayEndTime = timeEntry?.original_end_time || timeEntry?.end_time;
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      clientId: timeEntry?.client_id || "",
-      productId: timeEntry?.product_id || "",
-      description: timeEntry?.description || "",
-      quantity: timeEntry?.quantity || undefined,
-      startTime: displayStartTime 
-        ? format(new Date(displayStartTime), "HH:mm") 
-        : undefined,
-      endTime: displayEndTime 
-        ? format(new Date(displayEndTime), "HH:mm") 
-        : undefined,
-    },
-  });
-
-  // Update duration when times change
   useEffect(() => {
-    const updateDuration = () => {
-      const startTimeValue = form.watch("startTime");
-      const endTimeValue = form.watch("endTime");
-      
-      if (startTimeValue && endTimeValue) {
+    // If the entry has a product, fetch its price for display
+    const fetchProductPrice = async () => {
+      if (entry.product_id) {
         try {
-          const today = new Date();
-          const [startHours, startMinutes] = startTimeValue.split(":");
-          const [endHours, endMinutes] = endTimeValue.split(":");
+          const { data, error } = await supabase
+            .from("products")
+            .select("price")
+            .eq("id", entry.product_id)
+            .single();
           
-          const startDate = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            today.getDate(),
-            Number(startHours),
-            Number(startMinutes)
-          );
-          
-          const endDate = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            today.getDate(),
-            Number(endHours),
-            Number(endMinutes)
-          );
-          
-          // If end time is earlier than start time, assume it's the next day
-          if (endDate < startDate) {
-            endDate.setDate(endDate.getDate() + 1);
-          }
-          
-          const minutes = differenceInMinutes(endDate, startDate);
-          const hours = Math.floor(minutes / 60);
-          const remainingMinutes = minutes % 60;
-          
-          setCalculatedDuration(`${hours}h ${remainingMinutes}m`);
-          setStartTimeDate(startDate);
-          setEndTimeDate(endDate);
+          if (error) throw error;
+          if (data) setSelectedProductPrice(data.price);
         } catch (error) {
-          console.error("Error calculating duration:", error);
-          setCalculatedDuration(null);
+          console.error("Error fetching product price:", error);
         }
-      } else {
-        setCalculatedDuration(null);
       }
     };
-    
-    updateDuration();
-    
-    // Set up a subscription to the form values
-    const subscription = form.watch((value, { name }) => {
-      if (name === "startTime" || name === "endTime") {
-        updateDuration();
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [form, form.watch]);
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .order("name");
-        
-      if (error) throw error;
-      return data || [];
-    },
-  });
+    fetchProductPrice();
+  }, [entry.product_id]);
 
-  const { data: products = [] } = useQuery({
-    queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, type, price")
-        .order("name");
-        
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  useEffect(() => {
-    const productId = form.watch("productId");
-    if (productId) {
-      const selectedProduct = products.find(p => p.id === productId);
-      if (selectedProduct) {
-        setSelectedProductType(selectedProduct.type);
-      }
-    } else if (timeEntry?.products?.type) {
-      setSelectedProductType(timeEntry.products.type);
-    }
-  }, [form.watch("productId"), products, timeEntry]);
-
-  const handleTimeChange = (field: string, value: Date | null) => {
-    if (value) {
-      const timeString = format(value, "HH:mm");
-      form.setValue(field as "startTime" | "endTime", timeString);
-    } else {
-      form.setValue(field as "startTime" | "endTime", undefined);
+  // Helper function to create a Date from a timestamp string
+  const parseTimestamp = (timestamp: string | null): Date | undefined => {
+    if (!timestamp) return undefined;
+    try {
+      return new Date(timestamp);
+    } catch (error) {
+      return undefined;
     }
   };
 
-  /**
-   * Rounds a date to the next 15-minute interval based on minutes:
-   * - 0-15 minutes: Round to 15 minutes
-   * - 16-30 minutes: Round to 30 minutes
-   * - 31-45 minutes: Round to 45 minutes
-   * - 46-59 minutes: Round to the next hour
-   */
+  // Use original times for editing if available, otherwise use the rounded times
+  const originalStartTime = parseTimestamp(entry.original_start_time || entry.start_time);
+  const originalEndTime = parseTimestamp(entry.original_end_time || entry.end_time);
+
+  const form = useForm<TimeEntryFormValues>({
+    resolver: zodResolver(timeEntrySchema),
+    defaultValues: {
+      startTime: originalStartTime,
+      endTime: originalEndTime,
+      quantity: entry.quantity,
+      description: entry.description || "",
+      customPrice: entry.custom_price || null,
+    },
+  });
+
+  const watchStartTime = form.watch("startTime");
+  const watchEndTime = form.watch("endTime");
+
+  // Round a date to the next 15-minute interval
   const applyTimeRounding = (time: Date | undefined): Date | undefined => {
     if (!time) return undefined;
     
@@ -232,7 +121,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     );
   };
 
-  // Function to ensure minimum 15-minute duration
+  // Ensure minimum 15-minute duration
   const ensureMinimumDuration = (startTime: Date, endTime: Date): Date => {
     const durationMs = endTime.getTime() - startTime.getTime();
     const durationMinutes = durationMs / (1000 * 60);
@@ -246,300 +135,252 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     return endTime;
   };
 
-  const onSubmit = async (values: FormValues) => {
-    console.log("Form values:", values);
-    
+  // Calculate duration for display
+  const calculateDuration = () => {
+    if (watchStartTime && watchEndTime) {
+      const diffMs = watchEndTime.getTime() - watchStartTime.getTime();
+      const diffMinutes = Math.round(diffMs / (1000 * 60));
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
+      
+      return `${hours}h ${minutes > 0 ? minutes + 'm' : ''}`;
+    }
+    return null;
+  };
+
+  const onSubmit = async (values: TimeEntryFormValues) => {
+    if (!user) {
+      toast.error(t("error.sessionExpired"));
+      return;
+    }
+
+    if (entry.products?.type === "activity" && (!values.startTime || !values.endTime)) {
+      toast.error(t("timeTracking.timeRequired"));
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setLoading(true);
-      
-      let startTimeString = values.startTime;
-      let endTimeString = values.endTime;
-      
-      if (startTimeRef.current?.value) {
-        startTimeString = startTimeRef.current.value;
-      }
-      
-      if (endTimeRef.current?.value) {
-        endTimeString = endTimeRef.current.value;
-      }
-      
-      console.log("Start time:", startTimeString);
-      console.log("End time:", endTimeString);
-      
-      const timeEntryDate = timeEntry.created_at 
-        ? new Date(timeEntry.created_at) 
-        : new Date();
-        
-      const datePart = format(timeEntryDate, "yyyy-MM-dd");
-      
-      let startTime = null;
-      let endTime = null;
-      let originalStartTime = null;
-      let originalEndTime = null;
-      
-      if (startTimeString && selectedProductType === "activity") {
-        const startTimeIsoString = `${datePart}T${startTimeString}:00`;
-        startTime = startTimeIsoString;
-        originalStartTime = startTimeIsoString;
-      }
-      
-      if (endTimeString && selectedProductType === "activity") {
-        const endTimeIsoString = `${datePart}T${endTimeString}:00`;
-        originalEndTime = endTimeIsoString;
-        
-        // Parse the time values
-        const startDate = startTime ? new Date(startTime) : null;
-        const endDate = new Date(endTimeIsoString);
-        
-        // Handle day crossing (when end time is earlier than start time)
-        if (startDate && endDate < startDate) {
-          const nextDay = new Date(endDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          endTime = nextDay.toISOString();
-          originalEndTime = nextDay.toISOString();
-        } else {
-          // Apply rounding only to the end time
-          if (startDate) {
-            const roundedEndDate = applyTimeRounding(endDate);
-            const finalEndDate = roundedEndDate 
-              ? ensureMinimumDuration(startDate, roundedEndDate)
-              : ensureMinimumDuration(startDate, endDate);
-            
-            endTime = finalEndDate.toISOString();
-          } else {
-            endTime = endTimeIsoString;
-          }
-        }
-      }
-      
-      const timeEntryData: any = {
-        client_id: values.clientId,
-        product_id: values.productId,
-        description: values.description,
+      const updateData: any = {
+        description: values.description || null,
+        custom_price: values.customPrice || null,
       };
-      
-      if (selectedProductType === "activity") {
-        timeEntryData.start_time = startTime;
-        timeEntryData.end_time = endTime;
-        timeEntryData.original_start_time = originalStartTime;
-        timeEntryData.original_end_time = originalEndTime;
-        timeEntryData.quantity = null;
-      } else if (selectedProductType === "item") {
-        timeEntryData.quantity = values.quantity;
-        timeEntryData.start_time = null;
-        timeEntryData.end_time = null;
-        timeEntryData.original_start_time = null;
-        timeEntryData.original_end_time = null;
+
+      if (entry.products?.type === "activity" && values.startTime && values.endTime) {
+        // Keep the date component but update time component
+        const originalStartDate = new Date(entry.start_time || entry.original_start_time);
+        const originalEndDate = new Date(entry.end_time || entry.original_end_time);
+        
+        const newStartTime = values.startTime;
+        newStartTime.setFullYear(originalStartDate.getFullYear(), originalStartDate.getMonth(), originalStartDate.getDate());
+        
+        const newEndTime = values.endTime;
+        newEndTime.setFullYear(originalEndDate.getFullYear(), originalEndDate.getMonth(), originalEndDate.getDate());
+        
+        // Adjust if end time is before start time (likely means it crosses midnight)
+        if (newEndTime < newStartTime) {
+          newEndTime.setDate(newEndTime.getDate() + 1);
+        }
+        
+        // Store original times without rounding
+        updateData.original_start_time = newStartTime.toISOString();
+        updateData.original_end_time = newEndTime.toISOString();
+        
+        // Only round the end time
+        const roundedEndTime = applyTimeRounding(newEndTime);
+        
+        // Ensure minimum duration
+        const finalEndTime = roundedEndTime 
+          ? ensureMinimumDuration(newStartTime, roundedEndTime)
+          : ensureMinimumDuration(newStartTime, newEndTime);
+        
+        updateData.start_time = newStartTime.toISOString();
+        updateData.end_time = finalEndTime.toISOString();
+      } else if (entry.products?.type === "item") {
+        updateData.quantity = values.quantity;
       }
-      
-      console.log("Updating time entry with data:", timeEntryData);
-      console.log("Time entry ID:", timeEntry.id);
 
       const { error } = await supabase
         .from("time_entries")
-        .update(timeEntryData)
-        .eq("id", timeEntry.id);
+        .update(updateData)
+        .eq("id", entry.id);
 
-      if (error) {
-        console.error("Error from Supabase:", error);
-        throw new Error(error.message);
-      }
-      
-      console.log("Update successful");
-      
-      toast.success("Time entry updated successfully");
-      onSuccess(); 
+      if (error) throw error;
+
+      onSuccess();
     } catch (error: any) {
-      console.error("Error updating time entry:", error);
-      toast.error(error.message || "Failed to update time entry");
+      console.error("Error saving time entry:", error);
+      toast.error(error.message || t("timeTracking.timeEntryFailure"));
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", compact ? "text-sm" : "")}>
-        <FormField
-          control={form.control}
-          name="clientId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className={compact ? "text-sm" : ""}>Client</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-                disabled={loading}
-              >
-                <FormControl>
-                  <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
-                    <SelectValue placeholder="Select a client" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id} className={compact ? "text-xs" : ""}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage className={compact ? "text-xs" : ""} />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="productId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className={compact ? "text-sm" : ""}>Product or Activity</FormLabel>
-              <Select 
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  const selectedProduct = products.find(p => p.id === value);
-                  if (selectedProduct) {
-                    setSelectedProductType(selectedProduct.type);
-                  }
-                }} 
-                defaultValue={field.value}
-                disabled={loading}
-              >
-                <FormControl>
-                  <SelectTrigger className={compact ? "h-8 text-xs" : ""}>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id} className={compact ? "text-xs" : ""}>
-                      {product.name} ({product.type}) - {product.price} SEK
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage className={compact ? "text-xs" : ""} />
-            </FormItem>
-          )}
-        />
-        
-        {selectedProductType === "activity" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Time</FormLabel>
-                    <FormControl>
-                      <TimePicker 
-                        value={startTimeDate} 
-                        onChange={(date) => handleTimeChange("startTime", date)}
-                        ref={startTimeRef}
-                        disabled={loading}
-                        roundOnBlur={false}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Time</FormLabel>
-                    <FormControl>
-                      <TimePicker 
-                        value={endTimeDate} 
-                        onChange={(date) => handleTimeChange("endTime", date)}
-                        ref={endTimeRef}
-                        disabled={loading}
-                        roundOnBlur={false}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            {calculatedDuration && (
-              <div className="text-sm text-muted-foreground">
-                Duration: {calculatedDuration}
-                <span className="ml-2 text-xs">
-                  (Actual time, will be rounded when saved)
-                </span>
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">{t("timeTracking.editTimeEntry")}</h2>
+      
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <span className="font-medium">{t("clients.client")}:</span>
+          <div>{entry.clients?.name || t("clients.unknownClient")}</div>
+        </div>
+        <div>
+          <span className="font-medium">{t("products.product")}:</span>
+          <div>{entry.products?.name || t("products.unknownProduct")}</div>
+        </div>
+        <div>
+          <span className="font-medium">{t("products.type")}:</span>
+          <div className="capitalize">{entry.products?.type || t("products.unknownType")}</div>
+        </div>
+        <div>
+          <span className="font-medium">{t("timeTracking.createdAt")}:</span>
+          <div>{format(new Date(entry.created_at), "PPP p")}</div>
+        </div>
+      </div>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {entry.products?.type === "activity" ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("timeTracking.fromTime")}:</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value || null}
+                          onChange={field.onChange}
+                          roundOnBlur={false}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("timeTracking.toTime")}:</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value || null}
+                          onChange={field.onChange}
+                          roundOnBlur={false}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
-          </div>
-        )}
-        
-        {selectedProductType === "item" && (
+              
+              {watchStartTime && watchEndTime && (
+                <div className="text-sm">
+                  {t("timeTracking.duration")}: {calculateDuration()}
+                </div>
+              )}
+            </>
+          ) : entry.products?.type === "item" ? (
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("timeTracking.quantity")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      {...field}
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
+
           <FormField
             control={form.control}
-            name="quantity"
+            name="customPrice"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Quantity</FormLabel>
+                <FormLabel>{t("timeTracking.customPrice")} ({t("common.optional")})</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1"
+                  <Input
+                    type="number"
+                    min="0"
                     step="1"
-                    {...field} 
-                    disabled={loading}
+                    placeholder={selectedProductPrice !== null ? selectedProductPrice.toString() : t("timeTracking.defaultPrice")}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                  />
+                </FormControl>
+                {selectedProductPrice !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {entry.products?.type === "activity" 
+                      ? t("timeTracking.defaultActivityPrice") 
+                      : t("timeTracking.defaultItemPrice")}: {selectedProductPrice} {t("common.currency")}
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("timeTracking.description")}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder={t("timeTracking.descriptionPlaceholder")}
+                    className="min-h-[100px]"
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className={compact ? "text-sm" : ""}>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Enter a description..."
-                  className={cn("resize-none", compact ? "text-xs" : "")}
-                  {...field} 
-                  disabled={loading}
-                />
-              </FormControl>
-              <FormMessage className={compact ? "text-xs" : ""} />
-            </FormItem>
-          )}
-        />
-        
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={loading}
-            className={compact ? "h-8 text-xs px-3" : ""}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={loading}
-            className={compact ? "h-8 text-xs px-3" : ""}
-          >
-            {loading && <Loader2 className={cn("mr-2 animate-spin", compact ? "h-3 w-3" : "h-4 w-4")} />}
-            Update Time Entry
-          </Button>
-        </div>
-      </form>
-    </Form>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("common.saving")}...
+                </>
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
 }
