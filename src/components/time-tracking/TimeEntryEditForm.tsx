@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -322,8 +323,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         description: values.description,
       };
       
-      // Always apply custom price if it exists, for both product types
-      // This ensures custom price is prioritized when provided
+      // Always set custom_price in the data object
+      // This ensures it's explicitly included in the update
       timeEntryData.custom_price = values.customPrice;
       
       console.log("Custom price value being saved:", values.customPrice);

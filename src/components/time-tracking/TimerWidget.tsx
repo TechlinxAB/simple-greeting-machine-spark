@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,8 +74,10 @@ export function TimerWidget() {
   const handleStartTimer = async () => {
     if (!clientId || !productId) return;
     
-    // Pass the description and customPrice to the startTimer function
+    // Parse the custom price value and pass it to startTimer
+    // Make sure it's converted to a number if it exists
     const customPriceValue = customPrice ? parseFloat(customPrice) : null;
+    console.log("Starting timer with custom price:", customPriceValue);
     await startTimer(clientId, productId, description, customPriceValue);
   };
 

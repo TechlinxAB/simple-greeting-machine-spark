@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -284,17 +283,17 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         description: values.description || null,
       };
       
-      // Always include custom price for both product types if it's provided
-      // This ensures we prioritize the custom price when set
-      timeEntryData.custom_price = values.customPrice !== undefined ? values.customPrice : null;
+      // Always set custom_price whether it's null or has a value
+      // This ensures it's explicitly set in all cases
+      timeEntryData.custom_price = values.customPrice;
       
-      console.log("Custom price value:", values.customPrice);
+      console.log("Custom price being saved:", values.customPrice);
 
       const selectedYear = selectedDate.getFullYear();
       const selectedMonth = selectedDate.getMonth();
       const selectedDay = selectedDate.getDate();
 
-      if (product.type === "activity" && values.startTime && values.endTime) {
+      if (product.type === "activity") {
         const adjustedStartTime = new Date(values.startTime);
         adjustedStartTime.setFullYear(selectedYear, selectedMonth, selectedDay);
         

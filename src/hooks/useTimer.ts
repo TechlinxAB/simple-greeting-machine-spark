@@ -140,6 +140,8 @@ export function useTimer() {
     }
 
     try {
+      console.log("Starting timer with custom price:", customPrice);
+      
       // Using a type assertion for the insert operation
       const { data, error } = await supabase
         .from('user_timers')
@@ -150,7 +152,7 @@ export function useTimer() {
           description: description || null,
           status: 'running',
           start_time: new Date().toISOString(),
-          custom_price: customPrice || null,
+          custom_price: customPrice, // Ensure we save the custom price
         })
         .select()
         .single();
@@ -337,10 +339,10 @@ export function useTimer() {
         endTime = new Date(startTime.getTime() + (roundedDuration * 1000));
       }
       
+      console.log("Timer record custom price before insert:", timerRecord.custom_price);
+      
       // Create the time entry with both original and rounded times
       // Ensure we pass the custom price from the timer record
-      console.log("Timer record custom price:", timerRecord.custom_price);
-      
       const { error: insertError } = await supabase
         .from('time_entries')
         .insert({
@@ -352,7 +354,7 @@ export function useTimer() {
           original_start_time: originalStartTime,
           original_end_time: originalEndTime,
           description: timerRecord.description,
-          // Make sure to include the custom_price from the timer record
+          // Explicitly set the custom_price from the timer record
           custom_price: timerRecord.custom_price,
         });
 
