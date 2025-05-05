@@ -259,7 +259,7 @@ export const useTimer = () => {
           client_id: timerData.client_id,
           product_id: timerData.product_id,
           description: timerData.description,
-          custom_price: timerData.custom_price || null, // Safe access with nullish coalescing
+          custom_price: timerData.custom_price ?? null, // Using nullish coalescing to handle undefined
           start_time: originalStartTime,
           end_time: originalEndTime,
           original_start_time: originalStartTime,

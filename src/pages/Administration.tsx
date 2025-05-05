@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -96,9 +97,12 @@ export default function Administration() {
     }
   };
 
-  const handleBulkDelete = () => {
+  // Fixing the function to return a Promise
+  const handleBulkDelete = async () => {
     // Implement your bulk delete logic here
     toast.error("Bulk delete is not yet implemented.");
+    // Return a promise to match the expected type
+    return Promise.resolve();
   };
 
   return (
@@ -177,7 +181,9 @@ export default function Administration() {
                 id="bulk-delete"
                 checked={bulkDeleteMode}
                 onCheckedChange={(checked) => {
-                  setBulkDeleteMode(checked || false);
+                  // Fix: convert indeterminate to boolean
+                  const isChecked = checked === "indeterminate" ? false : checked;
+                  setBulkDeleteMode(isChecked);
                   setSelectedItems([]); // Clear selection when toggling bulk delete mode
                 }}
               />
