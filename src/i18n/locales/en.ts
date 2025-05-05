@@ -122,7 +122,6 @@ const translations = {
     minute: "minute",
     minutes: "minutes",
     hour: "hour",
-    hours: "hours",
   },
   auth: {
     email: "Email",
