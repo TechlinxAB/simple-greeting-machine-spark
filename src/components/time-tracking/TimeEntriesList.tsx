@@ -184,9 +184,13 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = calculateDuration(entry.start_time, entry.end_time);
-      return formatCurrency(hours * entry.products.price);
+      // Use custom price if available, otherwise use product price
+      const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
+      return formatCurrency(hours * price);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      return formatCurrency(entry.quantity * entry.products.price);
+      // Use custom price if available, otherwise use product price
+      const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
+      return formatCurrency(entry.quantity * price);
     }
     return "-";
   };
