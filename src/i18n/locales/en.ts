@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -95,7 +96,6 @@ const translations = {
     close: "Close",
     noTimeEntriesFilter: "No time entries found for the selected filter.",
     selectAllEntries: "Select all",
-    deleteSelected: "Delete selected",
     duration: "Duration",
     quantity: "Quantity",
     status: "Status",
@@ -109,7 +109,6 @@ const translations = {
     editTimeEntry: "Edit time entry",
     editTimeEntryDesc: "Make changes to your time entry below.",
     entries: "Entries",
-    units: "units",
     noDescription: "No description",
     clientContactInfo: "Client Contact Information",
     clientList: "Client List",
@@ -125,10 +124,7 @@ const translations = {
     price: "Price",
     yes: "Yes",
     no: "No",
-    unit: "unit",
-    minute: "minute",
-    minutes: "minutes",
-    hour: "hour",
+    unit: "unit"
   },
   auth: {
     email: "Email",
@@ -281,7 +277,8 @@ const translations = {
     productList: "Product List",
     manageProducts: "Manage your activities and items",
     customPrice: "Custom Price",
-    defaultPrice: "Default Price"
+    defaultPrice: "Default Price",
+    selectType: "Select Type"
   },
   timeTracking: {
     title: "Time Tracking",
@@ -336,12 +333,6 @@ const translations = {
     unknownActivity: "Unknown activity",
     quantityPlaceholder: "Enter quantity",
     timeEntryFailure: "Failed to record time entry",
-    hour: "hour",
-    hours: "hours",
-    minute: "minute",
-    minutes: "minutes",
-    units: "units",
-    unit: "unit",
     timeEntries: "Time Entries",
     editTimeEntryDesc: "Make changes to your time entry below.",
     timeEntryDetails: "Time Entry Details",
