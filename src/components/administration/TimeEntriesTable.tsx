@@ -1,15 +1,6 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  FilterFn,
-  SortingState,
-  getSortedRowModel,
-} from "@tanstack/react-table"
+import { supabase } from '@/lib/supabase';
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -23,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/lib/supabase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TimeEntry } from '@/types';
 import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 
 interface TimeEntriesTableProps {
   initialData: any[] | null;
@@ -45,12 +35,10 @@ interface TimeEntriesTableProps {
 
 const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit, onDelete, onBulkDelete, isLoading }) => {
   const { t } = useTranslation();
-  const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState("")
   const [data, setData] = useState<any[]>([]);
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
-  const { toast } = useToast()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,7 +62,7 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
             try {
               const { data: nameData, error: nameError } = await supabase.rpc(
                 'get_username',
-                { user_id_param: entry.user_id }
+                { user_id: entry.user_id }
               );
               
               if (!nameError && nameData) {
@@ -141,10 +129,9 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
 
   const handleDeleteSelected = async () => {
     if (selectedEntries.length === 0) {
-      toast({
-        title: "No entries selected",
-        description: "Please select entries to delete.",
-      })
+      toast.error("No entries selected", {
+        description: "Please select entries to delete."
+      });
       return;
     }
 
@@ -152,39 +139,38 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
       await onBulkDelete(selectedEntries);
       setSelectedEntries([]);
       setIsBulkDeleteMode(false);
-      toast({
-        title: "Bulk delete successful",
-        description: "Selected entries have been deleted.",
-      })
+      toast.success("Bulk delete successful", {
+        description: "Selected entries have been deleted."
+      });
     } catch (error) {
       console.error("Error during bulk delete:", error);
-      toast({
-        title: "Error during bulk delete",
-        description: "Failed to delete selected entries.",
-        variant: "destructive",
-      })
+      toast.error("Error during bulk delete", {
+        description: "Failed to delete selected entries."
+      });
     }
   };
 
-  const columns: ColumnDef<any>[] = [
+  if (isLoading) {
+    return <div className="text-center py-4">{t("common.loading")}...</div>;
+  }
+
+  const columns = [
     {
       id: "select",
-      header: ({ table }) => (
+      header: () => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          checked={data.length > 0 && selectedEntries.length === data.length}
+          onCheckedChange={handleSelectAllEntries}
           aria-label="Select all"
         />
       ),
-      cell: ({ row }) => (
+      cell: (row: any) => (
         <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          checked={selectedEntries.includes(row.id)}
+          onCheckedChange={() => handleSelectEntry(row.id)}
           aria-label="Select row"
         />
       ),
-      enableSorting: false,
-      enableHiding: false,
     },
     {
       accessorKey: "username",
@@ -197,26 +183,26 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
     {
       accessorKey: "start_time",
       header: t("common.fromTime"),
-      cell: ({ row }) => {
-        const date = new Date(row.getValue("start_time"));
+      cell: (row: any) => {
+        const date = new Date(row.start_time);
         return date.toLocaleString();
       },
     },
     {
       accessorKey: "end_time",
       header: t("common.toTime"),
-      cell: ({ row }) => {
-        if (!row.getValue("end_time")) {
+      cell: (row: any) => {
+        if (!row.end_time) {
           return "N/A";
         }
-        const date = new Date(row.getValue("end_time"));
+        const date = new Date(row.end_time);
         return date.toLocaleString();
       },
     },
     {
       id: "actions",
       header: t("common.actions"),
-      cell: ({ row }) => (
+      cell: (row: any) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -225,31 +211,17 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(row.original.id)}>
+            <DropdownMenuItem onClick={() => onEdit(row.id)}>
               {t("common.edit")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(row.original.id)}>
+            <DropdownMenuItem onClick={() => onDelete(row.id)}>
               {t("common.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
     },
-  ]
-
-  const table = useReactTable({
-    data,
-    columns,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onRowSelectionChange: setSelectedEntries,
-    state: {
-      sorting,
-    },
-  })
+  ];
 
   return (
     <div className="w-full">
@@ -287,48 +259,25 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : (
-                          <div
-                            {...{
-                              className: header.column.getCanSort()
-                                ? "cursor-pointer select-none"
-                                : "",
-                              onClick: header.column.getToggleSortingHandler(),
-                            }}
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            {{
-                              asc: "▲",
-                              desc: "▼",
-                            }[header.column.getIsSorted() as string] ?? null}
-                          </div>
-                        )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead key={column.id || column.accessorKey}>
+                  {typeof column.header === 'function' ? column.header() : column.header}
+                </TableHead>
+              ))}
+            </TableRow>
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {data.length > 0 ? (
+              data.map((row) => (
+                <TableRow key={row.id}>
+                  {columns.map((column) => (
+                    <TableCell key={column.id || column.accessorKey}>
+                      {column.cell 
+                        ? column.cell(row) 
+                        : column.accessorKey 
+                          ? row[column.accessorKey] 
+                          : null}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -347,16 +296,14 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
+          disabled={data.length === 0}
         >
           {t("common.back")}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
+          disabled={data.length === 0}
         >
           {t("common.next")}
         </Button>

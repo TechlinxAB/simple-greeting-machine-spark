@@ -1,6 +1,7 @@
+
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,7 +14,7 @@ import {
 import { format, startOfMonth, endOfMonth, setMonth, setYear } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
-import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
+import TimeEntriesTable from "@/components/administration/TimeEntriesTable";
 import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
