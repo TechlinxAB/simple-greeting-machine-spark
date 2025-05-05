@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -123,6 +122,7 @@ const translations = {
     minute: "minute",
     minutes: "minutes",
     hour: "hour",
+    hours: "hours",
   },
   auth: {
     email: "Email",
@@ -273,7 +273,9 @@ const translations = {
     items: "Items",
     noProductsFound: "No products found",
     productList: "Product List",
-    manageProducts: "Manage your activities and items"
+    manageProducts: "Manage your activities and items",
+    customPrice: "Custom Price",
+    defaultPrice: "Default Price"
   },
   timeTracking: {
     title: "Time Tracking",
