@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Timer } from "@/types/timer";
+import { Timer, TimerStatus } from "@/types/timer";
 import { toast } from "sonner";
 import { differenceInSeconds } from "date-fns";
 
@@ -35,7 +35,7 @@ export const useTimer = () => {
         }
 
         if (data && data.length > 0) {
-          const timer = data[0];
+          const timer = data[0] as unknown as Timer;
           setActiveTimer(timer);
           setIsTimerRunning(timer.status === "running");
         }
@@ -96,7 +96,7 @@ export const useTimer = () => {
           client_id: clientId,
           product_id: productId,
           description: description || null,
-          status: "running",
+          status: "running" as TimerStatus,
           custom_price: customPrice || null
         })
         .select()
@@ -106,7 +106,7 @@ export const useTimer = () => {
         throw error;
       }
 
-      setActiveTimer(data);
+      setActiveTimer(data as Timer);
       setIsTimerRunning(true);
       setElapsedSeconds(0);
     } catch (error) {
@@ -123,7 +123,7 @@ export const useTimer = () => {
       const { error } = await supabase
         .from("user_timers")
         .update({
-          status: "paused",
+          status: "paused" as TimerStatus,
           end_time: new Date().toISOString(),
         })
         .eq("id", activeTimer.id);
@@ -135,7 +135,7 @@ export const useTimer = () => {
       setIsTimerRunning(false);
       setActiveTimer({
         ...activeTimer,
-        status: "paused",
+        status: "paused" as TimerStatus,
         end_time: new Date().toISOString(),
       });
     } catch (error) {
@@ -152,7 +152,7 @@ export const useTimer = () => {
       const { error } = await supabase
         .from("user_timers")
         .update({
-          status: "running",
+          status: "running" as TimerStatus,
           end_time: null,
         })
         .eq("id", activeTimer.id);
@@ -164,7 +164,7 @@ export const useTimer = () => {
       setIsTimerRunning(true);
       setActiveTimer({
         ...activeTimer,
-        status: "running",
+        status: "running" as TimerStatus,
         end_time: null,
       });
     } catch (error) {
@@ -182,7 +182,7 @@ export const useTimer = () => {
       const { error } = await supabase
         .from("user_timers")
         .update({
-          status: "completed",
+          status: "completed" as TimerStatus,
           end_time: endTime,
         })
         .eq("id", activeTimer.id);
@@ -212,7 +212,7 @@ export const useTimer = () => {
       
       const completedTimer = {
         ...activeTimer,
-        status: "completed",
+        status: "completed" as TimerStatus,
         end_time: endTime,
         _calculatedDuration: calculatedDuration,
         _roundedDuration: roundedDuration

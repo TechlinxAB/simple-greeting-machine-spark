@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,12 +26,13 @@ const timeEntrySchema = z.object({
 type TimeEntryFormValues = z.infer<typeof timeEntrySchema>;
 
 interface TimeEntryEditFormProps {
-  entry: any;
+  entry: any;  // Changed from timeEntry to entry for consistency
   onSuccess: () => void;
   onCancel: () => void;
+  isCompact?: boolean;
 }
 
-export function TimeEntryEditForm({ entry, onSuccess, onCancel }: TimeEntryEditFormProps) {
+export function TimeEntryEditForm({ entry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
