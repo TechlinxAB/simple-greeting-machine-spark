@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Laddar...",
@@ -289,10 +290,12 @@ const translations = {
     timer: "Timer",
     startTimer: "Starta timer",
     stopTimer: "Stoppa timer",
+    pauseTimer: "Pausa timer",
     resumeTimer: "Återuppta timer",
     resetTimer: "Återställ timer",
     timerRunning: "Timer körs",
     saveTimer: "Spara tidsrapport",
+    saveTimeEntry: "Spara tidsrapport",
     today: "Idag",
     timeEntryAdded: "Tidsrapporten har lagts till",
     timeEntryFailure: "Kunde inte lägga till tidsrapporten",

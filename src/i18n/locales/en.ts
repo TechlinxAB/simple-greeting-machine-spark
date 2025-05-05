@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -308,11 +307,13 @@ const translations = {
     timer: "Timer",
     startTimer: "Start Timer",
     stopTimer: "Stop Timer",
+    pauseTimer: "Pause Timer", 
     resumeTimer: "Resume Timer",
     resetTimer: "Reset Timer",
     timerIsRunning: "Timer is running",
     timerPaused: "Timer paused",
-    saveTimer: "Save Timer",
+    saveTimer: "Save Time Entry",
+    saveTimeEntry: "Save Time Entry",
     timerDuration: "Timer Duration",
     clientRequired: "Client is required",
     productRequired: "Product is required",
@@ -333,6 +334,12 @@ const translations = {
     unknownActivity: "Unknown activity",
     quantityPlaceholder: "Enter quantity",
     timeEntryFailure: "Failed to record time entry",
+    hour: "hour",
+    hours: "hours",
+    minute: "minute",
+    minutes: "minutes",
+    units: "units",
+    unit: "unit",
     timeEntries: "Time Entries",
     editTimeEntryDesc: "Make changes to your time entry below.",
     timeEntryDetails: "Time Entry Details",
