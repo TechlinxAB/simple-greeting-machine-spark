@@ -71,6 +71,8 @@ export function TimerWidget() {
 
   const handleStartTimer = async () => {
     if (!clientId || !productId) return;
+    
+    // Pass the description to the startTimer function
     await startTimer(clientId, productId, description);
   };
 
