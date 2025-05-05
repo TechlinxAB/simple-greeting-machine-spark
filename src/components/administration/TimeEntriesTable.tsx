@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Input } from "@/components/ui/input"
@@ -25,15 +24,43 @@ import { TimeEntry } from '@/types';
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 
-interface TimeEntriesTableProps {
-  initialData: any[] | null;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+export interface TimeEntriesTableProps {
+  initialData?: any[] | null;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onBulkDelete: (ids: string[]) => Promise<void>;
-  isLoading: boolean;
+  isLoading?: boolean;
+  
+  // Add the missing props from Administration.tsx
+  client_id?: string;
+  user_id?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  searchTerm?: string;
+  bulkDeleteMode?: boolean;
+  selectedItems?: string[];
+  onItemSelect?: (id: string) => void;
+  onSelectAll?: (checked: boolean) => void;
+  isCompact?: boolean;
 }
 
-const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit, onDelete, onBulkDelete, isLoading }) => {
+const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ 
+  initialData = null, 
+  onEdit = () => {}, 
+  onDelete = () => {}, 
+  onBulkDelete,
+  isLoading = false,
+  client_id,
+  user_id,
+  fromDate,
+  toDate,
+  searchTerm,
+  bulkDeleteMode = false,
+  selectedItems = [],
+  onItemSelect = () => {},
+  onSelectAll = () => {},
+  isCompact = false
+}) => {
   const { t } = useTranslation();
   const [globalFilter, setGlobalFilter] = useState("")
   const [data, setData] = useState<any[]>([]);
@@ -41,13 +68,34 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
 
   useEffect(() => {
+    // If selectedItems prop is provided, use that instead of local state
+    if (selectedItems && bulkDeleteMode) {
+      setSelectedEntries(selectedItems);
+    }
+  }, [selectedItems, bulkDeleteMode]);
+
+  useEffect(() => {
+    // Set local bulk delete mode based on prop
+    setIsBulkDeleteMode(bulkDeleteMode);
+  }, [bulkDeleteMode]);
+
+  useEffect(() => {
     const fetchData = async () => {
-      const entriesWithUsernames = await fetchUsernames(initialData);
-      setData(entriesWithUsernames);
+      // If initialData is provided, use that
+      if (initialData) {
+        const entriesWithUsernames = await fetchUsernames(initialData);
+        setData(entriesWithUsernames);
+        return;
+      }
+      
+      // Otherwise, potentially fetch based on filters
+      // This is where you would implement the fetch based on client_id, user_id, dates, etc.
+      // For now, just set empty data if no initialData
+      setData([]);
     };
 
     fetchData();
-  }, [initialData]);
+  }, [initialData, client_id, user_id, fromDate, toDate, searchTerm]);
 
   const fetchUsernames = async (data: any[] | null) => {
     if (!data || !Array.isArray(data) || data.length === 0) return [];
@@ -103,22 +151,37 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
   };
 
   const toggleBulkDeleteMode = () => {
-    setIsBulkDeleteMode(!isBulkDeleteMode);
-    setSelectedEntries([]); // Clear selected entries when toggling mode
+    // If using external state management
+    if (typeof bulkDeleteMode === 'boolean' && onItemSelect) {
+      // Notify parent component
+      onSelectAll && onSelectAll(false); // Deselect all
+    } else {
+      // Use internal state
+      setIsBulkDeleteMode(!isBulkDeleteMode);
+      setSelectedEntries([]); // Clear selected entries when toggling mode
+    }
   };
 
   const handleSelectEntry = (entryId: string) => {
-    setSelectedEntries((prevSelected) => {
-      if (prevSelected.includes(entryId)) {
-        return prevSelected.filter((id) => id !== entryId);
-      } else {
-        return [...prevSelected, entryId];
-      }
-    });
+    // If using external state management
+    if (onItemSelect) {
+      onItemSelect(entryId);
+    } else {
+      // Use internal state
+      setSelectedEntries((prevSelected) => {
+        if (prevSelected.includes(entryId)) {
+          return prevSelected.filter((id) => id !== entryId);
+        } else {
+          return [...prevSelected, entryId];
+        }
+      });
+    }
   };
 
   const handleSelectAllEntries = () => {
-    if (data) {
+    if (onSelectAll && data) {
+      onSelectAll(selectedEntries.length !== data.length);
+    } else if (data) {
       if (selectedEntries.length === data.length) {
         setSelectedEntries([]);
       } else {
@@ -128,7 +191,9 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
   };
 
   const handleDeleteSelected = async () => {
-    if (selectedEntries.length === 0) {
+    const toDelete = selectedItems && bulkDeleteMode ? selectedItems : selectedEntries;
+    
+    if (toDelete.length === 0) {
       toast.error("No entries selected", {
         description: "Please select entries to delete."
       });
@@ -136,9 +201,14 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
     }
 
     try {
-      await onBulkDelete(selectedEntries);
-      setSelectedEntries([]);
-      setIsBulkDeleteMode(false);
+      await onBulkDelete(toDelete);
+      
+      // Reset local state if not using external state
+      if (!selectedItems || !bulkDeleteMode) {
+        setSelectedEntries([]);
+        setIsBulkDeleteMode(false);
+      }
+      
       toast.success("Bulk delete successful", {
         description: "Selected entries have been deleted."
       });
@@ -154,19 +224,23 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
     return <div className="text-center py-4">{t("common.loading")}...</div>;
   }
 
+  // We'll use the internal or external selected items depending on what's provided
+  const effectiveSelectedEntries = selectedItems && bulkDeleteMode ? selectedItems : selectedEntries;
+  const effectiveBulkDeleteMode = typeof bulkDeleteMode === 'boolean' ? bulkDeleteMode : isBulkDeleteMode;
+
   const columns = [
     {
       id: "select",
       header: () => (
         <Checkbox
-          checked={data.length > 0 && selectedEntries.length === data.length}
+          checked={data.length > 0 && effectiveSelectedEntries.length === data.length}
           onCheckedChange={handleSelectAllEntries}
           aria-label="Select all"
         />
       ),
       cell: (row: any) => (
         <Checkbox
-          checked={selectedEntries.includes(row.id)}
+          checked={effectiveSelectedEntries.includes(row.id)}
           onCheckedChange={() => handleSelectEntry(row.id)}
           aria-label="Select row"
         />
@@ -232,15 +306,15 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
           onChange={e => setGlobalFilter(e.target.value)}
           className="ml-auto"
         />
-        {isBulkDeleteMode ? (
+        {effectiveBulkDeleteMode ? (
           <>
             <Button
               variant="destructive"
               onClick={handleDeleteSelected}
-              disabled={selectedEntries.length === 0}
+              disabled={effectiveSelectedEntries.length === 0}
               className="ml-2"
             >
-              {t("common.deleteSelected")} ({selectedEntries.length})
+              {t("common.deleteSelected")} ({effectiveSelectedEntries.length})
             </Button>
             <Button
               variant="outline"
@@ -257,11 +331,11 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
         )}
       </div>
       <div className="rounded-md border">
-        <Table>
+        <Table isCompact={isCompact}>
           <TableHeader>
-            <TableRow>
+            <TableRow isCompact={isCompact}>
               {columns.map((column) => (
-                <TableHead key={column.id || column.accessorKey}>
+                <TableHead key={column.id || column.accessorKey} isCompact={isCompact}>
                   {typeof column.header === 'function' ? column.header() : column.header}
                 </TableHead>
               ))}
@@ -270,9 +344,9 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
           <TableBody>
             {data.length > 0 ? (
               data.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} isCompact={isCompact}>
                   {columns.map((column) => (
-                    <TableCell key={column.id || column.accessorKey}>
+                    <TableCell key={column.id || column.accessorKey} isCompact={isCompact}>
                       {column.cell 
                         ? column.cell(row) 
                         : column.accessorKey 
@@ -284,7 +358,7 @@ const TimeEntriesTable: React.FC<TimeEntriesTableProps> = ({ initialData, onEdit
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={columns.length} className="h-24 text-center" isCompact={isCompact}>
                   {t("common.noEntriesFound")}.
                 </TableCell>
               </TableRow>

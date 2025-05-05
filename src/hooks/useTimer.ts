@@ -1,7 +1,8 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Timer, TimerStatus } from "@/types/timer";
+import { Timer, TimerStatus, UserTimerRecord } from "@/types/timer";
 import { toast } from "sonner";
 import { differenceInSeconds } from "date-fns";
 
@@ -243,23 +244,26 @@ export const useTimer = () => {
       
       if (timerError) throw timerError;
       
-      if (!timerData.start_time || !timerData.end_time) {
+      // Explicitly cast to UserTimerRecord type to ensure TypeScript recognizes custom_price
+      const timer = timerData as UserTimerRecord;
+      
+      if (!timer.start_time || !timer.end_time) {
         throw new Error("Timer does not have valid start/end times");
       }
       
       // Store original times for reference
-      const originalStartTime = timerData.start_time;
-      const originalEndTime = timerData.end_time;
+      const originalStartTime = timer.start_time;
+      const originalEndTime = timer.end_time;
       
       // Create the time entry (using rounded duration)
       const { error: insertError } = await supabase
         .from("time_entries")
         .insert({
-          user_id: timerData.user_id,
-          client_id: timerData.client_id,
-          product_id: timerData.product_id,
-          description: timerData.description,
-          custom_price: timerData.custom_price ?? null, // Using nullish coalescing to handle undefined
+          user_id: timer.user_id,
+          client_id: timer.client_id,
+          product_id: timer.product_id,
+          description: timer.description,
+          custom_price: timer.custom_price ?? null, // Using nullish coalescing to handle undefined
           start_time: originalStartTime,
           end_time: originalEndTime,
           original_start_time: originalStartTime,
