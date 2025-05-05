@@ -283,6 +283,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string | null
+          custom_price: number | null
           description: string | null
           end_time: string | null
           id: string
@@ -299,6 +300,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string | null
+          custom_price?: number | null
           description?: string | null
           end_time?: string | null
           id?: string
@@ -315,6 +317,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string | null
+          custom_price?: number | null
           description?: string | null
           end_time?: string | null
           id?: string
@@ -379,6 +382,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string | null
+          custom_price: number | null
           description: string | null
           end_time: string | null
           id: string
@@ -391,6 +395,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string | null
+          custom_price?: number | null
           description?: string | null
           end_time?: string | null
           id?: string
@@ -403,6 +408,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string | null
+          custom_price?: number | null
           description?: string | null
           end_time?: string | null
           id?: string

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +37,7 @@ const formSchema = z.object({
   quantity: z.coerce.number().optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
+  customPrice: z.number().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,6 +52,7 @@ interface TimeEntryEditFormProps {
 export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
   const [loading, setLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
   const autoIsLaptop = useIsLaptop();
@@ -80,6 +81,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       endTime: displayEndTime 
         ? format(new Date(displayEndTime), "HH:mm") 
         : undefined,
+      customPrice: timeEntry?.custom_price || null,
     },
   });
 
@@ -176,9 +178,11 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       const selectedProduct = products.find(p => p.id === productId);
       if (selectedProduct) {
         setSelectedProductType(selectedProduct.type);
+        setSelectedProductPrice(selectedProduct.price);
       }
     } else if (timeEntry?.products?.type) {
       setSelectedProductType(timeEntry.products.type);
+      setSelectedProductPrice(timeEntry.products.price);
     }
   }, [form.watch("productId"), products, timeEntry]);
 
@@ -316,6 +320,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         client_id: values.clientId,
         product_id: values.productId,
         description: values.description,
+        custom_price: values.customPrice,
       };
       
       if (selectedProductType === "activity") {
@@ -401,6 +406,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
                   const selectedProduct = products.find(p => p.id === value);
                   if (selectedProduct) {
                     setSelectedProductType(selectedProduct.type);
+                    setSelectedProductPrice(selectedProduct.price);
                   }
                 }} 
                 defaultValue={field.value}
@@ -476,29 +482,79 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
                 </span>
               </div>
             )}
+
+            <FormField
+              control={form.control}
+              name="customPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={selectedProductPrice?.toString()}
+                      {...field}
+                      value={field.value === null ? '' : field.value}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                      disabled={loading}
+                      className={compact ? "h-8 text-xs" : ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         )}
         
         {selectedProductType === "item" && (
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    step="1"
-                    {...field} 
-                    disabled={loading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <>
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantity</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="1"
+                      step="1"
+                      {...field} 
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="customPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={selectedProductPrice?.toString()}
+                      {...field}
+                      value={field.value === null ? '' : field.value}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                      disabled={loading}
+                      className={compact ? "h-8 text-xs" : ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         )}
         
         <FormField

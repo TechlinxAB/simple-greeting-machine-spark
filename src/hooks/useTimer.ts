@@ -74,7 +74,10 @@ export function useTimer() {
           .limit(1)
           .maybeSingle();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching timer:", error);
+          return null;
+        }
         
         // Type assertion to make TypeScript happy
         return data as UserTimerRecord | null;
@@ -130,7 +133,7 @@ export function useTimer() {
   }, [isTimerRunning, startTimestamp]);
 
   // Start a new timer
-  const startTimer = async (clientId: string, productId: string, description?: string) => {
+  const startTimer = async (clientId: string, productId: string, description?: string, customPrice?: number | null) => {
     if (!user) {
       toast.error('You must be logged in to use the timer');
       return null;
@@ -147,6 +150,7 @@ export function useTimer() {
           description: description || null,
           status: 'running',
           start_time: new Date().toISOString(),
+          custom_price: customPrice || null,
         })
         .select()
         .single();
@@ -345,6 +349,7 @@ export function useTimer() {
           original_start_time: originalStartTime,
           original_end_time: originalEndTime,
           description: timerRecord.description,
+          custom_price: timerRecord.custom_price,
         });
 
       if (insertError) throw insertError;
