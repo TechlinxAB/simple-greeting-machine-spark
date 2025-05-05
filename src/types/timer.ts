@@ -16,9 +16,6 @@ export interface Timer {
   // Added to store original time values
   original_start_time?: string | null;
   original_end_time?: string | null;
-  
-  // Custom price override
-  custom_price?: number | null;
 }
 
 export type TimerStatus = 'running' | 'paused' | 'completed';
@@ -39,7 +36,4 @@ export interface UserTimerRecord {
   // Added to store original time values
   original_start_time?: string | null;
   original_end_time?: string | null;
-  
-  // Custom price override
-  custom_price?: number | null;
 }

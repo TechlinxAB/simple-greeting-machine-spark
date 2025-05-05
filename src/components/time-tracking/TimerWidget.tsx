@@ -27,7 +27,6 @@ export function TimerWidget() {
   const { t } = useTranslation();
   
   const { 
-    hasTimer,
     activeTimer, 
     isLoading, 
     isTimerRunning, 

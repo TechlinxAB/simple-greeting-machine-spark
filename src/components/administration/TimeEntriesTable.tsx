@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -16,19 +16,13 @@ import { format } from "date-fns";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
-import { 
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { TimeEntryEditForm } from "@/components/time-tracking/TimeEntryEditForm";
 
 interface TimeEntriesTableProps {
   bulkDeleteMode?: boolean;
   selectedItems?: string[];
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
-  onBulkDelete?: () => Promise<void>;
+  onBulkDelete?: () => void;
   isCompact?: boolean;
   clientId?: string;
   userId?: string;
@@ -51,8 +45,6 @@ export function TimeEntriesTable({
   searchTerm,
 }: TimeEntriesTableProps) {
   const { t } = useTranslation();
-  const [editingEntry, setEditingEntry] = useState<any>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const { data: timeEntries = [], isLoading, refetch } = useQuery({
     queryKey: [
@@ -71,9 +63,7 @@ export function TimeEntriesTable({
             id, 
             description, 
             start_time, 
-            end_time,
-            original_start_time,
-            original_end_time,
+            end_time, 
             quantity, 
             created_at, 
             invoiced,
@@ -179,11 +169,9 @@ export function TimeEntriesTable({
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
       const hours = calculateDuration(entry.start_time, entry.end_time);
-      const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
-      return formatCurrency(hours * price);
+      return formatCurrency(hours * entry.products.price);
     } else if (entry.products?.type === "item" && entry.quantity) {
-      const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
-      return formatCurrency(entry.quantity * price);
+      return formatCurrency(entry.quantity * entry.products.price);
     }
     return "-";
   };
@@ -200,22 +188,6 @@ export function TimeEntriesTable({
       entry.username?.toLowerCase().includes(search)
     );
   });
-
-  const handleEditClick = (entry: any) => {
-    setEditingEntry(entry);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleEditSuccess = () => {
-    refetch();
-    setIsEditDialogOpen(false);
-    setEditingEntry(null);
-  };
-
-  const handleEditCancel = () => {
-    setIsEditDialogOpen(false);
-    setEditingEntry(null);
-  };
 
   return (
     <div className="space-y-4">
@@ -311,14 +283,6 @@ export function TimeEntriesTable({
                       </PopoverTrigger>
                       <PopoverContent className="max-w-[300px] p-4 text-wrap break-words">
                         <p>{entry.description || (entry.products?.name || t('timeTracking.noDescription'))}</p>
-                        {entry.custom_price !== null && (
-                          <p className="text-xs mt-2">
-                            {t('products.customPrice')}: {formatCurrency(entry.custom_price)}
-                            <span className="ml-2 italic">
-                              ({t('products.defaultPrice')}: {formatCurrency(entry.products?.price || 0)})
-                            </span>
-                          </p>
-                        )}
                         <p className="text-xs text-muted-foreground mt-2">
                           {t('timeTracking.createdBy')}: {entry.username || t('common.unknown')}
                         </p>
@@ -361,7 +325,9 @@ export function TimeEntriesTable({
                         variant="ghost" 
                         size="icon" 
                         className={isCompact ? "h-6 w-6" : "h-8 w-8"} 
-                        onClick={() => handleEditClick(entry)}
+                        onClick={() => {
+                          // Handle edit action
+                        }}
                         disabled={entry.invoiced}
                       >
                         <Edit className={isCompact ? "h-3 w-3" : "h-4 w-4"} />
@@ -388,20 +354,6 @@ export function TimeEntriesTable({
           </TableBody>
         </Table>
       </div>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogTitle>{t('timeTracking.editTimeEntry')}</DialogTitle>
-          {editingEntry && (
-            <TimeEntryEditForm 
-              timeEntry={editingEntry} 
-              onSuccess={handleEditSuccess}
-              onCancel={handleEditCancel}
-              isCompact={isCompact}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

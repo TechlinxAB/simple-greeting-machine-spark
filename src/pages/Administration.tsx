@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -216,7 +215,7 @@ export default function Administration() {
     }
   };
 
-  const handleBulkDelete = async (): Promise<void> => {
+  const handleBulkDelete = async () => {
     if (selectedItems.length === 0) return;
     
     try {
