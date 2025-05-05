@@ -379,6 +379,7 @@ const translations = {
     confirmDelete: "Are you sure you want to delete this invoice?",
     issueDate: "Issue Date",
     searchInvoices: "Search invoices...",
+    invoiced: "Invoiced",
     invoicedWarningTitle: "This entry is invoiced",
     invoicedWarningDesc1: "This time entry has already been included in an invoice.",
     invoicedWarningDesc2: "Deleting it may cause inconsistencies in your invoices. Are you sure you want to proceed?",

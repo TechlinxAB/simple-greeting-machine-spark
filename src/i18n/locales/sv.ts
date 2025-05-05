@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Laddar...",
@@ -366,6 +367,7 @@ const translations = {
     invoicedWarningDesc1: "Denna tidrapport är redan inkluderad i en faktura.",
     invoicedWarningDesc2: "Att radera den kan orsaka problem med faktureringen. Vill du fortsätta?",
     deleteAnyway: "Radera ändå",
+    invoiced: "Fakturerad",
   },
   reports: {
     title: "Rapporter",
