@@ -48,6 +48,7 @@ type TimeEntryWithProfile = {
   quantity?: number;
   description?: string;
   created_at?: string;
+  custom_price?: number;
   products?: {
     id: string;
     name: string;

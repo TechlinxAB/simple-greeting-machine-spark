@@ -191,7 +191,7 @@ export function TimeEntryEditForm({
   // Handle form submission
   const handleSubmit = async (formData: FormValues) => {
     try {
-      await updateMutation.mutate(formData);
+      await updateMutation.mutateAsync(formData);
     } catch (error) {
       console.error("Form submission error:", error);
     }
