@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 
 const en = {
@@ -124,6 +125,14 @@ const en = {
     timerNote: 'Start a timer to track work in real-time',
     editTimeEntry: 'Edit Time Entry',
     updateTimeEntry: 'Update Time Entry',
+    activeTimer: 'Active Timer',
+    timerCompleted: 'Timer Completed',
+    timerCompletedQuestion: 'Would you like to save this time entry or discard it?',
+    roundedFrom: 'rounded from',
+    deleteTimer: 'Discard',
+    convertToTimeEntry: 'Save Entry',
+    unknownActivity: 'Unknown Activity',
+    descriptionOptional: 'Description (Optional)'
   },
 
   clients: {
@@ -424,7 +433,6 @@ const en = {
     createAndExport: 'Create & Export',
     selectClient: 'Select client',
     errorCreatingInvoice: 'Error creating invoice',
-    cancel: 'Cancel',
     processing: 'Processing...',
     timeEntries: 'Time Entries',
     invoices: 'Invoices',
@@ -438,6 +446,8 @@ const en = {
     allTime: 'All time',
     deleteTimeEntry: 'Delete Time Entry',
     confirmDeleteTimeEntry: 'Are you sure you want to delete this time entry?',
+    allClients: 'All Clients',
+    actions: 'Actions'
   },
   
   error: {

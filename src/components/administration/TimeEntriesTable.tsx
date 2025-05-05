@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -82,7 +81,6 @@ export function TimeEntriesTable({
             product_id,
             user_id,
             invoice_id,
-            custom_price,
             products:product_id (id, name, type, price),
             clients:client_id (id, name)
           `);
