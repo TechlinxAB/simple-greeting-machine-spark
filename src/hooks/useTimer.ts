@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -260,7 +259,7 @@ export const useTimer = () => {
           client_id: timerData.client_id,
           product_id: timerData.product_id,
           description: timerData.description,
-          custom_price: timerData.custom_price || null, // Add null fallback
+          custom_price: timerData.custom_price ?? null, // Safe access with nullish coalescing
           start_time: originalStartTime,
           end_time: originalEndTime,
           original_start_time: originalStartTime,

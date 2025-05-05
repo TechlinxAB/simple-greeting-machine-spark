@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -135,10 +134,10 @@ export function TimeEntriesTable({
             }
             
             // Only spread entry if it's an object
-            return entry ? {
+            return typeof entry === 'object' && entry !== null ? {
               ...entry,
               username
-            } : { username };
+            } : { username, id: 'unknown' }; // Provide a fallback id for typing
           })
         );
         
