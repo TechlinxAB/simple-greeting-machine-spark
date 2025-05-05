@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,7 @@ const timeEntrySchema = z.object({
   endTime: z.date().optional(),
   quantity: z.number().optional(),
   description: z.string().optional(),
+  customPrice: z.number().nullable().optional(),
 }).refine((data) => {
   const product = filteredProducts.find(p => p.id === data.productId);
   if (product?.type === "activity") {
@@ -57,6 +59,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProductType, setSelectedProductType] = useState<string>("activity");
   const [filteredProductsList, setFilteredProductsList] = useState<any[]>([]);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const autoIsLaptop = useIsLaptop();
   const { t } = useTranslation();
   
@@ -122,11 +125,31 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     
     if (watchProductId) {
       const currentProduct = products.find(p => p.id === watchProductId);
-      if (currentProduct && currentProduct.type !== selectedProductType) {
-        form.setValue("productId", "");
+      if (currentProduct) {
+        if (currentProduct.type !== selectedProductType) {
+          form.setValue("productId", "");
+          setSelectedProductPrice(null);
+        } else {
+          setSelectedProductPrice(currentProduct.price);
+        }
       }
     }
   }, [selectedProductType, products, form, watchProductId]);
+
+  // Update selected product price when product changes
+  useEffect(() => {
+    if (watchProductId) {
+      const product = products.find(p => p.id === watchProductId);
+      if (product) {
+        setSelectedProductPrice(product.price);
+        form.setValue("customPrice", null); // Reset custom price when product changes
+      } else {
+        setSelectedProductPrice(null);
+      }
+    } else {
+      setSelectedProductPrice(null);
+    }
+  }, [watchProductId, products, form]);
 
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
@@ -270,6 +293,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         product_id: values.productId,
         user_id: user.id,
         description: values.description || null,
+        custom_price: values.customPrice || null, // Add custom price to the database
       };
 
       const selectedYear = selectedDate.getFullYear();
@@ -321,6 +345,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         clientId: currentClientId,
         productId: currentProductId,
         description: "",
+        customPrice: null,
       });
       
       if (product.type === "activity") {
@@ -391,27 +416,57 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     
     if (product.type === "item") {
       return (
-        <FormField
-          control={form.control}
-          name="quantity"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("timeTracking.quantity")}</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder={t("timeTracking.quantityPlaceholder")}
-                  {...field}
-                  value={field.value || ""}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="quantity"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("timeTracking.quantity")}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder={t("timeTracking.quantityPlaceholder")}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="customPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("products.price")}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder={selectedProductPrice?.toString() || ""}
+                    {...field}
+                    value={field.value === null || field.value === undefined ? "" : field.value}
+                    onChange={(e) => {
+                      const value = e.target.value === "" ? null : parseFloat(e.target.value);
+                      field.onChange(value);
+                    }}
+                  />
+                </FormControl>
+                <div className="text-xs text-muted-foreground">
+                  {t("products.defaultPrice")}: {selectedProductPrice} SEK
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
       );
     }
     
@@ -508,6 +563,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                               form.setValue("startTime", undefined);
                               form.setValue("endTime", undefined);
                               form.setValue("quantity", undefined);
+                              form.setValue("customPrice", null);
                             }}
                             defaultValue={field.value}
                             value={field.value}
@@ -522,7 +578,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                             <SelectContent>
                               {filteredProductsList.map((product) => (
                                 <SelectItem key={product.id} value={product.id}>
-                                  {product.name}
+                                  {product.name} - {product.price} SEK
                                 </SelectItem>
                               ))}
                             </SelectContent>
