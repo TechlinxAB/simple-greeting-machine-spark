@@ -35,9 +35,8 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { formatTime } from "@/lib/formatTime";
 import { format } from "date-fns";
-import { Clock, Package, ChevronRight, Plus } from "lucide-react";
+import { Clock, Package, Plus } from "lucide-react";
 
 interface TimeEntryFormProps {
   onSuccess?: () => void;
@@ -101,6 +100,13 @@ export function TimeEntryForm({
     path: ["quantity"],
   });
 
+  // Helper function to format time
+  const formatTimeString = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   // Initialize the form
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -108,8 +114,8 @@ export function TimeEntryForm({
       clientId: "",
       productId: "",
       productType: "",
-      startTime: formatTime(new Date()),
-      endTime: formatTime(new Date()),
+      startTime: formatTimeString(new Date()),
+      endTime: formatTimeString(new Date()),
       quantity: undefined,
       description: "",
       customPrice: undefined,
@@ -197,8 +203,8 @@ export function TimeEntryForm({
         clientId: formData.clientId, // Keep the client selected
         productId: "",
         productType: "",
-        startTime: formatTime(new Date()),
-        endTime: formatTime(new Date()),
+        startTime: formatTimeString(new Date()),
+        endTime: formatTimeString(new Date()),
         quantity: undefined,
         description: "",
         customPrice: undefined,
@@ -407,7 +413,7 @@ export function TimeEntryForm({
                     <FormItem className="space-y-1">
                       <FormLabel>{t('timeTracking.fromTime')}</FormLabel>
                       <TimePicker
-                        value={field.value}
+                        value={field.value || ''}
                         onChange={(newTime) => field.onChange(newTime)}
                         isCompact={isCompact}
                       />
@@ -423,7 +429,7 @@ export function TimeEntryForm({
                     <FormItem className="space-y-1">
                       <FormLabel>{t('timeTracking.toTime')}</FormLabel>
                       <TimePicker
-                        value={field.value}
+                        value={field.value || ''}
                         onChange={(newTime) => field.onChange(newTime)}
                         isCompact={isCompact}
                       />
