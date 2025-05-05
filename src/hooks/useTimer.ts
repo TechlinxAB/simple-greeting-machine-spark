@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -16,14 +17,35 @@ import { roundTimeToInterval } from "@/lib/formatTime";
  * - Time over 60 minutes follows the same pattern for each hour
  */
 function roundUpToInterval(seconds: number): number {
-  // Convert to hours for our utility function
-  const hours = seconds / 3600;
+  // Ensure we have at least 15 minutes (900 seconds)
+  if (seconds < 900) {
+    return 900; // Minimum 15 minutes
+  }
   
-  // Use our unified rounding function
-  const roundedHours = roundTimeToInterval(hours);
+  // Calculate minutes
+  const minutes = seconds / 60;
+  
+  // Get the remainder minutes in the current hour
+  const remainderMinutes = minutes % 60;
+  
+  // Round up to the next interval
+  let roundedMinutes;
+  if (remainderMinutes <= 15) {
+    roundedMinutes = 15;
+  } else if (remainderMinutes <= 30) {
+    roundedMinutes = 30;
+  } else if (remainderMinutes <= 45) {
+    roundedMinutes = 45;
+  } else {
+    roundedMinutes = 60;
+  }
+  
+  // Calculate full hours and add the rounded minutes
+  const hours = Math.floor(minutes / 60);
+  const totalRoundedMinutes = (hours * 60) + roundedMinutes;
   
   // Convert back to seconds
-  return roundedHours * 3600;
+  return totalRoundedMinutes * 60;
 }
 
 export function useTimer() {
@@ -299,7 +321,11 @@ export function useTimer() {
       const startTime = new Date(timerRecord.start_time);
       const endTimeRecord = timerRecord.end_time ? new Date(timerRecord.end_time) : new Date();
       
-      // If we have a rounded duration, use it to calculate a new end time
+      // Store the original start and end times
+      const originalStartTime = startTime.toISOString();
+      const originalEndTime = endTimeRecord.toISOString();
+      
+      // Calculate the rounded end time based on the duration
       let endTime = endTimeRecord;
       
       if (roundedDuration) {
@@ -307,15 +333,17 @@ export function useTimer() {
         endTime = new Date(startTime.getTime() + (roundedDuration * 1000));
       }
       
-      // Create the time entry with the rounded end time
+      // Create the time entry with both original and rounded times
       const { error: insertError } = await supabase
         .from('time_entries')
         .insert({
           user_id: user.id,
           client_id: timerRecord.client_id,
           product_id: timerRecord.product_id,
-          start_time: timerRecord.start_time,
+          start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
+          original_start_time: originalStartTime,
+          original_end_time: originalEndTime,
           description: timerRecord.description,
         });
 

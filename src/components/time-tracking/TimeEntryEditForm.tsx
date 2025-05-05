@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,10 +25,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { Loader2 } from "lucide-react";
-import { format, parse } from "date-fns";
+import { format, parse, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsLaptop } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
 
 const formSchema = z.object({
   clientId: z.string().uuid("Please select a client"),
@@ -53,11 +55,17 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
   const autoIsLaptop = useIsLaptop();
+  const { t } = useTranslation();
   
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
   
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
+  const [calculatedDuration, setCalculatedDuration] = useState<string | null>(null);
+
+  // Use the original times for display if available, otherwise fall back to rounded times
+  const displayStartTime = timeEntry?.original_start_time || timeEntry?.start_time;
+  const displayEndTime = timeEntry?.original_end_time || timeEntry?.end_time;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -66,59 +74,75 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       productId: timeEntry?.product_id || "",
       description: timeEntry?.description || "",
       quantity: timeEntry?.quantity || undefined,
-      startTime: timeEntry?.start_time 
-        ? format(new Date(timeEntry.start_time), "HH:mm") 
+      startTime: displayStartTime 
+        ? format(new Date(displayStartTime), "HH:mm") 
         : undefined,
-      endTime: timeEntry?.end_time 
-        ? format(new Date(timeEntry.end_time), "HH:mm") 
+      endTime: displayEndTime 
+        ? format(new Date(displayEndTime), "HH:mm") 
         : undefined,
     },
   });
 
+  // Update duration when times change
   useEffect(() => {
-    const startTimeValue = form.watch("startTime");
-    const endTimeValue = form.watch("endTime");
-    
-    if (startTimeValue) {
-      try {
-        const today = new Date();
-        const [hours, minutes] = startTimeValue.split(":");
-        const startDate = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-          Number(hours),
-          Number(minutes)
-        );
-        setStartTimeDate(startDate);
-      } catch (error) {
-        console.error("Error parsing start time:", error);
-        setStartTimeDate(null);
+    const updateDuration = () => {
+      const startTimeValue = form.watch("startTime");
+      const endTimeValue = form.watch("endTime");
+      
+      if (startTimeValue && endTimeValue) {
+        try {
+          const today = new Date();
+          const [startHours, startMinutes] = startTimeValue.split(":");
+          const [endHours, endMinutes] = endTimeValue.split(":");
+          
+          const startDate = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate(),
+            Number(startHours),
+            Number(startMinutes)
+          );
+          
+          const endDate = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate(),
+            Number(endHours),
+            Number(endMinutes)
+          );
+          
+          // If end time is earlier than start time, assume it's the next day
+          if (endDate < startDate) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          
+          const minutes = differenceInMinutes(endDate, startDate);
+          const hours = Math.floor(minutes / 60);
+          const remainingMinutes = minutes % 60;
+          
+          setCalculatedDuration(`${hours}h ${remainingMinutes}m`);
+          setStartTimeDate(startDate);
+          setEndTimeDate(endDate);
+        } catch (error) {
+          console.error("Error calculating duration:", error);
+          setCalculatedDuration(null);
+        }
+      } else {
+        setCalculatedDuration(null);
       }
-    } else {
-      setStartTimeDate(null);
-    }
+    };
     
-    if (endTimeValue) {
-      try {
-        const today = new Date();
-        const [hours, minutes] = endTimeValue.split(":");
-        const endDate = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-          Number(hours),
-          Number(minutes)
-        );
-        setEndTimeDate(endDate);
-      } catch (error) {
-        console.error("Error parsing end time:", error);
-        setEndTimeDate(null);
+    updateDuration();
+    
+    // Set up a subscription to the form values
+    const subscription = form.watch((value, { name }) => {
+      if (name === "startTime" || name === "endTime") {
+        updateDuration();
       }
-    } else {
-      setEndTimeDate(null);
-    }
-  }, [form.watch("startTime"), form.watch("endTime")]);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form, form.watch]);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -167,6 +191,61 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
     }
   };
 
+  /**
+   * Rounds a date to the next 15-minute interval based on minutes:
+   * - 0-15 minutes: Round to 15 minutes
+   * - 16-30 minutes: Round to 30 minutes
+   * - 31-45 minutes: Round to 45 minutes
+   * - 46-59 minutes: Round to the next hour
+   */
+  const applyTimeRounding = (time: Date | undefined): Date | undefined => {
+    if (!time) return undefined;
+    
+    const hours = time.getHours();
+    const minutes = time.getMinutes();
+    
+    let roundedMinutes: number;
+    
+    if (minutes <= 15) {
+      roundedMinutes = 15;
+    } else if (minutes <= 30) {
+      roundedMinutes = 30;
+    } else if (minutes <= 45) {
+      roundedMinutes = 45;
+    } else {
+      // If minutes > 45, round to the next hour
+      return new Date(
+        time.getFullYear(),
+        time.getMonth(),
+        time.getDate(),
+        hours + 1,
+        0
+      );
+    }
+    
+    return new Date(
+      time.getFullYear(),
+      time.getMonth(),
+      time.getDate(),
+      hours,
+      roundedMinutes
+    );
+  };
+
+  // Function to ensure minimum 15-minute duration
+  const ensureMinimumDuration = (startTime: Date, endTime: Date): Date => {
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+    
+    // If duration is less than 15 minutes, add time to make it 15 minutes
+    if (durationMinutes < 15) {
+      const newEndTime = new Date(startTime.getTime() + (15 * 60 * 1000));
+      return newEndTime;
+    }
+    
+    return endTime;
+  };
+
   const onSubmit = async (values: FormValues) => {
     console.log("Form values:", values);
     
@@ -195,13 +274,42 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       
       let startTime = null;
       let endTime = null;
+      let originalStartTime = null;
+      let originalEndTime = null;
       
       if (startTimeString && selectedProductType === "activity") {
-        startTime = `${datePart}T${startTimeString}:00`;
+        const startTimeIsoString = `${datePart}T${startTimeString}:00`;
+        startTime = startTimeIsoString;
+        originalStartTime = startTimeIsoString;
       }
       
       if (endTimeString && selectedProductType === "activity") {
-        endTime = `${datePart}T${endTimeString}:00`;
+        const endTimeIsoString = `${datePart}T${endTimeString}:00`;
+        originalEndTime = endTimeIsoString;
+        
+        // Parse the time values
+        const startDate = startTime ? new Date(startTime) : null;
+        const endDate = new Date(endTimeIsoString);
+        
+        // Handle day crossing (when end time is earlier than start time)
+        if (startDate && endDate < startDate) {
+          const nextDay = new Date(endDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          endTime = nextDay.toISOString();
+          originalEndTime = nextDay.toISOString();
+        } else {
+          // Apply rounding only to the end time
+          if (startDate) {
+            const roundedEndDate = applyTimeRounding(endDate);
+            const finalEndDate = roundedEndDate 
+              ? ensureMinimumDuration(startDate, roundedEndDate)
+              : ensureMinimumDuration(startDate, endDate);
+            
+            endTime = finalEndDate.toISOString();
+          } else {
+            endTime = endTimeIsoString;
+          }
+        }
       }
       
       const timeEntryData: any = {
@@ -213,11 +321,15 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       if (selectedProductType === "activity") {
         timeEntryData.start_time = startTime;
         timeEntryData.end_time = endTime;
+        timeEntryData.original_start_time = originalStartTime;
+        timeEntryData.original_end_time = originalEndTime;
         timeEntryData.quantity = null;
       } else if (selectedProductType === "item") {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;
+        timeEntryData.original_start_time = null;
+        timeEntryData.original_end_time = null;
       }
       
       console.log("Updating time entry with data:", timeEntryData);
@@ -313,46 +425,57 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         />
         
         {selectedProductType === "activity" && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="startTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start Time</FormLabel>
-                  <FormControl>
-                    <TimePicker 
-                      value={startTimeDate} 
-                      onChange={(date) => handleTimeChange("startTime", date)}
-                      ref={startTimeRef}
-                      disabled={loading}
-                      roundOnBlur={false}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <TimePicker 
+                        value={startTimeDate} 
+                        onChange={(date) => handleTimeChange("startTime", date)}
+                        ref={startTimeRef}
+                        disabled={loading}
+                        roundOnBlur={false}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time</FormLabel>
+                    <FormControl>
+                      <TimePicker 
+                        value={endTimeDate} 
+                        onChange={(date) => handleTimeChange("endTime", date)}
+                        ref={endTimeRef}
+                        disabled={loading}
+                        roundOnBlur={false}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="endTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>End Time</FormLabel>
-                  <FormControl>
-                    <TimePicker 
-                      value={endTimeDate} 
-                      onChange={(date) => handleTimeChange("endTime", date)}
-                      ref={endTimeRef}
-                      disabled={loading}
-                      roundOnBlur={false}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {calculatedDuration && (
+              <div className="text-sm text-muted-foreground">
+                Duration: {calculatedDuration}
+                <span className="ml-2 text-xs">
+                  (Actual time, will be rounded when saved)
+                </span>
+              </div>
+            )}
           </div>
         )}
         

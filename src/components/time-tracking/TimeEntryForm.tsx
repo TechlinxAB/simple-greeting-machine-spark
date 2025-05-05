@@ -85,6 +85,8 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
   const watchProductId = form.watch("productId");
   const watchClientId = form.watch("clientId");
+  const watchStartTime = form.watch("startTime");
+  const watchEndTime = form.watch("endTime");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,28 +132,36 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     return products.find(product => product.id === id);
   };
 
+  /**
+   * Rounds a date to the next 15-minute interval based on minutes:
+   * - 0-15 minutes: Round to 15 minutes
+   * - 16-30 minutes: Round to 30 minutes
+   * - 31-45 minutes: Round to 45 minutes
+   * - 46-59 minutes: Round to the next hour
+   */
   const applyTimeRounding = (time: Date | undefined): Date | undefined => {
     if (!time) return undefined;
     
     const hours = time.getHours();
     const minutes = time.getMinutes();
     
-    const remainder = minutes % 15;
     let roundedMinutes: number;
     
-    if (remainder === 0) {
-      roundedMinutes = minutes;
+    if (minutes <= 15) {
+      roundedMinutes = 15;
+    } else if (minutes <= 30) {
+      roundedMinutes = 30;
+    } else if (minutes <= 45) {
+      roundedMinutes = 45;
     } else {
-      roundedMinutes = minutes + (15 - remainder);
-      if (roundedMinutes >= 60) {
-        return new Date(
-          time.getFullYear(),
-          time.getMonth(),
-          time.getDate(),
-          (hours + 1) % 24,
-          roundedMinutes - 60
-        );
-      }
+      // If minutes > 45, round to the next hour
+      return new Date(
+        time.getFullYear(),
+        time.getMonth(),
+        time.getDate(),
+        hours + 1,
+        0
+      );
     }
     
     return new Date(
@@ -161,6 +171,20 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
       hours,
       roundedMinutes
     );
+  };
+
+  // Function to ensure minimum 15-minute duration
+  const ensureMinimumDuration = (startTime: Date, endTime: Date): Date => {
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+    
+    // If duration is less than 15 minutes, add time to make it 15 minutes
+    if (durationMinutes < 15) {
+      const newEndTime = new Date(startTime.getTime() + (15 * 60 * 1000));
+      return newEndTime;
+    }
+    
+    return endTime;
   };
 
   const handleStartTimeComplete = useCallback(() => {
@@ -263,13 +287,20 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
           adjustedEndTime.setDate(adjustedEndTime.getDate() + 1);
         }
         
-        const roundedStartTime = applyTimeRounding(adjustedStartTime);
+        // Store original times before rounding
+        timeEntryData.original_start_time = adjustedStartTime.toISOString();
+        timeEntryData.original_end_time = adjustedEndTime.toISOString();
+        
+        // Only round the end time, keep start time as is
         const roundedEndTime = applyTimeRounding(adjustedEndTime);
         
-        if (roundedStartTime && roundedEndTime) {
-          timeEntryData.start_time = roundedStartTime.toISOString();
-          timeEntryData.end_time = roundedEndTime.toISOString();
-        }
+        // Ensure minimum duration of 15 minutes
+        const finalEndTime = roundedEndTime 
+          ? ensureMinimumDuration(adjustedStartTime, roundedEndTime) 
+          : ensureMinimumDuration(adjustedStartTime, adjustedEndTime);
+        
+        timeEntryData.start_time = adjustedStartTime.toISOString();
+        timeEntryData.end_time = finalEndTime.toISOString();
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
       }
@@ -388,11 +419,8 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   };
 
   const calculateDuration = () => {
-    const startTime = form.getValues("startTime");
-    const endTime = form.getValues("endTime");
-    
-    if (startTime && endTime) {
-      const minutes = differenceInMinutes(endTime, startTime);
+    if (watchStartTime && watchEndTime) {
+      const minutes = differenceInMinutes(watchEndTime, watchStartTime);
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
       
@@ -509,7 +537,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {watchProductId && renderProductSpecificFields()}
               
-              {form.getValues("startTime") && form.getValues("endTime") && (
+              {watchStartTime && watchEndTime && (
                 <div className="text-sm text-muted-foreground">
                   {t("timeTracking.duration")}: {calculateDuration()}
                 </div>

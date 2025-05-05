@@ -12,6 +12,10 @@ export interface Timer {
   updated_at?: string;
   _calculatedDuration?: number; // Added for component use
   _roundedDuration?: number; // Added for component use with rounded time
+  
+  // Added to store original time values
+  original_start_time?: string | null;
+  original_end_time?: string | null;
 }
 
 export type TimerStatus = 'running' | 'paused' | 'completed';
@@ -28,4 +32,8 @@ export interface UserTimerRecord {
   status: TimerStatus;
   created_at?: string;
   updated_at?: string;
+  
+  // Added to store original time values
+  original_start_time?: string | null;
+  original_end_time?: string | null;
 }

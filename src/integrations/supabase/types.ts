@@ -288,6 +288,8 @@ export type Database = {
           id: string
           invoice_id: string | null
           invoiced: boolean | null
+          original_end_time: string | null
+          original_start_time: string | null
           product_id: string | null
           quantity: number | null
           start_time: string | null
@@ -302,6 +304,8 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           invoiced?: boolean | null
+          original_end_time?: string | null
+          original_start_time?: string | null
           product_id?: string | null
           quantity?: number | null
           start_time?: string | null
@@ -316,6 +320,8 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           invoiced?: boolean | null
+          original_end_time?: string | null
+          original_start_time?: string | null
           product_id?: string | null
           quantity?: number | null
           start_time?: string | null
