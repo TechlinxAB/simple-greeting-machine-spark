@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Trash2, Eye, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useIsLaptop } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
 import { createFortnoxInvoice } from '@/integrations/fortnox';
 import { fortnoxApiRequest } from '@/integrations/fortnox/api-client';
 import { useTranslation } from "react-i18next";
@@ -41,6 +42,7 @@ export function InvoicesTable({
   isAdmin = false
 }: InvoicesTableProps) {
   const { t } = useTranslation();
+  const { toast: uiToast } = useToast();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isResending, setIsResending] = React.useState<string | null>(null);
@@ -76,15 +78,18 @@ export function InvoicesTable({
         throw invoiceError;
       }
       
-      toast.success("Invoice deleted", {
-        description: `Invoice #${invoiceToDelete.invoice_number} has been deleted.`
+      uiToast({
+        title: "Invoice deleted",
+        description: `Invoice #${invoiceToDelete.invoice_number} has been deleted.`,
       });
       
       onInvoiceDeleted();
     } catch (error) {
       console.error('Error deleting invoice:', error);
-      toast.error("Error deleting invoice", {
-        description: "There was an error deleting the invoice. Please try again."
+      uiToast({
+        variant: "destructive",
+        title: "Error deleting invoice",
+        description: "There was an error deleting the invoice. Please try again.",
       });
     } finally {
       setIsDeleting(false);

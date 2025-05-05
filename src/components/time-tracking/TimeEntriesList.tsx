@@ -462,7 +462,7 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
           
           {selectedEntry && (
             <TimeEntryEditForm 
-              entry={selectedEntry} 
+              timeEntry={selectedEntry} 
               onSuccess={handleEditSuccess} 
               onCancel={() => setEditDialogOpen(false)}
               isCompact={compact}

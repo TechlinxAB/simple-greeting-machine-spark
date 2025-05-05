@@ -10,7 +10,6 @@ export interface Timer {
   status: TimerStatus;
   created_at?: string;
   updated_at?: string;
-  custom_price?: number | null;
   _calculatedDuration?: number; // Added for component use
   _roundedDuration?: number; // Added for component use with rounded time
   
@@ -33,7 +32,6 @@ export interface UserTimerRecord {
   status: TimerStatus;
   created_at?: string;
   updated_at?: string;
-  custom_price?: number | null;
   
   // Added to store original time values
   original_start_time?: string | null;

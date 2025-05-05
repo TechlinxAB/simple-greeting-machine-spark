@@ -784,9 +784,24 @@ export default function Invoices() {
           title="Edit Time Entry"
           description="Make changes to this time entry."
         >
-          <TimeEntryEditForm 
-            entry={timeEntryToEdit} 
-            onSuccess={handleEditSuccess} 
+          <TimeEntryEditForm
+            timeEntry={{
+              id: timeEntryToEdit.id,
+              user_id: timeEntryToEdit.user_id,
+              client_id: selectedClient || "",
+              product_id: timeEntryToEdit.products?.id || "",
+              start_time: timeEntryToEdit.start_time,
+              end_time: timeEntryToEdit.end_time,
+              quantity: timeEntryToEdit.quantity,
+              description: timeEntryToEdit.description,
+              created_at: "",
+              updated_at: "",
+              invoiced: false,
+              products: timeEntryToEdit.products,
+              clients: { name: "" },
+              profiles: { name: timeEntryToEdit.user_profile?.name || "" }
+            }}
+            onSuccess={handleEditSuccess}
             onCancel={() => setIsEditDialogOpen(false)}
           />
         </DialogWrapper>
