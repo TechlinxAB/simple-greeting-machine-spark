@@ -49,7 +49,7 @@ const LanguageSelector = ({
       <DropdownMenuTrigger asChild>
         <Button variant={variant} size={size} className="gap-2">
           <Globe className="h-4 w-4" />
-          {showLabel && t('auth.selectLanguage')}
+          {showLabel && t("auth.selectLanguage")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">

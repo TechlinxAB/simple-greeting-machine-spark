@@ -229,7 +229,7 @@ export const useTimer = () => {
     }
   };
   
-  // Convert timer to time entry
+  // Only update the convertTimerToTimeEntry function to fix the error
   const convertTimerToTimeEntry = async (timerId: string, actualDuration?: number, roundedDuration?: number) => {
     if (!user) return false;
     
