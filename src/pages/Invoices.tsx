@@ -48,7 +48,6 @@ type TimeEntryWithProfile = {
   quantity?: number;
   description?: string;
   created_at?: string;
-  custom_price?: number;
   products?: {
     id: string;
     name: string;
@@ -788,13 +787,19 @@ export default function Invoices() {
           <TimeEntryEditForm
             timeEntry={{
               id: timeEntryToEdit.id,
-              description: timeEntryToEdit.description,
+              user_id: timeEntryToEdit.user_id,
+              client_id: selectedClient || "",
+              product_id: timeEntryToEdit.products?.id || "",
               start_time: timeEntryToEdit.start_time,
               end_time: timeEntryToEdit.end_time,
               quantity: timeEntryToEdit.quantity,
-              custom_price: timeEntryToEdit.custom_price,
+              description: timeEntryToEdit.description,
+              created_at: "",
+              updated_at: "",
+              invoiced: false,
               products: timeEntryToEdit.products,
-              clients: { id: selectedClient || "", name: "" }
+              clients: { name: "" },
+              profiles: { name: timeEntryToEdit.user_profile?.name || "" }
             }}
             onSuccess={handleEditSuccess}
             onCancel={() => setIsEditDialogOpen(false)}

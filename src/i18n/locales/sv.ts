@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Laddar...",
@@ -267,10 +266,7 @@ const translations = {
     productDeleted: "Produkten har raderats",
     deleteError: "Kan inte radera produkten: den används i {{count}} tidsrapporter.",
     deleteInvoiceError: "Kan inte radera produkten: den används i {{count}} fakturor.",
-    deleteFailed: "Kunde inte radera produkten",
-    customPrice: "Anpassat pris",
-    defaultPrice: "Standardpris",
-    deletedProduct: "Raderad produkt"
+    deleteFailed: "Kunde inte radera produkten"
   },
   timeTracking: {
     title: "Tidsredovisning",

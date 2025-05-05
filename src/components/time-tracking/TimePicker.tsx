@@ -1,16 +1,14 @@
 
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 interface TimePickerProps {
-  value: string;
-  onChange: (timeString: string) => void;
+  value: Date | null;
+  onChange: (date: Date | null) => void;
   roundToMinutes?: number;
   roundOnBlur?: boolean;
   onComplete?: () => void;
   disabled?: boolean;
-  isCompact?: boolean;
 }
 
 export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({ 
@@ -19,16 +17,16 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   roundToMinutes = 15, 
   roundOnBlur = false,
   onComplete,
-  disabled = false,
-  isCompact = false
+  disabled = false
 }, ref) => {
   const [timeInput, setTimeInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
-    // Initialize from the provided string value
-    if (value && typeof value === 'string') {
-      setTimeInput(value);
+    if (value && value instanceof Date) {
+      const hours = value.getHours().toString().padStart(2, '0');
+      const minutes = value.getMinutes().toString().padStart(2, '0');
+      setTimeInput(`${hours}:${minutes}`);
     } else {
       setTimeInput("");
     }
@@ -59,7 +57,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   
   const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
-      onChange("");
+      onChange(null);
       return;
     }
     
@@ -72,9 +70,16 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     if (minutes < 0) minutes = 0;
     if (minutes > 59) minutes = 59;
     
-    // Format hours and minutes as HH:MM
-    let formattedHours = hours.toString().padStart(2, '0');
-    let formattedMins = minutes.toString().padStart(2, '0');
+    const now = new Date();
+    const newDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
     
     if (shouldRound && roundToMinutes > 0) {
       const roundedMinutes = Math.ceil(minutes / roundToMinutes) * roundToMinutes;
@@ -90,13 +95,15 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
         }
       }
       
-      formattedHours = roundedHours.toString().padStart(2, '0');
-      formattedMins = finalMinutes.toString().padStart(2, '0');
+      newDate.setHours(roundedHours);
+      newDate.setMinutes(finalMinutes);
+      
+      const formattedHours = roundedHours.toString().padStart(2, '0');
+      const formattedMins = finalMinutes.toString().padStart(2, '0');
+      setTimeInput(`${formattedHours}:${formattedMins}`);
     }
     
-    const formattedTime = `${formattedHours}:${formattedMins}`;
-    setTimeInput(formattedTime);
-    onChange(formattedTime);
+    onChange(newDate);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -139,8 +146,8 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
         onChange={handleTimeInput}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className={cn("w-full text-base", isCompact && "h-8 text-sm")}
-        placeholder="HH:MM"
+        className="w-full text-base"
+        placeholder="HH:mm"
         maxLength={5}
         disabled={disabled}
         onFocus={() => {

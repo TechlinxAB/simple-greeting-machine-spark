@@ -273,10 +273,7 @@ const translations = {
     items: "Items",
     noProductsFound: "No products found",
     productList: "Product List",
-    manageProducts: "Manage your activities and items",
-    customPrice: "Custom Price",
-    defaultPrice: "Default Price",
-    deletedProduct: "Deleted product"
+    manageProducts: "Manage your activities and items"
   },
   timeTracking: {
     title: "Time Tracking",
