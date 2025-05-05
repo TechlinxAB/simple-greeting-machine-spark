@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -320,8 +321,14 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
         client_id: values.clientId,
         product_id: values.productId,
         description: values.description,
-        custom_price: values.customPrice,
       };
+      
+      // Only apply custom price for items, not for activities
+      if (selectedProductType === "item") {
+        timeEntryData.custom_price = values.customPrice;
+      } else {
+        timeEntryData.custom_price = null;
+      }
       
       if (selectedProductType === "activity") {
         timeEntryData.start_time = startTime;
@@ -482,30 +489,6 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
                 </span>
               </div>
             )}
-
-            <FormField
-              control={form.control}
-              name="customPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder={selectedProductPrice?.toString()}
-                      {...field}
-                      value={field.value === null ? '' : field.value}
-                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                      disabled={loading}
-                      className={compact ? "h-8 text-xs" : ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
         )}
         

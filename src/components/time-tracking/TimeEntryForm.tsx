@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -279,8 +278,14 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         product_id: values.productId,
         user_id: user.id,
         description: values.description || null,
-        custom_price: values.customPrice || null,
       };
+      
+      // Only set custom price for items, not for activities
+      if (product.type === "item") {
+        timeEntryData.custom_price = values.customPrice || null;
+      } else {
+        timeEntryData.custom_price = null;
+      }
 
       const selectedYear = selectedDate.getFullYear();
       const selectedMonth = selectedDate.getMonth();
@@ -398,28 +403,6 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               )}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="customPrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder={selectedProductPrice?.toString()}
-                    {...field}
-                    value={field.value === null ? '' : field.value}
-                    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                    className={compact ? "h-8 text-xs" : ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </>
       );
     }
