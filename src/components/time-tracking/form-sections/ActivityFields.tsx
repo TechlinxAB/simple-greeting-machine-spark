@@ -8,7 +8,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { TimePicker } from "@/components/time-tracking/TimePicker";
-import { Input } from "@/components/ui/input";
 import { useTimeCalculation } from "@/hooks/useTimeCalculation";
 import { useTranslation } from "react-i18next";
 
@@ -113,31 +112,6 @@ export function ActivityFields({
           )}
         </div>
       )}
-      
-      {/* Custom price field for activity */}
-      <FormField
-        control={form.control}
-        name="customPrice"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder={selectedProductPrice?.toString()}
-                {...field}
-                value={field.value === null ? '' : field.value}
-                onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                disabled={loading}
-                className={isCompact ? "h-8 text-xs" : ""}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
     </div>
   );
 }
