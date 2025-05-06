@@ -298,6 +298,7 @@ const translations = {
     noTimeEntriesDesc: "Start tracking your time by adding a new entry",
     addTimeEntry: "Add Time Entry",
     editTimeEntry: "Edit Time Entry",
+    updateTimeEntry: "Update Time Entry",
     deleteTimeEntry: "Delete Time Entry",
     deleteConfirmation: "Are you sure you want to delete this time entry?",
     timeEntryAdded: "Time entry recorded successfully",
