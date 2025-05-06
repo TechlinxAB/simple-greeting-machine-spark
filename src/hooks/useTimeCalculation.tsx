@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { differenceInMinutes, format } from "date-fns";
+import { differenceInMinutes, format, parse } from "date-fns";
 import { UseFormWatch } from "react-hook-form";
 
 interface UseTimeCalculationProps {
@@ -28,23 +28,40 @@ export function useTimeCalculation({
       if (startTimeValue && endTimeValue) {
         try {
           const today = new Date();
-          const [startHours, startMinutes] = startTimeValue.split(":");
-          const [endHours, endMinutes] = endTimeValue.split(":");
+          
+          // Use exact values from the inputs for most accurate time calculation
+          let startHours, startMinutes, endHours, endMinutes;
+          
+          if (startTimeRef?.current?.value) {
+            const [h, m] = startTimeRef.current.value.split(":");
+            startHours = Number(h);
+            startMinutes = Number(m);
+          } else {
+            [startHours, startMinutes] = startTimeValue.split(":").map(Number);
+          }
+          
+          if (endTimeRef?.current?.value) {
+            const [h, m] = endTimeRef.current.value.split(":");
+            endHours = Number(h);
+            endMinutes = Number(m);
+          } else {
+            [endHours, endMinutes] = endTimeValue.split(":").map(Number);
+          }
           
           const startDate = new Date(
             today.getFullYear(),
             today.getMonth(),
             today.getDate(),
-            Number(startHours),
-            Number(startMinutes)
+            startHours,
+            startMinutes
           );
           
           const endDate = new Date(
             today.getFullYear(),
             today.getMonth(),
             today.getDate(),
-            Number(endHours),
-            Number(endMinutes)
+            endHours,
+            endMinutes
           );
           
           // If end time is earlier than start time, assume it's the next day
@@ -52,13 +69,16 @@ export function useTimeCalculation({
             endDate.setDate(endDate.getDate() + 1);
           }
           
-          const minutes = differenceInMinutes(endDate, startDate);
-          const hours = Math.floor(minutes / 60);
-          const remainingMinutes = minutes % 60;
-          
-          setCalculatedDuration(`${hours}h ${remainingMinutes}m`);
+          // Store the actual time values for display and submission
           setStartTimeDate(startDate);
           setEndTimeDate(endDate);
+          
+          // Calculate duration using the actual input times
+          const actualMinutes = differenceInMinutes(endDate, startDate);
+          const actualHours = Math.floor(actualMinutes / 60);
+          const actualRemainingMinutes = actualMinutes % 60;
+          
+          setCalculatedDuration(`${actualHours}h ${actualRemainingMinutes}m`);
         } catch (error) {
           console.error("Error calculating duration:", error);
           setCalculatedDuration(null);
@@ -78,7 +98,7 @@ export function useTimeCalculation({
     });
     
     return () => subscription.unsubscribe();
-  }, [watch]);
+  }, [watch, startTimeRef, endTimeRef]);
 
   /**
    * Rounds a date to the correct interval based on minutes following these exact rules:
@@ -149,6 +169,27 @@ export function useTimeCalculation({
     return endTime;
   };
 
+  // Parse time string in format "HH:mm" to Date object
+  const parseTimeString = (timeString: string): Date | null => {
+    if (!timeString) return null;
+    
+    try {
+      const today = new Date();
+      const [hours, minutes] = timeString.split(":").map(Number);
+      
+      return new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        hours,
+        minutes
+      );
+    } catch (error) {
+      console.error("Error parsing time string:", error);
+      return null;
+    }
+  };
+
   const handleTimeChange = (field: string, value: Date | null) => {
     if (value) {
       const timeString = format(value, "HH:mm");
@@ -163,6 +204,7 @@ export function useTimeCalculation({
     calculatedDuration,
     applyTimeRounding,
     ensureMinimumDuration,
+    parseTimeString,
     handleTimeChange
   };
 }

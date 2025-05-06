@@ -20,7 +20,13 @@ interface ActivityFieldsProps {
   isEditing?: boolean;
 }
 
-export function ActivityFields({ form, loading, isCompact, selectedProductPrice, isEditing = false }: ActivityFieldsProps) {
+export function ActivityFields({ 
+  form, 
+  loading, 
+  isCompact, 
+  selectedProductPrice, 
+  isEditing = false 
+}: ActivityFieldsProps) {
   const { t } = useTranslation();
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);

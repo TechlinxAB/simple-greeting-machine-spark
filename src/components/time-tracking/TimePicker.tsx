@@ -82,10 +82,10 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       0
     );
     
-    // Skip rounding when editing existing entries to maintain exact time values
+    // Only apply rounding when explicitly requested and roundOnBlur is true
     if (shouldRound && roundToMinutes > 0) {
       // Apply the correct rounding rules on blur if requested
-      // Only round if minutes is not exactly 0
+      // Skip rounding when minutes is exactly 0
       if (minutes !== 0) {
         let roundedHours = hours;
         let roundedMinutes = 0;
@@ -113,6 +113,8 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
           0
         );
         
+        console.log(`TimePicker rounding: ${hours}:${minutes} → ${roundedHours}:${roundedMinutes}`);
+        
         // Update display to show rounded time
         const formattedHours = roundedHours.toString().padStart(2, '0');
         const formattedMins = roundedMinutes.toString().padStart(2, '0');
@@ -130,7 +132,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate(timeInput, false); // Don't round on keyboard navigation
+        handleTimeUpdate(timeInput, roundOnBlur); // Apply rounding based on roundOnBlur parameter
       }
       if (e.key === "Enter" && onComplete) {
         e.preventDefault();
