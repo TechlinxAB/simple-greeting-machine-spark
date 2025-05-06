@@ -17,9 +17,10 @@ interface ActivityFieldsProps {
   loading: boolean;
   isCompact?: boolean;
   selectedProductPrice: number | null;
+  isEditing?: boolean;
 }
 
-export function ActivityFields({ form, loading, isCompact, selectedProductPrice }: ActivityFieldsProps) {
+export function ActivityFields({ form, loading, isCompact, selectedProductPrice, isEditing = false }: ActivityFieldsProps) {
   const { t } = useTranslation();
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
@@ -32,7 +33,8 @@ export function ActivityFields({ form, loading, isCompact, selectedProductPrice 
   } = useTimeCalculation({ 
     watch: form.watch,
     startTimeRef,
-    endTimeRef
+    endTimeRef,
+    disableRounding: isEditing // Disable rounding when editing
   });
 
   return (
@@ -53,7 +55,7 @@ export function ActivityFields({ form, loading, isCompact, selectedProductPrice 
                   }}
                   ref={startTimeRef}
                   disabled={loading}
-                  roundOnBlur={false}
+                  roundOnBlur={!isEditing} // Only round if not editing
                 />
               </FormControl>
               <FormMessage />
@@ -76,7 +78,7 @@ export function ActivityFields({ form, loading, isCompact, selectedProductPrice 
                   }}
                   ref={endTimeRef}
                   disabled={loading}
-                  roundOnBlur={false}
+                  roundOnBlur={!isEditing} // Only round if not editing
                 />
               </FormControl>
               <FormMessage />
@@ -88,9 +90,11 @@ export function ActivityFields({ form, loading, isCompact, selectedProductPrice 
       {calculatedDuration && (
         <div className="text-sm text-muted-foreground">
           {t("timeTracking.duration")}: {calculatedDuration}
-          <span className="ml-2 text-xs">
-            ({t("timeTracking.actualTimeWillBeRounded")})
-          </span>
+          {!isEditing && (
+            <span className="ml-2 text-xs">
+              ({t("timeTracking.actualTimeWillBeRounded")})
+            </span>
+          )}
         </div>
       )}
       

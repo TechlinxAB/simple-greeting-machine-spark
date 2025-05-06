@@ -51,6 +51,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
   // Use the original times for display if available, otherwise fall back to rounded times
   const displayStartTime = timeEntry?.original_start_time || timeEntry?.start_time;
   const displayEndTime = timeEntry?.original_end_time || timeEntry?.end_time;
+  
+  console.log("Form initialization with start:", displayStartTime, "end:", displayEndTime);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -121,6 +123,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
             loading={loading} 
             isCompact={compact} 
             selectedProductPrice={selectedProductPrice}
+            isEditing={true} // Flag to indicate we're editing
           />
         )}
         

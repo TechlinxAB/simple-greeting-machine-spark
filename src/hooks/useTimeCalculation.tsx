@@ -7,9 +7,15 @@ interface UseTimeCalculationProps {
   watch: UseFormWatch<any>;
   startTimeRef?: React.RefObject<HTMLInputElement>;
   endTimeRef?: React.RefObject<HTMLInputElement>;
+  disableRounding?: boolean;
 }
 
-export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeCalculationProps) {
+export function useTimeCalculation({ 
+  watch, 
+  startTimeRef, 
+  endTimeRef,
+  disableRounding = false
+}: UseTimeCalculationProps) {
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
   const [calculatedDuration, setCalculatedDuration] = useState<string | null>(null);
@@ -75,7 +81,7 @@ export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeC
   }, [watch]);
 
   /**
-   * Rounds a date to the next interval based on minutes following these rules:
+   * Rounds a date to the correct interval based on minutes following these exact rules:
    * - 0 minutes: No rounding
    * - 1-15 minutes: Round to 15 minutes
    * - 16-30 minutes: Round to 30 minutes
@@ -84,6 +90,11 @@ export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeC
    */
   const applyTimeRounding = (time: Date | undefined): Date | undefined => {
     if (!time) return undefined;
+    
+    // Skip rounding if disabled (for example during editing)
+    if (disableRounding) {
+      return time;
+    }
     
     const hours = time.getHours();
     const minutes = time.getMinutes();
@@ -100,29 +111,26 @@ export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeC
     }
     
     let roundedMinutes: number;
+    let roundedHours = hours;
     
-    if (minutes <= 15) {
+    // Apply the correct rounding rules
+    if (minutes >= 1 && minutes <= 15) {
       roundedMinutes = 15;
-    } else if (minutes <= 30) {
+    } else if (minutes >= 16 && minutes <= 30) {
       roundedMinutes = 30;
-    } else if (minutes <= 45) {
+    } else if (minutes >= 31 && minutes <= 45) {
       roundedMinutes = 45;
     } else {
       // If minutes > 45, round to the next hour
-      return new Date(
-        time.getFullYear(),
-        time.getMonth(),
-        time.getDate(),
-        hours + 1,
-        0
-      );
+      roundedMinutes = 0;
+      roundedHours = (hours + 1) % 24;
     }
     
     return new Date(
       time.getFullYear(),
       time.getMonth(),
       time.getDate(),
-      hours,
+      roundedHours,
       roundedMinutes
     );
   };

@@ -84,51 +84,47 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     
     // Skip rounding when editing existing entries to maintain exact time values
     if (shouldRound && roundToMinutes > 0) {
-      // Don't round if minutes is exactly 0
-      if (minutes === 0) {
-        onChange(newDate);
+      // Apply the correct rounding rules on blur if requested
+      // Only round if minutes is not exactly 0
+      if (minutes !== 0) {
+        let roundedHours = hours;
+        let roundedMinutes = 0;
+        
+        // Apply the exact rounding rules
+        if (minutes >= 1 && minutes <= 15) {
+          roundedMinutes = 15;
+        } else if (minutes >= 16 && minutes <= 30) {
+          roundedMinutes = 30;
+        } else if (minutes >= 31 && minutes <= 45) {
+          roundedMinutes = 45;
+        } else {
+          // If minutes > 45, round to the next hour
+          roundedHours = (hours + 1) % 24;
+          roundedMinutes = 0;
+        }
+        
+        const roundedDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          roundedHours,
+          roundedMinutes,
+          0,
+          0
+        );
+        
+        // Update display to show rounded time
+        const formattedHours = roundedHours.toString().padStart(2, '0');
+        const formattedMins = roundedMinutes.toString().padStart(2, '0');
+        setTimeInput(`${formattedHours}:${formattedMins}`);
+        
+        onChange(roundedDate);
         return;
       }
-      
-      // Round according to requirements:
-      // - 1-15 minutes = 15 minutes
-      // - 16-30 minutes = 30 minutes
-      // - 31-45 minutes = 45 minutes
-      // - 46-60 minutes = 60 minutes (next hour)
-      let roundedHours = hours;
-      let roundedMinutes = 0;
-      
-      if (minutes <= 15) {
-        roundedMinutes = 15;
-      } else if (minutes <= 30) {
-        roundedMinutes = 30;
-      } else if (minutes <= 45) {
-        roundedMinutes = 45;
-      } else {
-        roundedHours = (hours + 1) % 24;
-        roundedMinutes = 0;
-      }
-      
-      const roundedDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        roundedHours,
-        roundedMinutes,
-        0,
-        0
-      );
-      
-      // Update display to show rounded time
-      const formattedHours = roundedHours.toString().padStart(2, '0');
-      const formattedMins = roundedMinutes.toString().padStart(2, '0');
-      setTimeInput(`${formattedHours}:${formattedMins}`);
-      
-      onChange(roundedDate);
-    } else {
-      // No rounding, use exact values
-      onChange(newDate);
     }
+    
+    // If no rounding is needed, use the exact time values
+    onChange(newDate);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

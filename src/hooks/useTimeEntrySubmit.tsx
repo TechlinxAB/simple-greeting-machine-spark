@@ -23,13 +23,15 @@ export function useTimeEntrySubmit({
 }: UseTimeEntrySubmitProps) {
   const [loading, setLoading] = useState(false);
   
+  // We set disableRounding to true specifically for editing
   const {
     applyTimeRounding,
     ensureMinimumDuration
   } = useTimeCalculation({
     watch: form.watch,
     startTimeRef,
-    endTimeRef
+    endTimeRef,
+    disableRounding: true // Disable rounding for editing
   });
 
   const handleSubmit = async (values: any) => {
@@ -41,16 +43,18 @@ export function useTimeEntrySubmit({
       let startTimeString = values.startTime;
       let endTimeString = values.endTime;
       
+      // Get time directly from refs if available (most accurate)
       if (startTimeRef?.current?.value) {
         startTimeString = startTimeRef.current.value;
+        console.log("Using startTime from ref:", startTimeString);
       }
       
       if (endTimeRef?.current?.value) {
         endTimeString = endTimeRef.current.value;
+        console.log("Using endTime from ref:", endTimeString);
       }
       
-      console.log("Raw start time from input:", startTimeString);
-      console.log("Raw end time from input:", endTimeString);
+      console.log("Final time strings - Start:", startTimeString, "End:", endTimeString);
       
       const timeEntryDate = timeEntry.created_at 
         ? new Date(timeEntry.created_at) 
@@ -63,57 +67,61 @@ export function useTimeEntrySubmit({
       let originalStartTime = null;
       let originalEndTime = null;
       
+      // Process start time if activity type
       if (startTimeString && values.productType === "activity") {
         // Store original, unrounded time
         const startTimeIsoString = `${datePart}T${startTimeString}:00`;
         startTime = startTimeIsoString;
         originalStartTime = startTimeIsoString;
         
-        console.log("Parsed start time:", startTimeIsoString);
+        console.log("Original start time:", startTimeIsoString);
       }
       
+      // Process end time if activity type
       if (endTimeString && values.productType === "activity") {
         // Store original, unrounded time
         const endTimeIsoString = `${datePart}T${endTimeString}:00`;
         endTime = endTimeIsoString;
         originalEndTime = endTimeIsoString;
         
-        console.log("Parsed end time:", endTimeIsoString);
+        console.log("Original end time:", endTimeIsoString);
         
-        // Parse the time values
+        // Parse the time values for validation
         const startDate = startTime ? new Date(startTime) : null;
         const endDate = new Date(endTimeIsoString);
         
         // Handle day crossing (when end time is earlier than start time)
         if (startDate && endDate < startDate) {
+          console.log("End time is before start time, adjusting to next day");
           const nextDay = new Date(endDate);
           nextDay.setDate(nextDay.getDate() + 1);
           endTime = nextDay.toISOString();
           originalEndTime = nextDay.toISOString();
-          console.log("End date < start date, adjusted to next day:", endTime);
         }
         
-        // No automatic rounding when editing - use exactly what was entered
-        // We only apply minimum duration logic to ensure valid entries
+        // For editing, we're using EXACTLY what was entered - no automatic rounding
+        // Only apply the minimum duration validation
         if (startDate && endDate >= startDate) {
           // Only ensure minimum duration, don't apply rounding
           const finalEndDate = ensureMinimumDuration(startDate, endDate);
-          endTime = finalEndDate.toISOString();
           
-          // If the end time was adjusted for minimum duration, update original_end_time too
           if (finalEndDate.getTime() !== endDate.getTime()) {
+            console.log("End time adjusted for minimum duration from", endDate, "to", finalEndDate);
+            endTime = finalEndDate.toISOString();
             originalEndTime = finalEndDate.toISOString();
-            console.log("End time adjusted for minimum duration:", endTime);
           }
         }
       }
       
-      // Validate that the times make sense
+      // Final validation check to prevent impossible time combinations
       if (startTime && endTime) {
         const startDate = new Date(startTime);
         const endDate = new Date(endTime);
         
+        console.log("Final validation - Start:", startDate, "End:", endDate);
+        
         if (endDate < startDate) {
+          console.error("End time is still before start time after adjustments");
           throw new Error("End time cannot be before start time");
         }
       }
