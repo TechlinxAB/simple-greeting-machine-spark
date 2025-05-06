@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -277,7 +278,8 @@ const translations = {
     manageProducts: "Manage your activities and items",
     customPrice: "Custom Price",
     defaultPrice: "Default Price",
-    selectType: "Select Type"
+    selectType: "Select Type",
+    productOrActivity: "Product or Activity"
   },
   timeTracking: {
     title: "Time Tracking",
