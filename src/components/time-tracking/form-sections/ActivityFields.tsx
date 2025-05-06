@@ -43,6 +43,14 @@ export function ActivityFields({
     disableRounding: isEditing // Disable rounding when editing
   });
 
+  // Log when time values change to track rounding
+  const logTimeChanges = (field: string, date: Date | null, timeString: string) => {
+    if (date) {
+      console.log(`ActivityFields: ${field} changed to ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')} (${timeString})`);
+    }
+    return timeString;
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -57,7 +65,8 @@ export function ActivityFields({
                   value={startTimeDate} 
                   onChange={(date) => {
                     const timeString = handleTimeChange("startTime", date);
-                    form.setValue("startTime", timeString);
+                    const finalTimeString = logTimeChanges("startTime", date, timeString || "");
+                    form.setValue("startTime", finalTimeString);
                   }}
                   ref={startTimeRef}
                   disabled={loading}
@@ -80,7 +89,8 @@ export function ActivityFields({
                   value={endTimeDate} 
                   onChange={(date) => {
                     const timeString = handleTimeChange("endTime", date);
-                    form.setValue("endTime", timeString);
+                    const finalTimeString = logTimeChanges("endTime", date, timeString || "");
+                    form.setValue("endTime", finalTimeString);
                   }}
                   ref={endTimeRef}
                   disabled={loading}

@@ -78,6 +78,8 @@ export function useTimeCalculation({
           const actualHours = Math.floor(actualMinutes / 60);
           const actualRemainingMinutes = actualMinutes % 60;
           
+          console.log(`Duration calculation: ${startHours}:${startMinutes.toString().padStart(2, '0')} to ${endHours}:${endMinutes.toString().padStart(2, '0')} = ${actualMinutes} minutes (${actualHours}h ${actualRemainingMinutes}m)`);
+          
           setCalculatedDuration(`${actualHours}h ${actualRemainingMinutes}m`);
         } catch (error) {
           console.error("Error calculating duration:", error);
@@ -121,6 +123,7 @@ export function useTimeCalculation({
     
     // If minutes is exactly 0, don't round
     if (minutes === 0) {
+      console.log(`useTimeCalculation rounding: ${hours}:${minutes} → NO ROUNDING (exactly 0 minutes)`);
       return new Date(
         time.getFullYear(),
         time.getMonth(),
@@ -146,6 +149,8 @@ export function useTimeCalculation({
       roundedHours = (hours + 1) % 24;
     }
     
+    console.log(`useTimeCalculation rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
+    
     return new Date(
       time.getFullYear(),
       time.getMonth(),
@@ -163,6 +168,7 @@ export function useTimeCalculation({
     // If duration is less than 15 minutes, add time to make it 15 minutes
     if (durationMinutes < 15) {
       const newEndTime = new Date(startTime.getTime() + (15 * 60 * 1000));
+      console.log(`Adjusting minimum duration from ${durationMinutes} minutes to 15 minutes`);
       return newEndTime;
     }
     

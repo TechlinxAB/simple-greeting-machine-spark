@@ -142,8 +142,9 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   };
 
   /**
-   * Rounds a date to the next 15-minute interval based on minutes:
-   * - 0-15 minutes: Round to 15 minutes
+   * Rounds a date to the correct interval based on minutes following these exact rules:
+   * - 0 minutes: No rounding
+   * - 1-15 minutes: Round to 15 minutes
    * - 16-30 minutes: Round to 30 minutes
    * - 31-45 minutes: Round to 45 minutes
    * - 46-59 minutes: Round to the next hour
@@ -154,30 +155,41 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     const hours = time.getHours();
     const minutes = time.getMinutes();
     
-    let roundedMinutes: number;
-    
-    if (minutes <= 15) {
-      roundedMinutes = 15;
-    } else if (minutes <= 30) {
-      roundedMinutes = 30;
-    } else if (minutes <= 45) {
-      roundedMinutes = 45;
-    } else {
-      // If minutes > 45, round to the next hour
+    // If minutes is exactly 0, don't round
+    if (minutes === 0) {
+      console.log(`Time rounding: ${hours}:${minutes} → NO ROUNDING (exactly 0 minutes)`);
       return new Date(
         time.getFullYear(),
         time.getMonth(),
         time.getDate(),
-        hours + 1,
+        hours,
         0
       );
     }
+    
+    let roundedMinutes: number;
+    let roundedHours = hours;
+    
+    // Apply the correct rounding rules
+    if (minutes >= 1 && minutes <= 15) {
+      roundedMinutes = 15;
+    } else if (minutes >= 16 && minutes <= 30) {
+      roundedMinutes = 30;
+    } else if (minutes >= 31 && minutes <= 45) {
+      roundedMinutes = 45;
+    } else {
+      // If minutes > 45, round to the next hour
+      roundedMinutes = 0;
+      roundedHours = (hours + 1) % 24;
+    }
+    
+    console.log(`Time rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
     
     return new Date(
       time.getFullYear(),
       time.getMonth(),
       time.getDate(),
-      hours,
+      roundedHours,
       roundedMinutes
     );
   };
@@ -300,7 +312,19 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         const adjustedEndTime = new Date(values.endTime);
         adjustedEndTime.setFullYear(selectedYear, selectedMonth, selectedDay);
         
+        // Log original times for debugging
+        console.log("Original time input - Start:", 
+          `${adjustedStartTime.getHours()}:${adjustedStartTime.getMinutes().toString().padStart(2, '0')}`,
+          "End:", 
+          `${adjustedEndTime.getHours()}:${adjustedEndTime.getMinutes().toString().padStart(2, '0')}`
+        );
+        
+        // Calculate the raw duration before any rounding
+        const rawDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
+        console.log(`Raw duration before rounding: ${Math.floor(rawDurationMinutes / 60)}h ${rawDurationMinutes % 60}m (${rawDurationMinutes} minutes)`);
+        
         if (adjustedEndTime < adjustedStartTime) {
+          console.log("End time is before start time, adjusting to next day");
           adjustedEndTime.setDate(adjustedEndTime.getDate() + 1);
         }
         
@@ -308,13 +332,26 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         timeEntryData.original_start_time = adjustedStartTime.toISOString();
         timeEntryData.original_end_time = adjustedEndTime.toISOString();
         
-        // Only round the end time, keep start time as is
+        // Apply rounding to both start and end times
+        // For start time, we want to keep it as is (don't round)
+        // For end time, we apply the rounding rules
         const roundedEndTime = applyTimeRounding(adjustedEndTime);
         
         // Ensure minimum duration of 15 minutes
         const finalEndTime = roundedEndTime 
           ? ensureMinimumDuration(adjustedStartTime, roundedEndTime) 
           : ensureMinimumDuration(adjustedStartTime, adjustedEndTime);
+        
+        // Log the final times after all adjustments
+        console.log("Final times after rounding - Start:", 
+          `${adjustedStartTime.getHours()}:${adjustedStartTime.getMinutes().toString().padStart(2, '0')}`,
+          "End:", 
+          `${finalEndTime.getHours()}:${finalEndTime.getMinutes().toString().padStart(2, '0')}`
+        );
+        
+        // Calculate duration after rounding
+        const finalDurationMinutes = differenceInMinutes(finalEndTime, adjustedStartTime);
+        console.log(`Final duration after rounding: ${Math.floor(finalDurationMinutes / 60)}h ${finalDurationMinutes % 60}m (${finalDurationMinutes} minutes)`);
         
         timeEntryData.start_time = adjustedStartTime.toISOString();
         timeEntryData.end_time = finalEndTime.toISOString();

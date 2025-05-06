@@ -130,6 +130,12 @@ export function useTimeEntrySubmit({
         const startDate = new Date(startTime);
         let endDate = new Date(endTime);
         
+        // Log durations at different stages
+        console.log("Initial duration calculation:");
+        let minutes = differenceInMinutes(endDate, startDate);
+        console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
+        console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
+        
         // Handle day crossing (when end time is earlier than start time)
         if (endDate < startDate) {
           console.log("End time is before start time, adjusting to next day");
@@ -137,6 +143,13 @@ export function useTimeEntrySubmit({
           nextDay.setDate(nextDay.getDate() + 1);
           endTime = nextDay.toISOString();
           originalEndTime = nextDay.toISOString();
+          endDate = nextDay;
+          
+          // Log after day adjustment
+          minutes = differenceInMinutes(endDate, startDate);
+          console.log("After day crossing adjustment:");
+          console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
+          console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
         }
         
         // For new entries, ensure minimum duration
@@ -145,9 +158,16 @@ export function useTimeEntrySubmit({
           const finalEndDate = ensureMinimumDuration(startDate, endDate);
           
           if (finalEndDate.getTime() !== endDate.getTime()) {
-            console.log("End time adjusted for minimum duration from", endDate, "to", finalEndDate);
+            console.log("End time adjusted for minimum duration from", format(endDate, "HH:mm"), "to", format(finalEndDate, "HH:mm"));
             endTime = finalEndDate.toISOString();
             originalEndTime = finalEndDate.toISOString();
+            endDate = finalEndDate;
+            
+            // Log after minimum duration adjustment
+            minutes = differenceInMinutes(endDate, startDate);
+            console.log("After minimum duration adjustment:");
+            console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
+            console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
           }
         }
       }
@@ -157,7 +177,7 @@ export function useTimeEntrySubmit({
         const startDate = new Date(startTime);
         const endDate = new Date(endTime);
         
-        console.log("Final validation - Start:", startDate, "End:", endDate);
+        console.log("Final validation - Start:", format(startDate, "HH:mm"), "End:", format(endDate, "HH:mm"));
         
         if (endDate < startDate) {
           console.error("End time is still before start time after adjustments");

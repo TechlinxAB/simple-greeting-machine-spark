@@ -113,7 +113,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
           0
         );
         
-        console.log(`TimePicker rounding: ${hours}:${minutes} → ${roundedHours}:${roundedMinutes}`);
+        console.log(`TimePicker rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
         
         // Update display to show rounded time
         const formattedHours = roundedHours.toString().padStart(2, '0');
