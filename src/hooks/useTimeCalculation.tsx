@@ -75,8 +75,9 @@ export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeC
   }, [watch]);
 
   /**
-   * Rounds a date to the next 15-minute interval based on minutes:
-   * - 0-15 minutes: Round to 15 minutes
+   * Rounds a date to the next interval based on minutes following these rules:
+   * - 0 minutes: No rounding
+   * - 1-15 minutes: Round to 15 minutes
    * - 16-30 minutes: Round to 30 minutes
    * - 31-45 minutes: Round to 45 minutes
    * - 46-59 minutes: Round to the next hour
@@ -86,6 +87,17 @@ export function useTimeCalculation({ watch, startTimeRef, endTimeRef }: UseTimeC
     
     const hours = time.getHours();
     const minutes = time.getMinutes();
+    
+    // If minutes is exactly 0, don't round
+    if (minutes === 0) {
+      return new Date(
+        time.getFullYear(),
+        time.getMonth(),
+        time.getDate(),
+        hours,
+        0
+      );
+    }
     
     let roundedMinutes: number;
     
