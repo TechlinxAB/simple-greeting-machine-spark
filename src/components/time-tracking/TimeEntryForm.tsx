@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -140,6 +141,24 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
   const getProductById = (id: string) => {
     return products.find(product => product.id === id);
+  };
+
+  // Add handler functions for TimePicker onComplete callbacks
+  const handleStartTimeComplete = () => {
+    // Focus on the end time field after start time is completed
+    if (endTimeRef.current) {
+      const input = endTimeRef.current.querySelector('input');
+      if (input) {
+        input.focus();
+      }
+    }
+  };
+
+  const handleEndTimeComplete = () => {
+    // Focus on the description field after end time is completed
+    if (descriptionRef.current) {
+      descriptionRef.current.focus();
+    }
   };
 
   // We don't need the time rounding function anymore - instead, we'll only round the duration

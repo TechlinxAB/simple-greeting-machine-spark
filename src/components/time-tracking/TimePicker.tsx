@@ -45,7 +45,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
     
     if (filtered.length === 5 && filtered.includes(":")) {
-      handleTimeUpdate(filtered, false); // Don't round individual times
+      handleTimeUpdate(filtered);
       
       if (onComplete) {
         requestAnimationFrame(() => {
