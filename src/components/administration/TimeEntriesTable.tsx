@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -88,6 +87,7 @@ export function TimeEntriesTable({
             user_id,
             invoice_id,
             custom_price,
+            rounded_duration_minutes,
             products:product_id (id, name, type, price),
             clients:client_id (id, name)
           `);
@@ -154,12 +154,22 @@ export function TimeEntriesTable({
     refetchOnWindowFocus: false,
   });
 
-  const calculateDuration = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours;
+  const calculateDuration = (entry: any) => {
+    // Prioritize using the rounded_duration_minutes if available
+    if (entry.rounded_duration_minutes) {
+      return entry.rounded_duration_minutes / 60; // Convert minutes to hours
+    }
+    
+    // Fall back to calculating from start_time and end_time
+    if (entry.start_time && entry.end_time) {
+      const startDate = new Date(entry.start_time);
+      const endDate = new Date(entry.end_time);
+      const diffMs = endDate.getTime() - startDate.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours;
+    }
+    
+    return 0;
   };
 
   const formatDuration = (hours: number) => {
@@ -175,7 +185,7 @@ export function TimeEntriesTable({
 
   const getItemAmount = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = calculateDuration(entry.start_time, entry.end_time);
+      const hours = calculateDuration(entry);
       return formatDuration(hours);
     } else if (entry.products?.type === "item" && entry.quantity) {
       return `${entry.quantity} ${t('timeTracking.units')}`;
@@ -185,7 +195,7 @@ export function TimeEntriesTable({
 
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = calculateDuration(entry.start_time, entry.end_time);
+      const hours = calculateDuration(entry);
       // Use custom price if available, otherwise use product price
       const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
       return formatCurrency(hours * price);

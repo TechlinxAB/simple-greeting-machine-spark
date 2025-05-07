@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { fortnoxApiRequest } from "./api-client";
 import type { Client, Product, TimeEntry, Invoice } from "@/types";
@@ -146,11 +145,16 @@ export async function formatTimeEntriesForFortnox(
       let quantity = 1;
       
       if (product.type === 'activity' && entry.start_time && entry.end_time) {
-        // Calculate hours from start_time to end_time
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        quantity = parseFloat(diffHours.toFixed(2));
+        // Use rounded_duration_minutes if available, otherwise calculate from times
+        if (entry.rounded_duration_minutes) {
+          quantity = entry.rounded_duration_minutes / 60; // Convert minutes to hours
+        } else {
+          // Fall back to calculating from start_time and end_time
+          const start = new Date(entry.start_time);
+          const end = new Date(entry.end_time);
+          const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          quantity = parseFloat(diffHours.toFixed(2));
+        }
       } else if (product.type === 'item' && entry.quantity) {
         quantity = entry.quantity;
       }

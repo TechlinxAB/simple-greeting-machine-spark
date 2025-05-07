@@ -63,7 +63,8 @@ export function TimeJournalStats({
             created_at,
             user_id, 
             product_id,
-            client_id
+            client_id,
+            rounded_duration_minutes
           `)
           .gte("created_at", startDate.toISOString())
           .lte("created_at", endDate.toISOString());
@@ -140,11 +141,19 @@ export function TimeJournalStats({
   
   const calculateTotalHours = () => {
     const totalHours = timeEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        return total + hours;
+      if (entry.products?.type === 'activity') {
+        // First try to use rounded_duration_minutes if available
+        if (entry.rounded_duration_minutes) {
+          return total + (entry.rounded_duration_minutes / 60);
+        }
+        
+        // Fall back to calculating from start_time and end_time
+        if (entry.start_time && entry.end_time) {
+          const start = new Date(entry.start_time);
+          const end = new Date(entry.end_time);
+          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          return total + hours;
+        }
       }
       return total;
     }, 0);
@@ -154,10 +163,20 @@ export function TimeJournalStats({
 
   const calculateTotalRevenue = () => {
     return formatCurrency(timeEntries.reduce((total, entry) => {
-      if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-        const start = new Date(entry.start_time);
-        const end = new Date(entry.end_time);
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      if (entry.products?.type === 'activity') {
+        let hours = 0;
+        
+        // First try to use rounded_duration_minutes if available
+        if (entry.rounded_duration_minutes) {
+          hours = entry.rounded_duration_minutes / 60;
+        } 
+        // Fall back to calculating from start_time and end_time
+        else if (entry.start_time && entry.end_time) {
+          const start = new Date(entry.start_time);
+          const end = new Date(entry.end_time);
+          hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        }
+        
         return total + (hours * (entry.products.price || 0));
       } else if (entry.products?.type === 'item' && entry.quantity) {
         return total + (entry.quantity * (entry.products.price || 0));
@@ -166,12 +185,22 @@ export function TimeJournalStats({
     }, 0));
   };
   
-  const calculateDuration = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours;
+  const calculateDuration = (entry: any) => {
+    // Prioritize using rounded_duration_minutes if available
+    if (entry.rounded_duration_minutes) {
+      return entry.rounded_duration_minutes / 60; // Convert to hours
+    }
+    
+    // Fall back to calculating from timestamps
+    if (entry.start_time && entry.end_time) {
+      const startDate = new Date(entry.start_time);
+      const endDate = new Date(entry.end_time);
+      const diffMs = endDate.getTime() - startDate.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours;
+    }
+    
+    return 0;
   };
   
   return (
@@ -264,13 +293,13 @@ export function TimeJournalStats({
                         </TableCell>
                         <TableCell>
                           {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                            ? formatTime(calculateDuration(entry.start_time, entry.end_time), simplifiedView)
+                            ? formatTime(calculateDuration(entry), simplifiedView)
                             : entry.quantity ? `${entry.quantity} ${t("common.items")}` : '-'}
                         </TableCell>
                         {!simplifiedView && (
                           <TableCell>
                             {entry.products?.type === 'activity' && entry.start_time && entry.end_time
-                              ? formatCurrency(calculateDuration(entry.start_time, entry.end_time) * (entry.products.price || 0))
+                              ? formatCurrency(calculateDuration(entry) * (entry.products.price || 0))
                               : entry.quantity ? formatCurrency(entry.quantity * (entry.products?.price || 0)) : '-'}
                           </TableCell>
                         )}
