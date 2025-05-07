@@ -79,7 +79,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       setSelectedProductPrice(timeEntry.products.price);
       form.setValue("productType", timeEntry.products.type);
     }
-  }, [timeEntry]);
+  }, [timeEntry, form]);
 
   const { loading, handleSubmit } = useTimeEntrySubmit({
     timeEntry,
@@ -109,7 +109,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           loading={loading} 
           isCompact={compact} 
           onProductChange={handleProductChange}
-          filterByType={selectedProductType || undefined}
+          filterByType={selectedProductType} // Always filter by the selected product type when editing
           isEditing={true}
         />
         
@@ -120,7 +120,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
             isCompact={compact} 
             selectedProductPrice={selectedProductPrice}
             isEditing={true}
-            showCustomPrice={false} // Don't show custom price for activities when editing
+            showCustomPrice={true} // Show custom price for activities when editing
           />
         )}
         

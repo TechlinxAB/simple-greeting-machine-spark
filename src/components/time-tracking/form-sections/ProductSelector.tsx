@@ -82,7 +82,7 @@ export function ProductSelector({
               }
             }} 
             defaultValue={field.value}
-            disabled={loading || (isEditing && !filterByType)} // Only disable if editing and no filter is applied
+            disabled={loading} // Never disable the selector when editing, we filter by type instead
           >
             <FormControl>
               <SelectTrigger className={isCompact ? "h-8 text-xs" : ""}>
