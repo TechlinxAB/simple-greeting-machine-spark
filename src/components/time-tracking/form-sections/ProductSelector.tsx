@@ -37,7 +37,7 @@ export function ProductSelector({
   const { t } = useTranslation();
   
   const { data: products = [] } = useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", filterByType],
     queryFn: async () => {
       const query = supabase
         .from("products")
@@ -82,7 +82,7 @@ export function ProductSelector({
               }
             }} 
             defaultValue={field.value}
-            disabled={loading} // Never disable the selector when editing, we filter by type instead
+            disabled={loading} 
           >
             <FormControl>
               <SelectTrigger className={isCompact ? "h-8 text-xs" : ""}>

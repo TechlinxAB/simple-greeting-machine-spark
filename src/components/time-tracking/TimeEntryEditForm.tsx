@@ -120,7 +120,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
             isCompact={compact} 
             selectedProductPrice={selectedProductPrice}
             isEditing={true}
-            showCustomPrice={true} // Show custom price for activities when editing
+            showCustomPrice={false} // Don't show custom price for activities when editing
           />
         )}
         

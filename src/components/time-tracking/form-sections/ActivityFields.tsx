@@ -28,7 +28,7 @@ export function ActivityFields({
   isCompact, 
   selectedProductPrice, 
   isEditing = false,
-  showCustomPrice = true
+  showCustomPrice = false // Default to not showing custom price for activities
 }: ActivityFieldsProps) {
   const { t } = useTranslation();
   const startTimeRef = useRef<HTMLInputElement>(null);
