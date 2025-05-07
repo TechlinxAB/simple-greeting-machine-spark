@@ -1,11 +1,10 @@
 
 import { useState } from "react";
-import { format, differenceInMinutes, addMinutes } from "date-fns";
+import { format, differenceInMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { UseFormReturn } from "react-hook-form";
 import { useTimeCalculation } from "./useTimeCalculation";
-import { roundDurationMinutes } from "@/lib/formatTime";
 
 interface UseTimeEntrySubmitProps {
   timeEntry: any;
@@ -75,7 +74,7 @@ export function useTimeEntrySubmit({
         // Store exact, unrounded times
         const startTimeIsoString = `${datePart}T${startTimeString}:00`;
         originalStartTime = startTimeIsoString;
-        startTime = startTimeIsoString; // Storing exact time as entered
+        startTime = startTimeIsoString; // Store exact time as entered
         console.log("Start time (exact):", startTimeIsoString);
       }
       
@@ -84,7 +83,7 @@ export function useTimeEntrySubmit({
         // Store exact, unrounded end time
         const endTimeIsoString = `${datePart}T${endTimeString}:00`;
         originalEndTime = endTimeIsoString;
-        endTime = endTimeIsoString; // Storing exact time as entered
+        endTime = endTimeIsoString; // Store exact time as entered
         console.log("End time (exact):", endTimeIsoString);
       }
       

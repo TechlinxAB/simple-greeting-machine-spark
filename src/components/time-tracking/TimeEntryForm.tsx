@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { differenceInMinutes, format, addMinutes } from "date-fns";
+import { differenceInMinutes, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -160,7 +160,6 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     }
   };
 
-  // We don't need the time rounding function anymore - instead, we'll only round the duration
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error(t("error.sessionExpired"));
@@ -219,39 +218,35 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         );
         
         // Calculate the raw duration before any rounding
-        const rawDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
+        let rawDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
         console.log(`Raw duration before rounding: ${Math.floor(rawDurationMinutes / 60)}h ${rawDurationMinutes % 60}m (${rawDurationMinutes} minutes)`);
         
         // If end time is earlier than start time, assume it's the next day
         if (adjustedEndTime < adjustedStartTime) {
           console.log("End time is before start time, adjusting to next day");
           adjustedEndTime.setDate(adjustedEndTime.getDate() + 1);
+          rawDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
         }
         
-        // Store original times 
+        // Store original times directly in the database
         timeEntryData.original_start_time = adjustedStartTime.toISOString();
         timeEntryData.original_end_time = adjustedEndTime.toISOString();
         
-        // Calculate actual duration in minutes
-        const actualDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
+        // FIX: Store the exact times in start_time and end_time as well
+        // This is the key fix - we're now storing the actual input times
+        timeEntryData.start_time = adjustedStartTime.toISOString();
+        timeEntryData.end_time = adjustedEndTime.toISOString();
         
-        // Round the duration according to the rules
-        const roundedDurationMinutes = roundDurationMinutes(actualDurationMinutes);
+        // Calculate the rounded duration (for reporting/billing only)
+        const roundedDurationMinutes = roundDurationMinutes(rawDurationMinutes);
         console.log(`Rounded duration: ${Math.floor(roundedDurationMinutes / 60)}h ${roundedDurationMinutes % 60}m (${roundedDurationMinutes} minutes)`);
         
-        // Calculate the final end time by adding the rounded duration to the start time
-        const finalEndTime = addMinutes(adjustedStartTime, roundedDurationMinutes);
-        
-        // Store the actual times in the database
-        timeEntryData.start_time = adjustedStartTime.toISOString();
-        timeEntryData.end_time = finalEndTime.toISOString();
-        
-        // Log the final times for verification
-        console.log("Final times after duration-based rounding - Start:", 
-          `${adjustedStartTime.getHours()}:${adjustedStartTime.getMinutes().toString().padStart(2, '0')}`,
-          "End:", 
-          `${finalEndTime.getHours()}:${finalEndTime.getMinutes().toString().padStart(2, '0')}`
-        );
+        // Log the final times being stored
+        console.log("Final times being stored:");
+        console.log("- start_time:", timeEntryData.start_time);
+        console.log("- end_time:", timeEntryData.end_time);
+        console.log("- original_start_time:", timeEntryData.original_start_time);
+        console.log("- original_end_time:", timeEntryData.original_end_time);
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;
@@ -411,8 +406,16 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
   const calculateDuration = () => {
     if (watchStartTime && watchEndTime) {
       const minutes = differenceInMinutes(watchEndTime, watchStartTime);
-      const hours = Math.floor(minutes / 60);
-      const remainingMinutes = minutes % 60;
+      // Apply rounding to the calculated duration (for display only)
+      const roundedMinutes = roundDurationMinutes(minutes);
+      const hours = Math.floor(roundedMinutes / 60);
+      const remainingMinutes = roundedMinutes % 60;
+      
+      if (minutes !== roundedMinutes) {
+        const actualHours = Math.floor(minutes / 60);
+        const actualMinutes = minutes % 60;
+        return `${actualHours}h ${actualMinutes}m → ${hours}h ${remainingMinutes}m (rounded)`;
+      }
       
       return `${hours}h ${remainingMinutes}m`;
     }
@@ -547,7 +550,6 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                       <Textarea
                         ref={(el) => {
                           descriptionRef.current = el;
-                          console.log("Description ref attached:", el);
                         }}
                         placeholder={t("timeTracking.descriptionPlaceholder")}
                         className={cn("min-h-[100px]", compact ? "text-xs" : "")}
