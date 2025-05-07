@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { differenceInMinutes } from "date-fns";
+import { differenceInMinutes, format, addMinutes } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useIsLaptop } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { roundDurationMinutes } from "@/lib/formatTime";
 
 let filteredProducts: any[] = [];
 
@@ -141,127 +142,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
     return products.find(product => product.id === id);
   };
 
-  /**
-   * Rounds a date to the correct interval based on minutes following these exact rules:
-   * - 0 minutes: No rounding
-   * - 1-15 minutes: Round to 15 minutes
-   * - 16-30 minutes: Round to 30 minutes
-   * - 31-45 minutes: Round to 45 minutes
-   * - 46-59 minutes: Round to the next hour
-   */
-  const applyTimeRounding = (time: Date | undefined): Date | undefined => {
-    if (!time) return undefined;
-    
-    const hours = time.getHours();
-    const minutes = time.getMinutes();
-    
-    // If minutes is exactly 0, don't round
-    if (minutes === 0) {
-      console.log(`Time rounding: ${hours}:${minutes} → NO ROUNDING (exactly 0 minutes)`);
-      return new Date(
-        time.getFullYear(),
-        time.getMonth(),
-        time.getDate(),
-        hours,
-        0
-      );
-    }
-    
-    let roundedMinutes: number;
-    let roundedHours = hours;
-    
-    // Apply the correct rounding rules
-    if (minutes >= 1 && minutes <= 15) {
-      roundedMinutes = 15;
-    } else if (minutes >= 16 && minutes <= 30) {
-      roundedMinutes = 30;
-    } else if (minutes >= 31 && minutes <= 45) {
-      roundedMinutes = 45;
-    } else {
-      // If minutes > 45, round to the next hour
-      roundedMinutes = 0;
-      roundedHours = (hours + 1) % 24;
-    }
-    
-    console.log(`Time rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
-    
-    return new Date(
-      time.getFullYear(),
-      time.getMonth(),
-      time.getDate(),
-      roundedHours,
-      roundedMinutes
-    );
-  };
-
-  // Function to ensure minimum 15-minute duration
-  const ensureMinimumDuration = (startTime: Date, endTime: Date): Date => {
-    const durationMs = endTime.getTime() - startTime.getTime();
-    const durationMinutes = durationMs / (1000 * 60);
-    
-    // If duration is less than 15 minutes, add time to make it 15 minutes
-    if (durationMinutes < 15) {
-      const newEndTime = new Date(startTime.getTime() + (15 * 60 * 1000));
-      return newEndTime;
-    }
-    
-    return endTime;
-  };
-
-  // Function to handle start time completion
-  const handleStartTimeComplete = useCallback(() => {
-    console.log("Start time complete, focusing end time field");
-    if (endTimeRef.current) {
-      const input = endTimeRef.current.querySelector('input');
-      if (input) {
-        input.focus();
-      }
-    }
-  }, []);
-
-  // Function to handle end time completion
-  const handleEndTimeComplete = useCallback(() => {
-    console.log("End time complete, focusing description field");
-    
-    console.log("Description ref:", descriptionRef.current);
-    
-    requestAnimationFrame(() => {
-      const focusDescription = () => {
-        if (!isMounted.current) return;
-        
-        const textarea = document.getElementById('description-field');
-        if (textarea) {
-          console.log("Found description field by ID:", textarea);
-          (textarea as HTMLTextAreaElement).focus();
-          textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          return;
-        }
-        
-        if (descriptionRef.current) {
-          console.log("Focusing description field via ref");
-          descriptionRef.current.focus();
-          descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-          console.log("Description field ref is null, will retry");
-          setTimeout(() => {
-            if (!isMounted.current) return;
-            
-            const retryTextarea = document.getElementById('description-field');
-            if (retryTextarea) {
-              console.log("Found description field on retry");
-              (retryTextarea as HTMLTextAreaElement).focus();
-              retryTextarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } else {
-              console.log("Failed to find description field after retries");
-            }
-          }, 100);
-        }
-      };
-      
-      setTimeout(focusDescription, 100);
-    });
-  }, []);
-
+  // We don't need the time rounding function anymore - instead, we'll only round the duration
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
       toast.error(t("error.sessionExpired"));
@@ -323,38 +204,36 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         const rawDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
         console.log(`Raw duration before rounding: ${Math.floor(rawDurationMinutes / 60)}h ${rawDurationMinutes % 60}m (${rawDurationMinutes} minutes)`);
         
+        // If end time is earlier than start time, assume it's the next day
         if (adjustedEndTime < adjustedStartTime) {
           console.log("End time is before start time, adjusting to next day");
           adjustedEndTime.setDate(adjustedEndTime.getDate() + 1);
         }
         
-        // Store original times before rounding
+        // Store original times 
         timeEntryData.original_start_time = adjustedStartTime.toISOString();
         timeEntryData.original_end_time = adjustedEndTime.toISOString();
         
-        // Apply rounding to both start and end times
-        // For start time, we want to keep it as is (don't round)
-        // For end time, we apply the rounding rules
-        const roundedEndTime = applyTimeRounding(adjustedEndTime);
+        // Calculate actual duration in minutes
+        const actualDurationMinutes = differenceInMinutes(adjustedEndTime, adjustedStartTime);
         
-        // Ensure minimum duration of 15 minutes
-        const finalEndTime = roundedEndTime 
-          ? ensureMinimumDuration(adjustedStartTime, roundedEndTime) 
-          : ensureMinimumDuration(adjustedStartTime, adjustedEndTime);
+        // Round the duration according to the rules
+        const roundedDurationMinutes = roundDurationMinutes(actualDurationMinutes);
+        console.log(`Rounded duration: ${Math.floor(roundedDurationMinutes / 60)}h ${roundedDurationMinutes % 60}m (${roundedDurationMinutes} minutes)`);
         
-        // Log the final times after all adjustments
-        console.log("Final times after rounding - Start:", 
+        // Calculate the final end time by adding the rounded duration to the start time
+        const finalEndTime = addMinutes(adjustedStartTime, roundedDurationMinutes);
+        
+        // Store the actual times in the database
+        timeEntryData.start_time = adjustedStartTime.toISOString();
+        timeEntryData.end_time = finalEndTime.toISOString();
+        
+        // Log the final times for verification
+        console.log("Final times after duration-based rounding - Start:", 
           `${adjustedStartTime.getHours()}:${adjustedStartTime.getMinutes().toString().padStart(2, '0')}`,
           "End:", 
           `${finalEndTime.getHours()}:${finalEndTime.getMinutes().toString().padStart(2, '0')}`
         );
-        
-        // Calculate duration after rounding
-        const finalDurationMinutes = differenceInMinutes(finalEndTime, adjustedStartTime);
-        console.log(`Final duration after rounding: ${Math.floor(finalDurationMinutes / 60)}h ${finalDurationMinutes % 60}m (${finalDurationMinutes} minutes)`);
-        
-        timeEntryData.start_time = adjustedStartTime.toISOString();
-        timeEntryData.end_time = finalEndTime.toISOString();
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;

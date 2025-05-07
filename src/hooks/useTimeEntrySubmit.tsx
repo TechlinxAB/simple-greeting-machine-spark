@@ -1,10 +1,11 @@
 
 import { useState } from "react";
-import { format, parse, differenceInMinutes } from "date-fns";
+import { format, parse, differenceInMinutes, addMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { UseFormReturn } from "react-hook-form";
 import { useTimeCalculation } from "./useTimeCalculation";
+import { roundDurationMinutes } from "@/lib/formatTime";
 
 interface UseTimeEntrySubmitProps {
   timeEntry: any;
@@ -25,9 +26,8 @@ export function useTimeEntrySubmit({
   
   // We set disableRounding to true specifically for editing
   const {
-    applyTimeRounding,
-    ensureMinimumDuration,
-    parseTimeString
+    parseTimeString,
+    applyTimeRounding
   } = useTimeCalculation({
     watch: form.watch,
     startTimeRef,
@@ -79,23 +79,11 @@ export function useTimeEntrySubmit({
           throw new Error("Invalid start time format");
         }
         
-        // Store original, unrounded time first
+        // Store exact, unrounded times
         const startTimeIsoString = `${datePart}T${startTimeString}:00`;
         originalStartTime = startTimeIsoString;
-        console.log("Original start time:", startTimeIsoString);
-        
-        // For new entries, apply rounding rules to the start time
-        if (isNew) {
-          const roundedStartDate = applyTimeRounding(startDate);
-          if (roundedStartDate) {
-            startTime = `${datePart}T${format(roundedStartDate, "HH:mm")}:00`;
-            console.log("Rounded start time for new entry:", startTime);
-          }
-        } else {
-          // For editing, use the exact time entered by the user with no rounding
-          startTime = startTimeIsoString;
-          console.log("Using exact start time for editing:", startTime);
-        }
+        startTime = startTimeIsoString; // We don't round individual times anymore
+        console.log("Start time (no rounding):", startTimeIsoString);
       }
       
       // Process end time if activity type
@@ -106,22 +94,44 @@ export function useTimeEntrySubmit({
           throw new Error("Invalid end time format");
         }
         
-        // Store original, unrounded time first
+        // Store exact, unrounded end time
         const endTimeIsoString = `${datePart}T${endTimeString}:00`;
         originalEndTime = endTimeIsoString;
-        console.log("Original end time:", endTimeIsoString);
         
-        // For new entries, apply rounding rules to the end time
-        if (isNew) {
-          const roundedEndDate = applyTimeRounding(endDate);
-          if (roundedEndDate) {
-            endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
-            console.log("Rounded end time for new entry:", endTime);
-          }
-        } else {
-          // For editing, use the exact time entered by the user with no rounding
+        if (isEditing) {
+          // For editing, use exact times with no rounding
           endTime = endTimeIsoString;
-          console.log("Using exact end time for editing:", endTime);
+          console.log("End time for editing (no rounding):", endTimeIsoString);
+        } else {
+          // For new entries, we need to:
+          // 1. Calculate the exact duration between start and end times
+          // 2. Round that duration according to our rules
+          // 3. Add the rounded duration to the start time to get the final end time
+          const startDate = parseTimeString(startTimeString);
+          const endDate = parseTimeString(endTimeString);
+          
+          if (startDate && endDate) {
+            // Handle day crossing
+            let adjustedEndDate = new Date(endDate);
+            if (adjustedEndDate < startDate) {
+              adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+            }
+            
+            // Calculate the exact duration in minutes
+            const durationMinutes = differenceInMinutes(adjustedEndDate, startDate);
+            console.log("Actual duration in minutes:", durationMinutes);
+            
+            // Round the duration according to our rules
+            const roundedMinutes = roundDurationMinutes(durationMinutes);
+            console.log("Rounded duration in minutes:", roundedMinutes);
+            
+            // Calculate the new end time by adding the rounded duration to the start time
+            const roundedEndDate = addMinutes(startDate, roundedMinutes);
+            
+            // Format the rounded end time
+            endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
+            console.log("Final end time with rounded duration:", endTime);
+          }
         }
       }
       
@@ -131,7 +141,7 @@ export function useTimeEntrySubmit({
         let endDate = new Date(endTime);
         
         // Log durations at different stages
-        console.log("Initial duration calculation:");
+        console.log("Final duration calculation:");
         let minutes = differenceInMinutes(endDate, startDate);
         console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
         console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
@@ -142,7 +152,6 @@ export function useTimeEntrySubmit({
           const nextDay = new Date(endTime);
           nextDay.setDate(nextDay.getDate() + 1);
           endTime = nextDay.toISOString();
-          originalEndTime = nextDay.toISOString();
           endDate = nextDay;
           
           // Log after day adjustment
@@ -150,25 +159,6 @@ export function useTimeEntrySubmit({
           console.log("After day crossing adjustment:");
           console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
           console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
-        }
-        
-        // For new entries, ensure minimum duration
-        if (isNew) {
-          endDate = new Date(endTime);
-          const finalEndDate = ensureMinimumDuration(startDate, endDate);
-          
-          if (finalEndDate.getTime() !== endDate.getTime()) {
-            console.log("End time adjusted for minimum duration from", format(endDate, "HH:mm"), "to", format(finalEndDate, "HH:mm"));
-            endTime = finalEndDate.toISOString();
-            originalEndTime = finalEndDate.toISOString();
-            endDate = finalEndDate;
-            
-            // Log after minimum duration adjustment
-            minutes = differenceInMinutes(endDate, startDate);
-            console.log("After minimum duration adjustment:");
-            console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
-            console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
-          }
         }
       }
       

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 
@@ -46,7 +45,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
     
     if (filtered.length === 5 && filtered.includes(":")) {
-      handleTimeUpdate(filtered, false); // Don't round when typing
+      handleTimeUpdate(filtered, false); // Don't round individual times
       
       if (onComplete) {
         requestAnimationFrame(() => {
@@ -56,7 +55,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
     }
   };
   
-  const handleTimeUpdate = (timeStr: string = timeInput, shouldRound: boolean = roundOnBlur) => {
+  const handleTimeUpdate = (timeStr: string = timeInput) => {
     if (!timeStr || timeStr.length < 5 || !timeStr.includes(":")) {
       onChange(null);
       return;
@@ -82,57 +81,14 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
       0
     );
     
-    // Only apply rounding when explicitly requested and roundOnBlur is true
-    if (shouldRound && roundToMinutes > 0) {
-      // Apply the correct rounding rules on blur if requested
-      // Skip rounding when minutes is exactly 0
-      if (minutes !== 0) {
-        let roundedHours = hours;
-        let roundedMinutes = 0;
-        
-        // Apply the exact rounding rules
-        if (minutes >= 1 && minutes <= 15) {
-          roundedMinutes = 15;
-        } else if (minutes >= 16 && minutes <= 30) {
-          roundedMinutes = 30;
-        } else if (minutes >= 31 && minutes <= 45) {
-          roundedMinutes = 45;
-        } else {
-          // If minutes > 45, round to the next hour
-          roundedHours = (hours + 1) % 24;
-          roundedMinutes = 0;
-        }
-        
-        const roundedDate = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          roundedHours,
-          roundedMinutes,
-          0,
-          0
-        );
-        
-        console.log(`TimePicker rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
-        
-        // Update display to show rounded time
-        const formattedHours = roundedHours.toString().padStart(2, '0');
-        const formattedMins = roundedMinutes.toString().padStart(2, '0');
-        setTimeInput(`${formattedHours}:${formattedMins}`);
-        
-        onChange(roundedDate);
-        return;
-      }
-    }
-    
-    // If no rounding is needed, use the exact time values
+    // We no longer round individual times, just keep the exact time
     onChange(newDate);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
       if (timeInput) {
-        handleTimeUpdate(timeInput, roundOnBlur); // Apply rounding based on roundOnBlur parameter
+        handleTimeUpdate(timeInput);
       }
       if (e.key === "Enter" && onComplete) {
         e.preventDefault();
@@ -145,7 +101,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(({
   
   const handleBlur = () => {
     if (timeInput) {
-      handleTimeUpdate(timeInput, roundOnBlur);
+      handleTimeUpdate(timeInput);
       if (timeInput.length === 5 && onComplete) {
         requestAnimationFrame(() => {
           setTimeout(onComplete, 50);

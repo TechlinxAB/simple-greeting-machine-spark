@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { differenceInMinutes, format, parse } from "date-fns";
 import { UseFormWatch } from "react-hook-form";
+import { roundDurationMinutes, minutesToHoursAndMinutes } from "@/lib/formatTime";
 
 interface UseTimeCalculationProps {
   watch: UseFormWatch<any>;
@@ -19,6 +20,8 @@ export function useTimeCalculation({
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
   const [calculatedDuration, setCalculatedDuration] = useState<string | null>(null);
+  const [actualMinutes, setActualMinutes] = useState<number | null>(null);
+  const [roundedMinutes, setRoundedMinutes] = useState<number | null>(null);
 
   useEffect(() => {
     const updateDuration = () => {
@@ -74,19 +77,35 @@ export function useTimeCalculation({
           setEndTimeDate(endDate);
           
           // Calculate duration using the actual input times
-          const actualMinutes = differenceInMinutes(endDate, startDate);
-          const actualHours = Math.floor(actualMinutes / 60);
-          const actualRemainingMinutes = actualMinutes % 60;
+          const minutes = differenceInMinutes(endDate, startDate);
+          setActualMinutes(minutes);
           
-          console.log(`Duration calculation: ${startHours}:${startMinutes.toString().padStart(2, '0')} to ${endHours}:${endMinutes.toString().padStart(2, '0')} = ${actualMinutes} minutes (${actualHours}h ${actualRemainingMinutes}m)`);
+          // Calculate the rounded duration based on the rules
+          let roundedMins = minutes;
+          if (!disableRounding) {
+            roundedMins = roundDurationMinutes(minutes);
+          }
+          setRoundedMinutes(roundedMins);
           
-          setCalculatedDuration(`${actualHours}h ${actualRemainingMinutes}m`);
+          // Format the duration for display
+          const { hours, minutes: remainingMinutes } = minutesToHoursAndMinutes(disableRounding ? minutes : roundedMins);
+          
+          console.log(`Duration calculation: ${startHours}:${startMinutes.toString().padStart(2, '0')} to ${endHours}:${endMinutes.toString().padStart(2, '0')} = ${minutes} minutes (${hours}h ${remainingMinutes}m)`);
+          if (!disableRounding) {
+            console.log(`Rounded duration: ${roundedMins} minutes (${hours}h ${remainingMinutes}m)`);
+          }
+          
+          setCalculatedDuration(`${hours}h ${remainingMinutes}m`);
         } catch (error) {
           console.error("Error calculating duration:", error);
           setCalculatedDuration(null);
+          setActualMinutes(null);
+          setRoundedMinutes(null);
         }
       } else {
         setCalculatedDuration(null);
+        setActualMinutes(null);
+        setRoundedMinutes(null);
       }
     };
     
@@ -100,64 +119,14 @@ export function useTimeCalculation({
     });
     
     return () => subscription.unsubscribe();
-  }, [watch, startTimeRef, endTimeRef]);
+  }, [watch, startTimeRef, endTimeRef, disableRounding]);
 
   /**
-   * Rounds a date to the correct interval based on minutes following these exact rules:
-   * - 0 minutes: No rounding
-   * - 1-15 minutes: Round to 15 minutes
-   * - 16-30 minutes: Round to 30 minutes
-   * - 31-45 minutes: Round to 45 minutes
-   * - 46-59 minutes: Round to the next hour
+   * No longer needed as we don't round individual times, just the duration
+   * Kept for reference and backward compatibility
    */
   const applyTimeRounding = (time: Date | undefined): Date | undefined => {
-    if (!time) return undefined;
-    
-    // Skip rounding if disabled (for example during editing)
-    if (disableRounding) {
-      return time;
-    }
-    
-    const hours = time.getHours();
-    const minutes = time.getMinutes();
-    
-    // If minutes is exactly 0, don't round
-    if (minutes === 0) {
-      console.log(`useTimeCalculation rounding: ${hours}:${minutes} → NO ROUNDING (exactly 0 minutes)`);
-      return new Date(
-        time.getFullYear(),
-        time.getMonth(),
-        time.getDate(),
-        hours,
-        0
-      );
-    }
-    
-    let roundedMinutes: number;
-    let roundedHours = hours;
-    
-    // Apply the correct rounding rules
-    if (minutes >= 1 && minutes <= 15) {
-      roundedMinutes = 15;
-    } else if (minutes >= 16 && minutes <= 30) {
-      roundedMinutes = 30;
-    } else if (minutes >= 31 && minutes <= 45) {
-      roundedMinutes = 45;
-    } else {
-      // If minutes > 45, round to the next hour
-      roundedMinutes = 0;
-      roundedHours = (hours + 1) % 24;
-    }
-    
-    console.log(`useTimeCalculation rounding: ${hours}:${minutes.toString().padStart(2, '0')} → ${roundedHours}:${roundedMinutes.toString().padStart(2, '0')}`);
-    
-    return new Date(
-      time.getFullYear(),
-      time.getMonth(),
-      time.getDate(),
-      roundedHours,
-      roundedMinutes
-    );
+    return time; // Now returns the unchanged time
   };
 
   // Function to ensure minimum 15-minute duration
@@ -204,13 +173,23 @@ export function useTimeCalculation({
     return undefined;
   };
 
+  // Get the final endTime with rounded duration applied
+  const getEndTimeWithRoundedDuration = (): Date | null => {
+    if (!startTimeDate || roundedMinutes === null) return null;
+    
+    return new Date(startTimeDate.getTime() + roundedMinutes * 60 * 1000);
+  };
+
   return {
     startTimeDate,
     endTimeDate,
     calculatedDuration,
+    actualMinutes,
+    roundedMinutes,
     applyTimeRounding,
     ensureMinimumDuration,
     parseTimeString,
-    handleTimeChange
+    handleTimeChange,
+    getEndTimeWithRoundedDuration
   };
 }

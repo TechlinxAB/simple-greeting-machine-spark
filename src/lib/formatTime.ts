@@ -1,3 +1,4 @@
+
 /**
  * Formats time in hours to a user-friendly string with localization
  * Handles compact/full forms and English/Swedish
@@ -66,4 +67,36 @@ export function roundTimeToInterval(hours: number): number {
 
   // Return rounded hours (convert back from minutes)
   return (interval * 15) / 60;
+}
+
+/**
+ * Rounds duration minutes according to the specified rules:
+ * - 1-15 minutes = 15 minutes
+ * - 16-30 minutes = 30 minutes
+ * - 31-45 minutes = 45 minutes
+ * - 46-60 minutes = 60 minutes
+ * - And so on for longer durations
+ * 
+ * @param durationMinutes The duration in minutes
+ * @returns The rounded duration in minutes
+ */
+export function roundDurationMinutes(durationMinutes: number): number {
+  if (durationMinutes <= 0) return 0;
+  
+  // Calculate the 15-minute block the duration falls into
+  const block = Math.ceil(durationMinutes / 15);
+  
+  // Return the rounded duration in minutes
+  return block * 15;
+}
+
+/**
+ * Converts minutes to hours and minutes format
+ * @param totalMinutes The total minutes to convert
+ * @returns An object with hours and minutes
+ */
+export function minutesToHoursAndMinutes(totalMinutes: number): { hours: number, minutes: number } {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours, minutes };
 }

@@ -10,6 +10,7 @@ import {
 import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { useTimeCalculation } from "@/hooks/useTimeCalculation";
 import { useTranslation } from "react-i18next";
+import { minutesToHoursAndMinutes } from "@/lib/formatTime";
 
 interface ActivityFieldsProps {
   form: any;
@@ -34,6 +35,8 @@ export function ActivityFields({
     startTimeDate,
     endTimeDate,
     calculatedDuration,
+    actualMinutes,
+    roundedMinutes,
     handleTimeChange
   } = useTimeCalculation({ 
     watch: form.watch,
@@ -41,6 +44,29 @@ export function ActivityFields({
     endTimeRef,
     disableRounding: isEditing // Disable rounding when editing
   });
+
+  // Generate display for actual vs rounded duration
+  const getDurationDisplayText = () => {
+    if (actualMinutes === null || roundedMinutes === null) return null;
+    
+    if (isEditing) {
+      return calculatedDuration; // When editing, just show the actual duration
+    }
+    
+    // For new entries, show both the actual and the rounded duration
+    const actual = minutesToHoursAndMinutes(actualMinutes);
+    const rounded = minutesToHoursAndMinutes(roundedMinutes);
+    
+    const actualText = `${actual.hours}h ${actual.minutes}m`;
+    const roundedText = `${rounded.hours}h ${rounded.minutes}m`;
+    
+    // If they're the same, just show one
+    if (actualMinutes === roundedMinutes) {
+      return calculatedDuration;
+    }
+    
+    return `${actualText} → ${roundedText}`;
+  };
 
   // Log when time values change to track rounding
   const logTimeChanges = (field: string, date: Date | null, timeString: string) => {
@@ -69,7 +95,7 @@ export function ActivityFields({
                   }}
                   ref={startTimeRef}
                   disabled={loading}
-                  roundOnBlur={!isEditing} // Only round if not editing
+                  roundOnBlur={false} // Never round individual times
                 />
               </FormControl>
               <FormMessage />
@@ -93,7 +119,7 @@ export function ActivityFields({
                   }}
                   ref={endTimeRef}
                   disabled={loading}
-                  roundOnBlur={!isEditing} // Only round if not editing
+                  roundOnBlur={false} // Never round individual times
                 />
               </FormControl>
               <FormMessage />
@@ -104,8 +130,8 @@ export function ActivityFields({
       
       {calculatedDuration && (
         <div className="text-sm text-muted-foreground">
-          {t("timeTracking.duration")}: {calculatedDuration}
-          {!isEditing && (
+          {t("timeTracking.duration")}: {getDurationDisplayText()}
+          {!isEditing && roundedMinutes !== actualMinutes && (
             <span className="ml-2 text-xs">
               ({t("timeTracking.actualTimeWillBeRounded")})
             </span>
