@@ -89,8 +89,8 @@ export function useTimeEntrySubmit({
       // Process end time if activity type
       if (endTimeString && values.productType === "activity") {
         // Parse the time string into a Date object
-        const endDate = parseTimeString(endTimeString);
-        if (!endDate) {
+        const endDateValue = parseTimeString(endTimeString);
+        if (!endDateValue) {
           throw new Error("Invalid end time format");
         }
         
@@ -102,18 +102,17 @@ export function useTimeEntrySubmit({
         // 1. Calculate the exact duration between start and end times
         // 2. Round that duration according to our rules
         // 3. Add the rounded duration to the start time to get the final end time
-        const startDate = parseTimeString(startTimeString);
-        const endDate = parseTimeString(endTimeString);
+        const startDateValue = parseTimeString(startTimeString);
         
-        if (startDate && endDate) {
+        if (startDateValue && endDateValue) {
           // Handle day crossing
-          let adjustedEndDate = new Date(endDate);
-          if (adjustedEndDate < startDate) {
+          let adjustedEndDate = new Date(endDateValue);
+          if (adjustedEndDate < startDateValue) {
             adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
           }
           
           // Calculate the exact duration in minutes
-          const durationMinutes = differenceInMinutes(adjustedEndDate, startDate);
+          const durationMinutes = differenceInMinutes(adjustedEndDate, startDateValue);
           console.log("Actual duration in minutes:", durationMinutes);
           
           // Round the duration according to our rules
@@ -121,7 +120,7 @@ export function useTimeEntrySubmit({
           console.log("Rounded duration in minutes:", roundedMinutes);
           
           // Calculate the new end time by adding the rounded duration to the start time
-          const roundedEndDate = addMinutes(startDate, roundedMinutes);
+          const roundedEndDate = addMinutes(startDateValue, roundedMinutes);
           
           // Format the rounded end time
           endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
