@@ -19,6 +19,7 @@ interface ActivityFieldsProps {
   isCompact?: boolean;
   selectedProductPrice: number | null;
   isEditing?: boolean;
+  showCustomPrice?: boolean;
 }
 
 export function ActivityFields({ 
@@ -26,7 +27,8 @@ export function ActivityFields({
   loading, 
   isCompact, 
   selectedProductPrice, 
-  isEditing = false 
+  isEditing = false,
+  showCustomPrice = true
 }: ActivityFieldsProps) {
   const { t } = useTranslation();
   const startTimeRef = useRef<HTMLInputElement>(null);
@@ -133,8 +135,8 @@ export function ActivityFields({
       
       {calculatedDuration && (
         <div className="text-sm border rounded-md p-3 bg-muted/30">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">{t("timeTracking.actualDuration")}:</span>
+          <div className="flex items-center">
+            <span className="font-medium mr-2">{t("timeTracking.actualDuration")}:</span>
             <div>
               {getDurationDisplayText()}
             </div>
@@ -147,36 +149,38 @@ export function ActivityFields({
         </div>
       )}
 
-      <FormField
-        control={form.control}
-        name="customPrice"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className={isCompact ? "text-sm" : ""}>
-              {t("products.customPrice")} 
-              {selectedProductPrice !== null && (
-                <span className="ml-1 text-muted-foreground">
-                  ({t("products.defaultPrice")}: {selectedProductPrice})
-                </span>
-              )}
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder={selectedProductPrice?.toString()}
-                {...field}
-                value={field.value === null ? '' : field.value}
-                onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                className={isCompact ? "h-8 text-xs" : ""}
-                disabled={loading}
-              />
-            </FormControl>
-            <FormMessage className={isCompact ? "text-xs" : ""} />
-          </FormItem>
-        )}
-      />
+      {showCustomPrice && (
+        <FormField
+          control={form.control}
+          name="customPrice"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className={isCompact ? "text-sm" : ""}>
+                {t("products.customPrice")} 
+                {selectedProductPrice !== null && (
+                  <span className="ml-1 text-muted-foreground">
+                    ({t("products.defaultPrice")}: {selectedProductPrice})
+                  </span>
+                )}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={selectedProductPrice?.toString()}
+                  {...field}
+                  value={field.value === null ? '' : field.value}
+                  onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                  className={isCompact ? "h-8 text-xs" : ""}
+                  disabled={loading}
+                />
+              </FormControl>
+              <FormMessage className={isCompact ? "text-xs" : ""} />
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   );
 }

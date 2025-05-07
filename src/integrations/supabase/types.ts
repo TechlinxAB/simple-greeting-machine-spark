@@ -293,6 +293,7 @@ export type Database = {
           original_start_time: string | null
           product_id: string | null
           quantity: number | null
+          rounded_duration_minutes: number | null
           start_time: string | null
           updated_at: string | null
           user_id: string
@@ -310,6 +311,7 @@ export type Database = {
           original_start_time?: string | null
           product_id?: string | null
           quantity?: number | null
+          rounded_duration_minutes?: number | null
           start_time?: string | null
           updated_at?: string | null
           user_id: string
@@ -327,6 +329,7 @@ export type Database = {
           original_start_time?: string | null
           product_id?: string | null
           quantity?: number | null
+          rounded_duration_minutes?: number | null
           start_time?: string | null
           updated_at?: string | null
           user_id?: string

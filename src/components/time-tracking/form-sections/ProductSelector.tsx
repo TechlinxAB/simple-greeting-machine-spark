@@ -22,23 +22,49 @@ interface ProductSelectorProps {
   loading: boolean;
   isCompact?: boolean;
   onProductChange: (type: string | null, price: number | null) => void;
+  filterByType?: string; // Add option to filter by product type
+  isEditing?: boolean; // Is this for editing an existing entry?
 }
 
-export function ProductSelector({ form, loading, isCompact, onProductChange }: ProductSelectorProps) {
+export function ProductSelector({ 
+  form, 
+  loading, 
+  isCompact, 
+  onProductChange, 
+  filterByType,
+  isEditing = false
+}: ProductSelectorProps) {
   const { t } = useTranslation();
   
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("products")
         .select("id, name, type, price")
         .order("name");
         
+      // If filterByType is specified, only show products of that type
+      if (filterByType) {
+        query.eq("type", filterByType);
+      }
+        
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
   });
+  
+  // Determine the label based on the product type filter
+  const getFieldLabel = () => {
+    if (filterByType === "activity") {
+      return t("timeTracking.selectActivity");
+    } else if (filterByType === "item") {
+      return t("timeTracking.selectItem");
+    } else {
+      return t("products.productOrActivity");
+    }
+  };
 
   return (
     <FormField
@@ -46,7 +72,7 @@ export function ProductSelector({ form, loading, isCompact, onProductChange }: P
       name="productId"
       render={({ field }) => (
         <FormItem>
-          <FormLabel className={isCompact ? "text-sm" : ""}>{t("products.productOrActivity")}</FormLabel>
+          <FormLabel className={isCompact ? "text-sm" : ""}>{getFieldLabel()}</FormLabel>
           <Select 
             onValueChange={(value) => {
               field.onChange(value);
@@ -56,17 +82,23 @@ export function ProductSelector({ form, loading, isCompact, onProductChange }: P
               }
             }} 
             defaultValue={field.value}
-            disabled={loading}
+            disabled={loading || isEditing} // Disable selector when editing
           >
             <FormControl>
               <SelectTrigger className={isCompact ? "h-8 text-xs" : ""}>
-                <SelectValue placeholder={t("products.selectAProduct")} />
+                <SelectValue placeholder={
+                  filterByType === "activity" 
+                    ? t("timeTracking.selectActivity") 
+                    : filterByType === "item" 
+                      ? t("timeTracking.selectItem") 
+                      : t("products.selectAProduct")
+                } />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
               {products.map((product) => (
                 <SelectItem key={product.id} value={product.id} className={isCompact ? "text-xs" : ""}>
-                  {product.name} ({product.type}) - {product.price} SEK
+                  {product.name} - {product.price} SEK
                 </SelectItem>
               ))}
             </SelectContent>

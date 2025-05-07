@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Laddar...",
@@ -328,6 +327,9 @@ const translations = {
     noDescription: "Ingen beskrivning",
     createdBy: "Skapad av",
     createdAt: "Skapad den",
+    actualDuration: "Varaktighet", // New key for actual duration label
+    billingDuration: "faktureringsperiod", // Description for the billing duration
+    roundingAppliedExplanation: "Avrundning har tillämpats enligt faktureringsregler." // Explanation for time rounding
   },
   invoices: {
     title: "Fakturering",

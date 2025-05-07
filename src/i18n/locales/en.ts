@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -351,6 +350,9 @@ const translations = {
     noDescription: "No description",
     createdBy: "Created by",
     createdAt: "Created at",
+    actualDuration: "Duration", // New key for actual duration label
+    billingDuration: "billing duration", // Description for the billing duration
+    roundingAppliedExplanation: "Rounding has been applied according to billing rules." // Explanation for time rounding
   },
   invoices: {
     title: "Invoices",

@@ -73,19 +73,13 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
   });
 
   useEffect(() => {
-    const productId = form.watch("productId");
-    if (productId) {
-      // This will be filled by the ProductSelector component
-      const productType = form.watch("productType");
-      if (productType) {
-        setSelectedProductType(productType);
-      }
-    } else if (timeEntry?.products?.type) {
+    // Get initial product type from the time entry
+    if (timeEntry?.products?.type) {
       setSelectedProductType(timeEntry.products.type);
       setSelectedProductPrice(timeEntry.products.price);
       form.setValue("productType", timeEntry.products.type);
     }
-  }, [form.watch("productId"), form.watch("productType"), timeEntry]);
+  }, [timeEntry]);
 
   const { loading, handleSubmit } = useTimeEntrySubmit({
     timeEntry,
@@ -115,6 +109,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           loading={loading} 
           isCompact={compact} 
           onProductChange={handleProductChange}
+          filterByType={selectedProductType || undefined}
+          isEditing={true}
         />
         
         {selectedProductType === "activity" && (
@@ -123,7 +119,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
             loading={loading} 
             isCompact={compact} 
             selectedProductPrice={selectedProductPrice}
-            isEditing={true} // Flag to indicate we're editing
+            isEditing={true}
+            showCustomPrice={false} // Don't show custom price for activities when editing
           />
         )}
         
