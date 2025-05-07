@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { UseFormReturn } from "react-hook-form";
 import { useTimeCalculation } from "./useTimeCalculation";
+import { roundDurationMinutes } from "@/lib/formatTime";
 
 interface UseTimeEntrySubmitProps {
   timeEntry: any;
@@ -65,6 +66,7 @@ export function useTimeEntrySubmit({
       let endTime = null;
       let originalStartTime = null;
       let originalEndTime = null;
+      let roundedDurationMinutes = null;
       
       const isEditing = !!timeEntry.id;
       const isNew = !isEditing;
@@ -87,7 +89,7 @@ export function useTimeEntrySubmit({
         console.log("End time (exact):", endTimeIsoString);
       }
       
-      // Validate times for day crossing (when end time is earlier than start time)
+      // Validate times and calculate the rounded duration
       if (startTime && endTime) {
         const startDate = new Date(startTime);
         let endDateTime = new Date(endTime);
@@ -112,6 +114,10 @@ export function useTimeEntrySubmit({
           console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDateTime, "HH:mm")}`);
           console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
         }
+        
+        // Calculate the rounded duration based on our business rules
+        roundedDurationMinutes = roundDurationMinutes(minutes);
+        console.log(`- Rounded duration: ${Math.floor(roundedDurationMinutes / 60)}h ${roundedDurationMinutes % 60}m (${roundedDurationMinutes} minutes)`);
       }
       
       const timeEntryData: any = {
@@ -132,6 +138,7 @@ export function useTimeEntrySubmit({
         timeEntryData.end_time = endTime;
         timeEntryData.original_start_time = originalStartTime;
         timeEntryData.original_end_time = originalEndTime;
+        timeEntryData.rounded_duration_minutes = roundedDurationMinutes;
         timeEntryData.quantity = null;
       } else if (values.productType === "item") {
         timeEntryData.quantity = values.quantity;
@@ -139,6 +146,7 @@ export function useTimeEntrySubmit({
         timeEntryData.end_time = null;
         timeEntryData.original_start_time = null;
         timeEntryData.original_end_time = null;
+        timeEntryData.rounded_duration_minutes = null;
       }
       
       console.log("Updating time entry with data:", timeEntryData);

@@ -11,6 +11,7 @@ import { TimePicker } from "@/components/time-tracking/TimePicker";
 import { useTimeCalculation } from "@/hooks/useTimeCalculation";
 import { useTranslation } from "react-i18next";
 import { minutesToHoursAndMinutes } from "@/lib/formatTime";
+import { Input } from "@/components/ui/input";
 
 interface ActivityFieldsProps {
   form: any;
@@ -61,7 +62,13 @@ export function ActivityFields({
       return actualText;
     }
     
-    return `${actualText} → ${roundedText}`;
+    return (
+      <>
+        <span className="text-muted-foreground">{actualText}</span>
+        <span className="font-medium text-primary"> → {roundedText}</span>
+        <span className="ml-1 text-xs text-muted-foreground">({t("timeTracking.billingDuration")})</span>
+      </>
+    );
   };
 
   // Log when time values change to track rounding
@@ -125,15 +132,51 @@ export function ActivityFields({
       </div>
       
       {calculatedDuration && (
-        <div className="text-sm text-muted-foreground">
-          {t("timeTracking.duration")}: {getDurationDisplayText()}
+        <div className="text-sm border rounded-md p-3 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <span className="font-medium">{t("timeTracking.actualDuration")}:</span>
+            <div>
+              {getDurationDisplayText()}
+            </div>
+          </div>
           {roundedMinutes !== actualMinutes && (
-            <span className="ml-2 text-xs">
-              ({t("timeTracking.actualTimeWillBeRounded")})
-            </span>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("timeTracking.roundingAppliedExplanation")}
+            </p>
           )}
         </div>
       )}
+
+      <FormField
+        control={form.control}
+        name="customPrice"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className={compact ? "text-sm" : ""}>
+              {t("products.customPrice")} 
+              {selectedProductPrice !== null && (
+                <span className="ml-1 text-muted-foreground">
+                  ({t("products.defaultPrice")}: {selectedProductPrice})
+                </span>
+              )}
+            </FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={selectedProductPrice?.toString()}
+                {...field}
+                value={field.value === null ? '' : field.value}
+                onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                className={compact ? "h-8 text-xs" : ""}
+                disabled={loading}
+              />
+            </FormControl>
+            <FormMessage className={compact ? "text-xs" : ""} />
+          </FormItem>
+        )}
+      />
     </div>
   );
 }

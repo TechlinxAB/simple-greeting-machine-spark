@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -232,8 +233,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         timeEntryData.original_start_time = adjustedStartTime.toISOString();
         timeEntryData.original_end_time = adjustedEndTime.toISOString();
         
-        // FIX: Store the exact times in start_time and end_time as well
-        // This is the key fix - we're now storing the actual input times
+        // Store the exact times in start_time and end_time as well
         timeEntryData.start_time = adjustedStartTime.toISOString();
         timeEntryData.end_time = adjustedEndTime.toISOString();
         
@@ -241,18 +241,23 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         const roundedDurationMinutes = roundDurationMinutes(rawDurationMinutes);
         console.log(`Rounded duration: ${Math.floor(roundedDurationMinutes / 60)}h ${roundedDurationMinutes % 60}m (${roundedDurationMinutes} minutes)`);
         
-        // Log the final times being stored
-        console.log("Final times being stored:");
+        // Store the rounded duration in minutes for billing purposes
+        timeEntryData.rounded_duration_minutes = roundedDurationMinutes;
+        
+        // Log the final times and durations being stored
+        console.log("Final data being stored:");
         console.log("- start_time:", timeEntryData.start_time);
         console.log("- end_time:", timeEntryData.end_time);
         console.log("- original_start_time:", timeEntryData.original_start_time);
         console.log("- original_end_time:", timeEntryData.original_end_time);
+        console.log("- rounded_duration_minutes:", timeEntryData.rounded_duration_minutes);
       } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;
         timeEntryData.original_start_time = null;
         timeEntryData.original_end_time = null;
+        timeEntryData.rounded_duration_minutes = null;
       }
 
       const createdAtDate = new Date(selectedYear, selectedMonth, selectedDay);

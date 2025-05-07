@@ -174,8 +174,19 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
 
   const getItemAmount = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = calculateDuration(entry.start_time, entry.end_time);
-      return formatDuration(hours);
+      // If we have a rounded_duration_minutes value, use it for display/billing
+      if (entry.rounded_duration_minutes) {
+        const hours = entry.rounded_duration_minutes / 60;
+        return formatDuration(hours);
+      } else {
+        // Fallback to calculated duration if rounded_duration_minutes is not available
+        const hours = calculateDuration(entry.start_time, entry.end_time);
+        // Apply rounding rules for display
+        const minutes = hours * 60;
+        const roundedMinutes = roundDurationMinutes(minutes);
+        const roundedHours = roundedMinutes / 60;
+        return formatDuration(roundedHours);
+      }
     } else if (entry.products?.type === "item" && entry.quantity) {
       return `${entry.quantity} ${t('timeTracking.units')}`;
     }
@@ -184,7 +195,19 @@ export function TimeEntriesList({ selectedDate, formattedDate, isCompact }: Time
 
   const getItemTotal = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = calculateDuration(entry.start_time, entry.end_time);
+      let hours;
+      
+      // If we have a rounded_duration_minutes value, use it for billing
+      if (entry.rounded_duration_minutes) {
+        hours = entry.rounded_duration_minutes / 60;
+      } else {
+        // Fallback to calculated and rounded duration if rounded_duration_minutes is not available
+        const calculatedHours = calculateDuration(entry.start_time, entry.end_time);
+        const minutes = calculatedHours * 60;
+        const roundedMinutes = roundDurationMinutes(minutes);
+        hours = roundedMinutes / 60;
+      }
+      
       // Use custom price if available, otherwise use product price
       const price = entry.custom_price !== null ? entry.custom_price : entry.products.price;
       return formatCurrency(hours * price);
