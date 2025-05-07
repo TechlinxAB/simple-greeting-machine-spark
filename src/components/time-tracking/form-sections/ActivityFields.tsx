@@ -152,7 +152,7 @@ export function ActivityFields({
         name="customPrice"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className={compact ? "text-sm" : ""}>
+            <FormLabel className={isCompact ? "text-sm" : ""}>
               {t("products.customPrice")} 
               {selectedProductPrice !== null && (
                 <span className="ml-1 text-muted-foreground">
@@ -169,11 +169,11 @@ export function ActivityFields({
                 {...field}
                 value={field.value === null ? '' : field.value}
                 onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                className={compact ? "h-8 text-xs" : ""}
+                className={isCompact ? "h-8 text-xs" : ""}
                 disabled={loading}
               />
             </FormControl>
-            <FormMessage className={compact ? "text-xs" : ""} />
+            <FormMessage className={isCompact ? "text-xs" : ""} />
           </FormItem>
         )}
       />

@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
-import { formatTime } from "@/lib/formatTime";
+import { formatTime, roundDurationMinutes } from "@/lib/formatTime";
 
 interface TimeEntriesListProps {
   selectedDate: Date;
