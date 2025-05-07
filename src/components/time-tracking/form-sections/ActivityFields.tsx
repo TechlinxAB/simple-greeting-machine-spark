@@ -42,18 +42,14 @@ export function ActivityFields({
     watch: form.watch,
     startTimeRef,
     endTimeRef,
-    disableRounding: isEditing // Disable rounding when editing
+    disableRounding: false // Always apply rounding rules, even when editing
   });
 
   // Generate display for actual vs rounded duration
   const getDurationDisplayText = () => {
     if (actualMinutes === null || roundedMinutes === null) return null;
     
-    if (isEditing) {
-      return calculatedDuration; // When editing, just show the actual duration
-    }
-    
-    // For new entries, show both the actual and the rounded duration
+    // For both new entries and editing, show both the actual and the rounded duration if they differ
     const actual = minutesToHoursAndMinutes(actualMinutes);
     const rounded = minutesToHoursAndMinutes(roundedMinutes);
     
@@ -62,7 +58,7 @@ export function ActivityFields({
     
     // If they're the same, just show one
     if (actualMinutes === roundedMinutes) {
-      return calculatedDuration;
+      return actualText;
     }
     
     return `${actualText} → ${roundedText}`;
@@ -131,7 +127,7 @@ export function ActivityFields({
       {calculatedDuration && (
         <div className="text-sm text-muted-foreground">
           {t("timeTracking.duration")}: {getDurationDisplayText()}
-          {!isEditing && roundedMinutes !== actualMinutes && (
+          {roundedMinutes !== actualMinutes && (
             <span className="ml-2 text-xs">
               ({t("timeTracking.actualTimeWillBeRounded")})
             </span>

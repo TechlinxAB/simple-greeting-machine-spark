@@ -81,19 +81,17 @@ export function useTimeCalculation({
           setActualMinutes(minutes);
           
           // Calculate the rounded duration based on the rules
-          let roundedMins = minutes;
-          if (!disableRounding) {
-            roundedMins = roundDurationMinutes(minutes);
-          }
+          // Always calculate the rounded duration even if we're not using it
+          const roundedMins = roundDurationMinutes(minutes);
           setRoundedMinutes(roundedMins);
           
           // Format the duration for display
-          const { hours, minutes: remainingMinutes } = minutesToHoursAndMinutes(disableRounding ? minutes : roundedMins);
+          // If disableRounding is true, we show the actual duration, otherwise show the rounded duration
+          const durationToUse = disableRounding ? minutes : roundedMins;
+          const { hours, minutes: remainingMinutes } = minutesToHoursAndMinutes(durationToUse);
           
           console.log(`Duration calculation: ${startHours}:${startMinutes.toString().padStart(2, '0')} to ${endHours}:${endMinutes.toString().padStart(2, '0')} = ${minutes} minutes (${hours}h ${remainingMinutes}m)`);
-          if (!disableRounding) {
-            console.log(`Rounded duration: ${roundedMins} minutes (${hours}h ${remainingMinutes}m)`);
-          }
+          console.log(`Rounded duration: ${roundedMins} minutes`);
           
           setCalculatedDuration(`${hours}h ${remainingMinutes}m`);
         } catch (error) {

@@ -24,7 +24,7 @@ export function useTimeEntrySubmit({
 }: UseTimeEntrySubmitProps) {
   const [loading, setLoading] = useState(false);
   
-  // We set disableRounding to true specifically for editing
+  // Remove disableRounding flag for editing - we want to always apply rounding
   const {
     parseTimeString,
     applyTimeRounding
@@ -32,7 +32,7 @@ export function useTimeEntrySubmit({
     watch: form.watch,
     startTimeRef,
     endTimeRef,
-    disableRounding: !!timeEntry.id // Disable rounding for editing existing entries
+    disableRounding: false // Always apply rounding rules
   });
 
   const handleSubmit = async (values: any) => {
@@ -98,40 +98,34 @@ export function useTimeEntrySubmit({
         const endTimeIsoString = `${datePart}T${endTimeString}:00`;
         originalEndTime = endTimeIsoString;
         
-        if (isEditing) {
-          // For editing, use exact times with no rounding
-          endTime = endTimeIsoString;
-          console.log("End time for editing (no rounding):", endTimeIsoString);
-        } else {
-          // For new entries, we need to:
-          // 1. Calculate the exact duration between start and end times
-          // 2. Round that duration according to our rules
-          // 3. Add the rounded duration to the start time to get the final end time
-          const startDate = parseTimeString(startTimeString);
-          const endDate = parseTimeString(endTimeString);
-          
-          if (startDate && endDate) {
-            // Handle day crossing
-            let adjustedEndDate = new Date(endDate);
-            if (adjustedEndDate < startDate) {
-              adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-            }
-            
-            // Calculate the exact duration in minutes
-            const durationMinutes = differenceInMinutes(adjustedEndDate, startDate);
-            console.log("Actual duration in minutes:", durationMinutes);
-            
-            // Round the duration according to our rules
-            const roundedMinutes = roundDurationMinutes(durationMinutes);
-            console.log("Rounded duration in minutes:", roundedMinutes);
-            
-            // Calculate the new end time by adding the rounded duration to the start time
-            const roundedEndDate = addMinutes(startDate, roundedMinutes);
-            
-            // Format the rounded end time
-            endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
-            console.log("Final end time with rounded duration:", endTime);
+        // For both new entries and editing, we need to:
+        // 1. Calculate the exact duration between start and end times
+        // 2. Round that duration according to our rules
+        // 3. Add the rounded duration to the start time to get the final end time
+        const startDate = parseTimeString(startTimeString);
+        const endDate = parseTimeString(endTimeString);
+        
+        if (startDate && endDate) {
+          // Handle day crossing
+          let adjustedEndDate = new Date(endDate);
+          if (adjustedEndDate < startDate) {
+            adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
           }
+          
+          // Calculate the exact duration in minutes
+          const durationMinutes = differenceInMinutes(adjustedEndDate, startDate);
+          console.log("Actual duration in minutes:", durationMinutes);
+          
+          // Round the duration according to our rules
+          const roundedMinutes = roundDurationMinutes(durationMinutes);
+          console.log("Rounded duration in minutes:", roundedMinutes);
+          
+          // Calculate the new end time by adding the rounded duration to the start time
+          const roundedEndDate = addMinutes(startDate, roundedMinutes);
+          
+          // Format the rounded end time
+          endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
+          console.log("Final end time with rounded duration:", endTime);
         }
       }
       
