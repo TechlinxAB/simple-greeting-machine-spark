@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -537,11 +536,6 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {watchProductId && renderProductSpecificFields()}
               
-              {watchStartTime && watchEndTime && (
-                <div className="text-sm text-muted-foreground">
-                  {t("timeTracking.duration")}: {calculateDuration()}
-                </div>
-              )}
               
               <FormField
                 control={form.control}

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { format, parse, differenceInMinutes, addMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
@@ -74,16 +73,16 @@ export function useTimeEntrySubmit({
       // Process start time if activity type
       if (startTimeString && values.productType === "activity") {
         // Parse the time string into a Date object
-        const startDate = parseTimeString(startTimeString);
-        if (!startDate) {
+        const startDateValue = parseTimeString(startTimeString);
+        if (!startDateValue) {
           throw new Error("Invalid start time format");
         }
         
         // Store exact, unrounded times
         const startTimeIsoString = `${datePart}T${startTimeString}:00`;
         originalStartTime = startTimeIsoString;
-        startTime = startTimeIsoString; // We don't round individual times anymore
-        console.log("Start time (no rounding):", startTimeIsoString);
+        startTime = startTimeIsoString; // Storing exact time as entered
+        console.log("Start time (exact):", startTimeIsoString);
       }
       
       // Process end time if activity type
@@ -97,11 +96,11 @@ export function useTimeEntrySubmit({
         // Store exact, unrounded end time
         const endTimeIsoString = `${datePart}T${endTimeString}:00`;
         originalEndTime = endTimeIsoString;
+        endTime = endTimeIsoString; // Storing exact time as entered
+        console.log("End time (exact):", endTimeIsoString);
         
-        // For both new entries and editing, we need to:
-        // 1. Calculate the exact duration between start and end times
-        // 2. Round that duration according to our rules
-        // 3. Add the rounded duration to the start time to get the final end time
+        // Now calculate the duration between the exact start and end times
+        // We'll use this duration for billing, but keep the visual start and end times as entered
         const startDateValue = parseTimeString(startTimeString);
         
         if (startDateValue && endDateValue) {
@@ -119,38 +118,34 @@ export function useTimeEntrySubmit({
           const roundedMinutes = roundDurationMinutes(durationMinutes);
           console.log("Rounded duration in minutes:", roundedMinutes);
           
-          // Calculate the new end time by adding the rounded duration to the start time
-          const roundedEndDate = addMinutes(startDateValue, roundedMinutes);
-          
-          // Format the rounded end time
-          endTime = `${datePart}T${format(roundedEndDate, "HH:mm")}:00`;
-          console.log("Final end time with rounded duration:", endTime);
+          // We'll store this rounded duration for billing purposes in a separate field
+          // but keep the visual start and end times exactly as entered
         }
       }
       
       // Validate times to ensure end time is after start time
       if (startTime && endTime) {
         const startDate = new Date(startTime);
-        let endDate = new Date(endTime);
+        let endDateTime = new Date(endTime);
         
         // Log durations at different stages
         console.log("Final duration calculation:");
-        let minutes = differenceInMinutes(endDate, startDate);
-        console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
+        let minutes = differenceInMinutes(endDateTime, startDate);
+        console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDateTime, "HH:mm")}`);
         console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
         
         // Handle day crossing (when end time is earlier than start time)
-        if (endDate < startDate) {
+        if (endDateTime < startDate) {
           console.log("End time is before start time, adjusting to next day");
           const nextDay = new Date(endTime);
           nextDay.setDate(nextDay.getDate() + 1);
           endTime = nextDay.toISOString();
-          endDate = nextDay;
+          endDateTime = nextDay;
           
           // Log after day adjustment
-          minutes = differenceInMinutes(endDate, startDate);
+          minutes = differenceInMinutes(endDateTime, startDate);
           console.log("After day crossing adjustment:");
-          console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDate, "HH:mm")}`);
+          console.log(`- Start: ${format(startDate, "HH:mm")}, End: ${format(endDateTime, "HH:mm")}`);
           console.log(`- Duration: ${Math.floor(minutes / 60)}h ${minutes % 60}m (${minutes} minutes)`);
         }
       }
@@ -187,6 +182,7 @@ export function useTimeEntrySubmit({
       console.log("Custom price value being saved:", values.customPrice);
 
       if (values.productType === "activity") {
+        // Store the EXACT times as entered by the user
         timeEntryData.start_time = startTime;
         timeEntryData.end_time = endTime;
         timeEntryData.original_start_time = originalStartTime;

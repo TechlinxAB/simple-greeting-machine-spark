@@ -120,11 +120,11 @@ export function useTimeCalculation({
   }, [watch, startTimeRef, endTimeRef, disableRounding]);
 
   /**
-   * No longer needed as we don't round individual times, just the duration
-   * Kept for reference and backward compatibility
+   * This function now returns the unchanged time without rounding
+   * Kept for backward compatibility but its behavior is changed
    */
   const applyTimeRounding = (time: Date | undefined): Date | undefined => {
-    return time; // Now returns the unchanged time
+    return time; // Return the time exactly as is
   };
 
   // Function to ensure minimum 15-minute duration
@@ -165,13 +165,14 @@ export function useTimeCalculation({
 
   const handleTimeChange = (field: string, value: Date | null) => {
     if (value) {
+      // Format the time exactly as entered, with no rounding
       const timeString = format(value, "HH:mm");
       return timeString;
     }
     return undefined;
   };
 
-  // Get the final endTime with rounded duration applied
+  // Get the final endTime with rounded duration applied (for billing purposes only)
   const getEndTimeWithRoundedDuration = (): Date | null => {
     if (!startTimeDate || roundedMinutes === null) return null;
     
