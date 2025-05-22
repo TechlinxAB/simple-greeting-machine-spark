@@ -9,7 +9,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createFavicon, setFavicon } from '@/utils/createFavicon';
 
-// Create and set the favicon
+// Create and set the favicon with "TD" text
 const sidebarGreen = "#326c32"; // Same green as the sidebar
 const faviconDataUrl = createFavicon("TD", sidebarGreen, "#ffffff");
 setFavicon(faviconDataUrl);
