@@ -7,6 +7,12 @@ import '@/i18n';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createFavicon, setFavicon } from '@/utils/createFavicon';
+
+// Create and set the favicon
+const sidebarGreen = "#326c32"; // Same green as the sidebar
+const faviconDataUrl = createFavicon("TD", sidebarGreen, "#ffffff");
+setFavicon(faviconDataUrl);
 
 const queryClient = new QueryClient({
   defaultOptions: {
