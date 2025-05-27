@@ -1,3 +1,4 @@
+
 const translations = {
   common: {
     loading: "Loading...",
@@ -246,7 +247,8 @@ const translations = {
     actions: "Actions",
     cannotDelete: "Cannot delete client {name}",
     hasTimeEntries: "Client has {count} time entries. You must delete or reassign these entries before deleting the client.",
-    manageInAdmin: "You can manage time entries in the Administration section."
+    manageInAdmin: "You can manage time entries in the Administration section.",
+    allClients: "All Clients"
   },
   products: {
     title: "Products",
