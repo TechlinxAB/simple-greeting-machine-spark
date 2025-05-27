@@ -209,7 +209,11 @@ export default function Products() {
                   <DialogTitle>{t("products.addNewProduct")}</DialogTitle>
                   <DialogDescription>{t("products.addProductDescription")}</DialogDescription>
                 </DialogHeader>
-                <ProductForm onSuccess={handleCreateSuccess} />
+                <ProductForm 
+                  open={isCreateDialogOpen} 
+                  onOpenChange={setIsCreateDialogOpen}
+                  onSuccess={handleCreateSuccess} 
+                />
               </DialogContent>
             </Dialog>
           )}
@@ -334,7 +338,9 @@ export default function Products() {
             </DialogHeader>
             {editingProduct && (
               <ProductForm 
-                product={editingProduct} 
+                open={!!editingProduct}
+                onOpenChange={() => setEditingProduct(null)}
+                initialData={editingProduct}
                 onSuccess={handleEditSuccess}
               />
             )}

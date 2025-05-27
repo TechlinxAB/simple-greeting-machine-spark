@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -126,13 +125,13 @@ export default function Clients() {
         />
       )}
       
-      {client.phone && (
+      {(client.telephone || client.phone) && (
         <MobileCardRow 
           label={t("clients.phone")} 
           value={
             <div className="flex items-center gap-1">
               <Phone className="h-3 w-3" />
-              <span className="text-xs">{client.phone}</span>
+              <span className="text-xs">{client.telephone || client.phone}</span>
             </div>
           } 
         />
@@ -202,7 +201,11 @@ export default function Clients() {
                 <DialogTitle>{t("clients.addNewClient")}</DialogTitle>
                 <DialogDescription>{t("clients.addClientDescription")}</DialogDescription>
               </DialogHeader>
-              <ClientForm onSuccess={handleCreateSuccess} />
+              <ClientForm 
+                open={isCreateDialogOpen} 
+                onOpenChange={setIsCreateDialogOpen}
+                onSuccess={handleCreateSuccess} 
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -258,7 +261,7 @@ export default function Clients() {
                       <TableRow key={client.id}>
                         <TableCell className="font-medium">{client.name}</TableCell>
                         <TableCell>{client.email || "-"}</TableCell>
-                        <TableCell>{client.phone || "-"}</TableCell>
+                        <TableCell>{client.telephone || client.phone || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">
                           {client.organization_number || "-"}
                         </TableCell>
@@ -305,7 +308,9 @@ export default function Clients() {
             </DialogHeader>
             {editingClient && (
               <ClientForm 
-                client={editingClient} 
+                open={!!editingClient}
+                onOpenChange={() => setEditingClient(null)}
+                initialData={editingClient}
                 onSuccess={handleEditSuccess}
               />
             )}
@@ -316,9 +321,7 @@ export default function Clients() {
         {deletingClient && (
           <DeleteClientDialog
             client={deletingClient}
-            timeEntryCount={clientTimeEntryCounts[deletingClient.id] || 0}
-            onSuccess={handleDeleteSuccess}
-            onClose={() => setDeletingClient(null)}
+            onClientDeleted={handleDeleteSuccess}
           />
         )}
       </div>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ProfileImageUpload } from "@/components/profile/ProfileImageUpload";
+import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -23,12 +23,13 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>;
 
 export default function Profile() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   const form = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -38,15 +39,32 @@ export default function Profile() {
     },
   });
 
+  // Fetch profile data
   useEffect(() => {
-    if (profile) {
+    const fetchProfile = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return;
+      }
+      
+      setProfile(data);
       form.reset({
-        name: profile.name || "",
-        date_of_birth: profile.date_of_birth || "",
+        name: data.name || "",
+        date_of_birth: data.date_of_birth || "",
       });
-      setAvatarUrl(profile.avatar_url);
-    }
-  }, [profile, form]);
+      setAvatarUrl(data.avatar_url);
+    };
+
+    fetchProfile();
+  }, [user, form]);
 
   const onSubmit = async (data: ProfileForm) => {
     if (!user) return;
@@ -64,7 +82,16 @@ export default function Profile() {
 
       if (error) throw error;
 
-      await refreshProfile();
+      // Refresh profile data
+      const { data: updatedProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
       
       toast({
         title: t("profile.profileUpdated"),
@@ -138,9 +165,8 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="flex flex-col items-center space-y-4">
               <ProfileImageUpload
-                currentAvatarUrl={avatarUrl}
-                onAvatarChange={setAvatarUrl}
-                userId={user.id}
+                avatarUrl={avatarUrl}
+                onImageUploaded={setAvatarUrl}
               />
               
               {/* User Role Display */}

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -7,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, DollarSign, TrendingUp, Users, Package, FileText, BarChart3 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
-import { CustomCharts } from "@/components/dashboard/CustomCharts";
+import { BarChart, PieChart } from "@/components/dashboard/CustomCharts";
 import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { TimeJournalStats } from "@/components/dashboard/TimeJournalStats";
 import { UserSelect } from "@/components/dashboard/UserSelect";
@@ -118,8 +117,8 @@ export default function Dashboard() {
             {isManagerOrAdmin && (
               <div className="w-full sm:w-auto">
                 <UserSelect
-                  selectedUser={selectedUser}
-                  onUserChange={setSelectedUser}
+                  value={selectedUser}
+                  onValueChange={setSelectedUser}
                   className="w-full sm:min-w-[200px]"
                 />
               </div>
@@ -145,10 +144,9 @@ export default function Dashboard() {
           {timeRange === "custom" && (
             <div className="w-full">
               <DateRangeSelector
-                fromDate={customDateRange.from}
-                toDate={customDateRange.to}
-                onFromDateChange={(date) => setCustomDateRange(prev => ({ ...prev, from: date }))}
-                onToDateChange={(date) => setCustomDateRange(prev => ({ ...prev, to: date }))}
+                from={customDateRange.from}
+                to={customDateRange.to}
+                onDateChange={(range) => setCustomDateRange({ from: range?.from, to: range?.to })}
                 isCompact={isMobile}
               />
             </div>
@@ -209,22 +207,33 @@ export default function Dashboard() {
 
         {/* Revenue Card */}
         <RevenueCard 
-          selectedUser={selectedUser}
           fromDate={fromDate}
           toDate={toDate}
           timeRange={timeRange}
         />
 
         {/* Charts */}
-        <CustomCharts
-          selectedUser={selectedUser}
-          fromDate={fromDate}
-          toDate={toDate}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                {t("dashboard.chartTitle")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarChart
+                data={[]}
+                barKey="value"
+                barName="Data"
+                height={300}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Time Journal Stats */}
         <TimeJournalStats
-          selectedUser={selectedUser}
           fromDate={fromDate}
           toDate={toDate}
           isCompact={isMobile || isTablet}
