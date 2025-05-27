@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   name: string;
@@ -9,7 +8,6 @@ export interface Client {
   city?: string;
   county?: string;
   telephone?: string;
-  phone?: string;
   email?: string;
   created_at?: string;
   updated_at?: string;
