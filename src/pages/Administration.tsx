@@ -314,35 +314,37 @@ export default function Administration() {
                     </div>
                   </div>
                   
-                  <div className={`flex flex-wrap gap-${isLaptop ? '3' : '4'} items-end`}>
-                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                  <div className={`grid grid-cols-1 md:grid-cols-3 gap-${isLaptop ? '3' : '4'} items-end`}>
+                    <div className="w-full">
                       <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByUser')}</p>
                       <UserSelect
                         value={selectedUser}
                         onChange={setSelectedUser}
                       />
                     </div>
-                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                    <div className="w-full">
                       <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByClient')}</p>
                       <ClientSelect
                         value={selectedClient}
                         onChange={setSelectedClient}
                       />
                     </div>
-                    <div className="w-full md:w-auto flex-1 min-w-[200px]">
+                    <div className="w-full">
                       <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.dateFilter')}</p>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 w-full">
                         <AllTimeToggle
                           isAllTime={isAllTime}
                           onAllTimeChange={setIsAllTime}
                         />
                         {!isAllTime && (
-                          <MonthYearPicker
-                            selectedMonth={selectedMonth}
-                            selectedYear={selectedYear}
-                            onMonthChange={setSelectedMonth}
-                            onYearChange={setSelectedYear}
-                          />
+                          <div className="flex-1">
+                            <MonthYearPicker
+                              selectedMonth={selectedMonth}
+                              selectedYear={selectedYear}
+                              onMonthChange={setSelectedMonth}
+                              onYearChange={setSelectedYear}
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
