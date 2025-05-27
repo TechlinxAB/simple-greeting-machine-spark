@@ -1,235 +1,253 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, User } from "lucide-react";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ProfileImageUpload } from "@/components/profile/ProfileImageUpload";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
+import { Loader2, User, Mail, Calendar, Shield } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 
-const Profile = () => {
+const profileSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  date_of_birth: z.string().optional(),
+});
+
+type ProfileForm = z.infer<typeof profileSchema>;
+
+export default function Profile() {
+  const { user, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
   const { t } = useTranslation();
-  const { user, updateProfile, role } = useAuth();
-  const [name, setName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [dob, setDob] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  const form = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      date_of_birth: "",
+    },
+  });
 
   useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!user) return;
-      
-      try {
-        // First check if we have data in user metadata
-        if (user.user_metadata) {
-          setName(user.user_metadata.name || "");
-          
-          // Only set avatar from metadata if it exists and we don't have one from profiles yet
-          if (user.user_metadata.avatar_url) {
-            setAvatarUrl(user.user_metadata.avatar_url);
-          }
-          
-          // Only set DOB from metadata if it exists there
-          if (user.user_metadata.date_of_birth) {
-            setDob(user.user_metadata.date_of_birth);
-          }
-        }
-        
-        // Then fetch from profiles table which is the source of truth
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("name, avatar_url, date_of_birth")
-          .eq("id", user.id)
-          .single();
-          
-        if (error) {
-          console.error("Error fetching profile:", error);
-          return;
-        }
-        
-        if (data) {
-          setName(data.name || "");
-          
-          // Only update avatar_url if it exists in the database
-          if (data.avatar_url) {
-            setAvatarUrl(data.avatar_url);
-          } else if (data.avatar_url === null || data.avatar_url === '') {
-            // Clear avatar URL if it's explicitly null or empty in database
-            setAvatarUrl('');
-          }
-          
-          if (data.date_of_birth) {
-            setDob(data.date_of_birth);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching profile data:", error);
-      }
-    };
+    if (profile) {
+      form.reset({
+        name: profile.name || "",
+        date_of_birth: profile.date_of_birth || "",
+      });
+      setAvatarUrl(profile.avatar_url);
+    }
+  }, [profile, form]);
 
-    fetchProfileData();
-  }, [user, refreshKey]);
+  const onSubmit = async (data: ProfileForm) => {
+    if (!user) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     setIsLoading(true);
-
     try {
-      // Prepare data object with all profile fields
-      const profileData = {
-        name,
-        avatar_url: avatarUrl,
-        date_of_birth: dob || null,
-      };
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          name: data.name,
+          date_of_birth: data.date_of_birth || null,
+          avatar_url: avatarUrl,
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
       
-      // Update the profile in the database
-      await updateProfile(profileData);
-      
-      // Force refresh of profile data
-      setRefreshKey(prev => prev + 1);
-      
-      toast.success(t("profile.profileUpdated"));
+      toast({
+        title: t("profile.profileUpdated"),
+        description: t("profile.profileUpdatedSuccessfully"),
+      });
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error(t("profile.profileUpdateFailed"));
+      toast({
+        variant: "destructive",
+        title: t("error.error"),
+        description: t("error.somethingWentWrong"),
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleImageUploaded = (url: string) => {
-    console.log("Image URL updated:", url);
-    setAvatarUrl(url);
-    
-    // Automatically save the profile when the image is uploaded or removed
-    const saveProfile = async () => {
-      try {
-        await updateProfile({
-          name,
-          avatar_url: url,
-          date_of_birth: dob || null,
-        });
-        
-        // Force refresh of profile data
-        setRefreshKey(prev => prev + 1);
-        
-        // Toast is already shown in the upload/delete handlers
-      } catch (error) {
-        console.error("Error updating profile with new image:", error);
-        toast.error(t("profile.profileUpdateFailed"));
-      }
-    };
-    
-    saveProfile();
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case "admin":
+        return t("profile.admin");
+      case "manager":
+        return t("profile.manager");
+      case "user":
+        return t("profile.user");
+      default:
+        return role;
+    }
   };
 
-  const getInitials = (name: string) => {
-    if (!name || name.trim() === "") return "";
-    
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "text-red-600";
+      case "manager":
+        return "text-blue-600";
+      case "user":
+        return "text-gray-600";
+      default:
+        return "text-gray-600";
+    }
   };
+
+  if (!user || !profile) {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">{t("profile.title")}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>{t("profile.profileInformation")}</CardTitle>
-            <CardDescription>{t("profile.updateProfileInfo")}</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">{t("profile.fullName")}</Label>
-                <Input
-                  id="name"
-                  placeholder={t("auth.fullName")}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("profile.email")}</Label>
-                <Input id="email" value={user?.email || ""} disabled />
-                <p className="text-sm text-muted-foreground">{t("profile.emailCannotBeChanged")}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dob">{t("profile.dateOfBirth")}</Label>
-                <Input
-                  id="dob"
-                  type="date"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("profile.profilePicture")}</Label>
-                <ProfileImageUpload 
-                  avatarUrl={avatarUrl} 
-                  onImageUploaded={handleImageUploaded} 
-                />
+    <div className="w-full max-w-full overflow-hidden">
+      <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-4xl">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("profile.title")}</h1>
+          <p className="text-muted-foreground">{t("profile.subtitle")}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Profile Image Section */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-lg">
+                <User className="h-5 w-5" />
+                {t("profile.profilePicture")}
+              </CardTitle>
+              <CardDescription>
+                {t("profile.uploadProfilePicture")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center space-y-4">
+              <ProfileImageUpload
+                currentAvatarUrl={avatarUrl}
+                onAvatarChange={setAvatarUrl}
+                userId={user.id}
+              />
+              
+              {/* User Role Display */}
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg w-full justify-center">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-medium">{t("profile.role")}:</span>
+                <span className={`text-sm font-semibold capitalize ${getRoleColor(profile.role || "user")}`}>
+                  {getRoleDisplayName(profile.role || "user")}
+                </span>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                    {t("profile.saving")}
-                  </>
-                ) : (
-                  t("profile.saveChanges")
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
+          </Card>
 
-        <div className="space-y-6">
-          <Card>
+          {/* Profile Form Section */}
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>{t("profile.profileOverview")}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                {t("profile.personalInformation")}
+              </CardTitle>
+              <CardDescription>
+                {t("profile.updatePersonalInformation")}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <Avatar className="h-24 w-24 mb-4 bg-primary/10">
-                <AvatarImage src={avatarUrl} alt={name} />
-                <AvatarFallback className="text-xl bg-primary/10 text-primary-foreground">
-                  {getInitials(name || "")}
-                </AvatarFallback>
-              </Avatar>
-              <h3 className="text-xl font-medium">{name || t("administration.user")}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{user?.email}</p>
-              <div className="w-full space-y-2">
-                <div className="flex items-center text-sm">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span>{t("profile.role")}: </span>
-                  <span className="ml-1 font-medium capitalize">{role || t("administration.user")}</span>
-                </div>
-                {dob && (
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{t("profile.birthday")}: </span>
-                    <span className="ml-1 font-medium">{new Date(dob).toLocaleDateString()}</span>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  {/* Email (Read-only) */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      {t("profile.email")}
+                    </label>
+                    <Input
+                      value={user.email || ""}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("profile.emailCannotBeChanged")}
+                    </p>
                   </div>
-                )}
-              </div>
+
+                  {/* Name */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {t("profile.displayName")}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={t("profile.enterDisplayName")}
+                            className="text-base md:text-sm"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Date of Birth */}
+                  <FormField
+                    control={form.control}
+                    name="date_of_birth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {t("profile.dateOfBirth")} ({t("profile.optional")})
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="date"
+                            className="text-base md:text-sm"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className={`w-full ${isMobile ? 'h-12 text-base' : 'h-10'}`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("profile.updating")}
+                      </>
+                    ) : (
+                      t("profile.updateProfile")
+                    )}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
   );
-};
-
-export default Profile;
+}

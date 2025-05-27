@@ -1,493 +1,235 @@
 
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useTranslation } from "react-i18next";
-import { 
-  Clock, Users, Megaphone, Plus, ScrollText, Filter
-} from "lucide-react";
-import { format, startOfMonth } from "date-fns";
-import { NewsEditor } from "@/components/news/NewsEditor";
-import { NewsPost as NewsPostComponent } from "@/components/news/NewsPost";
-import { NewsPost } from "@/types/database";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Calendar, Clock, DollarSign, TrendingUp, Users, Package, FileText, BarChart3 } from "lucide-react";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
+import { CustomCharts } from "@/components/dashboard/CustomCharts";
+import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { TimeJournalStats } from "@/components/dashboard/TimeJournalStats";
 import { UserSelect } from "@/components/dashboard/UserSelect";
+import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
+import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 
 export default function Dashboard() {
+  const { role } = useAuth();
   const { t } = useTranslation();
-  const { user, role } = useAuth();
-  const [activeTab, setActiveTab] = useState("my-journal");
-  const [creatingPost, setCreatingPost] = useState(false);
-  const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
-  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   
-  const [filters, setFilters] = useState<string[]>(["month"]);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [timeRange, setTimeRange] = useState("current-month");
+  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({});
+  
+  // Calculate date range based on selection
+  const getDateRange = () => {
+    const now = new Date();
+    switch (timeRange) {
+      case "current-month":
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      case "last-month":
+        const lastMonth = subMonths(now, 1);
+        return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+      case "current-year":
+        return { from: startOfYear(now), to: endOfYear(now) };
+      case "custom":
+        return customDateRange;
+      default:
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+    }
+  };
 
-  const canManagePosts = role === 'admin' || role === 'manager';
-  const canViewTeamJournal = role === 'admin' || role === 'manager';
-  
-  const { data: clients = [] } = useQuery({
-    queryKey: ["all-clients"],
+  const { from: fromDate, to: toDate } = getDateRange();
+
+  // Summary stats queries
+  const { data: clientsCount = 0 } = useQuery({
+    queryKey: ["clients-count"],
     queryFn: async () => {
-      if (!user) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from("clients")
-          .select("id, name")
-          .order("name");
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-        return [];
-      }
-    },
-    enabled: !!user,
+      const { count } = await supabase
+        .from("clients")
+        .select("*", { count: "exact", head: true });
+      return count || 0;
+    }
   });
-  
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
-  
-  const months = [
-    { value: 0, label: t("common.months.january") },
-    { value: 1, label: t("common.months.february") },
-    { value: 2, label: t("common.months.march") },
-    { value: 3, label: t("common.months.april") },
-    { value: 4, label: t("common.months.may") },
-    { value: 5, label: t("common.months.june") },
-    { value: 6, label: t("common.months.july") },
-    { value: 7, label: t("common.months.august") },
-    { value: 8, label: t("common.months.september") },
-    { value: 9, label: t("common.months.october") },
-    { value: 10, label: t("common.months.november") },
-    { value: 11, label: t("common.months.december") }
-  ];
-  
-  const { data: newsPosts = [], refetch: refetchNews } = useQuery({
-    queryKey: ["news-posts"],
+
+  const { data: productsCount = 0 } = useQuery({
+    queryKey: ["products-count"],
     queryFn: async () => {
-      try {
-        // First fetch the news posts
-        const { data: postsData, error: postsError } = await supabase
-          .from("news_posts")
-          .select(`
-            id, 
-            title, 
-            content, 
-            image_url, 
-            created_at, 
-            updated_at, 
-            created_by
-          `)
-          .order("created_at", { ascending: false });
-          
-        if (postsError) throw postsError;
-        
-        // Then fetch user data separately for each post
-        const postsWithAuthor = await Promise.all(
-          postsData.map(async (post) => {
-            let authorName = 'Unknown';
-            
-            if (post.created_by) {
-              const { data: userData, error: userError } = await supabase
-                .from("profiles")
-                .select("name")
-                .eq("id", post.created_by)
-                .single();
-                
-              if (!userError && userData) {
-                authorName = userData.name || 'Unknown';
-              }
-            }
-            
-            return {
-              ...post,
-              author_name: authorName
-            };
-          })
-        );
-        
-        return postsWithAuthor as NewsPost[];
-      } catch (error) {
-        console.error("Error fetching news posts:", error);
-        return [];
-      }
-    },
+      const { count } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true });
+      return count || 0;
+    }
   });
-  
-  const handleNewsPostCreated = () => {
-    setCreatingPost(false);
-    setEditingPost(null);
-    queryClient.invalidateQueries({ queryKey: ["news-posts"] });
-    refetchNews();
-  };
-  
-  const handleStartEditing = (post: NewsPost) => {
-    setEditingPost(post);
-    setCreatingPost(true);
-  };
-  
-  const handleCancelEditing = () => {
-    setCreatingPost(false);
-    setEditingPost(null);
-  };
-  
-  const handlePostDeleted = () => {
-    queryClient.invalidateQueries({ queryKey: ["news-posts"] });
-    refetchNews();
-  };
-  
-  const toggleFilter = (filter: string) => {
-    setFilters(current => {
-      const newFilters = current.includes(filter)
-        ? current.filter(f => f !== filter)
-        : [...current, filter];
+
+  const { data: invoicesCount = 0 } = useQuery({
+    queryKey: ["invoices-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true });
+      return count || 0;
+    }
+  });
+
+  const { data: timeEntriesCount = 0 } = useQuery({
+    queryKey: ["time-entries-count", selectedUser, fromDate, toDate],
+    queryFn: async () => {
+      let query = supabase
+        .from("time_entries")
+        .select("*", { count: "exact", head: true });
       
-      if (current.includes(filter) && !newFilters.includes(filter)) {
-        if (filter === 'client') setSelectedClient(null);
-        if (filter === 'year') setSelectedYear(new Date().getFullYear());
-        if (filter === 'month') setSelectedMonth(new Date().getMonth());
+      if (selectedUser !== "all") {
+        query = query.eq("user_id", selectedUser);
       }
       
-      return newFilters;
-    });
-  };
-  
-  useEffect(() => {
-    setFilters(["month"]);
-    setSelectedClient(null);
-    setSelectedYear(new Date().getFullYear());
-    setSelectedMonth(new Date().getMonth());
-    setSelectedUser(null);
-  }, [activeTab]);
-  
+      if (fromDate) {
+        query = query.gte("created_at", fromDate.toISOString());
+      }
+      
+      if (toDate) {
+        query = query.lte("created_at", toDate.toISOString());
+      }
+      
+      const { count } = await query;
+      return count || 0;
+    }
+  });
+
+  const isManagerOrAdmin = role === "manager" || role === "admin";
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="my-journal" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span>{t("dashboard.myTimeJournal")}</span>
-          </TabsTrigger>
-          
-          {canViewTeamJournal && (
-            <TabsTrigger value="team-journal" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span>{t("dashboard.teamJournal")}</span>
-            </TabsTrigger>
-          )}
-          
-          <TabsTrigger value="news" className="flex items-center gap-2">
-            <Megaphone className="h-4 w-4" />
-            <span>{t("dashboard.news")}</span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="my-journal" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">{t("dashboard.yourTimeRecords")}</h2>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <span>{t("common.filter")}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-background">
-                <DropdownMenuCheckboxItem
-                  checked={filters.includes('client')}
-                  onCheckedChange={() => toggleFilter('client')}
-                >
-                  {t("clients.client")}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.includes('year')}
-                  onCheckedChange={() => toggleFilter('year')}
-                >
-                  {t("common.year")}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.includes('month')}
-                  onCheckedChange={() => toggleFilter('month')}
-                >
-                  {t("common.month")}
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          
-          {filters.length > 0 && (
-            <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
-              {filters.includes('client') && (
-                <div className="flex-1 min-w-[200px]">
-                  <Select
-                    value={selectedClient || "all-clients"}
-                    onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={t("clients.selectClient")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-clients">{t("clients.allClients")}</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              
-              {filters.includes('year') && (
-                <div className="flex-1 min-w-[150px]">
-                  <Select
-                    value={selectedYear.toString()}
-                    onValueChange={(value) => setSelectedYear(parseInt(value))}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={t("common.selectYear")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map(year => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              
-              {filters.includes('month') && (
-                <div className="flex-1 min-w-[150px]">
-                  <Select
-                    value={selectedMonth.toString()}
-                    onValueChange={(value) => setSelectedMonth(parseInt(value))}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={t("common.selectMonth")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map(month => (
-                        <SelectItem key={month.value} value={month.value.toString()}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <TimeJournalStats 
-            userId={user?.id}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            selectedClient={selectedClient}
-            simplifiedView={true}
-          />
-        </TabsContent>
-        
-        {canViewTeamJournal && (
-          <TabsContent value="team-journal" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">{t("dashboard.teamTimeRecords")}</h2>
-              
-              <div className="flex gap-2">
+    <div className="w-full max-w-full overflow-hidden">
+      <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-full">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("dashboard.title")}</h1>
+          <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
+        </div>
+
+        {/* Filters - Mobile responsive */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* User selector - only for managers/admins */}
+            {isManagerOrAdmin && (
+              <div className="w-full sm:w-auto">
                 <UserSelect
-                  value={selectedUser}
-                  onChange={setSelectedUser}
+                  selectedUser={selectedUser}
+                  onUserChange={setSelectedUser}
+                  className="w-full sm:min-w-[200px]"
                 />
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      <span>{t("common.filter")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-background">
-                    <DropdownMenuCheckboxItem
-                      checked={filters.includes('client')}
-                      onCheckedChange={() => toggleFilter('client')}
-                    >
-                      {t("clients.client")}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={filters.includes('year')}
-                      onCheckedChange={() => toggleFilter('year')}
-                    >
-                      {t("common.year")}
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={filters.includes('month')}
-                      onCheckedChange={() => toggleFilter('month')}
-                    >
-                      {t("common.month")}
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            
-            {filters.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-4 bg-secondary/20 rounded-lg">
-                {filters.includes('client') && (
-                  <div className="flex-1 min-w-[200px]">
-                    <Select
-                      value={selectedClient || "all-clients"}
-                      onValueChange={(val) => setSelectedClient(val === "all-clients" ? null : val)}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder={t("clients.selectClient")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-clients">{t("clients.allClients")}</SelectItem>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                
-                {filters.includes('year') && (
-                  <div className="flex-1 min-w-[150px]">
-                    <Select
-                      value={selectedYear.toString()}
-                      onValueChange={(value) => setSelectedYear(parseInt(value))}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder={t("common.selectYear")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {years.map(year => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                
-                {filters.includes('month') && (
-                  <div className="flex-1 min-w-[150px]">
-                    <Select
-                      value={selectedMonth.toString()}
-                      onValueChange={(value) => setSelectedMonth(parseInt(value))}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder={t("common.selectMonth")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {months.map(month => (
-                          <SelectItem key={month.value} value={month.value.toString()}>
-                            {month.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
             )}
             
-            <TimeJournalStats 
-              userId={selectedUser || undefined}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              selectedClient={selectedClient}
-              showUserColumn={true}
-              simplifiedView={true}
-            />
-          </TabsContent>
-        )}
-        
-        <TabsContent value="news">
-          {creatingPost ? (
-            <NewsEditor 
-              onSuccess={handleNewsPostCreated} 
-              editingPost={editingPost} 
-              onCancel={handleCancelEditing}
-            />
-          ) : (
-            <>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <ScrollText className="h-5 w-5" />
-                  <span>{t("dashboard.companyNewsAndAnnouncements")}</span>
-                </h2>
-                
-                {canManagePosts && (
-                  <Button 
-                    onClick={() => setCreatingPost(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>{t("dashboard.addNewsPost")}</span>
-                  </Button>
-                )}
-              </div>
-              
-              <div className="space-y-6">
-                {newsPosts.length > 0 ? (
-                  newsPosts.map((post) => (
-                    <NewsPostComponent 
-                      key={post.id} 
-                      post={post} 
-                      onEdit={handleStartEditing}
-                      onDelete={handlePostDeleted}
-                    />
-                  ))
-                ) : (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground text-center">
-                        {t("dashboard.noNewsAvailable")}
-                        {canManagePosts && ` ${t("dashboard.clickAddNewsPost")}`}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </>
+            {/* Time range selector */}
+            <div className="w-full sm:w-auto">
+              <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-full sm:min-w-[180px]">
+                  <SelectValue placeholder={t("dashboard.selectTimeRange")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current-month">{t("dashboard.currentMonth")}</SelectItem>
+                  <SelectItem value="last-month">{t("dashboard.lastMonth")}</SelectItem>
+                  <SelectItem value="current-year">{t("dashboard.currentYear")}</SelectItem>
+                  <SelectItem value="custom">{t("dashboard.customRange")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Custom date range selector */}
+          {timeRange === "custom" && (
+            <div className="w-full">
+              <DateRangeSelector
+                fromDate={customDateRange.from}
+                toDate={customDateRange.to}
+                onFromDateChange={(date) => setCustomDateRange(prev => ({ ...prev, from: date }))}
+                onToDateChange={(date) => setCustomDateRange(prev => ({ ...prev, to: date }))}
+                isCompact={isMobile}
+              />
+            </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t("dashboard.timeEntries")}</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{timeEntriesCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {timeRange === "current-month" ? t("dashboard.thisMonth") : 
+                 timeRange === "last-month" ? t("dashboard.lastMonth") :
+                 timeRange === "current-year" ? t("dashboard.thisYear") :
+                 t("dashboard.selectedPeriod")}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t("dashboard.clients")}</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{clientsCount}</div>
+              <p className="text-xs text-muted-foreground">{t("dashboard.totalClients")}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t("dashboard.products")}</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{productsCount}</div>
+              <p className="text-xs text-muted-foreground">{t("dashboard.totalProducts")}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t("dashboard.invoices")}</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{invoicesCount}</div>
+              <p className="text-xs text-muted-foreground">{t("dashboard.totalInvoices")}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Revenue Card */}
+        <RevenueCard 
+          selectedUser={selectedUser}
+          fromDate={fromDate}
+          toDate={toDate}
+          timeRange={timeRange}
+        />
+
+        {/* Charts */}
+        <CustomCharts
+          selectedUser={selectedUser}
+          fromDate={fromDate}
+          toDate={toDate}
+        />
+
+        {/* Time Journal Stats */}
+        <TimeJournalStats
+          selectedUser={selectedUser}
+          fromDate={fromDate}
+          toDate={toDate}
+          isCompact={isMobile || isTablet}
+        />
+      </div>
     </div>
   );
 }
