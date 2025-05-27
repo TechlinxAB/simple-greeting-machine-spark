@@ -1,13 +1,43 @@
 
 import * as React from "react";
 
-export const MOBILE_BREAKPOINT = 768;
+export const MOBILE_BREAKPOINT = 640;
+export const TABLET_BREAKPOINT = 1024;
 export const LAPTOP_BREAKPOINT = 1366;
+
+// Function to detect zoom level
+const getZoomLevel = () => {
+  if (typeof window === 'undefined') return 1;
+  
+  // Calculate zoom using devicePixelRatio and window dimensions
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const screenWidth = window.screen.width;
+  const windowWidth = window.innerWidth;
+  
+  // Estimate zoom level (this is an approximation)
+  const estimatedZoom = (screenWidth / windowWidth) * devicePixelRatio;
+  return estimatedZoom;
+};
+
+// Function to get effective viewport width considering zoom
+const getEffectiveViewportWidth = () => {
+  if (typeof window === 'undefined') return 0;
+  
+  const zoomLevel = getZoomLevel();
+  const actualWidth = window.innerWidth;
+  
+  // If zoom is greater than 110%, treat the effective width as smaller
+  if (zoomLevel > 1.1) {
+    return actualWidth / zoomLevel;
+  }
+  
+  return actualWidth;
+};
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return window.innerWidth < MOBILE_BREAKPOINT;
+      return getEffectiveViewportWidth() < MOBILE_BREAKPOINT;
     }
     return false;
   });
@@ -16,38 +46,20 @@ export function useIsMobile() {
     if (typeof window === 'undefined') return;
 
     const checkMobile = () => {
-      const newIsMobile = window.innerWidth < MOBILE_BREAKPOINT;
+      const effectiveWidth = getEffectiveViewportWidth();
+      const newIsMobile = effectiveWidth < MOBILE_BREAKPOINT;
       setIsMobile(newIsMobile);
     };
     
     checkMobile();
     
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches);
-    };
-    
     const handleResize = () => {
       checkMobile();
     };
     
-    if (mql.addEventListener) {
-      mql.addEventListener("change", handleChange);
-    } else {
-      // @ts-ignore - For older browsers
-      mql.addListener && mql.addListener(handleChange);
-    }
-    
     window.addEventListener("resize", handleResize);
     
     return () => {
-      if (mql.removeEventListener) {
-        mql.removeEventListener("change", handleChange);
-      } else {
-        // @ts-ignore - For older browsers
-        mql.removeListener && mql.removeListener(handleChange);
-      }
       window.removeEventListener("resize", handleResize);
     };
   }, []);
@@ -55,11 +67,45 @@ export function useIsMobile() {
   return isMobile;
 }
 
+export function useIsTablet() {
+  const [isTablet, setIsTablet] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const effectiveWidth = getEffectiveViewportWidth();
+      return effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < TABLET_BREAKPOINT;
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkTablet = () => {
+      const effectiveWidth = getEffectiveViewportWidth();
+      const newIsTablet = effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < TABLET_BREAKPOINT;
+      setIsTablet(newIsTablet);
+    };
+    
+    checkTablet();
+    
+    const handleResize = () => {
+      checkTablet();
+    };
+    
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return isTablet;
+}
+
 export function useIsLaptop() {
   const [isLaptop, setIsLaptop] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const width = window.innerWidth;
-      return width >= MOBILE_BREAKPOINT && width <= LAPTOP_BREAKPOINT;
+      const effectiveWidth = getEffectiveViewportWidth();
+      return effectiveWidth >= TABLET_BREAKPOINT && effectiveWidth <= LAPTOP_BREAKPOINT;
     }
     return false;
   });
@@ -68,42 +114,74 @@ export function useIsLaptop() {
     if (typeof window === 'undefined') return;
 
     const checkLaptop = () => {
-      const width = window.innerWidth;
-      const newIsLaptop = width >= MOBILE_BREAKPOINT && width <= LAPTOP_BREAKPOINT;
+      const effectiveWidth = getEffectiveViewportWidth();
+      const newIsLaptop = effectiveWidth >= TABLET_BREAKPOINT && effectiveWidth <= LAPTOP_BREAKPOINT;
       setIsLaptop(newIsLaptop);
     };
     
     checkLaptop();
     
-    const mql = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px) and (max-width: ${LAPTOP_BREAKPOINT}px)`);
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsLaptop(e.matches);
-    };
-    
     const handleResize = () => {
       checkLaptop();
     };
     
-    if (mql.addEventListener) {
-      mql.addEventListener("change", handleChange);
-    } else {
-      // @ts-ignore - For older browsers
-      mql.addListener && mql.addListener(handleChange);
-    }
-    
     window.addEventListener("resize", handleResize);
     
     return () => {
-      if (mql.removeEventListener) {
-        mql.removeEventListener("change", handleChange);
-      } else {
-        // @ts-ignore - For older browsers
-        mql.removeListener && mql.removeListener(handleChange);
-      }
       window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   return isLaptop;
+}
+
+export function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const effectiveWidth = getEffectiveViewportWidth();
+      return effectiveWidth > LAPTOP_BREAKPOINT;
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkDesktop = () => {
+      const effectiveWidth = getEffectiveViewportWidth();
+      const newIsDesktop = effectiveWidth > LAPTOP_BREAKPOINT;
+      setIsDesktop(newIsDesktop);
+    };
+    
+    checkDesktop();
+    
+    const handleResize = () => {
+      checkDesktop();
+    };
+    
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return isDesktop;
+}
+
+// Combined hook for easier use
+export function useResponsiveLayout() {
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const isLaptop = useIsLaptop();
+  const isDesktop = useIsDesktop();
+  
+  return {
+    isMobile,
+    isTablet,
+    isLaptop,
+    isDesktop,
+    isLaptopOrLarger: isLaptop || isDesktop,
+    isTabletOrLarger: isTablet || isLaptop || isDesktop
+  };
 }

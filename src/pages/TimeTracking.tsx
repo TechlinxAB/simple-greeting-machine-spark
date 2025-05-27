@@ -9,7 +9,7 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { format, isToday } from "date-fns";
 import { sv } from "date-fns/locale";
 import { toast } from "sonner";
-import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
+import { useResponsiveLayout } from "@/hooks/use-mobile";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -23,8 +23,7 @@ export default function TimeTracking() {
   });
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const isLaptop = useIsLaptop();
+  const { isMobile, isTablet, isLaptopOrLarger } = useResponsiveLayout();
 
   useEffect(() => {
     const today = new Date();
@@ -79,40 +78,113 @@ export default function TimeTracking() {
         { locale: language === 'sv' ? sv : undefined }
       );
 
-  return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : isLaptop ? 'grid-cols-12 gap-4' : 'grid-cols-12 gap-6'}`}>
-        <div className={isMobile 
-          ? 'space-y-6' 
-          : isLaptop 
-            ? 'col-span-3 space-y-4 w-full max-w-[240px]' 
-            : 'col-span-3 space-y-6 w-full max-w-[300px]'
-        }>
+  // Mobile layout: Everything stacked vertically
+  if (isMobile) {
+    return (
+      <div className="container mx-auto py-6 px-4">
+        <div className="space-y-6">
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
-            isCompact={isLaptop}
+            isCompact={true}
           />
           
           <TimerWidget />
-        </div>
-        
-        <div className={isMobile 
-          ? 'space-y-6 mt-6' 
-          : isLaptop 
-            ? 'col-span-9 space-y-4' 
-            : 'col-span-9 space-y-6'
-        }>
+          
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}
-            isCompact={isLaptop}
+            isCompact={true}
           />
           
           <TimeEntriesList 
             selectedDate={selectedDate}
             formattedDate={formattedDate}
-            isCompact={isLaptop}
+            isCompact={true}
+          />
+        </div>
+        
+        <ClientForm 
+          open={showClientForm} 
+          onOpenChange={setShowClientForm} 
+          onSuccess={handleClientCreated}
+        />
+      </div>
+    );
+  }
+
+  // Tablet layout: Calendar and timer on top row, form below
+  if (isTablet) {
+    return (
+      <div className="container mx-auto py-6 px-4 md:px-6">
+        <div className="space-y-6">
+          {/* Top row: Calendar and Timer side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="w-full max-w-[350px] mx-auto md:mx-0">
+              <DateSelector 
+                selectedDate={selectedDate} 
+                onDateChange={setSelectedDate} 
+                isCompact={false}
+              />
+            </div>
+            
+            <div className="w-full max-w-[350px] mx-auto md:mx-0">
+              <TimerWidget />
+            </div>
+          </div>
+          
+          {/* Bottom section: Time Entry Form and List */}
+          <div className="space-y-6">
+            <TimeEntryForm 
+              onSuccess={handleTimeEntryCreated} 
+              selectedDate={selectedDate}
+              isCompact={false}
+            />
+            
+            <TimeEntriesList 
+              selectedDate={selectedDate}
+              formattedDate={formattedDate}
+              isCompact={false}
+            />
+          </div>
+        </div>
+        
+        <ClientForm 
+          open={showClientForm} 
+          onOpenChange={setShowClientForm} 
+          onSuccess={handleClientCreated}
+        />
+      </div>
+    );
+  }
+
+  // Laptop and desktop layout: Side by side with optimized spacing
+  return (
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left sidebar: Calendar and Timer */}
+        <div className="col-span-3 space-y-6 w-full max-w-[320px]">
+          <DateSelector 
+            selectedDate={selectedDate} 
+            onDateChange={setSelectedDate} 
+            isCompact={false}
+          />
+          
+          <TimerWidget />
+        </div>
+        
+        {/* Right content: Forms and entries */}
+        <div className="col-span-9 space-y-6">
+          <TimeEntryForm 
+            onSuccess={handleTimeEntryCreated} 
+            selectedDate={selectedDate}
+            isCompact={false}
+          />
+          
+          <TimeEntriesList 
+            selectedDate={selectedDate}
+            formattedDate={formattedDate}
+            isCompact={false}
           />
         </div>
       </div>
