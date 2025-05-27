@@ -3,20 +3,23 @@ import * as React from "react";
 
 export const MOBILE_BREAKPOINT = 640;
 export const TABLET_BREAKPOINT = 1024;
-export const LAPTOP_BREAKPOINT = 1366;
+export const LAPTOP_BREAKPOINT = 1280; // Lowered from 1366 to better accommodate 13" laptops
 
 // Function to detect zoom level
 const getZoomLevel = () => {
   if (typeof window === 'undefined') return 1;
   
-  // Calculate zoom using devicePixelRatio and window dimensions
+  // More accurate zoom detection
   const devicePixelRatio = window.devicePixelRatio || 1;
   const screenWidth = window.screen.width;
   const windowWidth = window.innerWidth;
   
-  // Estimate zoom level (this is an approximation)
-  const estimatedZoom = (screenWidth / windowWidth) * devicePixelRatio;
-  return estimatedZoom;
+  // Calculate zoom more accurately
+  const zoom = (screenWidth / windowWidth) * devicePixelRatio;
+  
+  // At exactly 100% zoom, this should be very close to 1
+  // Only consider it "zoomed" if it's meaningfully above 1.1
+  return zoom;
 };
 
 // Function to get effective viewport width considering zoom
@@ -25,10 +28,25 @@ const getEffectiveViewportWidth = () => {
   
   const zoomLevel = getZoomLevel();
   const actualWidth = window.innerWidth;
+  const screenWidth = window.screen.width;
   
-  // If zoom is greater than 110%, treat the effective width as smaller
-  if (zoomLevel > 1.1) {
-    return actualWidth / zoomLevel;
+  // Debug logging (remove after testing)
+  console.log('Zoom detection:', {
+    zoomLevel: zoomLevel.toFixed(2),
+    actualWidth,
+    screenWidth,
+    devicePixelRatio: window.devicePixelRatio
+  });
+  
+  // If we're on a laptop-sized screen (>= 1280px physical) at 100% zoom, 
+  // don't apply zoom compensation
+  if (screenWidth >= 1280 && zoomLevel <= 1.15) {
+    return actualWidth;
+  }
+  
+  // Only apply zoom compensation if zoom is significantly above 110%
+  if (zoomLevel > 1.15) {
+    return actualWidth / (zoomLevel * 0.8); // Adjusted compensation factor
   }
   
   return actualWidth;
@@ -71,7 +89,7 @@ export function useIsTablet() {
   const [isTablet, setIsTablet] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const effectiveWidth = getEffectiveViewportWidth();
-      return effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < TABLET_BREAKPOINT;
+      return effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < LAPTOP_BREAKPOINT;
     }
     return false;
   });
@@ -81,7 +99,7 @@ export function useIsTablet() {
 
     const checkTablet = () => {
       const effectiveWidth = getEffectiveViewportWidth();
-      const newIsTablet = effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < TABLET_BREAKPOINT;
+      const newIsTablet = effectiveWidth >= MOBILE_BREAKPOINT && effectiveWidth < LAPTOP_BREAKPOINT;
       setIsTablet(newIsTablet);
     };
     
@@ -105,7 +123,7 @@ export function useIsLaptop() {
   const [isLaptop, setIsLaptop] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const effectiveWidth = getEffectiveViewportWidth();
-      return effectiveWidth >= TABLET_BREAKPOINT && effectiveWidth <= LAPTOP_BREAKPOINT;
+      return effectiveWidth >= LAPTOP_BREAKPOINT && effectiveWidth <= 1920; // Cap at common desktop size
     }
     return false;
   });
@@ -115,7 +133,7 @@ export function useIsLaptop() {
 
     const checkLaptop = () => {
       const effectiveWidth = getEffectiveViewportWidth();
-      const newIsLaptop = effectiveWidth >= TABLET_BREAKPOINT && effectiveWidth <= LAPTOP_BREAKPOINT;
+      const newIsLaptop = effectiveWidth >= LAPTOP_BREAKPOINT && effectiveWidth <= 1920;
       setIsLaptop(newIsLaptop);
     };
     
@@ -139,7 +157,7 @@ export function useIsDesktop() {
   const [isDesktop, setIsDesktop] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const effectiveWidth = getEffectiveViewportWidth();
-      return effectiveWidth > LAPTOP_BREAKPOINT;
+      return effectiveWidth > 1920;
     }
     return false;
   });
@@ -149,7 +167,7 @@ export function useIsDesktop() {
 
     const checkDesktop = () => {
       const effectiveWidth = getEffectiveViewportWidth();
-      const newIsDesktop = effectiveWidth > LAPTOP_BREAKPOINT;
+      const newIsDesktop = effectiveWidth > 1920;
       setIsDesktop(newIsDesktop);
     };
     

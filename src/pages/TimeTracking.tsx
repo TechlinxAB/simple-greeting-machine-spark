@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TimeEntryForm } from "@/components/time-tracking/TimeEntryForm";
@@ -24,6 +23,11 @@ export default function TimeTracking() {
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
   const { isMobile, isTablet, isLaptopOrLarger } = useResponsiveLayout();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Layout detection:', { isMobile, isTablet, isLaptopOrLarger });
+  }, [isMobile, isTablet, isLaptopOrLarger]);
 
   useEffect(() => {
     const today = new Date();
