@@ -33,7 +33,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={`w-full ${isLaptop ? 'h-8 text-xs' : 'h-10 text-sm'}`}>
+      <SelectTrigger className={`w-full ${isLaptop ? 'h-9 text-xs' : 'h-10 text-sm'}`}>
         <SelectValue placeholder="All Clients" />
       </SelectTrigger>
       <SelectContent>
