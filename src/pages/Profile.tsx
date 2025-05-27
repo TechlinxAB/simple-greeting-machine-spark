@@ -23,7 +23,7 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>;
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { t } = useTranslation();
@@ -109,8 +109,8 @@ export default function Profile() {
     }
   };
 
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
+  const getRoleDisplayName = (userRole: string) => {
+    switch (userRole) {
       case "admin":
         return t("profile.admin");
       case "manager":
@@ -118,12 +118,12 @@ export default function Profile() {
       case "user":
         return t("profile.user");
       default:
-        return role;
+        return userRole;
     }
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
+  const getRoleColor = (userRole: string) => {
+    switch (userRole) {
       case "admin":
         return "text-red-600";
       case "manager":
@@ -173,8 +173,8 @@ export default function Profile() {
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg w-full justify-center">
                 <Shield className="h-4 w-4" />
                 <span className="text-sm font-medium">{t("profile.role")}:</span>
-                <span className={`text-sm font-semibold capitalize ${getRoleColor(profile.role || "user")}`}>
-                  {getRoleDisplayName(profile.role || "user")}
+                <span className={`text-sm font-semibold capitalize ${getRoleColor(role || "user")}`}>
+                  {getRoleDisplayName(role || "user")}
                 </span>
               </div>
             </CardContent>

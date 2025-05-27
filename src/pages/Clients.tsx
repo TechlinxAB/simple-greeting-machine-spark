@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -310,7 +311,7 @@ export default function Clients() {
               <ClientForm 
                 open={!!editingClient}
                 onOpenChange={() => setEditingClient(null)}
-                initialData={editingClient}
+                clientToEdit={editingClient}
                 onSuccess={handleEditSuccess}
               />
             )}

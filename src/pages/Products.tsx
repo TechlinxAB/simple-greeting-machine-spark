@@ -340,7 +340,7 @@ export default function Products() {
               <ProductForm 
                 open={!!editingProduct}
                 onOpenChange={() => setEditingProduct(null)}
-                initialData={editingProduct}
+                productToEdit={editingProduct}
                 onSuccess={handleEditSuccess}
               />
             )}

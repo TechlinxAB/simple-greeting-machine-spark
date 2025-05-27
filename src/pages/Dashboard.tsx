@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -118,7 +119,7 @@ export default function Dashboard() {
               <div className="w-full sm:w-auto">
                 <UserSelect
                   value={selectedUser}
-                  onValueChange={setSelectedUser}
+                  onChange={setSelectedUser}
                   className="w-full sm:min-w-[200px]"
                 />
               </div>
@@ -144,9 +145,9 @@ export default function Dashboard() {
           {timeRange === "custom" && (
             <div className="w-full">
               <DateRangeSelector
-                from={customDateRange.from}
-                to={customDateRange.to}
-                onDateChange={(range) => setCustomDateRange({ from: range?.from, to: range?.to })}
+                fromDate={customDateRange.from}
+                toDate={customDateRange.to}
+                onDateChange={(fromDate, toDate) => setCustomDateRange({ from: fromDate, to: toDate })}
                 isCompact={isMobile}
               />
             </div>
@@ -207,9 +208,8 @@ export default function Dashboard() {
 
         {/* Revenue Card */}
         <RevenueCard 
-          fromDate={fromDate}
-          toDate={toDate}
-          timeRange={timeRange}
+          title="Total Revenue"
+          amount={0}
         />
 
         {/* Charts */}
@@ -234,9 +234,11 @@ export default function Dashboard() {
 
         {/* Time Journal Stats */}
         <TimeJournalStats
-          fromDate={fromDate}
-          toDate={toDate}
-          isCompact={isMobile || isTablet}
+          selectedYear={new Date().getFullYear()}
+          selectedMonth={new Date().getMonth()}
+          selectedClient={null}
+          showUserColumn={isManagerOrAdmin}
+          simplifiedView={isMobile || isTablet}
         />
       </div>
     </div>
