@@ -17,7 +17,6 @@ export function useIsMobile() {
 
     const checkMobile = () => {
       const newIsMobile = window.innerWidth < MOBILE_BREAKPOINT;
-      console.log('Mobile check:', { windowWidth: window.innerWidth, isMobile: newIsMobile });
       setIsMobile(newIsMobile);
     };
     
@@ -52,7 +51,6 @@ export function useIsTablet() {
     const checkTablet = () => {
       const windowWidth = window.innerWidth;
       const newIsTablet = windowWidth >= MOBILE_BREAKPOINT && windowWidth < TABLET_BREAKPOINT;
-      console.log('Tablet check:', { windowWidth, isTablet: newIsTablet });
       setIsTablet(newIsTablet);
     };
     
@@ -86,7 +84,6 @@ export function useIsDesktop() {
     const checkDesktop = () => {
       const windowWidth = window.innerWidth;
       const newIsDesktop = windowWidth >= TABLET_BREAKPOINT;
-      console.log('Desktop check:', { windowWidth, isDesktop: newIsDesktop });
       setIsDesktop(newIsDesktop);
     };
     
@@ -104,6 +101,11 @@ export function useIsDesktop() {
   }, []);
 
   return isDesktop;
+}
+
+// Legacy hook - maps to tablet for backwards compatibility
+export function useIsLaptop() {
+  return useIsTablet();
 }
 
 // Combined hook for easier use
