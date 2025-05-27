@@ -22,12 +22,12 @@ export default function TimeTracking() {
   });
   const [showClientForm, setShowClientForm] = useState(false);
   const queryClient = useQueryClient();
-  const { isMobile, isTablet, isLaptopOrLarger } = useResponsiveLayout();
+  const { isMobile, isTablet, isDesktop } = useResponsiveLayout();
 
   // Debug logging
   useEffect(() => {
-    console.log('Layout detection:', { isMobile, isTablet, isLaptopOrLarger });
-  }, [isMobile, isTablet, isLaptopOrLarger]);
+    console.log('Layout detection:', { isMobile, isTablet, isDesktop });
+  }, [isMobile, isTablet, isDesktop]);
 
   useEffect(() => {
     const today = new Date();
@@ -122,9 +122,9 @@ export default function TimeTracking() {
     return (
       <div className="container mx-auto py-6 px-4 md:px-6">
         <div className="space-y-6">
-          {/* Top row: Calendar and Timer side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="w-full max-w-[350px] mx-auto md:mx-0">
+          {/* Top row: Calendar and Timer side by side with responsive sizing */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="w-full">
               <DateSelector 
                 selectedDate={selectedDate} 
                 onDateChange={setSelectedDate} 
@@ -132,7 +132,7 @@ export default function TimeTracking() {
               />
             </div>
             
-            <div className="w-full max-w-[350px] mx-auto md:mx-0">
+            <div className="w-full">
               <TimerWidget />
             </div>
           </div>
@@ -162,12 +162,12 @@ export default function TimeTracking() {
     );
   }
 
-  // Laptop and desktop layout: Side by side with optimized spacing
+  // Desktop layout: Side by side with responsive scaling
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className="grid grid-cols-12 gap-6">
-        {/* Left sidebar: Calendar and Timer */}
-        <div className="col-span-3 space-y-6 w-full max-w-[320px]">
+      <div className="flex gap-6">
+        {/* Left sidebar: Calendar and Timer with responsive width */}
+        <div className="w-full max-w-[clamp(280px,25vw,350px)] flex-shrink-0 space-y-6">
           <DateSelector 
             selectedDate={selectedDate} 
             onDateChange={setSelectedDate} 
@@ -178,7 +178,7 @@ export default function TimeTracking() {
         </div>
         
         {/* Right content: Forms and entries */}
-        <div className="col-span-9 space-y-6">
+        <div className="flex-1 min-w-0 space-y-6">
           <TimeEntryForm 
             onSuccess={handleTimeEntryCreated} 
             selectedDate={selectedDate}

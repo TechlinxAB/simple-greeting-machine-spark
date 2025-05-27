@@ -59,34 +59,34 @@ export function DateSelector({ selectedDate, onDateChange, isCompact = false }: 
   const renderKey = `calendar-${forceRender}-${selectedDate.getTime()}-${language}`;
 
   return (
-    <Card className={`border border-primary/20 shadow-md overflow-hidden w-full ${isCompact ? 'max-h-[290px]' : ''}`}>
-      <CardHeader className={`${isCompact ? 'pb-1 pt-2 px-3' : 'pb-2 pt-4 px-4'} border-b border-primary/20`}>
-        <CardTitle className="flex items-center justify-between text-base font-medium">
-          <div className="flex items-center cursor-default">
+    <Card className="border border-primary/20 shadow-md overflow-hidden w-full">
+      <CardHeader className="pb-2 pt-4 px-4 border-b border-primary/20">
+        <CardTitle className="flex items-center justify-between text-sm font-medium">
+          <div className="flex items-center cursor-default text-xs sm:text-sm">
             {format(currentMonth, 'MMMM, yyyy', { locale })}
           </div>
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className={`${isCompact ? 'h-6 w-6' : 'h-7 w-7'} rounded-full hover:bg-accent cursor-pointer`}
+              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full hover:bg-accent cursor-pointer"
               onClick={handlePreviousMonth}
             >
-              <ChevronLeft className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'}`} />
+              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className={`${isCompact ? 'h-6 w-6' : 'h-7 w-7'} rounded-full hover:bg-accent cursor-pointer`}
+              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full hover:bg-accent cursor-pointer"
               onClick={handleNextMonth}
             >
-              <ChevronRight className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'}`} />
+              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className={`flex justify-center ${isCompact ? 'scale-[0.95] origin-top' : ''}`}>
+        <div className="flex justify-center">
           <Calendar
             key={renderKey} 
             mode="single"

@@ -5,7 +5,6 @@ import { DayPicker } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { useIsLaptop } from "@/hooks/use-mobile";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
   hideHead?: boolean;
@@ -22,7 +21,6 @@ function Calendar({
   hideNav = false,
   ...props
 }: CalendarProps) {
-  const isLaptop = useIsLaptop();
 
   return (
     <DayPicker
@@ -36,8 +34,8 @@ function Calendar({
           hideCaptionLabel && "invisible h-0 pt-0 mb-0 overflow-hidden"
         ),
         caption_label: cn(
-          "text-sm font-medium", 
-          isLaptop ? "text-xs" : "text-sm",
+          "font-medium", 
+          "text-xs sm:text-sm",
           hideCaptionLabel && "hidden"
         ),
         nav: cn(
@@ -46,8 +44,8 @@ function Calendar({
         ),
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-80 hover:opacity-100 hover:bg-accent hover:text-accent-foreground cursor-pointer",
-          isLaptop ? "h-6 w-6" : "h-7 w-7",
+          "bg-transparent p-0 opacity-80 hover:opacity-100 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+          "h-6 w-6 sm:h-7 sm:w-7",
           hideNav && "hidden"
         ),
         nav_button_previous: "absolute left-1",
@@ -58,19 +56,21 @@ function Calendar({
           hideHead && "hidden"
         ),
         head_cell: cn(
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] uppercase",
-          isLaptop ? "w-7 text-[0.7rem]" : "w-9 text-[0.8rem]",
+          "text-muted-foreground rounded-md font-normal uppercase",
+          "w-7 text-[0.7rem] sm:w-9 sm:text-[0.8rem]",
           hideHead && "hidden"
         ),
         row: "flex w-full mt-2 justify-between",
         cell: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 cursor-pointer",
-          isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
+          "relative p-0 text-center focus-within:relative focus-within:z-20 cursor-pointer",
+          "h-7 w-7 sm:h-9 sm:w-9",
+          "text-xs sm:text-sm"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
           "p-0 font-normal rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer",
-          isLaptop ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"
+          "h-7 w-7 sm:h-9 sm:w-9",
+          "text-xs sm:text-sm"
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -85,8 +85,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ..._props }) => <ChevronLeft className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />,
-        IconRight: ({ ..._props }) => <ChevronRight className={isLaptop ? "h-3.5 w-3.5" : "h-4 w-4"} />,
+        IconLeft: ({ ..._props }) => <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+        IconRight: ({ ..._props }) => <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
       }}
       {...props}
     />
