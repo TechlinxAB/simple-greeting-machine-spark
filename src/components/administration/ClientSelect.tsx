@@ -37,7 +37,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
         <SelectValue placeholder="All Clients" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="">All Clients</SelectItem>
+        <SelectItem value="all-clients">All Clients</SelectItem>
         {clients.map((client) => (
           <SelectItem key={client.id} value={client.id}>
             {client.name}

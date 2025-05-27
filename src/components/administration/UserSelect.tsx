@@ -23,8 +23,8 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name")
-        .order("display_name");
+        .select("id, name")
+        .order("name");
       
       if (error) throw error;
       return data || [];
@@ -40,7 +40,7 @@ export function UserSelect({ value, onChange }: UserSelectProps) {
         <SelectItem value="all">All Users</SelectItem>
         {users.map((user) => (
           <SelectItem key={user.id} value={user.id}>
-            {user.display_name}
+            {user.name}
           </SelectItem>
         ))}
       </SelectContent>

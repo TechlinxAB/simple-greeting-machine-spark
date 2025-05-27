@@ -36,7 +36,7 @@ export default function Administration() {
   const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [searchTerm, setSearchTerm] = useState("");
   const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
-  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedClient, setSelectedClient] = useState<string>("all-clients");
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [isAllTime, setIsAllTime] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState<boolean>(false);
@@ -113,7 +113,7 @@ export default function Administration() {
   };
 
   const handleCreateInvoice = async () => {
-    if (!selectedClient) {
+    if (!selectedClient || selectedClient === "all-clients") {
       toast.error("Please select a client with unbilled time entries");
       return;
     }
@@ -131,7 +131,7 @@ export default function Administration() {
       });
       
       setIsCreatingInvoice(false);
-      setSelectedClient("");
+      setSelectedClient("all-clients");
       refetchInvoices();
     } catch (error) {
       console.error("Error creating invoice:", error);
@@ -358,7 +358,7 @@ export default function Administration() {
                 </div>
                 
                 <TimeEntriesTable 
-                  clientId={selectedClient || undefined}
+                  clientId={selectedClient === "all-clients" ? undefined : selectedClient}
                   userId={selectedUser === "all" ? undefined : selectedUser}
                   fromDate={fromDate}
                   toDate={toDate}
