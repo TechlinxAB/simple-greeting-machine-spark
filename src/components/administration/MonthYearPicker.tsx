@@ -30,18 +30,18 @@ export function MonthYearPicker({
   const years = Array.from({ length: 9 }, (_, i) => currentYear - 5 + i);
   
   return (
-    <div className="flex space-x-2">
+    <div className="flex space-x-1">
       <Select
         value={selectedMonth.toString()}
         onValueChange={(value) => onMonthChange(parseInt(value))}
       >
-        <SelectTrigger className="w-[120px]">
+        <SelectTrigger className="w-[90px] h-8 text-xs">
           <SelectValue placeholder="Month" />
         </SelectTrigger>
         <SelectContent>
           {months.map((month, index) => (
             <SelectItem key={month} value={index.toString()}>
-              {month}
+              {month.substring(0, 3)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -51,7 +51,7 @@ export function MonthYearPicker({
         value={selectedYear.toString()}
         onValueChange={(value) => onYearChange(parseInt(value))}
       >
-        <SelectTrigger className="w-[100px]">
+        <SelectTrigger className="w-[70px] h-8 text-xs">
           <SelectValue placeholder="Year" />
         </SelectTrigger>
         <SelectContent>
