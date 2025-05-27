@@ -1,4 +1,5 @@
 
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -116,11 +117,10 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row gap-4">
             {/* User selector - only for managers/admins */}
             {isManagerOrAdmin && (
-              <div className="w-full sm:w-auto">
+              <div className="w-full sm:w-auto sm:min-w-[200px]">
                 <UserSelect
                   value={selectedUser}
                   onChange={setSelectedUser}
-                  className="w-full sm:min-w-[200px]"
                 />
               </div>
             )}
@@ -148,7 +148,6 @@ export default function Dashboard() {
                 fromDate={customDateRange.from}
                 toDate={customDateRange.to}
                 onDateChange={(fromDate, toDate) => setCustomDateRange({ from: fromDate, to: toDate })}
-                isCompact={isMobile}
               />
             </div>
           )}
@@ -244,3 +243,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
