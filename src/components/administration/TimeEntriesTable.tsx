@@ -319,7 +319,7 @@ export function TimeEntriesTable({
               )}
               <TableHead isCompact={isCompact}>{t('clients.client')}</TableHead>
               <TableHead isCompact={isCompact}>{t('timeTracking.description')}</TableHead>
-              <TableHead isCompact={isCompact}>{t('products.productType')}</TableHead>
+              <TableHead isCompact={isCompact}>{t('common.created')}</TableHead>
               <TableHead isCompact={isCompact}>{t('invoices.amount')}</TableHead>
               <TableHead isCompact={isCompact}>{t('invoices.total')}</TableHead>
               <TableHead isCompact={isCompact}>{t('invoices.invoiced')}</TableHead>
@@ -396,27 +396,26 @@ export function TimeEntriesTable({
                         <p className="text-xs text-muted-foreground">
                           {t('timeTracking.createdAt')}: {format(new Date(entry.created_at), 'PPP p')}
                         </p>
+                        {entry.products && (
+                          <div className="flex items-center gap-1 mt-2">
+                            {entry.products.type === 'activity' ? (
+                              <Clock className="h-3 w-3 text-blue-500" />
+                            ) : (
+                              <Package className="h-3 w-3 text-primary" />
+                            )}
+                            <span className="capitalize text-xs text-muted-foreground">
+                              {entry.products.type === 'activity' 
+                                ? t('products.activity') 
+                                : t('products.item')}
+                            </span>
+                          </div>
+                        )}
                       </PopoverContent>
                     </Popover>
                   </TableCell>
                   <TableCell isCompact={isCompact}>
-                    <div className="flex items-center gap-1">
-                      {entry.products ? (
-                        entry.products.type === 'activity' ? (
-                          <Clock className={isCompact ? "h-3 w-3 text-blue-500" : "h-4 w-4 text-blue-500"} />
-                        ) : (
-                          <Package className={isCompact ? "h-3 w-3 text-primary" : "h-4 w-4 text-primary"} />
-                        )
-                      ) : (
-                        <Package className={isCompact ? "h-3 w-3 text-amber-600" : "h-4 w-4 text-amber-600"} />
-                      )}
-                      <span className="capitalize">
-                        {entry.products?.type === 'activity' 
-                          ? t('products.activity') 
-                          : entry.products?.type === 'item' 
-                            ? t('products.item') 
-                            : t('products.deletedProduct')}
-                      </span>
+                    <div className="whitespace-nowrap">
+                      {format(new Date(entry.created_at), isCompact ? 'MMM dd' : 'MMM dd, yyyy')}
                     </div>
                   </TableCell>
                   <TableCell isCompact={isCompact}>{getItemAmount(entry)}</TableCell>
