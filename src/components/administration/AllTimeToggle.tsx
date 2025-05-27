@@ -1,26 +1,25 @@
 
-import { Toggle } from "@/components/ui/toggle";
-import { Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 interface AllTimeToggleProps {
   isAllTime: boolean;
-  onAllTimeChange: (enabled: boolean) => void;
+  onAllTimeChange: (isAllTime: boolean) => void;
 }
 
 export function AllTimeToggle({ isAllTime, onAllTimeChange }: AllTimeToggleProps) {
   const { t } = useTranslation();
-
+  const isLaptop = useIsLaptop();
+  
   return (
-    <Toggle
-      pressed={isAllTime}
-      onPressedChange={onAllTimeChange}
-      variant="outline"
-      aria-label="Toggle all time"
-      className={`flex gap-2 items-center h-10 px-4 cursor-pointer ${isAllTime ? 'bg-primary/10 hover:bg-primary hover-text-white' : ''}`}
+    <Button
+      variant={isAllTime ? "default" : "outline"}
+      size={isLaptop ? "sm" : "default"}
+      onClick={() => onAllTimeChange(!isAllTime)}
+      className={`whitespace-nowrap ${isLaptop ? "text-xs h-8 px-2" : "h-10"}`}
     >
-      <Clock className="h-4 w-4" />
-      <span>{t('common.allTime')}</span>
-    </Toggle>
+      {t('common.allTime')}
+    </Button>
   );
 }

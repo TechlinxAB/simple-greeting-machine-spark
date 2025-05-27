@@ -314,30 +314,36 @@ export default function Administration() {
                     </div>
                   </div>
                   
-                  <div className={`grid grid-cols-1 md:grid-cols-3 gap-${isLaptop ? '3' : '4'} items-end`}>
-                    <div className="w-full">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByUser')}</p>
-                      <UserSelect
-                        value={selectedUser}
-                        onChange={setSelectedUser}
-                      />
-                    </div>
-                    <div className="w-full">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.filterByClient')}</p>
-                      <ClientSelect
-                        value={selectedClient}
-                        onChange={setSelectedClient}
-                      />
-                    </div>
-                    <div className="w-full">
-                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-2`}>{t('common.dateFilter')}</p>
-                      <div className="flex items-center space-x-2 w-full">
-                        <AllTimeToggle
-                          isAllTime={isAllTime}
-                          onAllTimeChange={setIsAllTime}
+                  <div className={`grid grid-cols-1 lg:grid-cols-4 gap-${isLaptop ? '2' : '3'} items-end mb-4`}>
+                    <div className="lg:col-span-1">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-1`}>{t('common.filterByUser')}</p>
+                      <div className="w-full">
+                        <UserSelect
+                          value={selectedUser}
+                          onChange={setSelectedUser}
                         />
+                      </div>
+                    </div>
+                    <div className="lg:col-span-1">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-1`}>{t('common.filterByClient')}</p>
+                      <div className="w-full">
+                        <ClientSelect
+                          value={selectedClient}
+                          onChange={setSelectedClient}
+                        />
+                      </div>
+                    </div>
+                    <div className="lg:col-span-2">
+                      <p className={`${isLaptop ? 'text-xs' : 'text-sm'} font-medium mb-1`}>{t('common.dateFilter')}</p>
+                      <div className="flex items-center space-x-2 w-full">
+                        <div className="flex-shrink-0">
+                          <AllTimeToggle
+                            isAllTime={isAllTime}
+                            onAllTimeChange={setIsAllTime}
+                          />
+                        </div>
                         {!isAllTime && (
-                          <div className="flex-1">
+                          <div className="flex-shrink-0">
                             <MonthYearPicker
                               selectedMonth={selectedMonth}
                               selectedYear={selectedYear}

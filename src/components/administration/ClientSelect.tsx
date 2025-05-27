@@ -1,6 +1,4 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -8,7 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 interface ClientSelectProps {
   value: string;
@@ -16,35 +16,28 @@ interface ClientSelectProps {
 }
 
 export function ClientSelect({ value, onChange }: ClientSelectProps) {
-  const { t } = useTranslation();
-  const { data: clients = [], isLoading } = useQuery({
+  const isLaptop = useIsLaptop();
+  
+  const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from("clients")
-          .select("id, name")
-          .order("name");
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-        return [];
-      }
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name");
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 
   return (
-    <Select
-      value={value || "all-clients"} 
-      onValueChange={(val) => onChange(val === "all-clients" ? "" : val)}
-    >
-      <SelectTrigger className="bg-background w-full">
-        <SelectValue placeholder={t('common.allClients')} />
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={`w-full ${isLaptop ? 'h-8 text-xs' : 'h-10 text-sm'}`}>
+        <SelectValue placeholder="All Clients" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all-clients">{t('common.allClients')}</SelectItem>
+        <SelectItem value="">All Clients</SelectItem>
         {clients.map((client) => (
           <SelectItem key={client.id} value={client.id}>
             {client.name}

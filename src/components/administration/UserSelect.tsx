@@ -1,6 +1,4 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -8,6 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useIsLaptop } from "@/hooks/use-mobile";
 
 interface UserSelectProps {
   value: string;
@@ -15,39 +16,31 @@ interface UserSelectProps {
 }
 
 export function UserSelect({ value, onChange }: UserSelectProps) {
-  const { data: users = [], isLoading } = useQuery({
+  const isLaptop = useIsLaptop();
+  
+  const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .order("name");
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        return [];
-      }
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .order("display_name");
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 
   return (
-    <Select
-      value={value || "all"} 
-      onValueChange={(val) => onChange(val === "all-users" ? "all" : val)}
-    >
-      <SelectTrigger className="bg-background w-full">
-        <SelectValue placeholder="All Users">
-          {value === "all" ? "All Users" : users.find(u => u.id === value)?.name || "All Users"}
-        </SelectValue>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={`w-full ${isLaptop ? 'h-8 text-xs' : 'h-10 text-sm'}`}>
+        <SelectValue placeholder="All Users" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All Users</SelectItem>
         {users.map((user) => (
           <SelectItem key={user.id} value={user.id}>
-            {user.name || 'Unnamed User'}
+            {user.display_name}
           </SelectItem>
         ))}
       </SelectContent>
