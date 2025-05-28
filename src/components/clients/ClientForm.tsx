@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -12,20 +13,6 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Client } from "@/types";
 
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Name is required" }),
-  organization_number: z.string().optional(),
-  client_number: z.string().optional(),
-  address: z.string().optional(),
-  postal_code: z.string().optional(),
-  city: z.string().optional(),
-  county: z.string().optional(),
-  telephone: z.string().optional(),
-  email: z.string().email({ message: "Please enter a valid email" }).optional().or(z.literal("")),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface ClientFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,8 +21,23 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: ClientFormProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const isEditMode = !!clientToEdit;
+
+  const formSchema = z.object({
+    name: z.string().min(1, { message: t("clients.nameRequired") }),
+    organization_number: z.string().optional(),
+    client_number: z.string().optional(),
+    address: z.string().optional(),
+    postal_code: z.string().optional(),
+    city: z.string().optional(),
+    county: z.string().optional(),
+    telephone: z.string().optional(),
+    email: z.string().email({ message: t("clients.validEmailRequired") }).optional().or(z.literal("")),
+  });
+
+  type FormValues = z.infer<typeof formSchema>;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -109,14 +111,14 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
         
         error = updateError;
         if (!error) {
-          toast.success("Client updated successfully");
+          toast.success(t("clients.clientUpdated"));
         }
       } else {
         // Create new client
         const { error: insertError } = await supabase.from("clients").insert(clientData);
         error = insertError;
         if (!error) {
-          toast.success("Client created successfully");
+          toast.success(t("clients.clientAdded"));
         }
       }
 
@@ -126,7 +128,7 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'create'} client`);
+      toast.error(error.message || `${t("error.serverError")}`);
     } finally {
       setIsLoading(false);
     }
@@ -136,9 +138,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit' : 'Create new'} client</DialogTitle>
+          <DialogTitle>{isEditMode ? t("clients.editClient") : t("clients.createNewClient")}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? 'Update client information' : 'Add a new client to your account'}
+            {isEditMode ? t("clients.updateClientInfo") : t("clients.addNewClientToAccount")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -149,9 +151,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name*</FormLabel>
+                    <FormLabel>{t("clients.name")}*</FormLabel>
                     <FormControl>
-                      <Input placeholder="Client name" {...field} />
+                      <Input placeholder={t("clients.clientNamePlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,9 +166,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="organization_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Organization Number</FormLabel>
+                      <FormLabel>{t("clients.organizationNumber")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="555555-5555" {...field} />
+                        <Input placeholder={t("clients.organizationNumberPlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -178,9 +180,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="client_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client Number</FormLabel>
+                      <FormLabel>{t("clients.clientNumber")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Client reference number" {...field} />
+                        <Input placeholder={t("clients.clientNumberPlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -193,9 +195,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>{t("clients.address")}</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Street address" {...field} />
+                      <Textarea placeholder={t("clients.streetAddressPlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -208,9 +210,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="postal_code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Postal Code</FormLabel>
+                      <FormLabel>{t("clients.postalCode")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="12345" {...field} />
+                        <Input placeholder={t("clients.postalCodePlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -222,9 +224,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
+                      <FormLabel>{t("clients.city")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Stockholm" {...field} />
+                        <Input placeholder={t("clients.cityPlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -236,9 +238,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="county"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>County</FormLabel>
+                      <FormLabel>{t("clients.county")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Stockholm County" {...field} />
+                        <Input placeholder={t("clients.countyPlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -252,9 +254,9 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="telephone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Telephone</FormLabel>
+                      <FormLabel>{t("clients.telephone")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="+46 70 123 4567" {...field} />
+                        <Input placeholder={t("clients.telephonePlaceholder")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -266,11 +268,11 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("clients.email")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="email" 
-                          placeholder="contact@company.com" 
+                          placeholder={t("clients.emailPlaceholder")} 
                           {...field} 
                         />
                       </FormControl>
@@ -283,10 +285,10 @@ export function ClientForm({ open, onOpenChange, onSuccess, clientToEdit }: Clie
             
             <DialogFooter className="mt-6">
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? "Update Client" : "Create Client")}
+                {isLoading ? (isEditMode ? t("common.updating") : t("common.creating")) : (isEditMode ? t("clients.updateClient") : t("clients.createClient"))}
               </Button>
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </DialogFooter>
           </form>

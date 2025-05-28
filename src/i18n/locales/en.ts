@@ -1,4 +1,3 @@
-
 const translations = {
   common: {
     loading: "Loading...",
@@ -13,6 +12,9 @@ const translations = {
     confirm: "Confirm",
     submit: "Submit",
     saving: "Saving...",
+    creating: "Creating...",
+    updating: "Updating...",
+    created: "Created",
     year: "Year",
     month: "Month",
     selectYear: "Select Year",
@@ -124,7 +126,8 @@ const translations = {
     price: "Price",
     yes: "Yes",
     no: "No",
-    unit: "unit"
+    unit: "unit",
+    required: "Required"
   },
   auth: {
     email: "Email",
@@ -248,7 +251,23 @@ const translations = {
     cannotDelete: "Cannot delete client {name}",
     hasTimeEntries: "Client has {count} time entries. You must delete or reassign these entries before deleting the client.",
     manageInAdmin: "You can manage time entries in the Administration section.",
-    allClients: "All Clients"
+    allClients: "All Clients",
+    createNewClient: "Create new client",
+    updateClientInfo: "Update client information",
+    addNewClientToAccount: "Add a new client to your account",
+    nameRequired: "Name is required",
+    validEmailRequired: "Please enter a valid email",
+    clientNamePlaceholder: "Client name",
+    organizationNumberPlaceholder: "555555-5555",
+    clientNumberPlaceholder: "Client reference number",
+    streetAddressPlaceholder: "Street address",
+    postalCodePlaceholder: "12345",
+    cityPlaceholder: "Stockholm",
+    countyPlaceholder: "Stockholm County",
+    telephonePlaceholder: "+46 70 123 4567",
+    emailPlaceholder: "contact@company.com",
+    createClient: "Create Client",
+    updateClient: "Update Client"
   },
   products: {
     title: "Products",
@@ -280,7 +299,28 @@ const translations = {
     customPrice: "Custom Price",
     defaultPrice: "Default Price",
     selectType: "Select Type",
-    productOrActivity: "Product or Activity"
+    productOrActivity: "Product or Activity",
+    createNewActivity: "Create new activity",
+    createNewItem: "Create new item",
+    addNewServiceToAccount: "Add a new service to your account",
+    addNewItemToAccount: "Add a new item to your account",
+    nameRequired: "Name is required",
+    priceRequired: "Price is required",
+    pricePositive: "Price must be positive",
+    vatRequired: "VAT percentage is required",
+    vatValid: "VAT percentage must be between 0 and 100",
+    productNamePlaceholder: "Product name",
+    activityNamePlaceholder: "Activity name",
+    pricePlaceholder: "0.00",
+    vatPlaceholder: "25",
+    accountNumberPlaceholder: "3000",
+    articleNumberPlaceholder: "ART001",
+    createActivity: "Create Activity",
+    createItem: "Create Item",
+    updateActivity: "Update Activity",
+    updateItem: "Update Item",
+    editActivity: "Edit Activity",
+    editItem: "Edit Item"
   },
   timeTracking: {
     title: "Time Tracking",
@@ -352,9 +392,10 @@ const translations = {
     noDescription: "No description",
     createdBy: "Created by",
     createdAt: "Created at",
-    actualDuration: "Duration", // New key for actual duration label
-    billingDuration: "billing duration", // Description for the billing duration
-    roundingAppliedExplanation: "Rounding has been applied according to billing rules." // Explanation for time rounding
+    actualDuration: "Duration",
+    billingDuration: "billing duration",
+    roundingAppliedExplanation: "Rounding has been applied according to billing rules.",
+    enterDescription: "Enter a description for this time entry"
   },
   invoices: {
     title: "Invoices",
@@ -400,6 +441,19 @@ const translations = {
     invoicedWarningDesc1: "This time entry has already been included in an invoice.",
     invoicedWarningDesc2: "Deleting it may cause inconsistencies in your invoices. Are you sure you want to proceed?",
     deleteAnyway: "Delete anyway",
+    timeSpan: "Time span",
+    from: "From",
+    to: "To",
+    unbilledEntries: "Unbilled entries",
+    includeAll: "Include all",
+    excluded: "excluded",
+    noEntriesFound: "No unbilled time entries found for this client and selected time period.",
+    selectClient: "Select client",
+    fortnoxConnection: "Fortnox connection",
+    connectFortnox: "Connect to Fortnox",
+    fortnoxDisconnected: "Fortnox integration is not connected.",
+    connectFortnoxAdmin: "Go to Settings to connect your Fortnox account.",
+    connectFortnoxUser: "Ask an administrator to connect Fortnox integration in Settings."
   },
   reports: {
     title: "Reports",

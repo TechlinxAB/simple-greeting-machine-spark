@@ -18,19 +18,6 @@ import { ActivityFields } from "./form-sections/ActivityFields";
 import { ItemFields } from "./form-sections/ItemFields";
 import { useTimeEntrySubmit } from "@/hooks/useTimeEntrySubmit";
 
-const formSchema = z.object({
-  clientId: z.string().uuid("Please select a client"),
-  productId: z.string().uuid("Please select a product or activity"),
-  description: z.string().optional(),
-  quantity: z.coerce.number().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  customPrice: z.number().optional().nullable(),
-  productType: z.string().optional()
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface TimeEntryEditFormProps {
   timeEntry: any;
   onSuccess: () => void;
@@ -39,14 +26,28 @@ interface TimeEntryEditFormProps {
 }
 
 export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
+  const { t } = useTranslation();
   const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
   const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const startTimeRef = useRef<HTMLInputElement>(null);
   const endTimeRef = useRef<HTMLInputElement>(null);
   const autoIsLaptop = useIsLaptop();
-  const { t } = useTranslation();
   
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
+
+  // Create form schema with translated error messages
+  const formSchema = z.object({
+    clientId: z.string().uuid(t("timeTracking.clientRequired")),
+    productId: z.string().uuid(t("timeTracking.productRequired")),
+    description: z.string().optional(),
+    quantity: z.coerce.number().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    customPrice: z.number().optional().nullable(),
+    productType: z.string().optional()
+  });
+
+  type FormValues = z.infer<typeof formSchema>;
 
   // Use the original times for display if available, otherwise fall back to rounded times
   const displayStartTime = timeEntry?.original_start_time || timeEntry?.start_time;

@@ -13,6 +13,9 @@ const translations = {
     confirm: "Bekräfta",
     submit: "Skicka",
     saving: "Sparar",
+    creating: "Skapar...",
+    updating: "Uppdaterar...",
+    created: "Skapades",
     year: "År",
     month: "Månad",
     selectYear: "Välj år",
@@ -113,6 +116,8 @@ const translations = {
     price: "Pris",
     yes: "Ja",
     no: "Nej",
+    required: "Obligatorisk",
+    confirmDeleteTimeEntry: "Är du säker på att du vill radera denna tidsrapport?"
   },
   auth: {
     email: "E-post",
@@ -237,7 +242,23 @@ const translations = {
     clientContact: "Kontakt",
     clientOrganization: "Organisation",
     name: "Namn",
-    actions: "Åtgärder"
+    actions: "Åtgärder",
+    createNewClient: "Skapa ny kund",
+    updateClientInfo: "Uppdatera kundinformation",
+    addNewClientToAccount: "Lägg till en ny kund till ditt konto",
+    nameRequired: "Namn krävs",
+    validEmailRequired: "Vänligen ange en giltig e-postadress",
+    clientNamePlaceholder: "Kundnamn",
+    organizationNumberPlaceholder: "555555-5555",
+    clientNumberPlaceholder: "Kundreferensnummer",
+    streetAddressPlaceholder: "Gatuadress",
+    postalCodePlaceholder: "12345",
+    cityPlaceholder: "Stockholm",
+    countyPlaceholder: "Stockholms län",
+    telephonePlaceholder: "+46 70 123 4567",
+    emailPlaceholder: "kontakt@företag.se",
+    createClient: "Skapa kund",
+    updateClient: "Uppdatera kund"
   },
   products: {
     title: "Produkter",
@@ -269,7 +290,28 @@ const translations = {
     deleteFailed: "Kunde inte radera produkten",
     customPrice: "Anpassat pris",
     defaultPrice: "Standardpris",
-    productOrActivity: "Produkt eller tjänst"
+    productOrActivity: "Produkt eller tjänst",
+    createNewActivity: "Skapa ny tjänst",
+    createNewItem: "Skapa ny produkt",
+    addNewServiceToAccount: "Lägg till en ny tjänst till ditt konto",
+    addNewItemToAccount: "Lägg till en ny produkt till ditt konto",
+    nameRequired: "Namn krävs",
+    priceRequired: "Pris krävs",
+    pricePositive: "Priset måste vara positivt",
+    vatRequired: "Momsprocent krävs",
+    vatValid: "Momsprocent måste vara mellan 0 och 100",
+    productNamePlaceholder: "Produktnamn",
+    activityNamePlaceholder: "Tjänstnamn",
+    pricePlaceholder: "0.00",
+    vatPlaceholder: "25",
+    accountNumberPlaceholder: "3000",
+    articleNumberPlaceholder: "ART001",
+    createActivity: "Skapa tjänst",
+    createItem: "Skapa produkt",
+    updateActivity: "Uppdatera tjänst",
+    updateItem: "Uppdatera produkt",
+    editActivity: "Redigera tjänst",
+    editItem: "Redigera produkt"
   },
   timeTracking: {
     title: "Tidrapportering",
@@ -327,9 +369,10 @@ const translations = {
     noDescription: "Ingen beskrivning",
     createdBy: "Skapad av",
     createdAt: "Skapad den",
-    actualDuration: "Varaktighet", // New key for actual duration label
-    billingDuration: "faktureringsperiod", // Description for the billing duration
-    roundingAppliedExplanation: "Avrundning har tillämpats enligt faktureringsregler." // Explanation for time rounding
+    actualDuration: "Varaktighet",
+    billingDuration: "faktureringsperiod",
+    roundingAppliedExplanation: "Avrundning har tillämpats enligt faktureringsregler.",
+    enterDescription: "Skriv en beskrivning för denna tidsrapport"
   },
   invoices: {
     title: "Fakturering",
@@ -378,6 +421,8 @@ const translations = {
     invoicedWarningDesc2: "Att radera den kan orsaka problem med faktureringen. Vill du fortsätta?",
     deleteAnyway: "Radera ändå",
     invoiced: "Fakturerad",
+    from: "Från",
+    to: "Till"
   },
   reports: {
     title: "Rapporter",
