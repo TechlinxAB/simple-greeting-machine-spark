@@ -15,7 +15,7 @@ const translations = {
     saving: "Sparar",
     creating: "Skapar...",
     updating: "Uppdaterar...",
-    created: "Skapades",
+    created: "Skapad",
     year: "År",
     month: "Månad",
     selectYear: "Välj år",
@@ -117,7 +117,9 @@ const translations = {
     yes: "Ja",
     no: "Nej",
     required: "Obligatorisk",
-    confirmDeleteTimeEntry: "Är du säker på att du vill radera denna tidsrapport?"
+    confirmDeleteTimeEntry: "Är du säker på att du vill radera denna tidsrapport?",
+    selectClient: "Välj kund",
+    timeSpan: "Tidsperiod"
   },
   auth: {
     email: "E-post",
@@ -311,7 +313,10 @@ const translations = {
     updateActivity: "Uppdatera tjänst",
     updateItem: "Uppdatera produkt",
     editActivity: "Redigera tjänst",
-    editItem: "Redigera produkt"
+    editItem: "Redigera produkt",
+    createNewProduct: "Skapa ny produkt",
+    productCreated: "Produkten skapades framgångsrikt",
+    productUpdated: "Produkten uppdaterades framgångsrikt"
   },
   timeTracking: {
     title: "Tidrapportering",
@@ -372,7 +377,9 @@ const translations = {
     actualDuration: "Varaktighet",
     billingDuration: "faktureringsperiod",
     roundingAppliedExplanation: "Avrundning har tillämpats enligt faktureringsregler.",
-    enterDescription: "Skriv en beskrivning för denna tidsrapport"
+    enterDescription: "Skriv en beskrivning för denna tidsrapport",
+    clientRequired: "Kund krävs",
+    descriptionOptional: "Beskrivning (valfritt)"
   },
   invoices: {
     title: "Fakturering",
@@ -422,7 +429,11 @@ const translations = {
     deleteAnyway: "Radera ändå",
     invoiced: "Fakturerad",
     from: "Från",
-    to: "Till"
+    to: "Till",
+    createNewInvoice: "Skapa ny faktura",
+    createNewInvoiceDesc: "Skapa och exportera en ny faktura till Fortnox för en vald kund.",
+    refresh: "Uppdatera",
+    noUnbilledEntries: "Inga ofakturerade poster för denna kund och valda tidsperiod."
   },
   reports: {
     title: "Rapporter",

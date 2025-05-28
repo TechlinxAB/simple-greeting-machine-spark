@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,17 +14,6 @@ import { Clock, Package } from "lucide-react";
 import type { Product, ProductType } from "@/types";
 import { useTranslation } from "react-i18next";
 
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Name is required" }),
-  price: z.coerce.number().min(0, { message: "Price must be 0 or greater" }),
-  account_number: z.string().optional(),
-  article_number: z.string().optional(),
-  vat_percentage: z.coerce.number().min(0).max(100).default(25),
-  type: z.enum(["activity", "item"]),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,6 +27,18 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
   const [selectedType, setSelectedType] = useState<ProductType>(productType);
   const isEditMode = !!productToEdit;
   const { t } = useTranslation();
+
+  // Create form schema with translated error messages
+  const formSchema = z.object({
+    name: z.string().min(1, { message: t("products.nameRequired") }),
+    price: z.coerce.number().min(0, { message: t("products.pricePositive") }),
+    account_number: z.string().optional(),
+    article_number: z.string().optional(),
+    vat_percentage: z.coerce.number().min(0).max(100, { message: t("products.vatValid") }).default(25),
+    type: z.enum(["activity", "item"]),
+  });
+
+  type FormValues = z.infer<typeof formSchema>;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -100,13 +102,13 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         
         error = updateError;
         if (!error) {
-          toast.success("Product updated successfully");
+          toast.success(t("products.productUpdated"));
         }
       } else {
         const { error: insertError } = await supabase.from("products").insert(productData);
         error = insertError;
         if (!error) {
-          toast.success("Product created successfully");
+          toast.success(t("products.productCreated"));
         }
       }
 
@@ -126,9 +128,17 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit' : 'Create new'} product</DialogTitle>
+          <DialogTitle>
+            {isEditMode 
+              ? (selectedType === 'activity' ? t('products.editActivity') : t('products.editItem'))
+              : t('products.createNewProduct')
+            }
+          </DialogTitle>
           <DialogDescription>
-            {isEditMode ? 'Edit an existing' : 'Add a new'} {selectedType === 'activity' ? t('products.activity').toLowerCase() : t('products.item').toLowerCase()} to your account
+            {isEditMode 
+              ? `${t('common.edit')} ${selectedType === 'activity' ? t('products.activity').toLowerCase() : t('products.item').toLowerCase()}`
+              : (selectedType === 'activity' ? t('products.addNewServiceToAccount') : t('products.addNewItemToAccount'))
+            }
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -169,9 +179,12 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name*</FormLabel>
+                    <FormLabel>{t('common.name')}*</FormLabel>
                     <FormControl>
-                      <Input placeholder={`Enter ${selectedType} name`} {...field} />
+                      <Input 
+                        placeholder={selectedType === 'activity' ? t('products.activityNamePlaceholder') : t('products.productNamePlaceholder')} 
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -185,10 +198,16 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        Price (SEK){selectedType === "activity" ? "/hour" : ""}*
+                        {t('common.price')} (SEK){selectedType === "activity" ? "/hour" : ""}*
                       </FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" step="0.01" {...field} />
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          step="0.01" 
+                          placeholder={t('products.pricePlaceholder')}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -200,9 +219,15 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   name="vat_percentage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>VAT Percentage*</FormLabel>
+                      <FormLabel>{t('products.vat')} %*</FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" max="100" {...field} />
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          max="100" 
+                          placeholder={t('products.vatPlaceholder')}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -216,9 +241,12 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   name="account_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Number</FormLabel>
+                      <FormLabel>{t('products.accountNumber')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Account number" {...field} />
+                        <Input 
+                          placeholder={t('products.accountNumberPlaceholder')} 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -230,9 +258,12 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                   name="article_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Article Number</FormLabel>
+                      <FormLabel>{t('products.articleNumber')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="3001" {...field} />
+                        <Input 
+                          placeholder={t('products.articleNumberPlaceholder')} 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -243,10 +274,16 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
             
             <DialogFooter className="mt-6">
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? `Update ${t('products.' + selectedType)}` : `Create ${t('products.' + selectedType)}`)}
+                {isLoading 
+                  ? (isEditMode ? t('common.updating') : t('common.creating'))
+                  : (isEditMode 
+                      ? (selectedType === 'activity' ? t('products.updateActivity') : t('products.updateItem'))
+                      : (selectedType === 'activity' ? t('products.createActivity') : t('products.createItem'))
+                    )
+                }
               </Button>
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </DialogFooter>
           </form>

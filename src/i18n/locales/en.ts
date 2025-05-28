@@ -127,7 +127,8 @@ const translations = {
     yes: "Yes",
     no: "No",
     unit: "unit",
-    required: "Required"
+    required: "Required",
+    timeSpan: "Time span"
   },
   auth: {
     email: "Email",
@@ -320,7 +321,10 @@ const translations = {
     updateActivity: "Update Activity",
     updateItem: "Update Item",
     editActivity: "Edit Activity",
-    editItem: "Edit Item"
+    editItem: "Edit Item",
+    createNewProduct: "Create new product",
+    productCreated: "Product created successfully",
+    productUpdated: "Product updated successfully"
   },
   timeTracking: {
     title: "Time Tracking",
@@ -453,7 +457,11 @@ const translations = {
     connectFortnox: "Connect to Fortnox",
     fortnoxDisconnected: "Fortnox integration is not connected.",
     connectFortnoxAdmin: "Go to Settings to connect your Fortnox account.",
-    connectFortnoxUser: "Ask an administrator to connect Fortnox integration in Settings."
+    connectFortnoxUser: "Ask an administrator to connect Fortnox integration in Settings.",
+    createNewInvoice: "Create New Invoice",
+    createNewInvoiceDesc: "Create and export a new invoice to Fortnox for a selected client.",
+    refresh: "Refresh",
+    noUnbilledEntries: "No unbilled entries for this client and selected time period."
   },
   reports: {
     title: "Reports",
