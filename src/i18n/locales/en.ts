@@ -89,7 +89,34 @@ export const en = {
     editTimeEntry: "Edit Time Entry", 
     editTimeEntryDesc: "Make changes to the time entry below.",
     noDescription: "No description",
-    product: "Product"
+    product: "Product",
+    searchTimeEntries: "Search time entries...",
+    searchInvoices: "Search invoices...",
+    searchUsers: "Search users...",
+    bulkDelete: "Bulk Delete",
+    deleteSelected: "Delete Selected ({{count}})",
+    filterByUser: "Filter by User",
+    filterByClient: "Filter by Client",
+    dateFilter: "Date Filter",
+    allTime: "All Time",
+    createInvoice: "Create Invoice",
+    selectClient: "Select Client",
+    errorCreatingInvoice: "Error Creating Invoice",
+    createAndExport: "Create & Export",
+    createdBy: "Created By",
+    createdAt: "Created At",
+    exported: "Exported",
+    notExported: "Not Exported",
+    required: "Required",
+    nameRequired: "Name is required",
+    validEmailRequired: "Please enter a valid email address",
+    priceRequired: "Price is required",
+    pricePositive: "Price must be positive",
+    vatRequired: "VAT percentage is required",
+    vatValid: "VAT percentage must be between 0 and 100",
+    timeEntries: "Time Entries",
+    units: "units",
+    unit: "unit"
   },
   auth: {
     signIn: "Sign In",
@@ -113,7 +140,8 @@ export const en = {
     passwordRequired: "Password is required",
     signUpSuccess: "Account created successfully! Please check your email to verify your account.",
     signInSuccess: "Welcome back!",
-    signOutSuccess: "You have been signed out successfully"
+    signOutSuccess: "You have been signed out successfully",
+    selectLanguage: "Select Language"
   },
   navigation: {
     dashboard: "Dashboard",
@@ -145,7 +173,13 @@ export const en = {
     thisYear: "This Year",
     revenue: "Revenue",
     hoursTracked: "Hours Tracked",
-    averageHourlyRate: "Average Hourly Rate"
+    averageHourlyRate: "Average Hourly Rate",
+    companyNews: "Company News",
+    companyNewsAndAnnouncements: "Company News & Announcements",
+    latestUpdates: "Latest Updates",
+    addNewsPost: "Add News Post",
+    noNewsAvailable: "No news available",
+    clickAddNewsPost: "Click 'Add News Post' to create a news post."
   },
   timeTracking: {
     title: "Time Tracking",
@@ -195,7 +229,18 @@ export const en = {
     pricePerItem: "Price per Item",
     roundToNearest: "Round to Nearest",
     minutes: "Minutes",
-    hours: "Hours"
+    hours: "Hours",
+    units: "units",
+    unit: "unit",
+    actualDuration: "Actual Duration",
+    billingDuration: "Billing Duration",
+    quantityPlaceholder: "Enter quantity",
+    descriptionPlaceholder: "Describe the work or product",
+    clientRequired: "Client is required",
+    productRequired: "Product or service is required",
+    timeRequired: "Both start and end time are required for services",
+    quantityRequired: "Quantity is required for items",
+    descriptionOptional: "Description (optional)"
   },
   clients: {
     title: "Clients",
@@ -219,7 +264,20 @@ export const en = {
     cannotDelete: "Cannot delete client with associated time entries",
     organizationNumber: "Organization Number",
     clientNumber: "Client Number",
-    telephone: "Telephone"
+    telephone: "Telephone",
+    nameRequired: "Name is required",
+    validEmailRequired: "Please enter a valid email address",
+    clientNamePlaceholder: "Client name",
+    organizationNumberPlaceholder: "555555-5555",
+    clientNumberPlaceholder: "Client reference number",
+    streetAddressPlaceholder: "Street address",
+    postalCodePlaceholder: "12345",
+    cityPlaceholder: "Stockholm",
+    countyPlaceholder: "Stockholm County",
+    telephonePlaceholder: "+46 70 123 4567",
+    emailPlaceholder: "contact@company.com",
+    createClient: "Create Client",
+    updateClient: "Update Client"
   },
   products: {
     title: "Products",
@@ -243,7 +301,22 @@ export const en = {
     item: "Item",
     priceRequired: "Price is required",
     nameRequired: "Name is required",
-    typeRequired: "Type is required"
+    typeRequired: "Type is required",
+    pricePositive: "Price must be positive",
+    vatRequired: "VAT percentage is required",
+    vatValid: "VAT percentage must be between 0 and 100",
+    productNamePlaceholder: "Product name",
+    activityNamePlaceholder: "Service name",
+    pricePlaceholder: "0.00",
+    vatPlaceholder: "25",
+    accountNumberPlaceholder: "3000",
+    articleNumberPlaceholder: "ART001",
+    createActivity: "Create Service",
+    createItem: "Create Item",
+    updateActivity: "Update Service",
+    updateItem: "Update Item",
+    editActivity: "Edit Service",
+    editItem: "Edit Item"
   },
   invoices: {
     title: "Invoices",
@@ -287,7 +360,8 @@ export const en = {
     timeSpan: "Time Span",
     includeAll: "Include All",
     excluded: "excluded",
-    allInvoices: "All Invoices"
+    allInvoices: "All Invoices",
+    viewDetails: "View Details"
   },
   reports: {
     title: "Reports",
@@ -379,7 +453,8 @@ export const en = {
     allTime: "All Time",
     thisMonth: "This Month",
     lastMonth: "Last Month",
-    thisYear: "This Year"
+    thisYear: "This Year",
+    actions: "Actions"
   },
   settings: {
     title: "Settings",
@@ -516,5 +591,32 @@ export const en = {
     latestNews: "Latest News",
     popularNews: "Popular News",
     featuredNews: "Featured News"
+  },
+  userStats: {
+    title: "User Performance",
+    subtitle: "Track and analyze user activity",
+    overview: "Overview",
+    timeTracking: "Time Tracking",
+    revenue: "Revenue",
+    totalHours: "Total Hours",
+    totalRevenue: "Total Revenue",
+    monthlyStats: "Monthly Statistics",
+    activityBreakdown: "Activity Breakdown",
+    clientDistribution: "Client Distribution",
+    performanceMetrics: "Performance Metrics",
+    hoursPerClient: "Hours per Client",
+    revenuePerClient: "Revenue per Client",
+    mostActiveClients: "Most Active Clients",
+    topActivities: "Top Activities",
+    periodComparison: "Period Comparison",
+    currentPeriod: "Current Period",
+    previousPeriod: "Previous Period",
+    efficiency: "Efficiency",
+    utilization: "Utilization",
+    productivityScore: "Productivity Score",
+    averageHoursPerDay: "Average Hours per Day",
+    filterByDate: "Filter by Date",
+    topClients: "Top Clients",
+    productDistribution: "Product Distribution"
   }
 };
