@@ -57,7 +57,7 @@ interface ClientStat {
 
 interface ProductStat {
   name: string;
-  type: 'activity' | 'item';
+  type: 'activity' | 'product';
   units: number;
   unitLabel: string;
   revenue: number;
@@ -132,7 +132,15 @@ export default function UserStats() {
         
       if (error) throw error;
       console.log("Current month entries:", data);
-      return data as unknown as UserTimeEntry[];
+      
+      // Transform the data to convert "item" to "product"
+      return (data || []).map(entry => ({
+        ...entry,
+        products: entry.products ? {
+          ...entry.products,
+          type: entry.products.type === 'item' ? 'product' : entry.products.type as ProductType
+        } : undefined
+      })) as unknown as UserTimeEntry[];
     },
     enabled: !!userId
   });
@@ -153,7 +161,15 @@ export default function UserStats() {
         
       if (error) throw error;
       console.log("All time entries:", data);
-      return data as unknown as UserTimeEntry[];
+      
+      // Transform the data to convert "item" to "product"
+      return (data || []).map(entry => ({
+        ...entry,
+        products: entry.products ? {
+          ...entry.products,
+          type: entry.products.type === 'item' ? 'product' : entry.products.type as ProductType
+        } : undefined
+      })) as unknown as UserTimeEntry[];
     },
     enabled: !!userId
   });
@@ -177,7 +193,7 @@ export default function UserStats() {
           const end = new Date(entry.end_time);
           const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
           return total + (hours * (entry.products?.price || 0));
-        } else if (entry.products?.type === 'item' && entry.quantity) {
+        } else if (entry.products?.type === 'product' && entry.quantity) {
           return total + (entry.quantity * (entry.products?.price || 0));
         }
         return total;
@@ -203,7 +219,7 @@ export default function UserStats() {
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         clientStats[clientId].hours += hours;
         clientStats[clientId].revenue += hours * (entry.products?.price || 0);
-      } else if (entry.products?.type === 'item' && entry.quantity) {
+      } else if (entry.products?.type === 'product' && entry.quantity) {
         clientStats[clientId].revenue += entry.quantity * (entry.products?.price || 0);
       }
     });
@@ -261,14 +277,14 @@ export default function UserStats() {
       .sort((a, b) => b.units - a.units);
   };
   
-  const getItemStats = (entries: UserTimeEntry[]): ProductStat[] => {
+  const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
     if (entries.length === 0) return [];
     
-    const itemStats: Record<string, Partial<ProductStat>> = {};
+    const productStats: Record<string, Partial<ProductStat>> = {};
     let totalUnits = 0;
     
     entries.forEach(entry => {
-      if (!entry.products || entry.products.type !== 'item') return;
+      if (!entry.products || entry.products.type !== 'product') return;
       
       const quantity = entry.quantity || 0;
       if (quantity <= 0) return;
@@ -276,27 +292,27 @@ export default function UserStats() {
       const productId = entry.product_id;
       const productName = entry.products.name || 'Unknown Product';
       
-      if (!itemStats[productId]) {
-        itemStats[productId] = { 
+      if (!productStats[productId]) {
+        productStats[productId] = { 
           name: productName, 
-          type: 'item' as const,
+          type: 'product' as const,
           units: 0,
           unitLabel: 'units',
           revenue: 0 
         };
       }
       
-      itemStats[productId].units = (itemStats[productId].units || 0) + quantity;
-      itemStats[productId].revenue = (itemStats[productId].revenue || 0) + quantity * (entry.products.price || 0);
+      productStats[productId].units = (productStats[productId].units || 0) + quantity;
+      productStats[productId].revenue = (productStats[productId].revenue || 0) + quantity * (entry.products.price || 0);
       totalUnits += quantity;
     });
     
-    console.log("Item stats before processing:", itemStats);
+    console.log("Product stats before processing:", productStats);
     
-    return Object.values(itemStats)
+    return Object.values(productStats)
       .map(stat => ({
         name: stat.name || '',
-        type: 'item' as const,
+        type: 'product' as const,
         units: Math.round(stat.units || 0),
         unitLabel: 'units',
         revenue: Math.round(stat.revenue || 0),
@@ -306,10 +322,10 @@ export default function UserStats() {
       .sort((a, b) => b.units - a.units);
   };
   
-  const getProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
+  const getAllProductStats = (entries: UserTimeEntry[]): ProductStat[] => {
     const activityStats = getActivityStats(entries);
-    const itemStats = getItemStats(entries);
-    return [...activityStats, ...itemStats];
+    const productStats = getProductStats(entries);
+    return [...activityStats, ...productStats];
   };
 
   const goToPreviousMonth = () => {
@@ -342,12 +358,12 @@ export default function UserStats() {
   const allTimeClientStats = getClientStats(allTimeEntries);
   
   const currentMonthActivityStats = getActivityStats(currentMonthTimeEntries);
-  const currentMonthItemStats = getItemStats(currentMonthTimeEntries);
+  const currentMonthProductStats = getProductStats(currentMonthTimeEntries);
   const allTimeActivityStats = getActivityStats(allTimeEntries);
-  const allTimeItemStats = getItemStats(allTimeEntries);
+  const allTimeProductStats = getProductStats(allTimeEntries);
 
-  console.log("Current month item stats:", currentMonthItemStats);
-  console.log("All time item stats:", allTimeItemStats);
+  console.log("Current month product stats:", currentMonthProductStats);
+  console.log("All time product stats:", allTimeProductStats);
 
   const getTopClients = (clientStats: ClientStat[]) => {
     return clientStats.slice(0, 5);
@@ -392,7 +408,7 @@ export default function UserStats() {
     ? { 
         clientStats: allTimeClientStats,
         activityStats: allTimeActivityStats,
-        itemStats: allTimeItemStats,
+        productStats: allTimeProductStats,
         hours: allTimeHours,
         revenue: allTimeRevenue,
         entries: allTimeEntries,
@@ -401,7 +417,7 @@ export default function UserStats() {
     : {
         clientStats: currentMonthClientStats,
         activityStats: currentMonthActivityStats,
-        itemStats: currentMonthItemStats,
+        productStats: currentMonthProductStats,
         hours: currentMonthHours,
         revenue: currentMonthRevenue,
         entries: currentMonthTimeEntries,
@@ -513,7 +529,7 @@ export default function UserStats() {
                       <Package className="h-4 w-4 mr-1 text-green-600" />
                       <span>{t("products.items")}</span>
                     </h4>
-                    <p className="text-2xl font-bold text-green-600">{allTimeItemStats.length}</p>
+                    <p className="text-2xl font-bold text-green-600">{allTimeProductStats.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -660,16 +676,16 @@ export default function UserStats() {
                     </CardHeader>
                     <CardContent className="pt-6">
                       <div className="h-[350px]">
-                        {activeStats.itemStats.length > 0 ? (
+                        {activeStats.productStats.length > 0 ? (
                           <PieChartCard
                             title=""
-                            data={activeStats.itemStats.map(item => ({...item, value: item.units}))}
+                            data={activeStats.productStats.map(item => ({...item, value: item.units}))}
                             height={350}
                             dataKey="value"
                             colors={['#10b981', '#047857', '#065f46', '#064e3b', '#022c22']}
                             tooltip={{
                               formatter: (value) => {
-                                const stat = activeStats.itemStats.find(s => s.units === value);
+                                const stat = activeStats.productStats.find(s => s.units === value);
                                 const percentage = stat ? `${stat.percentage}%` : '';
                                 return [`${value} ${t("common.units")} (${percentage})`, ''];
                               }
@@ -751,7 +767,7 @@ export default function UserStats() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getTopRevenueProducts([...activeStats.activityStats, ...activeStats.itemStats]).map((product, index) => (
+                          {getTopRevenueProducts([...activeStats.activityStats, ...activeStats.productStats]).map((product, index) => (
                             <TableRow key={index} className="hover:bg-green-50/50 dark:hover:bg-green-950/20">
                               <TableCell className="font-medium">{product.name}</TableCell>
                               <TableCell>{product.type === 'activity' ? t("products.activity") : t("products.item")}</TableCell>
@@ -761,7 +777,7 @@ export default function UserStats() {
                               <TableCell className="text-right font-medium text-green-600">{product.revenue.toLocaleString()}</TableCell>
                             </TableRow>
                           ))}
-                          {[...activeStats.activityStats, ...activeStats.itemStats].length === 0 && (
+                          {[...activeStats.activityStats, ...activeStats.productStats].length === 0 && (
                             <TableRow>
                               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
                                 {t("reports.noDataAvailable")}
