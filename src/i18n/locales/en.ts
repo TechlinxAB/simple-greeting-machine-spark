@@ -317,7 +317,8 @@ export const en = {
     minutes: "Minutes",
     whatProduct: "What product/service?",
     fromTime: "From Time",
-    toTime: "To Time"
+    toTime: "To Time",
+    enterDescription: "Enter description..."
   },
   clients: {
     title: "Clients",
@@ -422,7 +423,9 @@ export const en = {
     addNewItemToAccount: "Add New Item to Account",
     addService: "Add Service",
     addItem: "Add Item",
-    newProduct: "New Product"
+    newProduct: "New Product",
+    defaultPrice: "Default Price",
+    customPrice: "Custom Price"
   },
   invoices: {
     title: "Invoices",

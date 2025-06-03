@@ -317,7 +317,8 @@ export const sv = {
     minutes: "Minuter",
     whatProduct: "Vilken produkt/tjänst?",
     fromTime: "Från tid",
-    toTime: "Till tid"
+    toTime: "Till tid",
+    enterDescription: "Ange beskrivning..."
   },
   clients: {
     title: "Kunder",
@@ -422,7 +423,9 @@ export const sv = {
     addNewItemToAccount: "Lägg till nytt objekt till konto",
     addService: "Lägg till tjänst",
     addItem: "Lägg till objekt",
-    newProduct: "Ny produkt"
+    newProduct: "Ny produkt",
+    defaultPrice: "Standardpris",
+    customPrice: "Anpassat pris"
   },
   invoices: {
     title: "Fakturering",
