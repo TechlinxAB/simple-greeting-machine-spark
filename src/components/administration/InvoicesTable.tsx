@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { Invoice } from '@/types';
@@ -11,8 +12,8 @@ import { supabase } from '@/lib/supabase';
 import { useIsLaptop } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { createFortnoxInvoice } from '@/integrations/fortnox';
-import { fortnoxApiRequest } from '@/integrations/fortnox/api-client';
 import { useTranslation } from "react-i18next";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InvoicesTableProps {
   invoices: Invoice[];
@@ -25,7 +26,6 @@ interface InvoicesTableProps {
   onItemSelect?: (id: string) => void;
   onSelectAll?: (checked: boolean) => void;
   isCompact?: boolean;
-  isAdmin?: boolean;
 }
 
 export function InvoicesTable({ 
@@ -38,17 +38,18 @@ export function InvoicesTable({
   selectedItems = [],
   onItemSelect,
   onSelectAll,
-  isCompact,
-  isAdmin = false
+  isCompact
 }: InvoicesTableProps) {
   const { t } = useTranslation();
   const { toast: uiToast } = useToast();
+  const { role } = useAuth();
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<Invoice | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isResending, setIsResending] = React.useState<string | null>(null);
   const autoIsLaptop = useIsLaptop();
   
   const compact = isCompact !== undefined ? isCompact : autoIsLaptop;
+  const canDeleteInvoices = role === 'admin' || role === 'manager';
 
   const handleDeleteClick = (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
@@ -60,6 +61,7 @@ export function InvoicesTable({
     setIsDeleting(true);
     
     try {
+      // First, mark all associated time entries as unbilled
       const { error: timeEntriesError } = await supabase
         .from('time_entries')
         .update({ invoice_id: null, invoiced: false })
@@ -69,6 +71,7 @@ export function InvoicesTable({
         throw timeEntriesError;
       }
       
+      // Then delete the invoice
       const { error: invoiceError } = await supabase
         .from('invoices')
         .delete()
@@ -80,7 +83,7 @@ export function InvoicesTable({
       
       uiToast({
         title: "Invoice deleted",
-        description: `Invoice #${invoiceToDelete.invoice_number} has been deleted.`,
+        description: `Invoice #${invoiceToDelete.invoice_number} has been deleted and all time entries have been marked as unbilled.`,
       });
       
       onInvoiceDeleted();
@@ -234,11 +237,12 @@ export function InvoicesTable({
                         size="icon"
                         onClick={() => onViewDetails(invoice)}
                         className={compact ? "h-6 w-6" : "h-8 w-8"}
+                        title="View invoice details"
                       >
                         <Eye className={compact ? "h-3 w-3" : "h-4 w-4"} />
                       </Button>
                       
-                      {isAdmin && (
+                      {canDeleteInvoices && (
                         <>
                           <Button
                             variant="ghost"
@@ -246,6 +250,7 @@ export function InvoicesTable({
                             onClick={() => handleResendInvoice(invoice)}
                             className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-blue-600`}
                             disabled={isResending === invoice.id}
+                            title="Resend invoice to Fortnox"
                           >
                             {isResending === invoice.id ? (
                               <Loader2 className={`animate-spin ${compact ? "h-3 w-3" : "h-4 w-4"}`} />
@@ -259,6 +264,7 @@ export function InvoicesTable({
                             size="icon"
                             onClick={() => handleDeleteClick(invoice)}
                             className={`${compact ? "h-6 w-6" : "h-8 w-8"} text-destructive`}
+                            title="Delete invoice"
                           >
                             <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
                           </Button>
