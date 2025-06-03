@@ -32,6 +32,7 @@ export const en = {
     previous: "Previous",
     home: "Home",
     refresh: "Refresh",
+    refreshList: "Refresh List",
     filter: "Filter",
     clear: "Clear",
     all: "All",
@@ -124,6 +125,10 @@ export const en = {
     noTimeEntriesFound: "No time entries found",
     client: "Client",
     created: "Created",
+    checking: "Checking...",
+    hours: "Hours",
+    minutes: "Minutes",
+    seconds: "Seconds",
     months: {
       january: "January",
       february: "February",
@@ -161,6 +166,7 @@ export const en = {
     passwordRequired: "Password is required",
     signUpSuccess: "Account created successfully! Please check your email to verify your account.",
     signInSuccess: "Welcome back!",
+    signInSuccessful: "Sign in successful!",
     signOutSuccess: "You have been signed out successfully",
     selectLanguage: "Select Language",
     signingIn: "Signing in...",
@@ -293,11 +299,16 @@ export const en = {
     saveTimeEntry: "Save Time Entry",
     noTimeEntriesDesc: "No time entries found today.",
     timeEntryDeleted: "Time entry deleted successfully",
-    timeEntryUpdated: "Time entry updated successfully"
+    timeEntryUpdated: "Time entry updated successfully",
+    addTimeEntry: "Add Time Entry",
+    activitiesFor: "Activities for",
+    hours: "Hours",
+    minutes: "Minutes"
   },
   clients: {
     title: "Clients",
     addClient: "Add Client",
+    newClient: "New Client",
     editClient: "Edit Client",
     deleteClient: "Delete Client",
     clientName: "Client Name",
@@ -309,6 +320,7 @@ export const en = {
     clientCounty: "Client County",
     clientDetails: "Client Details",
     noClients: "No clients found",
+    noClientsFound: "No clients found",
     searchClients: "Search clients...",
     clientAdded: "Client added successfully",
     clientUpdated: "Client updated successfully",
@@ -332,11 +344,19 @@ export const en = {
     createClient: "Create Client",
     updateClient: "Update Client",
     selectClient: "Select Client",
-    unknownClient: "Unknown Client"
+    unknownClient: "Unknown Client",
+    clientList: "Client List",
+    manageClients: "Manage Clients",
+    refreshList: "Refresh List",
+    clientOrganization: "Organization",
+    clientLocation: "Location",
+    clientContact: "Contact Information"
   },
   products: {
     title: "Products",
     addProduct: "Add Product",
+    newActivity: "New Activity",
+    newItem: "New Item",
     editProduct: "Edit Product",
     deleteProduct: "Delete Product",
     productName: "Product Name",
@@ -372,10 +392,17 @@ export const en = {
     updateItem: "Update Item",
     editActivity: "Edit Service",
     editItem: "Edit Item",
-    deletedProduct: "Deleted Product"
+    deletedProduct: "Deleted Product",
+    productList: "Product List",
+    manageProducts: "Manage Products",
+    activities: "Activities",
+    items: "Items",
+    price: "Price",
+    vat: "VAT"
   },
   invoices: {
     title: "Invoices",
+    allInvoices: "All Invoices",
     newInvoice: "New Invoice",
     createInvoice: "Create Invoice",
     editInvoice: "Edit Invoice",
@@ -416,7 +443,8 @@ export const en = {
     timeSpan: "Time Span",
     includeAll: "Include All",
     excluded: "excluded",
-    viewDetails: "View Details"
+    viewDetails: "View Details",
+    refresh: "Refresh"
   },
   reports: {
     title: "Reports",
@@ -586,7 +614,15 @@ export const en = {
     invalidCurrentPassword: "Current password is incorrect",
     passwordMismatch: "New passwords do not match",
     name: "Name",
-    profileSettings: "Profile Settings"
+    profileSettings: "Profile Settings",
+    profileInformation: "Profile Information",
+    updateProfileInfo: "Update Profile Information",
+    fullName: "Full Name",
+    profileOverview: "Profile Overview",
+    emailCannotBeChanged: "Email cannot be changed",
+    saveChanges: "Save Changes",
+    role: "Role",
+    birthday: "Birthday"
   },
   errors: {
     generic: "An error occurred. Please try again.",
@@ -609,7 +645,8 @@ export const en = {
     passwordTooWeak: "Password must contain at least one uppercase letter, one lowercase letter, and one number.",
     somethingWentWrong: "Something went wrong",
     goHome: "Go home",
-    notFound: "Page not found"
+    notFound: "Page not found",
+    loadingFailed: "Loading failed"
   },
   success: {
     saved: "Saved successfully",

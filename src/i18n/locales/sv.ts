@@ -32,6 +32,7 @@ export const sv = {
     previous: "Föregående",
     home: "Hem",
     refresh: "Uppdatera",
+    refreshList: "Uppdatera lista",
     filter: "Filter",
     clear: "Rensa",
     all: "Alla",
@@ -124,6 +125,10 @@ export const sv = {
     noTimeEntriesFound: "Inga tidsrapporter hittades",
     client: "Kund",
     created: "Skapad",
+    checking: "Kontrollerar...",
+    hours: "Timmar",
+    minutes: "Minuter",
+    seconds: "Sekunder",
     months: {
       january: "Januari",
       february: "Februari",
@@ -161,6 +166,7 @@ export const sv = {
     passwordRequired: "Lösenord krävs",
     signUpSuccess: "Konto skapat framgångsrikt! Kontrollera din e-post för att verifiera ditt konto.",
     signInSuccess: "Välkommen tillbaka!",
+    signInSuccessful: "Inloggning lyckades!",
     signOutSuccess: "Du har loggats ut framgångsrikt",
     selectLanguage: "Välj språk",
     signingIn: "Loggar in...",
@@ -293,11 +299,16 @@ export const sv = {
     saveTimeEntry: "Spara tidsrapport",
     noTimeEntriesDesc: "Inga tidsrapporter hittades idag.",
     timeEntryDeleted: "Tidsrapport raderad framgångsrikt",
-    timeEntryUpdated: "Tidsrapport uppdaterad framgångsrikt"
+    timeEntryUpdated: "Tidsrapport uppdaterad framgångsrikt",
+    addTimeEntry: "Lägg till tidsrapport",
+    activitiesFor: "Aktiviteter för",
+    hours: "Timmar",
+    minutes: "Minuter"
   },
   clients: {
     title: "Kunder",
     addClient: "Lägg till kund",
+    newClient: "Ny kund",
     editClient: "Redigera kund",
     deleteClient: "Radera kund",
     clientName: "Kundnamn",
@@ -309,6 +320,7 @@ export const sv = {
     clientCounty: "Kund län",
     clientDetails: "Kunduppgifter",
     noClients: "Inga kunder hittades",
+    noClientsFound: "Inga kunder hittades",
     searchClients: "Sök kunder...",
     clientAdded: "Kund tillagd framgångsrikt",
     clientUpdated: "Kund uppdaterad framgångsrikt",
@@ -332,11 +344,19 @@ export const sv = {
     createClient: "Skapa kund",
     updateClient: "Uppdatera kund",
     selectClient: "Välj kund",
-    unknownClient: "Okänd kund"
+    unknownClient: "Okänd kund",
+    clientList: "Kundlista",
+    manageClients: "Hantera kunder",
+    refreshList: "Uppdatera lista",
+    clientOrganization: "Organisation",
+    clientLocation: "Plats",
+    clientContact: "Kontaktinformation"
   },
   products: {
     title: "Produkter",
     addProduct: "Lägg till produkt",
+    newActivity: "Ny aktivitet",
+    newItem: "Nytt objekt",
     editProduct: "Redigera produkt",
     deleteProduct: "Radera produkt",
     productName: "Produktnamn",
@@ -372,10 +392,17 @@ export const sv = {
     updateItem: "Uppdatera objekt",
     editActivity: "Redigera tjänst",
     editItem: "Redigera objekt",
-    deletedProduct: "Raderad produkt"
+    deletedProduct: "Raderad produkt",
+    productList: "Produktlista",
+    manageProducts: "Hantera produkter",
+    activities: "Aktiviteter",
+    items: "Objekt",
+    price: "Pris",
+    vat: "Moms"
   },
   invoices: {
     title: "Fakturering",
+    allInvoices: "Alla fakturor",
     newInvoice: "Ny faktura",
     createInvoice: "Skapa faktura",
     editInvoice: "Redigera faktura",
@@ -416,7 +443,8 @@ export const sv = {
     timeSpan: "Tidsperiod",
     includeAll: "Inkludera alla",
     excluded: "exkluderad",
-    viewDetails: "Visa detaljer"
+    viewDetails: "Visa detaljer",
+    refresh: "Uppdatera"
   },
   reports: {
     title: "Rapporter",
@@ -586,7 +614,15 @@ export const sv = {
     invalidCurrentPassword: "Nuvarande lösenord är felaktigt",
     passwordMismatch: "Nya lösenord matchar inte",
     name: "Namn",
-    profileSettings: "Profilinställningar"
+    profileSettings: "Profilinställningar",
+    profileInformation: "Profilinformation",
+    updateProfileInfo: "Uppdatera profilinformation",
+    fullName: "Fullständigt namn",
+    profileOverview: "Profilöversikt",
+    emailCannotBeChanged: "E-post kan inte ändras",
+    saveChanges: "Spara ändringar",
+    role: "Roll",
+    birthday: "Födelsedag"
   },
   errors: {
     generic: "Ett fel uppstod. Försök igen.",
@@ -609,7 +645,8 @@ export const sv = {
     passwordTooWeak: "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.",
     somethingWentWrong: "Något gick fel",
     goHome: "Gå till startsidan",
-    notFound: "Sidan hittades inte"
+    notFound: "Sidan hittades inte",
+    loadingFailed: "Laddning misslyckades"
   },
   success: {
     saved: "Sparat framgångsrikt",
