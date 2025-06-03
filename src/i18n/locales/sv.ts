@@ -1,4 +1,5 @@
 
+
 const translations = {
   common: {
     loading: "Laddar...",
@@ -253,11 +254,8 @@ const translations = {
     trackTimeAndManageClients: "Spåra tid, hantera kunder och skapa fakturor på ett ställe.",
     timeEntries: "Tidrapporter",
     timeEntriesDescription: "Spåra din tid på klientarbete",
-    clients: "Kunder",
     clientsDescription: "Hantera din kundinformation",
-    products: "Produkter",
     productsDescription: "Konfigurera dina produkter och tjänster",
-    invoices: "Fakturor",
     invoicesDescription: "Skapa och hantera dina fakturor",
     quickStart: "Snabbstart",
     getStarted: "Kom igång med tidsredovisning och fakturering",
@@ -514,9 +512,10 @@ const translations = {
     pricePerHour: "Pris per timme",
     pricePerItem: "Pris per objekt",
     roundToNearest: "Runda till närmaste",
-    minutes: "minuter",
     units: "enheter",
-    unit: "enhet"
+    unit: "enhet",
+    deleteTimeEntry: "Radera tidsrapport",
+    deleteConfirmation: "Är du säker på att du vill radera denna tidsrapport? Detta kan inte ångras."
   },
   invoices: {
     title: "Fakturering",
@@ -585,7 +584,6 @@ const translations = {
     notExported: "Inte exporterad",
     exportSuccess: "Faktura exporterad framgångsrikt",
     exportError: "Misslyckades att exportera faktura",
-    allInvoices: "Alla fakturor",
     viewDetails: "Visa detaljer"
   },
   reports: {
@@ -898,3 +896,4 @@ const translations = {
 };
 
 export default translations;
+

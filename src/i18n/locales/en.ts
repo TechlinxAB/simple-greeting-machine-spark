@@ -1,4 +1,3 @@
-
 export const en = {
   common: {
     save: "Save",
@@ -85,7 +84,7 @@ export const en = {
     processing: "Processing",
     deleting: "Deleting...",
     deleteTimeEntry: "Delete Time Entry",
-    confirmDeleteTimeEntry: "Are you sure you want to delete this time entry? This action cannot be undone.",
+    deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone.",
     editTimeEntry: "Edit Time Entry", 
     editTimeEntryDesc: "Make changes to the time entry below.",
     noDescription: "No description",
@@ -240,7 +239,9 @@ export const en = {
     productRequired: "Product or service is required",
     timeRequired: "Both start and end time are required for services",
     quantityRequired: "Quantity is required for items",
-    descriptionOptional: "Description (optional)"
+    descriptionOptional: "Description (optional)",
+    deleteTimeEntry: "Delete Time Entry",
+    deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone."
   },
   clients: {
     title: "Clients",
