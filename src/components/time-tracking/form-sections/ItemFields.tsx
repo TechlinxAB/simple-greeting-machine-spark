@@ -47,13 +47,15 @@ export function ItemFields({ form, loading, isCompact, selectedProductPrice }: I
         name="customPrice"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice})</FormLabel>
+            <FormLabel>
+              {t("products.customPrice")} ({t("products.defaultPrice")}: {selectedProductPrice || 0} SEK)
+            </FormLabel>
             <FormControl>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder={selectedProductPrice?.toString()}
+                placeholder={selectedProductPrice?.toString() || "0.00"}
                 {...field}
                 value={field.value === null ? '' : field.value}
                 onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}

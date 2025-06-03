@@ -48,6 +48,7 @@ type TimeEntryWithProfile = {
   quantity?: number;
   description?: string;
   created_at?: string;
+  custom_price?: number;
   products?: {
     id: string;
     name: string;
@@ -140,6 +141,7 @@ export default function Invoices() {
           quantity, 
           description,
           created_at,
+          custom_price,
           products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
         `)
         .eq("client_id", selectedClient)
@@ -320,6 +322,9 @@ export default function Invoices() {
       .forEach(entry => {
         if (entry.products) {
           let quantity = 1;
+          let unitPrice = entry.custom_price !== null && entry.custom_price !== undefined 
+            ? entry.custom_price 
+            : entry.products.price;
           
           if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
             const start = new Date(entry.start_time);
@@ -330,7 +335,7 @@ export default function Invoices() {
             quantity = entry.quantity;
           }
           
-          total += entry.products.price * quantity;
+          total += unitPrice * quantity;
         }
       });
     
@@ -476,18 +481,18 @@ export default function Invoices() {
       <Dialog open={isCreatingInvoice} onOpenChange={setIsCreatingInvoice}>
         <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Create New Invoice</DialogTitle>
+            <DialogTitle>{t("invoices.createNewInvoice")}</DialogTitle>
             <DialogDescription>
-              Create and export a new invoice to Fortnox for a selected client.
+              {t("invoices.createNewInvoiceDesc")}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-5 flex-1 overflow-hidden">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Client</label>
+              <label className="text-sm font-medium">{t("invoices.selectClient")}</label>
               <Select value={selectedClient} onValueChange={setSelectedClient}>
                 <SelectTrigger className="w-full bg-background">
-                  <SelectValue placeholder="Select a client" />
+                  <SelectValue placeholder={t("invoices.selectClient")} />
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((client) => (
@@ -500,7 +505,7 @@ export default function Invoices() {
             {selectedClient && (
               <div className="flex flex-col md:flex-row gap-4 mb-2">
                 <div className="w-full">
-                  <label className="text-sm font-medium block mb-2">Time span</label>
+                  <label className="text-sm font-medium block mb-2">{t("invoices.timeSpan")}</label>
                   <DateRangeSelector 
                     fromDate={fromDate}
                     toDate={toDate}
@@ -547,7 +552,7 @@ export default function Invoices() {
             {selectedClient && (
               <div className="space-y-3 flex-1 overflow-hidden">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium">Unbilled Time Entries</h3>
+                  <h3 className="text-sm font-medium">{t("invoices.unbilledEntries")}</h3>
                   <div className="flex items-center gap-2">
                     {excludedEntries.length > 0 && (
                       <Button 
@@ -557,7 +562,7 @@ export default function Invoices() {
                         className="h-8 text-xs"
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Include All ({excludedEntries.length} excluded)
+                        {t("invoices.includeAll")} ({excludedEntries.length} {t("invoices.excluded")})
                       </Button>
                     )}
                     <Button 
@@ -567,14 +572,14 @@ export default function Invoices() {
                       className="h-8"
                     >
                       <RefreshCcw className="h-3 w-3 mr-1" />
-                      Refresh
+                      {t("invoices.refresh")}
                     </Button>
                   </div>
                 </div>
                 
                 {unbilledEntries.length === 0 ? (
                   <div className="text-center py-4 border rounded-md bg-muted/20">
-                    <p className="text-sm text-muted-foreground">No unbilled time entries for this client and selected time span.</p>
+                    <p className="text-sm text-muted-foreground">{t("invoices.noUnbilledEntries")}</p>
                   </div>
                 ) : (
                   <ScrollArea className="border rounded-md h-[calc(80vh-400px)] min-h-[400px]">
@@ -582,20 +587,23 @@ export default function Invoices() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead>User</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Quantity</TableHead>
+                            <TableHead>{t("common.description")}</TableHead>
+                            <TableHead>{t("common.user")}</TableHead>
+                            <TableHead>{t("common.product")}</TableHead>
+                            <TableHead>{t("common.date")}</TableHead>
+                            <TableHead>{t("common.quantity")}</TableHead>
                             <TableHead>Art. Number</TableHead>
-                            <TableHead className="text-right">Amount (SEK)</TableHead>
+                            <TableHead className="text-right">{t("common.amount")} (SEK)</TableHead>
                             <TableHead className="w-[100px]">Include</TableHead>
-                            <TableHead>Actions</TableHead>
+                            <TableHead>{t("common.actions")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {unbilledEntries.map((entry) => {
                             let quantity = 1;
+                            let unitPrice = entry.custom_price !== null && entry.custom_price !== undefined 
+                              ? entry.custom_price 
+                              : entry.products?.price || 0;
                             
                             if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
                               const start = new Date(entry.start_time);
@@ -606,7 +614,7 @@ export default function Invoices() {
                               quantity = entry.quantity;
                             }
                             
-                            const amount = entry.products ? entry.products.price * quantity : 0;
+                            const amount = unitPrice * quantity;
                             
                             const hasValidArticleNumber = 
                               entry.products?.article_number && 
@@ -625,12 +633,12 @@ export default function Invoices() {
                                     <Tooltip>
                                       <TooltipTrigger className="text-left truncate block w-full">
                                         <span className={`truncate block ${isExcluded ? "text-muted-foreground line-through" : ""}`}>
-                                          {entry.description || 'No description'}
+                                          {entry.description || t("common.noDescription")}
                                         </span>
                                       </TooltipTrigger>
                                       {entry.description && (
                                         <TooltipContent side="bottom" className="max-w-[300px] p-3">
-                                          <p className="font-medium mb-1">Description:</p>
+                                          <p className="font-medium mb-1">{t("common.description")}:</p>
                                           <p className="text-sm">{entry.description}</p>
                                         </TooltipContent>
                                       )}
@@ -642,6 +650,11 @@ export default function Invoices() {
                                 </TableCell>
                                 <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
                                   {entry.products?.name || 'Unknown Product'}
+                                  {entry.custom_price !== null && entry.custom_price !== undefined && (
+                                    <span className="text-xs text-blue-600 block">
+                                      Custom price: {entry.custom_price} SEK
+                                    </span>
+                                  )}
                                 </TableCell>
                                 <TableCell className={isExcluded ? "text-muted-foreground" : ""}>
                                   {entryDate}
@@ -724,7 +737,7 @@ export default function Invoices() {
                             );
                           })}
                           <TableRow>
-                            <TableCell colSpan={6} className="font-bold text-right">Total:</TableCell>
+                            <TableCell colSpan={6} className="font-bold text-right">{t("invoices.total")}:</TableCell>
                             <TableCell className="font-bold text-right">{calculateTotal()} SEK</TableCell>
                             <TableCell colSpan={2}></TableCell>
                           </TableRow>
@@ -739,7 +752,7 @@ export default function Invoices() {
           
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setIsCreatingInvoice(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button 
               onClick={handleCreateInvoice} 
@@ -754,12 +767,12 @@ export default function Invoices() {
               {isExportingInvoice ? (
                 <>
                   <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                  <span>Processing...</span>
+                  <span>{t("common.processing")}</span>
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4" />
-                  <span>Create & Export</span>
+                  <span>{t("invoices.createAndExport")}</span>
                 </>
               )}
             </Button>
@@ -770,9 +783,9 @@ export default function Invoices() {
       <ConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        title="Delete Time Entry"
-        description="Are you sure you want to delete this time entry? This action cannot be undone."
-        actionLabel="Delete"
+        title={t("common.deleteTimeEntry")}
+        description={t("common.confirmDeleteTimeEntry")}
+        actionLabel={t("common.delete")}
         onAction={handleDeleteTimeEntry}
         variant="destructive"
       />
@@ -781,8 +794,8 @@ export default function Invoices() {
         <DialogWrapper
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
-          title="Edit Time Entry"
-          description="Make changes to this time entry."
+          title={t("common.editTimeEntry")}
+          description={t("common.editTimeEntryDesc")}
         >
           <TimeEntryEditForm
             timeEntry={{
