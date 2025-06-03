@@ -129,6 +129,7 @@ export const sv = {
     hours: "Timmar",
     minutes: "Minuter",
     seconds: "Sekunder",
+    viewAll: "Visa alla",
     months: {
       january: "Januari",
       february: "Februari",
@@ -232,7 +233,17 @@ export const sv = {
     manageClients: "Hantera kunder",
     createFirstInvoice: "Skapa första faktura",
     viewAllTimeEntries: "Visa alla tidsrapporter",
-    filter: "Filter"
+    filter: "Filter",
+    preparingWorkspace: "Förbereder din arbetsyta...",
+    addYourClients: "Lägg till dina kunder",
+    addYourClientsDesc: "Börja med att lägga till dina kunder för att spåra tid för.",
+    configureProducts: "Konfigurera produkter",
+    configureProductsDesc: "Ställ in dina tjänster och produkter med prissättning.",
+    trackYourTime: "Spåra din tid",
+    trackYourTimeDesc: "Logga timmar som arbetats för kunder och projekt.",
+    generateInvoices: "Generera fakturor",
+    generateInvoicesDesc: "Skapa professionella fakturor från spårad tid.",
+    goToTimeTracking: "Gå till tidsredovisning"
   },
   timeTracking: {
     title: "Tidsredovisning",
@@ -303,7 +314,8 @@ export const sv = {
     addTimeEntry: "Lägg till tidsrapport",
     activitiesFor: "Aktiviteter för",
     hours: "Timmar",
-    minutes: "Minuter"
+    minutes: "Minuter",
+    whatProduct: "Vilken produkt/tjänst?"
   },
   clients: {
     title: "Kunder",
@@ -350,12 +362,14 @@ export const sv = {
     refreshList: "Uppdatera lista",
     clientOrganization: "Organisation",
     clientLocation: "Plats",
-    clientContact: "Kontaktinformation"
+    clientContact: "Kontaktinformation",
+    client: "Kund",
+    name: "Namn"
   },
   products: {
     title: "Produkter",
     addProduct: "Lägg till produkt",
-    newActivity: "Ny aktivitet",
+    newActivity: "Ny tjänst",
     newItem: "Nytt objekt",
     editProduct: "Redigera produkt",
     deleteProduct: "Radera produkt",
@@ -372,7 +386,7 @@ export const sv = {
     productDeleted: "Produkt raderad framgångsrikt",
     confirmDelete: "Är du säker på att du vill radera denna produkt?",
     cannotDelete: "Kan inte radera produkt med associerade tidsrapporter",
-    activity: "Aktivitet",
+    activity: "Tjänst",
     item: "Objekt",
     priceRequired: "Pris krävs",
     nameRequired: "Namn krävs",
@@ -395,10 +409,11 @@ export const sv = {
     deletedProduct: "Raderad produkt",
     productList: "Produktlista",
     manageProducts: "Hantera produkter",
-    activities: "Aktiviteter",
+    activities: "Tjänster",
     items: "Objekt",
     price: "Pris",
-    vat: "Moms"
+    vat: "Moms",
+    all: "Alla"
   },
   invoices: {
     title: "Fakturering",
@@ -444,7 +459,8 @@ export const sv = {
     includeAll: "Inkludera alla",
     excluded: "exkluderad",
     viewDetails: "Visa detaljer",
-    refresh: "Uppdatera"
+    refresh: "Uppdatera",
+    invoiced: "Fakturerad"
   },
   reports: {
     title: "Rapporter",

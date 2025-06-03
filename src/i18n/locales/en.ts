@@ -129,6 +129,7 @@ export const en = {
     hours: "Hours",
     minutes: "Minutes",
     seconds: "Seconds",
+    viewAll: "View All",
     months: {
       january: "January",
       february: "February",
@@ -232,7 +233,17 @@ export const en = {
     manageClients: "Manage Clients",
     createFirstInvoice: "Create First Invoice",
     viewAllTimeEntries: "View All Time Entries",
-    filter: "Filter"
+    filter: "Filter",
+    preparingWorkspace: "Preparing your workspace...",
+    addYourClients: "Add your clients",
+    addYourClientsDesc: "Start by adding your clients to track time for.",
+    configureProducts: "Configure products",
+    configureProductsDesc: "Set up your services and products with pricing.",
+    trackYourTime: "Track your time",
+    trackYourTimeDesc: "Log hours worked for clients and projects.",
+    generateInvoices: "Generate invoices",
+    generateInvoicesDesc: "Create professional invoices from tracked time.",
+    goToTimeTracking: "Go to Time Tracking"
   },
   timeTracking: {
     title: "Time Tracking",
@@ -303,7 +314,8 @@ export const en = {
     addTimeEntry: "Add Time Entry",
     activitiesFor: "Activities for",
     hours: "Hours",
-    minutes: "Minutes"
+    minutes: "Minutes",
+    whatProduct: "What product/service?"
   },
   clients: {
     title: "Clients",
@@ -350,12 +362,14 @@ export const en = {
     refreshList: "Refresh List",
     clientOrganization: "Organization",
     clientLocation: "Location",
-    clientContact: "Contact Information"
+    clientContact: "Contact Information",
+    client: "Client",
+    name: "Name"
   },
   products: {
     title: "Products",
     addProduct: "Add Product",
-    newActivity: "New Activity",
+    newActivity: "New Service",
     newItem: "New Item",
     editProduct: "Edit Product",
     deleteProduct: "Delete Product",
@@ -372,7 +386,7 @@ export const en = {
     productDeleted: "Product deleted successfully",
     confirmDelete: "Are you sure you want to delete this product?",
     cannotDelete: "Cannot delete product with associated time entries",
-    activity: "Activity",
+    activity: "Service",
     item: "Item",
     priceRequired: "Price is required",
     nameRequired: "Name is required",
@@ -395,10 +409,11 @@ export const en = {
     deletedProduct: "Deleted Product",
     productList: "Product List",
     manageProducts: "Manage Products",
-    activities: "Activities",
+    activities: "Services",
     items: "Items",
     price: "Price",
-    vat: "VAT"
+    vat: "VAT",
+    all: "All"
   },
   invoices: {
     title: "Invoices",
@@ -444,7 +459,8 @@ export const en = {
     includeAll: "Include All",
     excluded: "excluded",
     viewDetails: "View Details",
-    refresh: "Refresh"
+    refresh: "Refresh",
+    invoiced: "Invoiced"
   },
   reports: {
     title: "Reports",
