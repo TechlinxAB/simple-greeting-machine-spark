@@ -286,7 +286,7 @@ export const en = {
     support: "Support",
     other: "Other",
     item: "Item",
-    activity: "Activity",
+    activity: "Service",
     customPrice: "Custom Price",
     useCustomPrice: "Use Custom Price",
     pricePerHour: "Price per Hour",
@@ -306,7 +306,7 @@ export const en = {
     deleteTimeEntry: "Delete Time Entry",
     deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone.",
     description: "Description",
-    activityItem: "Activity/Item",
+    activityItem: "Service/Item",
     saveTimeEntry: "Save Time Entry",
     noTimeEntriesDesc: "No time entries found today.",
     timeEntryDeleted: "Time entry deleted successfully",
@@ -315,7 +315,9 @@ export const en = {
     activitiesFor: "Activities for",
     hours: "Hours",
     minutes: "Minutes",
-    whatProduct: "What product/service?"
+    whatProduct: "What product/service?",
+    fromTime: "From Time",
+    toTime: "To Time"
   },
   clients: {
     title: "Clients",
@@ -414,7 +416,13 @@ export const en = {
     items: "Items",
     price: "Price",
     vat: "VAT",
-    all: "All"
+    all: "All",
+    createNewProduct: "Create New Product",
+    addNewServiceToAccount: "Add New Service to Account",
+    addNewItemToAccount: "Add New Item to Account",
+    addService: "Add Service",
+    addItem: "Add Item",
+    newProduct: "New Product"
   },
   invoices: {
     title: "Invoices",
@@ -461,7 +469,9 @@ export const en = {
     excluded: "excluded",
     viewDetails: "View Details",
     refresh: "Refresh",
-    invoiced: "Invoiced"
+    invoiced: "Invoiced",
+    from: "From",
+    to: "To"
   },
   reports: {
     title: "Reports",
@@ -556,7 +566,8 @@ export const en = {
     thisMonth: "This Month",
     lastMonth: "Last Month",
     thisYear: "This Year",
-    actions: "Actions"
+    actions: "Actions",
+    entriesDeleted: "Entries deleted"
   },
   settings: {
     title: "Settings",

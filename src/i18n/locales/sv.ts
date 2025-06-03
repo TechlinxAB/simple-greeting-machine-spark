@@ -286,7 +286,7 @@ export const sv = {
     support: "Support",
     other: "Annat",
     item: "Objekt",
-    activity: "Aktivitet",
+    activity: "Tjänst",
     customPrice: "Anpassat pris",
     useCustomPrice: "Använd anpassat pris",
     pricePerHour: "Pris per timme",
@@ -306,7 +306,7 @@ export const sv = {
     deleteTimeEntry: "Radera tidsrapport",
     deleteConfirmation: "Är du säker på att du vill radera denna tidsrapport? Detta kan inte ångras.",
     description: "Beskrivning",
-    activityItem: "Aktivitet/Objekt",
+    activityItem: "Tjänst/Objekt",
     saveTimeEntry: "Spara tidsrapport",
     noTimeEntriesDesc: "Inga tidsrapporter hittades idag.",
     timeEntryDeleted: "Tidsrapport raderad framgångsrikt",
@@ -315,7 +315,9 @@ export const sv = {
     activitiesFor: "Aktiviteter för",
     hours: "Timmar",
     minutes: "Minuter",
-    whatProduct: "Vilken produkt/tjänst?"
+    whatProduct: "Vilken produkt/tjänst?",
+    fromTime: "Från tid",
+    toTime: "Till tid"
   },
   clients: {
     title: "Kunder",
@@ -396,7 +398,7 @@ export const sv = {
     vatRequired: "Momsprocent krävs",
     vatValid: "Momsprocent måste vara mellan 0 och 100",
     productNamePlaceholder: "Produktnamn",
-    activityNamePlaceholder: "Tjänstenamn",
+    activityNamePlaceholder: "Tjänstnamn",
     pricePlaceholder: "0.00",
     vatPlaceholder: "25",
     accountNumberPlaceholder: "3000",
@@ -414,7 +416,13 @@ export const sv = {
     items: "Objekt",
     price: "Pris",
     vat: "Moms",
-    all: "Alla"
+    all: "Alla",
+    createNewProduct: "Skapa ny produkt",
+    addNewServiceToAccount: "Lägg till ny tjänst till konto",
+    addNewItemToAccount: "Lägg till nytt objekt till konto",
+    addService: "Lägg till tjänst",
+    addItem: "Lägg till objekt",
+    newProduct: "Ny produkt"
   },
   invoices: {
     title: "Fakturering",
@@ -461,7 +469,9 @@ export const sv = {
     excluded: "exkluderad",
     viewDetails: "Visa detaljer",
     refresh: "Uppdatera",
-    invoiced: "Fakturerad"
+    invoiced: "Fakturerad",
+    from: "Från",
+    to: "Till"
   },
   reports: {
     title: "Rapporter",
@@ -556,7 +566,8 @@ export const sv = {
     thisMonth: "Denna månad",
     lastMonth: "Förra månaden",
     thisYear: "Detta år",
-    actions: "Åtgärder"
+    actions: "Åtgärder",
+    entriesDeleted: "Poster raderade"
   },
   settings: {
     title: "Inställningar",
