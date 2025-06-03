@@ -144,7 +144,7 @@ export function useTimeEntrySubmit({
         timeEntryData.original_end_time = originalEndTime;
         timeEntryData.rounded_duration_minutes = roundedDurationMinutes;
         timeEntryData.quantity = null;
-      } else if (values.productType === "item") {
+      } else if (values.productType === "product") {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;

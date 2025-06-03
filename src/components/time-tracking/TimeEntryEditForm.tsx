@@ -125,7 +125,7 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           />
         )}
         
-        {selectedProductType === "item" && (
+        {selectedProductType === "product" && (
           <ProductFields 
             form={form} 
             loading={loading} 
