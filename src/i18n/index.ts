@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import { en } from './locales/en';
-import svTranslation from './locales/sv';
+import { sv } from './locales/sv';
 
 // Initialize i18next
 i18n
@@ -16,7 +16,7 @@ i18n
         translation: en
       },
       sv: {
-        translation: svTranslation
+        translation: sv
       }
     },
     fallbackLng: 'en',

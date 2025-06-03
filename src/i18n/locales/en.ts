@@ -86,7 +86,7 @@ export const en = {
     deleting: "Deleting...",
     deleteTimeEntry: "Delete Time Entry",
     deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone.",
-    editTimeEntry: "Edit Time Entry", 
+    editTimeEntry: "Edit Time Entry",
     editTimeEntryDesc: "Make changes to the time entry below.",
     noDescription: "No description",
     product: "Product",
@@ -123,6 +123,7 @@ export const en = {
     durationQty: "Duration/Qty",
     noTimeEntriesFound: "No time entries found",
     client: "Client",
+    created: "Created",
     months: {
       january: "January",
       february: "February",
@@ -161,7 +162,10 @@ export const en = {
     signUpSuccess: "Account created successfully! Please check your email to verify your account.",
     signInSuccess: "Welcome back!",
     signOutSuccess: "You have been signed out successfully",
-    selectLanguage: "Select Language"
+    selectLanguage: "Select Language",
+    signingIn: "Signing in...",
+    signInDescription: "Sign in to your account to access time tracking and invoicing.",
+    createAccountTitle: "Create Account"
   },
   navigation: {
     dashboard: "Dashboard",
@@ -271,8 +275,6 @@ export const en = {
     pricePerHour: "Price per Hour",
     pricePerItem: "Price per Item",
     roundToNearest: "Round to Nearest",
-    minutes: "Minutes",
-    hours: "Hours",
     units: "units",
     unit: "unit",
     actualDuration: "Actual Duration",
@@ -289,7 +291,9 @@ export const en = {
     description: "Description",
     activityItem: "Activity/Item",
     saveTimeEntry: "Save Time Entry",
-    noTimeEntriesDesc: "No time entries found today."
+    noTimeEntriesDesc: "No time entries found today.",
+    timeEntryDeleted: "Time entry deleted successfully",
+    timeEntryUpdated: "Time entry updated successfully"
   },
   clients: {
     title: "Clients",
@@ -327,7 +331,8 @@ export const en = {
     emailPlaceholder: "contact@company.com",
     createClient: "Create Client",
     updateClient: "Update Client",
-    selectClient: "Select Client"
+    selectClient: "Select Client",
+    unknownClient: "Unknown Client"
   },
   products: {
     title: "Products",
@@ -366,7 +371,8 @@ export const en = {
     updateActivity: "Update Service",
     updateItem: "Update Item",
     editActivity: "Edit Service",
-    editItem: "Edit Item"
+    editItem: "Edit Item",
+    deletedProduct: "Deleted Product"
   },
   invoices: {
     title: "Invoices",
@@ -435,7 +441,9 @@ export const en = {
     topProducts: "Top Products",
     monthlyTrend: "Monthly Trend",
     weeklyTrend: "Weekly Trend",
-    dailyTrend: "Daily Trend"
+    dailyTrend: "Daily Trend",
+    from: "From",
+    to: "To"
   },
   administration: {
     title: "Administration",
@@ -598,7 +606,10 @@ export const en = {
     minLength: "Must be at least {min} characters long.",
     maxLength: "Must be no more than {max} characters long.",
     passwordTooShort: "Password must be at least 8 characters long.",
-    passwordTooWeak: "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+    passwordTooWeak: "Password must contain at least one uppercase letter, one lowercase letter, and one number.",
+    somethingWentWrong: "Something went wrong",
+    goHome: "Go home",
+    notFound: "Page not found"
   },
   success: {
     saved: "Saved successfully",

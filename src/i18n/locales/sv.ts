@@ -1,5 +1,5 @@
 
-const translations = {
+export const sv = {
   common: {
     save: "Spara",
     cancel: "Avbryt",
@@ -123,6 +123,7 @@ const translations = {
     durationQty: "Varaktighet/Kvantitet",
     noTimeEntriesFound: "Inga tidsrapporter hittades",
     client: "Kund",
+    created: "Skapad",
     months: {
       january: "Januari",
       february: "Februari",
@@ -161,7 +162,10 @@ const translations = {
     signUpSuccess: "Konto skapat framgångsrikt! Kontrollera din e-post för att verifiera ditt konto.",
     signInSuccess: "Välkommen tillbaka!",
     signOutSuccess: "Du har loggats ut framgångsrikt",
-    selectLanguage: "Välj språk"
+    selectLanguage: "Välj språk",
+    signingIn: "Loggar in...",
+    signInDescription: "Logga in på ditt konto för att komma åt tidsredovisning och fakturering.",
+    createAccountTitle: "Skapa konto"
   },
   navigation: {
     dashboard: "Instrumentpanel",
@@ -287,7 +291,9 @@ const translations = {
     description: "Beskrivning",
     activityItem: "Aktivitet/Objekt",
     saveTimeEntry: "Spara tidsrapport",
-    noTimeEntriesDesc: "Inga tidsrapporter hittades idag."
+    noTimeEntriesDesc: "Inga tidsrapporter hittades idag.",
+    timeEntryDeleted: "Tidsrapport raderad framgångsrikt",
+    timeEntryUpdated: "Tidsrapport uppdaterad framgångsrikt"
   },
   clients: {
     title: "Kunder",
@@ -325,7 +331,8 @@ const translations = {
     emailPlaceholder: "kontakt@företag.se",
     createClient: "Skapa kund",
     updateClient: "Uppdatera kund",
-    selectClient: "Välj kund"
+    selectClient: "Välj kund",
+    unknownClient: "Okänd kund"
   },
   products: {
     title: "Produkter",
@@ -364,7 +371,8 @@ const translations = {
     updateActivity: "Uppdatera tjänst",
     updateItem: "Uppdatera objekt",
     editActivity: "Redigera tjänst",
-    editItem: "Redigera objekt"
+    editItem: "Redigera objekt",
+    deletedProduct: "Raderad produkt"
   },
   invoices: {
     title: "Fakturering",
@@ -433,7 +441,9 @@ const translations = {
     topProducts: "Toppprodukter",
     monthlyTrend: "Månadstrend",
     weeklyTrend: "Veckotrend",
-    dailyTrend: "Dagstrend"
+    dailyTrend: "Dagstrend",
+    from: "Från",
+    to: "Till"
   },
   administration: {
     title: "Administration",
@@ -596,7 +606,10 @@ const translations = {
     minLength: "Måste vara minst {min} tecken långt.",
     maxLength: "Får inte vara mer än {max} tecken långt.",
     passwordTooShort: "Lösenordet måste vara minst 8 tecken långt.",
-    passwordTooWeak: "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra."
+    passwordTooWeak: "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.",
+    somethingWentWrong: "Något gick fel",
+    goHome: "Gå till startsidan",
+    notFound: "Sidan hittades inte"
   },
   success: {
     saved: "Sparat framgångsrikt",
@@ -667,5 +680,3 @@ const translations = {
     productDistribution: "Produktfördelning"
   }
 };
-
-export default translations;
