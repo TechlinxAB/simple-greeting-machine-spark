@@ -1,3 +1,4 @@
+
 export interface Client {
   id: string;
   name: string;
@@ -17,7 +18,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  type: 'activity' | 'item';
+  type: 'activity' | 'product';
   vat_percentage?: number;
   account_number?: string;
   article_number?: string;
@@ -62,7 +63,7 @@ export interface Invoice {
   clients?: Partial<Client>;
 }
 
-export type ProductType = 'activity' | 'item';
+export type ProductType = 'activity' | 'product';
 
 export interface User {
   id: string;
