@@ -676,7 +676,7 @@ export const en = {
     passwordTooWeak: "Password must contain at least one uppercase letter, one lowercase letter, and one number.",
     somethingWentWrong: "Something went wrong",
     goHome: "Go home",
-    notFound: "Page not found",
+    pageNotFound: "Page not found",
     loadingFailed: "Loading failed"
   },
   success: {

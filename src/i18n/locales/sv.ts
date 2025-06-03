@@ -676,7 +676,7 @@ export const sv = {
     passwordTooWeak: "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.",
     somethingWentWrong: "Något gick fel",
     goHome: "Gå till startsidan",
-    notFound: "Sidan hittades inte",
+    pageNotFound: "Sidan hittades inte",
     loadingFailed: "Laddning misslyckades"
   },
   success: {
