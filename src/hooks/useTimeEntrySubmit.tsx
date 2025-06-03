@@ -56,9 +56,13 @@ export function useTimeEntrySubmit({
       
       console.log("Final time strings - Start:", startTimeString, "End:", endTimeString);
       
-      const timeEntryDate = timeEntry.created_at 
-        ? new Date(timeEntry.created_at) 
-        : new Date();
+      // IMPORTANT FIX: Preserve the original date when editing
+      // Use start_time if available (for editing), fallback to created_at, then to today
+      const timeEntryDate = timeEntry.start_time 
+        ? new Date(timeEntry.start_time)
+        : timeEntry.created_at 
+          ? new Date(timeEntry.created_at) 
+          : new Date();
         
       const datePart = format(timeEntryDate, "yyyy-MM-dd");
       

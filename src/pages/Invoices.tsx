@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, Search, FileText, RefreshCcw, Upload, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
 import { FilePlus2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, differenceInHours, differenceInMinutes } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,12 +26,19 @@ import { DialogWrapper } from "@/components/ui/dialog-wrapper";
 import { DateRangeSelector } from "@/components/administration/DateRangeSelector";
 import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
 
-const calculateDuration = (startTime: string, endTime: string): number => {
+// IMPORTANT: Use the same calculation logic for consistency between Administration and Invoicing
+const calculateDuration = (startTime: string, endTime: string, roundedDurationMinutes?: number | null): number => {
+  // Prefer using the rounded_duration_minutes if available (same as in TimeEntriesTable.tsx)
+  if (roundedDurationMinutes) {
+    return roundedDurationMinutes / 60; // Convert minutes to hours
+  }
+  
+  // Fall back to calculating from start_time and end_time
   const start = new Date(startTime);
   const end = new Date(endTime);
-  const diffHours = differenceInHours(end, start);
-  const diffMinutes = differenceInMinutes(end, start) % 60;
-  return parseFloat((diffHours + diffMinutes / 60).toFixed(2));
+  const diffMs = end.getTime() - start.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  return parseFloat(diffHours.toFixed(2));
 };
 
 const formatDuration = (hours: number): string => {
@@ -49,6 +56,7 @@ type TimeEntryWithProfile = {
   description?: string;
   created_at?: string;
   custom_price?: number;
+  rounded_duration_minutes?: number; // Added this field
   products?: {
     id: string;
     name: string;
@@ -142,6 +150,7 @@ export default function Invoices() {
           description,
           created_at,
           custom_price,
+          rounded_duration_minutes,
           products:product_id (id, name, type, price, vat_percentage, article_number, account_number)
         `)
         .eq("client_id", selectedClient)
@@ -327,10 +336,8 @@ export default function Invoices() {
             : entry.products.price;
           
           if (entry.products.type === 'activity' && entry.start_time && entry.end_time) {
-            const start = new Date(entry.start_time);
-            const end = new Date(entry.end_time);
-            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-            quantity = parseFloat(diffHours.toFixed(2));
+            // Use the same duration calculation as in TimeEntriesTable
+            quantity = calculateDuration(entry.start_time, entry.end_time, entry.rounded_duration_minutes);
           } else if (entry.products.type === 'item' && entry.quantity) {
             quantity = entry.quantity;
           }
@@ -386,7 +393,8 @@ export default function Invoices() {
 
   const getItemAmount = (entry: any) => {
     if (entry.products?.type === "activity" && entry.start_time && entry.end_time) {
-      const hours = calculateDuration(entry.start_time, entry.end_time);
+      // Use the consistent calculation method for duration
+      const hours = calculateDuration(entry.start_time, entry.end_time, entry.rounded_duration_minutes);
       return formatDuration(hours);
     } else if (entry.products?.type === "item" && entry.quantity) {
       return `${entry.quantity} units`;
@@ -606,10 +614,8 @@ export default function Invoices() {
                               : entry.products?.price || 0;
                             
                             if (entry.products?.type === 'activity' && entry.start_time && entry.end_time) {
-                              const start = new Date(entry.start_time);
-                              const end = new Date(entry.end_time);
-                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              quantity = parseFloat(diffHours.toFixed(2));
+                              // Use the same duration calculation as in TimeEntriesTable
+                              quantity = calculateDuration(entry.start_time, entry.end_time, entry.rounded_duration_minutes);
                             } else if (entry.products?.type === 'item' && entry.quantity) {
                               quantity = entry.quantity;
                             }
