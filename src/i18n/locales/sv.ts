@@ -364,7 +364,8 @@ export const sv = {
     clientLocation: "Plats",
     clientContact: "Kontaktinformation",
     client: "Kund",
-    name: "Namn"
+    name: "Namn",
+    actions: "Åtgärder"
   },
   products: {
     title: "Produkter",

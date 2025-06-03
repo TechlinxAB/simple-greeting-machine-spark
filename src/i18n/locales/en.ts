@@ -364,7 +364,8 @@ export const en = {
     clientLocation: "Location",
     clientContact: "Contact Information",
     client: "Client",
-    name: "Name"
+    name: "Name",
+    actions: "Actions"
   },
   products: {
     title: "Products",
