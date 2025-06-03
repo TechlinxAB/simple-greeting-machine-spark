@@ -1,3 +1,4 @@
+
 export const en = {
   common: {
     save: "Save",
@@ -115,7 +116,27 @@ export const en = {
     vatValid: "VAT percentage must be between 0 and 100",
     timeEntries: "Time Entries",
     units: "units",
-    unit: "unit"
+    unit: "unit",
+    totalHours: "Total Hours",
+    hoursLogged: "Hours Logged",
+    totalEntries: "Total Entries",
+    durationQty: "Duration/Qty",
+    noTimeEntriesFound: "No time entries found",
+    client: "Client",
+    months: {
+      january: "January",
+      february: "February",
+      march: "March",
+      april: "April",
+      may: "May",
+      june: "June",
+      july: "July",
+      august: "August",
+      september: "September",
+      october: "October",
+      november: "November",
+      december: "December"
+    }
   },
   auth: {
     signIn: "Sign In",
@@ -178,7 +199,30 @@ export const en = {
     latestUpdates: "Latest Updates",
     addNewsPost: "Add News Post",
     noNewsAvailable: "No news available",
-    clickAddNewsPost: "Click 'Add News Post' to create a news post."
+    clickAddNewsPost: "Click 'Add News Post' to create a news post.",
+    myTimeJournal: "My Time Journal",
+    teamJournal: "Team Journal",
+    news: "News",
+    yourTimeRecords: "Your Time Records",
+    teamTimeRecords: "Team Time Records",
+    entries: "Entries",
+    addTimeEntry: "Add Time Entry",
+    saveTimeEntry: "Save Time Entry",
+    activitiesFor: "Activities for",
+    noTimeEntriesDesc: "No time entries found for selected period.",
+    trackTimeAndManageClients: "Track time, manage clients and create invoices in one place.",
+    timeEntries: "Time Entries",
+    timeEntriesDescription: "Track your time on client work",
+    clientsDescription: "Manage your client information",
+    productsDescription: "Configure your products and services",
+    invoicesDescription: "Create and manage your invoices",
+    quickStart: "Quick Start",
+    getStarted: "Get started with time tracking and invoicing",
+    startTracking: "Start Tracking",
+    manageClients: "Manage Clients",
+    createFirstInvoice: "Create First Invoice",
+    viewAllTimeEntries: "View All Time Entries",
+    filter: "Filter"
   },
   timeTracking: {
     title: "Time Tracking",
@@ -241,7 +285,11 @@ export const en = {
     quantityRequired: "Quantity is required for items",
     descriptionOptional: "Description (optional)",
     deleteTimeEntry: "Delete Time Entry",
-    deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone."
+    deleteConfirmation: "Are you sure you want to delete this time entry? This action cannot be undone.",
+    description: "Description",
+    activityItem: "Activity/Item",
+    saveTimeEntry: "Save Time Entry",
+    noTimeEntriesDesc: "No time entries found today."
   },
   clients: {
     title: "Clients",
@@ -278,7 +326,8 @@ export const en = {
     telephonePlaceholder: "+46 70 123 4567",
     emailPlaceholder: "contact@company.com",
     createClient: "Create Client",
-    updateClient: "Update Client"
+    updateClient: "Update Client",
+    selectClient: "Select Client"
   },
   products: {
     title: "Products",
@@ -361,7 +410,6 @@ export const en = {
     timeSpan: "Time Span",
     includeAll: "Include All",
     excluded: "excluded",
-    allInvoices: "All Invoices",
     viewDetails: "View Details"
   },
   reports: {
