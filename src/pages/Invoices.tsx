@@ -156,12 +156,13 @@ export default function Invoices() {
         .eq("client_id", selectedClient)
         .eq("invoiced", false);
       
+      // Use the same date filtering logic as Administration - always filter by created_at
       if (fromDate) {
-        query = query.or(`start_time.gte.${fromDate.toISOString()},and(start_time.is.null,created_at.gte.${fromDate.toISOString()})`);
+        query = query.gte("created_at", fromDate.toISOString());
       }
       
       if (toDate) {
-        query = query.or(`start_time.lte.${toDate.toISOString()},and(start_time.is.null,created_at.lte.${toDate.toISOString()})`);
+        query = query.lte("created_at", toDate.toISOString());
       }
       
       const { data: entriesData, error: entriesError } = await query;
@@ -403,9 +404,8 @@ export default function Invoices() {
   };
 
   const getEntryDate = (entry: TimeEntryWithProfile): string => {
-    if (entry.start_time) {
-      return format(parseISO(entry.start_time), 'yyyy-MM-dd');
-    } else if (entry.created_at) {
+    // Always use created_at for consistent date display, same as Administration
+    if (entry.created_at) {
       return format(parseISO(entry.created_at), 'yyyy-MM-dd');
     }
     return 'N/A';
