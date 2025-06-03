@@ -380,7 +380,6 @@ export default function Administration() {
                   onInvoiceDeleted={handleInvoiceDeleted}
                   onViewDetails={handleViewInvoiceDetails}
                   isCompact={isLaptop}
-                  isAdmin={true}
                 />
 
                 {!fortnoxConnected && (
