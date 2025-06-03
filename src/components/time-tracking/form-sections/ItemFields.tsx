@@ -9,14 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "react-i18next";
 
-interface ProductFieldsProps {
+interface ItemFieldsProps {
   form: any;
   loading: boolean;
   isCompact?: boolean;
   selectedProductPrice: number | null;
 }
 
-export function ProductFields({ form, loading, isCompact, selectedProductPrice }: ProductFieldsProps) {
+export function ItemFields({ form, loading, isCompact, selectedProductPrice }: ItemFieldsProps) {
   const { t } = useTranslation();
 
   return (
@@ -26,7 +26,7 @@ export function ProductFields({ form, loading, isCompact, selectedProductPrice }
         name="quantity"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t("common.quantity")}</FormLabel>
+            <FormLabel>{t("timeTracking.quantity")}</FormLabel>
             <FormControl>
               <Input 
                 type="number" 

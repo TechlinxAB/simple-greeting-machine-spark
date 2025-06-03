@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,7 +37,7 @@ const timeEntrySchema = z.object({
   if (product?.type === "activity") {
     return data.startTime !== undefined && data.endTime !== undefined;
   }
-  if (product?.type === "product") {
+  if (product?.type === "item") {
     return data.quantity !== undefined && data.quantity > 0;
   }
   return true;
@@ -113,7 +114,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         setProducts(productsData || []);
       } catch (error: any) {
         console.error("Error fetching data:", error.message);
-        toast.error(t("errors.somethingWentWrong"));
+        toast.error(t("error.somethingWentWrong"));
       }
     };
 
@@ -162,7 +163,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
 
   const onSubmit = async (values: TimeEntryFormValues) => {
     if (!user) {
-      toast.error(t("errors.unauthorized"));
+      toast.error(t("error.sessionExpired"));
       return;
     }
 
@@ -177,7 +178,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         toast.error(t("timeTracking.timeRequired"));
         return;
       }
-    } else if (product.type === "product") {
+    } else if (product.type === "item") {
       if (!values.quantity || values.quantity <= 0) {
         toast.error(t("timeTracking.quantityRequired"));
         return;
@@ -250,7 +251,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         console.log("- original_start_time:", timeEntryData.original_start_time);
         console.log("- original_end_time:", timeEntryData.original_end_time);
         console.log("- rounded_duration_minutes:", timeEntryData.rounded_duration_minutes);
-      } else if (product.type === "product" && values.quantity) {
+      } else if (product.type === "item" && values.quantity) {
         timeEntryData.quantity = values.quantity;
         timeEntryData.start_time = null;
         timeEntryData.end_time = null;
@@ -287,11 +288,11 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         form.setValue("quantity", undefined);
       }
 
-      toast.success(t("success.created"));
+      toast.success(t("timeTracking.timeEntryAdded"));
       onSuccess();
     } catch (error: any) {
       console.error("Error saving time entry:", error);
-      toast.error(error.message || t("errors.somethingWentWrong"));
+      toast.error(error.message || t("timeTracking.timeEntryFailure"));
     } finally {
       setIsLoading(false);
     }
@@ -354,7 +355,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
       );
     }
     
-    if (product.type === "product") {
+    if (product.type === "item") {
       return (
         <>
           <FormField
@@ -362,7 +363,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
             name="quantity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("common.quantity")}</FormLabel>
+                <FormLabel>{t("timeTracking.quantity")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -474,7 +475,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 </div>
                 
                 <div>
-                  <FormLabel>{t("timeTracking.activityProduct")}:</FormLabel>
+                  <FormLabel>{t("timeTracking.activityItem")}:</FormLabel>
                   <Select
                     value={selectedProductType}
                     onValueChange={setSelectedProductType}
@@ -484,7 +485,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="activity" className={compact ? "text-xs" : ""}>{t("products.activity")}</SelectItem>
-                      <SelectItem value="product" className={compact ? "text-xs" : ""}>{t("products.product")}</SelectItem>
+                      <SelectItem value="item" className={compact ? "text-xs" : ""}>{t("products.item")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -492,7 +493,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {watchClientId && (
                 <div>
-                  <FormLabel>{t("timeTracking.whatProduct")} {selectedProductType === "activity" ? t("products.activity").toLowerCase() : t("products.product").toLowerCase()}:</FormLabel>
+                  <FormLabel>{t("timeTracking.whatProduct")} {selectedProductType === "activity" ? t("products.activity").toLowerCase() : t("products.item").toLowerCase()}:</FormLabel>
                   <FormField
                     control={form.control}
                     name="productId"
@@ -522,7 +523,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                               <SelectValue placeholder={
                                 selectedProductType === "activity" 
                                   ? t("timeTracking.selectActivity") 
-                                  : t("timeTracking.selectProduct")
+                                  : t("timeTracking.selectItem")
                               } />
                             </SelectTrigger>
                             <SelectContent>
@@ -549,7 +550,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("common.description")}</FormLabel>
+                    <FormLabel>{t("timeTracking.description")}</FormLabel>
                     <FormControl>
                       <Textarea
                         ref={(el) => {
@@ -576,7 +577,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("common.save")}...
+                    {t("common.saving")}...
                   </>
                 ) : (
                   t("timeTracking.saveTimeEntry")

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -55,8 +54,8 @@ export default function Products() {
         // Transform the data to ensure it matches our Product type
         return (data || []).map(item => ({
           ...item,
-          // Convert "item" from database to "product" for consistency
-          type: item.type === 'item' ? 'product' : item.type as ProductType
+          // Make sure type is cast to ProductType
+          type: item.type as ProductType
         })) as Product[];
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -211,11 +210,11 @@ export default function Products() {
                 <span>{t("products.newActivity")}</span>
               </Button>
               <Button 
-                onClick={() => handleAddProduct("product")}
+                onClick={() => handleAddProduct("item")}
                 className="flex items-center gap-1"
               >
                 <Package className="h-4 w-4" />
-                <span>{t("products.newProduct")}</span>
+                <span>{t("products.newItem")}</span>
               </Button>
             </div>
           )}
@@ -230,16 +229,16 @@ export default function Products() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "activity" | "product")} className="mb-6">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "activity" | "item")} className="mb-6">
             <TabsList>
               <TabsTrigger value="all">{t("products.all")}</TabsTrigger>
               <TabsTrigger value="activity" className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 <span>{t("products.activities")}</span>
               </TabsTrigger>
-              <TabsTrigger value="product" className="flex items-center gap-1">
+              <TabsTrigger value="item" className="flex items-center gap-1">
                 <Package className="h-4 w-4" />
-                <span>{t("products.products")}</span>
+                <span>{t("products.items")}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -264,7 +263,7 @@ export default function Products() {
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={() => handleAddProduct("product")}
+                    onClick={() => handleAddProduct("item")}
                     className="flex items-center"
                   >
                     <Package className="mr-2 h-4 w-4" />
@@ -298,7 +297,7 @@ export default function Products() {
                           ) : (
                             <Package className="mr-1 h-3 w-3 inline" />
                           )}
-                          {t(product.type === "activity" ? "products.activity" : "products.product")}
+                          {t(product.type === "activity" ? "products.activity" : "products.item")}
                         </Badge>
                       </TableCell>
                       <TableCell>{product.price}</TableCell>

@@ -15,7 +15,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { ClientSelector } from "./form-sections/ClientSelector";
 import { ProductSelector } from "./form-sections/ProductSelector";
 import { ActivityFields } from "./form-sections/ActivityFields";
-import { ProductFields } from "./form-sections/ProductFields";
+import { ItemFields } from "./form-sections/ItemFields";
 import { useTimeEntrySubmit } from "@/hooks/useTimeEntrySubmit";
 
 interface TimeEntryEditFormProps {
@@ -125,8 +125,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
           />
         )}
         
-        {selectedProductType === "product" && (
-          <ProductFields 
+        {selectedProductType === "item" && (
+          <ItemFields 
             form={form} 
             loading={loading} 
             isCompact={compact} 

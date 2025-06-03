@@ -35,7 +35,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
     account_number: z.string().optional(),
     article_number: z.string().optional(),
     vat_percentage: z.coerce.number().min(0).max(100, { message: t("products.vatValid") }).default(25),
-    type: z.enum(["activity", "product"]),
+    type: z.enum(["activity", "item"]),
   });
 
   type FormValues = z.infer<typeof formSchema>;
@@ -77,7 +77,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
 
   const handleProductTypeChange = (value: string) => {
     setSelectedType(value as ProductType);
-    form.setValue("type", value as "activity" | "product");
+    form.setValue("type", value as "activity" | "item");
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -89,8 +89,7 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         account_number: values.account_number || null,
         article_number: values.article_number || null,
         vat_percentage: values.vat_percentage,
-        // Convert "product" back to "item" for database storage since the DB still uses "item"
-        type: values.type === 'product' ? 'item' : values.type,
+        type: values.type,
       };
 
       let error;
@@ -131,14 +130,14 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
         <DialogHeader>
           <DialogTitle>
             {isEditMode 
-              ? (selectedType === 'activity' ? t('products.editActivity') : t('products.editProduct'))
+              ? (selectedType === 'activity' ? t('products.editActivity') : t('products.editItem'))
               : t('products.createNewProduct')
             }
           </DialogTitle>
           <DialogDescription>
             {isEditMode 
-              ? `${t('common.edit')} ${selectedType === 'activity' ? t('products.activity').toLowerCase() : t('products.product').toLowerCase()}`
-              : (selectedType === 'activity' ? t('products.addNewServiceToAccount') : t('products.addNewProductToAccount'))
+              ? `${t('common.edit')} ${selectedType === 'activity' ? t('products.activity').toLowerCase() : t('products.item').toLowerCase()}`
+              : (selectedType === 'activity' ? t('products.addNewServiceToAccount') : t('products.addNewItemToAccount'))
             }
           </DialogDescription>
         </DialogHeader>
@@ -151,9 +150,9 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                     <Clock className="h-4 w-4" />
                     <span>{t('products.activity')}</span>
                   </div>
-                  <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'product' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                  <div className={`flex items-center gap-2 py-2 px-4 rounded-sm ${selectedType === 'item' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     <Package className="h-4 w-4" />
-                    <span>{t('products.product')}</span>
+                    <span>{t('products.item')}</span>
                   </div>
                 </div>
               ) : (
@@ -167,9 +166,9 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                       <Clock className="h-4 w-4" />
                       <span>{t('products.activity')}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="product" className="flex items-center gap-2">
+                    <TabsTrigger value="item" className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
-                      <span>{t('products.product')}</span>
+                      <span>{t('products.item')}</span>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -278,8 +277,8 @@ export function ProductForm({ open, onOpenChange, productType = "activity", prod
                 {isLoading 
                   ? (isEditMode ? t('common.updating') : t('common.creating'))
                   : (isEditMode 
-                      ? (selectedType === 'activity' ? t('products.updateActivity') : t('products.updateProduct'))
-                      : (selectedType === 'activity' ? t('products.createActivity') : t('products.createProduct'))
+                      ? (selectedType === 'activity' ? t('products.updateActivity') : t('products.updateItem'))
+                      : (selectedType === 'activity' ? t('products.createActivity') : t('products.createItem'))
                     )
                 }
               </Button>

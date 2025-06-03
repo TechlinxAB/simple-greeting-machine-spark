@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Invoice, TimeEntry } from '@/types';
@@ -80,8 +79,7 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
             ...entry,
             products: entry.products ? {
               ...entry.products,
-              // Convert "item" from database to "product" for consistency
-              type: entry.products.type === 'item' ? 'product' : entry.products.type as 'activity' | 'product'
+              type: entry.products.type as 'activity' | 'item'
             } : undefined,
             profiles: {
               name: userNamesMap[entry.user_id] || 'Unknown'
@@ -179,7 +177,7 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
   };
 
   const activityCount = timeEntries.filter(entry => entry.products?.type === 'activity').length;
-  const productCount = timeEntries.filter(entry => entry.products?.type === 'product').length;
+  const itemCount = timeEntries.filter(entry => entry.products?.type === 'item').length;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -252,8 +250,8 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                       <span className="text-muted-foreground">Activities:</span>
                       <span className="text-right">{activityCount}</span>
                       
-                      <span className="text-muted-foreground">Products:</span>
-                      <span className="text-right">{productCount}</span>
+                      <span className="text-muted-foreground">Items:</span>
+                      <span className="text-right">{itemCount}</span>
                     </div>
                     
                     <Separator className="my-2" />
@@ -279,7 +277,7 @@ export function InvoiceDetailsView({ invoice, open, onClose }: InvoiceDetailsVie
                 <FileText className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Time Entries</CardTitle>
               </div>
-              <CardDescription>Time entries and products included in this invoice</CardDescription>
+              <CardDescription>Time entries and items included in this invoice</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
