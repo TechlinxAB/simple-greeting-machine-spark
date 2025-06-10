@@ -493,7 +493,12 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
               
               {watchClientId && (
                 <div>
-                  <FormLabel>{t("timeTracking.whatProduct")} {selectedProductType === "activity" ? t("products.activity").toLowerCase() : t("products.item").toLowerCase()}:</FormLabel>
+                  <FormLabel>
+                    {selectedProductType === "activity" 
+                      ? t("timeTracking.whatActivity") 
+                      : t("timeTracking.whatProduct")
+                    }
+                  </FormLabel>
                   <FormField
                     control={form.control}
                     name="productId"
@@ -523,7 +528,7 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
                               <SelectValue placeholder={
                                 selectedProductType === "activity" 
                                   ? t("timeTracking.selectActivity") 
-                                  : t("timeTracking.selectItem")
+                                  : t("timeTracking.selectProduct")
                               } />
                             </SelectTrigger>
                             <SelectContent>
