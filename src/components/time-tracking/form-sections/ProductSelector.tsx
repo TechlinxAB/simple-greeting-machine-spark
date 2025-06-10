@@ -60,7 +60,7 @@ export function ProductSelector({
     if (filterByType === "activity") {
       return t("timeTracking.selectActivity");
     } else if (filterByType === "item") {
-      return t("timeTracking.selectItem");
+      return t("timeTracking.selectProduct");
     } else {
       return t("products.productOrActivity");
     }
@@ -90,7 +90,7 @@ export function ProductSelector({
                   filterByType === "activity" 
                     ? t("timeTracking.selectActivity") 
                     : filterByType === "item" 
-                      ? t("timeTracking.selectItem") 
+                      ? t("timeTracking.selectProduct") 
                       : t("products.selectAProduct")
                 } />
               </SelectTrigger>

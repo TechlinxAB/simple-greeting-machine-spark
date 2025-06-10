@@ -1,4 +1,3 @@
-
 export const en = {
   common: {
     save: "Save",
@@ -252,7 +251,9 @@ export const en = {
     pauseTimer: "Pause Timer",
     resumeTimer: "Resume Timer",
     selectClient: "Select Client",
+    selectAClient: "Select a client",
     selectProduct: "Select Product",
+    selectActivity: "Select Activity",
     addDescription: "Add Description",
     timeEntries: "Time Entries",
     duration: "Duration",
@@ -425,7 +426,9 @@ export const en = {
     addItem: "Add Item",
     newProduct: "New Product",
     defaultPrice: "Default Price",
-    customPrice: "Custom Price"
+    customPrice: "Custom Price",
+    selectAProduct: "Select a product",
+    productOrActivity: "Product or Activity"
   },
   invoices: {
     title: "Invoices",
