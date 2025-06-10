@@ -130,6 +130,9 @@ export const sv = {
     minutes: "Minuter",
     seconds: "Sekunder",
     viewAll: "Visa alla",
+    unknown: "Okänd",
+    updating: "Uppdaterar...",
+    creating: "Skapar...",
     months: {
       january: "Januari",
       february: "Februari",
@@ -321,7 +324,18 @@ export const sv = {
     whatActivity: "Vilken aktivitet?",
     fromTime: "Från tid",
     toTime: "Till tid",
-    enterDescription: "Ange beskrivning..."
+    enterDescription: "Ange beskrivning...",
+    activeTimer: "Aktiv timer",
+    timer: "Timer",
+    timerCompleted: "Timer slutförd",
+    timerCompletedQuestion: "Vad vill du göra med den slutförda timern?",
+    roundedFrom: "avrundat från",
+    deleteTimer: "Radera timer",
+    convertToTimeEntry: "Konvertera till tidsrapport",
+    noMatchingEntries: "Inga matchande poster hittades",
+    updateTimeEntry: "Uppdatera tidsrapport",
+    timeEntryAdded: "Tidsrapport tillagd framgångsrikt",
+    timeEntryFailure: "Misslyckades att lägga till tidsrapport"
   },
   clients: {
     title: "Kunder",
@@ -430,7 +444,8 @@ export const sv = {
     defaultPrice: "Standardpris",
     customPrice: "Anpassat pris",
     selectAProduct: "Välj en produkt",
-    productOrActivity: "Produkt eller aktivitet"
+    productOrActivity: "Produkt eller aktivitet",
+    unknownActivity: "Okänd aktivitet"
   },
   invoices: {
     title: "Fakturering",

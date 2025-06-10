@@ -130,6 +130,9 @@ export const en = {
     minutes: "Minutes",
     seconds: "Seconds",
     viewAll: "View All",
+    unknown: "Unknown",
+    updating: "Updating...",
+    creating: "Creating...",
     months: {
       january: "January",
       february: "February",
@@ -321,7 +324,18 @@ export const en = {
     whatActivity: "What activity?",
     fromTime: "From Time",
     toTime: "To Time",
-    enterDescription: "Enter description..."
+    enterDescription: "Enter description...",
+    activeTimer: "Active Timer",
+    timer: "Timer",
+    timerCompleted: "Timer Completed",
+    timerCompletedQuestion: "What would you like to do with the completed timer?",
+    roundedFrom: "rounded from",
+    deleteTimer: "Delete Timer",
+    convertToTimeEntry: "Convert to Time Entry",
+    noMatchingEntries: "No matching entries found",
+    updateTimeEntry: "Update Time Entry",
+    timeEntryAdded: "Time entry added successfully",
+    timeEntryFailure: "Failed to add time entry"
   },
   clients: {
     title: "Clients",
@@ -430,7 +444,8 @@ export const en = {
     defaultPrice: "Default Price",
     customPrice: "Custom Price",
     selectAProduct: "Select a product",
-    productOrActivity: "Product or Activity"
+    productOrActivity: "Product or Activity",
+    unknownActivity: "Unknown Activity"
   },
   invoices: {
     title: "Invoices",
