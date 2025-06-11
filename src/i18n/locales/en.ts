@@ -410,7 +410,8 @@ export const en = {
     city: "City",
     country: "Country",
     address: "Address",
-    createNewClient: "Create New Client"
+    createNewClient: "Create New Client",
+    county: "County"
   },
   products: {
     title: "Products",
@@ -616,7 +617,9 @@ export const en = {
     lastMonth: "Last Month",
     thisYear: "This Year",
     actions: "Actions",
-    entriesDeleted: "Entries deleted"
+    entriesDeleted: "Entries deleted",
+    hoursThisMonth: "Hours This Month",
+    revenueThisMonth: "Revenue This Month"
   },
   settings: {
     title: "Settings",

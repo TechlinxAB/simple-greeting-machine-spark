@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import {
   Table,
@@ -21,6 +22,7 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // Get all profiles as a fallback when the edge function fails
@@ -134,10 +136,10 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
           <Table isCompact={isCompact}>
             <TableHeader>
               <TableRow>
-                <TableHead isCompact={isCompact}>User</TableHead>
-                <TableHead isCompact={isCompact}>Role</TableHead>
-                <TableHead isCompact={isCompact}>Hours This Month</TableHead>
-                <TableHead isCompact={isCompact}>Revenue This Month</TableHead>
+                <TableHead isCompact={isCompact}>{t('common.user')}</TableHead>
+                <TableHead isCompact={isCompact}>{t('common.role')}</TableHead>
+                <TableHead isCompact={isCompact}>{t('administration.hoursThisMonth')}</TableHead>
+                <TableHead isCompact={isCompact}>{t('administration.revenueThisMonth')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,7 +153,7 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
                     <TableCell isCompact={isCompact} className="font-medium">
                       <div className="flex items-center gap-2">
                         <Avatar className={isCompact ? "h-6 w-6" : "h-8 w-8"}>
-                          <AvatarImage src={user.avatar_url || ""} alt={user.name || "User"} />
+                          <AvatarImage src={user.avatar_url || ""} alt={user.name || t('common.user')} />
                           <AvatarFallback className="bg-primary/10">
                             {(user.name?.charAt(0) || "U").toUpperCase()}
                           </AvatarFallback>
@@ -171,14 +173,14 @@ export function UsersTable({ searchTerm = '', isCompact }: UsersTableProps) {
                         {user.role}
                       </span>
                     </TableCell>
-                    <TableCell isCompact={isCompact}>{getUserHours(user.id)} h</TableCell>
+                    <TableCell isCompact={isCompact}>{getUserHours(user.id)} {t('common.hours').charAt(0).toLowerCase()}</TableCell>
                     <TableCell isCompact={isCompact}>{getUserRevenue(user.id)} SEK</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    {searchTerm ? "No users match your search." : "No users found."}
+                    {searchTerm ? t('administration.noUsers').replace('No users found', 'No users match your search') : t('administration.noUsers')}
                   </TableCell>
                 </TableRow>
               )}
