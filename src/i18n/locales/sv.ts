@@ -1,4 +1,3 @@
-
 export const sv = {
   common: {
     save: "Spara",
@@ -155,6 +154,8 @@ export const sv = {
     year: "År",
     activity: "Tjänst",
     item: "Objekt",
+    Activity: "Tjänst",
+    Item: "Objekt",
     months: {
       january: "Januari",
       february: "Februari",
@@ -357,7 +358,9 @@ export const sv = {
     noMatchingEntries: "Inga matchande poster hittades",
     updateTimeEntry: "Uppdatera tidsregistrering",
     timeEntryAdded: "Tidsregistrering tillagd framgångsrikt",
-    timeEntryFailure: "Misslyckades att lägga till tidsregistrering"
+    timeEntryFailure: "Misslyckades att lägga till tidsregistrering",
+    editTimeEntry: "Redigera tidsregistrering",
+    editTimeEntryDesc: "Gör ändringar i tidsregistreringen nedan."
   },
   clients: {
     title: "Kunder",
