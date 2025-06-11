@@ -1,4 +1,3 @@
-
 export const en = {
   common: {
     save: "Save",
@@ -133,6 +132,24 @@ export const en = {
     unknown: "Unknown",
     updating: "Updating...",
     creating: "Creating...",
+    invoiceDetails: "Invoice Details",
+    viewDetails: "View details of this invoice and related time entries",
+    invoiceInformation: "Invoice Information",
+    detailsAboutInvoice: "Details about this invoice",
+    invoiceNumber: "Invoice Number",
+    fortnoxInvoiceId: "Fortnox Invoice ID",
+    issueDate: "Issue Date",
+    dueDate: "Due Date",
+    totalAmount: "Total Amount",
+    summary: "Summary",
+    invoiceLineItemsSummary: "Invoice line items summary",
+    activities: "Activities",
+    items: "Items",
+    timeEntriesIncluded: "Time entries and items included in this invoice",
+    noTimeEntriesForInvoice: "No time entries found for this invoice",
+    uploadPicture: "Upload Picture",
+    removePicture: "Remove Picture",
+    lastLogin: "Last Login",
     months: {
       january: "January",
       february: "February",

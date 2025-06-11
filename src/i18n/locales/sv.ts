@@ -1,4 +1,3 @@
-
 export const sv = {
   common: {
     save: "Spara",
@@ -133,6 +132,24 @@ export const sv = {
     unknown: "Okänd",
     updating: "Uppdaterar...",
     creating: "Skapar...",
+    invoiceDetails: "Fakturauppgifter",
+    viewDetails: "Visa detaljer om denna faktura och relaterade tidsrapporter",
+    invoiceInformation: "Fakturainformation",
+    detailsAboutInvoice: "Detaljer om denna faktura",
+    invoiceNumber: "Fakturanummer",
+    fortnoxInvoiceId: "Fortnox faktura-ID",
+    issueDate: "Utfärdandedatum",
+    dueDate: "Förfallodag",
+    totalAmount: "Totalt belopp",
+    summary: "Sammanfattning",
+    invoiceLineItemsSummary: "Sammanfattning av fakturaraderna",
+    activities: "Aktiviteter",
+    items: "Produkter",
+    timeEntriesIncluded: "Tidsrapporter och produkter inkluderade i denna faktura",
+    noTimeEntriesForInvoice: "Inga tidsrapporter hittades för denna faktura",
+    uploadPicture: "Ladda upp bild",
+    removePicture: "Ta bort bild",
+    lastLogin: "Senaste inloggning",
     months: {
       january: "Januari",
       february: "Februari",
