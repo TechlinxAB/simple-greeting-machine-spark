@@ -150,6 +150,8 @@ export const en = {
     uploadPicture: "Upload Picture",
     removePicture: "Remove Picture",
     lastLogin: "Last Login",
+    month: "Month",
+    year: "Year",
     months: {
       january: "January",
       february: "February",
@@ -402,7 +404,13 @@ export const en = {
     clientContact: "Contact Information",
     client: "Client",
     name: "Name",
-    actions: "Actions"
+    actions: "Actions",
+    email: "Email",
+    postalCode: "Postal Code",
+    city: "City",
+    country: "Country",
+    address: "Address",
+    createNewClient: "Create New Client"
   },
   products: {
     title: "Products",
@@ -538,7 +546,8 @@ export const en = {
     weeklyTrend: "Weekly Trend",
     dailyTrend: "Daily Trend",
     from: "From",
-    to: "To"
+    to: "To",
+    noDataAvailable: "No data available"
   },
   administration: {
     title: "Administration",
