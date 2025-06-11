@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -14,15 +15,12 @@ import { format, startOfMonth, endOfMonth, setMonth, setYear } from "date-fns";
 import { toast } from "sonner";
 import { isFortnoxConnected } from "@/integrations/fortnox";
 import { TimeEntriesTable } from "@/components/administration/TimeEntriesTable";
-import { InvoicesTable } from "@/components/administration/InvoicesTable";
 import { createFortnoxInvoice } from "@/integrations/fortnox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { type Invoice } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteTimeEntry } from "@/lib/deleteTimeEntry";
-import { InvoiceDetailsView } from "@/components/administration/InvoiceDetailsView";
 import { ClientSelect } from "@/components/administration/ClientSelect";
 import { UserSelect } from "@/components/administration/UserSelect";
 import { AllTimeToggle } from "@/components/administration/AllTimeToggle";
@@ -35,7 +33,6 @@ export default function Administration() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>("time-entries");
   const [searchTerm, setSearchTerm] = useState("");
-  const [exportingInvoiceId, setExportingInvoiceId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<string>("all-clients");
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [isAllTime, setIsAllTime] = useState(false);
@@ -47,8 +44,6 @@ export default function Administration() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [timeEntryToDelete, setTimeEntryToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const { role } = useAuth();
@@ -56,35 +51,6 @@ export default function Administration() {
 
   const fromDate = isAllTime ? undefined : startOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
   const toDate = isAllTime ? undefined : endOfMonth(setYear(setMonth(new Date(), selectedMonth), selectedYear));
-
-  const { data: invoicesData = [], isLoading: isLoadingInvoices, refetch: refetchInvoices } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select(`
-          id,
-          client_id,
-          invoice_number,
-          status,
-          issue_date,
-          due_date,
-          total_amount,
-          exported_to_fortnox,
-          fortnox_invoice_id,
-          clients:client_id (id, name)
-        `)
-        .order("issue_date", { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const invoices: Invoice[] = invoicesData.map(invoice => ({
-    ...invoice,
-    client_id: invoice.client_id
-  }));
 
   const { data: fortnoxConnected = false } = useQuery({
     queryKey: ["fortnox-connected"],
@@ -132,7 +98,6 @@ export default function Administration() {
       
       setIsCreatingInvoice(false);
       setSelectedClient("all-clients");
-      refetchInvoices();
     } catch (error) {
       console.error("Error creating invoice:", error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -151,44 +116,6 @@ export default function Administration() {
       setProcessingStatus("");
     }
   };
-
-  const handleExportToFortnox = async (invoiceId: string) => {
-    setExportingInvoiceId(invoiceId);
-    
-    try {
-      const { error } = await supabase
-        .from("invoices")
-        .update({ exported_to_fortnox: true })
-        .eq("id", invoiceId);
-        
-      if (error) throw error;
-      
-      toast.success("Invoice exported to Fortnox successfully");
-      refetchInvoices();
-    } catch (error) {
-      console.error("Error exporting invoice to Fortnox:", error);
-      toast.error("Failed to export invoice to Fortnox");
-    } finally {
-      setExportingInvoiceId(null);
-    }
-  };
-
-  const handleInvoiceDeleted = () => {
-    refetchInvoices();
-  };
-
-  const handleViewInvoiceDetails = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setIsDetailsOpen(true);
-  };
-
-  const filteredInvoices = searchTerm
-    ? invoices.filter(invoice => 
-        invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.clients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.status.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : invoices;
 
   const refetchTimeEntries = () => {
     // This function is a placeholder since the TimeEntriesTable
@@ -236,11 +163,9 @@ export default function Administration() {
             <Search className={`absolute left-2.5 top-2.5 ${isLaptop ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-muted-foreground`} />
             <input
               placeholder={
-                activeTab === "invoices" 
-                  ? t('common.searchInvoices')
-                  : activeTab === "users" 
-                    ? t('common.searchUsers')
-                    : t('common.searchTimeEntries')
+                activeTab === "users" 
+                  ? t('common.searchUsers')
+                  : t('common.searchTimeEntries')
               }
               className={`pl-8 ${isLaptop ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               value={searchTerm}
@@ -258,12 +183,6 @@ export default function Administration() {
               className="inline-flex items-center justify-center whitespace-nowrap px-6 py-2 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
             >
               {t('common.timeEntries')}
-            </TabsTrigger>
-            <TabsTrigger 
-              value="invoices"
-              className="inline-flex items-center justify-center whitespace-nowrap px-6 py-2 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
-            >
-              {t('common.invoices')}
             </TabsTrigger>
             <TabsTrigger 
               value="users"
@@ -368,34 +287,6 @@ export default function Administration() {
               </div>
             </TabsContent>
             
-            <TabsContent value="invoices" className="m-0">
-              <div className={isLaptop ? "p-3" : "p-6"}>
-                <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
-                  <h2 className={isLaptop ? "text-lg font-bold" : "text-xl font-bold"}>{t('common.invoices')}</h2>
-                </div>
-                
-                <InvoicesTable
-                  invoices={filteredInvoices}
-                  isLoading={isLoadingInvoices}
-                  onInvoiceDeleted={handleInvoiceDeleted}
-                  onViewDetails={handleViewInvoiceDetails}
-                  isCompact={isLaptop}
-                />
-
-                {!fortnoxConnected && (
-                  <div className={`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md ${isLaptop ? 'text-xs' : 'text-sm'}`}>
-                    <p className="text-yellow-800">
-                      Fortnox integration is not connected. {
-                        role === 'admin' 
-                          ? <span>Go to <a href="/settings?tab=fortnox" className="text-blue-600 underline">Settings</a> to connect your Fortnox account.</span>
-                          : <span>Please ask an administrator to connect Fortnox integration in Settings.</span>
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-            
             <TabsContent value="users" className="m-0">
               <div className={isLaptop ? "p-3" : "p-6"}>
                 <div className={`flex justify-between items-center ${isLaptop ? 'mb-4' : 'mb-6'}`}>
@@ -477,14 +368,6 @@ export default function Administration() {
         onAction={handleDeleteTimeEntry}
         variant="destructive"
       />
-
-      {selectedInvoice && (
-        <InvoiceDetailsView 
-          invoice={selectedInvoice} 
-          open={isDetailsOpen} 
-          onClose={() => setIsDetailsOpen(false)} 
-        />
-      )}
     </div>
   );
 }
