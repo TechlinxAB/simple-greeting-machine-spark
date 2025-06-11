@@ -152,6 +152,8 @@ export const en = {
     lastLogin: "Last Login",
     month: "Month",
     year: "Year",
+    activity: "Activity",
+    item: "Item",
     months: {
       january: "January",
       february: "February",

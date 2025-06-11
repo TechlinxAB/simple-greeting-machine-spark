@@ -1,4 +1,3 @@
-
 export const sv = {
   common: {
     save: "Spara",
@@ -153,6 +152,8 @@ export const sv = {
     lastLogin: "Senaste inloggning",
     month: "Månad",
     year: "År",
+    activity: "Aktivitet",
+    item: "Objekt",
     months: {
       january: "Januari",
       february: "Februari",
