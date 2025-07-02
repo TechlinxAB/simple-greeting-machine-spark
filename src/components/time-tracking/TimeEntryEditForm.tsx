@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +22,26 @@ interface TimeEntryEditFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   isCompact?: boolean;
+}
+
+// Helper function to extract time from ISO string without timezone conversion
+function extractTimeFromISOString(isoString: string | null): string | undefined {
+  if (!isoString) return undefined;
+  
+  try {
+    // Extract the time portion directly from the ISO string (YYYY-MM-DDTHH:MM:SS format)
+    // This avoids timezone conversion issues
+    const timePart = isoString.split('T')[1];
+    if (timePart) {
+      const timeOnly = timePart.split(':').slice(0, 2).join(':'); // Get HH:MM
+      console.log(`Extracted time from ${isoString}: ${timeOnly}`);
+      return timeOnly;
+    }
+  } catch (error) {
+    console.error("Error extracting time from ISO string:", error);
+  }
+  
+  return undefined;
 }
 
 export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }: TimeEntryEditFormProps) {
@@ -49,11 +68,19 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
 
   type FormValues = z.infer<typeof formSchema>;
 
-  // Use the original times for display if available, otherwise fall back to rounded times
+  // Extract times directly from the stored ISO strings to avoid timezone conversion
   const displayStartTime = timeEntry?.original_start_time || timeEntry?.start_time;
   const displayEndTime = timeEntry?.original_end_time || timeEntry?.end_time;
   
-  console.log("Form initialization with start:", displayStartTime, "end:", displayEndTime);
+  console.log("TimeEntryEditForm - Raw start time:", displayStartTime);
+  console.log("TimeEntryEditForm - Raw end time:", displayEndTime);
+  
+  // Extract time strings without timezone conversion
+  const extractedStartTime = extractTimeFromISOString(displayStartTime);
+  const extractedEndTime = extractTimeFromISOString(displayEndTime);
+  
+  console.log("TimeEntryEditForm - Extracted start time:", extractedStartTime);
+  console.log("TimeEntryEditForm - Extracted end time:", extractedEndTime);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -62,12 +89,8 @@ export function TimeEntryEditForm({ timeEntry, onSuccess, onCancel, isCompact }:
       productId: timeEntry?.product_id || "",
       description: timeEntry?.description || "",
       quantity: timeEntry?.quantity || undefined,
-      startTime: displayStartTime 
-        ? format(new Date(displayStartTime), "HH:mm") 
-        : undefined,
-      endTime: displayEndTime 
-        ? format(new Date(displayEndTime), "HH:mm") 
-        : undefined,
+      startTime: extractedStartTime,
+      endTime: extractedEndTime,
       customPrice: timeEntry?.custom_price || null,
       productType: timeEntry?.products?.type || null
     },
