@@ -403,6 +403,7 @@ export const sv = {
     createClient: "Skapa kund",
     updateClient: "Uppdatera kund",
     selectClient: "Välj kund",
+    allClients: "Alla kunder",
     unknownClient: "Okänd kund",
     clientList: "Kundlista",
     manageClients: "Hantera kunder",

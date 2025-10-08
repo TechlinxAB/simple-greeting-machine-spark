@@ -397,6 +397,7 @@ export const en = {
     createClient: "Create Client",
     updateClient: "Update Client",
     selectClient: "Select Client",
+    allClients: "All Clients",
     unknownClient: "Unknown Client",
     clientList: "Client List",
     manageClients: "Manage Clients",
