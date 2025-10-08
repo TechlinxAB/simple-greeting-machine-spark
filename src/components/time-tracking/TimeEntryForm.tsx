@@ -288,7 +288,6 @@ export function TimeEntryForm({ selectedDate, onSuccess, isCompact }: TimeEntryF
         form.setValue("quantity", undefined);
       }
 
-      toast.success(t("timeTracking.timeEntryAdded"));
       onSuccess();
     } catch (error: any) {
       console.error("Error saving time entry:", error);

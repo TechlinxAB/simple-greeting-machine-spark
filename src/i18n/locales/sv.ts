@@ -1,6 +1,7 @@
 export const sv = {
   common: {
     save: "Spara",
+    saving: "Sparar...",
     cancel: "Avbryt",
     delete: "Ta bort",
     edit: "Redigera",
