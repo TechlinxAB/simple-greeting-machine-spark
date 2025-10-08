@@ -179,8 +179,7 @@ export function useTimeEntrySubmit({
       
       console.log("useTimeEntrySubmit - Update successful");
       
-      toast.success("Time entry updated successfully");
-      onSuccess(); 
+      onSuccess();
     } catch (error: any) {
       console.error("useTimeEntrySubmit - Error updating time entry:", error);
       toast.error(error.message || "Failed to update time entry");

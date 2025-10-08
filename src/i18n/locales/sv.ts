@@ -198,7 +198,8 @@ export const sv = {
     selectLanguage: "Välj språk",
     signingIn: "Loggar in...",
     signInDescription: "Logga in på ditt konto för att komma åt tidsregistrering och fakturering.",
-    createAccountTitle: "Skapa konto"
+    createAccountTitle: "Skapa konto",
+    logout: "Logga ut"
   },
   navigation: {
     dashboard: "Instrumentpanel",
@@ -417,7 +418,8 @@ export const sv = {
     country: "Land",
     address: "Adress",
     createNewClient: "Skapa ny kund",
-    county: "Län"
+    county: "Län",
+    addNewClientToAccount: "Lägg till ny kund till konto"
   },
   products: {
     title: "Produkter",
@@ -477,7 +479,8 @@ export const sv = {
     customPrice: "Anpassat pris",
     selectAProduct: "Välj en produkt",
     productOrActivity: "Produkt eller tjänst",
-    unknownActivity: "Okänd tjänst"
+    unknownActivity: "Okänd tjänst",
+    selectType: "Välj typ"
   },
   invoices: {
     title: "Fakturor",
@@ -526,7 +529,11 @@ export const sv = {
     refresh: "Uppdatera",
     invoiced: "Fakturerad",
     from: "Från",
-    to: "Till"
+    to: "Till",
+    invoicedWarningTitle: "Varning för fakturerad post",
+    invoicedWarningDesc1: "Denna tidsregistrering har redan fakturerats.",
+    invoicedWarningDesc2: "Att ta bort den kan orsaka inkonsekvenser med dina fakturor.",
+    deleteAnyway: "Ta bort ändå"
   },
   reports: {
     title: "Rapporter",
@@ -732,7 +739,8 @@ export const sv = {
     somethingWentWrong: "Något gick fel",
     goHome: "Gå hem",
     pageNotFound: "Sidan hittades inte",
-    loadingFailed: "Laddning misslyckades"
+    loadingFailed: "Laddning misslyckades",
+    sessionExpired: "Din session har löpt ut. Vänligen logga in igen."
   },
   success: {
     saved: "Sparat framgångsrikt",
