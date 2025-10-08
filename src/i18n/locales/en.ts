@@ -322,6 +322,7 @@ export const en = {
     unit: "unit",
     actualDuration: "Actual Duration",
     billingDuration: "Billing Duration",
+    quantity: "Quantity",
     quantityPlaceholder: "Enter quantity",
     descriptionPlaceholder: "Describe the work or product",
     clientRequired: "Client is required",

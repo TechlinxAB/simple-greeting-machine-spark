@@ -326,6 +326,7 @@ export const sv = {
     unit: "enhet",
     actualDuration: "Faktisk varaktighet",
     billingDuration: "Faktureringsvaraktighet",
+    quantity: "Antal",
     quantityPlaceholder: "Ange antal",
     descriptionPlaceholder: "Beskriv arbetet eller produkten",
     clientRequired: "Kund krävs",
